@@ -50,12 +50,6 @@ GNX_mods/
 
 ---
 
-## What Changed
-
-This repo contains only the 25 GML files GNX modifies. See [`compare/v1.33-vanilla...main`](../../compare/v1.33-vanilla...main) for the exact diff against the unmodified 1.33 source.
-
----
-
 ## Compatibility
 
 GNX targets game version **1.33**. Mods declare which versions they support in `manifest.json` — a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
