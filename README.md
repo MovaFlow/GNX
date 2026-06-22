@@ -12,7 +12,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom captive clas
 
 1. Install [G3M](https://github.com/y114git/G3M).
 2. Add Goblin Nest as a custom game in G3M.
-3. Download **[Goblin Nest eXtender (GNX).zip](Goblin%20Nest%20eXtender%20_GNX_.zip)** and add it as a mod for Goblin Nest in G3M.
+3. Download **[Goblin Nest eXtender (GNX).zip](Goblin%20Nest%20eXtender%20_GNX_x.x.x.zip)** and add it as a mod for Goblin Nest in G3M.
 4. Activate it and launch from G3M.
 
 On first boot, `gnx_debug.txt` is written to `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt`. It should end with `[GNX-TEST] N/N passed`.
@@ -53,3 +53,15 @@ GNX_mods/
 ## Compatibility
 
 GNX targets game version **1.33**. Mods declare which versions they support in `manifest.json` — a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
+
+---
+
+## Development
+
+If you want to look at the code, just unpack the mod, the gml files are in there.
+The diffs are on the github under GNX\diffs for all modified files.
+
+---
+
+## Credit
+All credit goes to @BadColor for making this game.
