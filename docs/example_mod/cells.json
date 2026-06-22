@@ -1,0 +1,347 @@
+[
+  {
+    "_note": "NEW CELL — omit h_type to let GNX hash-assign a stable ID (>=100). Or supply an explicit value >=43. Vanilla uses 0-42.",
+
+    "name": "RITUAL",
+
+    "_note_category": "Determines which tab this appears in: breed / utility / pleasure",
+    "category": "breed",
+
+    "_note_mon_types": "Which goblin species can occupy this cell: 0=goblin, 1=hobgoblin, 2=ogre",
+    "mon_types": [0],
+
+    "_note_slot_type": "0=standard wall slot, 2=large cell, 3=tent",
+    "slot_type": 0,
+
+    "price": 300,
+
+    "spawn_info": {
+      "_note": "Income produced per cycle. coin/mood multiplied by upgrades if *_mul=true.",
+      "coin": 2,
+      "mood": 1,
+      "coin_mul": false,
+      "mood_mul": false
+    },
+
+    "physical": {
+      "_note": "Gameplay properties. scr_draw must be scr_draw_slot_gnx for all GNX cells.",
+
+      "allow_preg": true,
+      "max_mon_num": 1,
+      "anal": false,
+      "slot_dirt_init": 0,
+      "character_row": 0,
+
+      "_note_layers": "Rendering layers. Each: [layer_type, sprite, animated, shift_index, opt_flag]. See GNX_MODDING.md §7.",
+      "layers": [
+        [12, "spr_dirt_wall",         false, -1, false],
+        [0,  "gnx:wall",              false, -1],
+        [2,  "gnx:handc",             true,  -1],
+        [5,  "gnx:extra",             false, -1],
+        [7,  -1,                      false, -1, false],
+        [8,  -1,                      false, -1, false]
+      ],
+
+      "_note_scr_idle": "State machine script for the idle (unoccupied) state.",
+      "scr_idle": "scr_slot_h_state_idle",
+
+      "_note_scr_h": "7 scripts for the 7 h-scene phases: start, wait, slow-loop, fast-loop, wait, ejaculation, wait.",
+      "scr_h": [
+        "scr_slot_h_base_start",
+        "scr_slot_h_base_wait",
+        "scr_slot_h_base_sloop",
+        "scr_slot_h_base_floop",
+        "scr_slot_h_base_wait",
+        "scr_slot_h_base_ej",
+        "scr_slot_h_base_wait"
+      ],
+
+      "scr_draw": "scr_draw_slot_gnx",
+      "slot_range": 1,
+
+      "_note_required_class": "Optional. Restrict this cell to specific class_ids. Omit to allow all classes.",
+      "required_class": [14],
+
+      "_note_extensions": "GNX-only fields. Omit range_draw_func/scr_unoccupy if not needed.",
+      "range_draw_func": "scr_draw_l_shrine_range",
+      "scr_unoccupy": "scr_gnx_unoccupy_log",
+
+      "_note_hand": "Hand sprite positioning. Two-element arrays: [leg_variant_1, leg_variant_2].",
+      "hand_x":      [17,  6],
+      "hand_y":      [-42, -40],
+      "hand_xscale": [1,   1],
+      "hand_angle":  [90,  0],
+
+      "_note_hand_frames": "Which animation frame indices trigger each hand pose.",
+      "hand_frames": {
+        "frame_1": [1],
+        "frame_2": [2, 3],
+        "frame_3": [2, 3]
+      },
+
+      "_note_vfx": "Squirt and splash VFX positions. sp_spr = splash sprite name.",
+      "sp_spr": "spr_sp_v_start",
+      "sq_x": 22, "sq_y": [-31, -30],
+      "sp_x": 22, "sp_y": [-28, -33],
+      "sp_anim_x": 0, "sp_anim_y": -1
+    },
+
+    "_note_human_spr": "How the human character renders. mode base+class = standard body + class clothing on top.",
+    "human_spr": {
+      "mode": "base+class",
+      "base_body": "standard"
+    },
+
+    "_note_mon_spr": "Goblin sprite assignment per animation phase. Every alpha sprite needs a matching line sprite.",
+    "mon_spr": {
+      "start": {
+        "_note": "Start phase sprites. body/hand have leg-variant versions.",
+        "body": {
+          "leg_1": { "alpha": "gnx:body_start_v1",  "line": "gnx:body_start_v1_l" },
+          "leg_2": { "alpha": "gnx:body_start_v2",  "line": "gnx:body_start_v2_l" }
+        },
+        "hand": {
+          "alpha": "gnx:hand_start",
+          "line":  "gnx:hand_start_l"
+        },
+        "pen": "gnx:pen_start",
+        "touch": {
+          "default": "gnx:touch_start"
+        },
+        "_note_hand_xscale": "random = mirror randomly per encounter. 1 = always normal. -1 = always mirrored.",
+        "hand_xscale": "random"
+      },
+      "loop": {
+        "_note": "Loop phase sprites.",
+        "_note_head": "head is an array — multiple variants are chosen randomly per encounter.",
+        "head": [
+          { "alpha": "gnx:head_loop_1", "line": "gnx:head_loop_1_l" },
+          { "alpha": "gnx:head_loop_2", "line": "gnx:head_loop_2_l" }
+        ],
+        "body": {
+          "leg_1": { "alpha": "gnx:body_loop_v1", "line": "gnx:body_loop_v1_l" },
+          "leg_2": { "alpha": "gnx:body_loop_v2", "line": "gnx:body_loop_v2_l" }
+        },
+        "hand": {
+          "leg_1": { "alpha": "gnx:hand_loop_v1", "line": "gnx:hand_loop_v1_l" },
+          "leg_2": { "alpha": "gnx:hand_loop_v2", "line": "gnx:hand_loop_v2_l" }
+        },
+        "pen": "gnx:pen_loop",
+        "touch": {
+          "default": "gnx:touch_loop"
+        },
+        "enter": {
+          "default": "gnx:enter_loop"
+        }
+      }
+    },
+
+    "_note_sprites": "Sprite strip declarations for this cell. Keys referenced via gnx: in mon_spr and physical.layers.",
+    "sprites": {
+      "_note_cell_bg": "Cell background / slot sprites.",
+      "wall": {
+        "strip": "strips/spr_slot_ritual_wall.png",
+        "frames": 2,
+        "xorig": 0,
+        "yorig": 75,
+        "folder": "spr_slot_ritual_wall"
+      },
+      "handc": {
+        "strip": "strips/spr_slot_ritual_handc.png",
+        "frames": 2,
+        "xorig": 0,
+        "yorig": 66,
+        "folder": "spr_slot_ritual_handc"
+      },
+      "extra": {
+        "strip": "strips/spr_slot_ritual_extra.png",
+        "frames": 2,
+        "xorig": 0,
+        "yorig": 66,
+        "folder": "spr_slot_ritual_extra"
+      },
+
+      "_note_goblin_start": "Goblin start-phase sprites. 30 frames = 3 species x 10 frames.",
+      "body_start_v1": {
+        "strip": "strips/spr_h_goblin_ritual_start_v1_alpha.png",
+        "frames": 30,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_start_v1_alpha"
+      },
+      "body_start_v1_l": {
+        "strip": "strips/spr_h_goblin_ritual_start_v1_line.png",
+        "frames": 30,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_start_v1_line"
+      },
+      "body_start_v2": {
+        "strip": "strips/spr_h_goblin_ritual_start_v2_alpha.png",
+        "frames": 30,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_start_v2_alpha"
+      },
+      "body_start_v2_l": {
+        "strip": "strips/spr_h_goblin_ritual_start_v2_line.png",
+        "frames": 30,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_start_v2_line"
+      },
+      "hand_start": {
+        "strip": "strips/spr_h_goblin_ritual_hand_start_alpha.png",
+        "frames": 30,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_hand_start_alpha"
+      },
+      "hand_start_l": {
+        "strip": "strips/spr_h_goblin_ritual_hand_start_line.png",
+        "frames": 30,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_hand_start_line"
+      },
+      "pen_start": {
+        "strip": "strips/spr_h_goblin_ritual_pen_start.png",
+        "frames": 30,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_pen_start"
+      },
+      "touch_start": {
+        "strip": "strips/spr_h_goblin_ritual_touch_start.png",
+        "frames": 90,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_touch_start"
+      },
+
+      "_note_goblin_loop": "Goblin loop-phase sprites. 75 frames = 3 species x 25 frames.",
+      "head_loop_1": {
+        "strip": "strips/spr_h_goblin_ritual_head_loop_1_alpha.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_head_loop_1_alpha"
+      },
+      "head_loop_1_l": {
+        "strip": "strips/spr_h_goblin_ritual_head_loop_1_line.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_head_loop_1_line"
+      },
+      "head_loop_2": {
+        "strip": "strips/spr_h_goblin_ritual_head_loop_2_alpha.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_head_loop_2_alpha"
+      },
+      "head_loop_2_l": {
+        "strip": "strips/spr_h_goblin_ritual_head_loop_2_line.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_head_loop_2_line"
+      },
+      "body_loop_v1": {
+        "strip": "strips/spr_h_goblin_ritual_body_loop_v1_alpha.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_body_loop_v1_alpha"
+      },
+      "body_loop_v1_l": {
+        "strip": "strips/spr_h_goblin_ritual_body_loop_v1_line.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_body_loop_v1_line"
+      },
+      "body_loop_v2": {
+        "strip": "strips/spr_h_goblin_ritual_body_loop_v2_alpha.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_body_loop_v2_alpha"
+      },
+      "body_loop_v2_l": {
+        "strip": "strips/spr_h_goblin_ritual_body_loop_v2_line.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_body_loop_v2_line"
+      },
+      "hand_loop_v1": {
+        "strip": "strips/spr_h_goblin_ritual_hand_loop_v1_alpha.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_hand_loop_v1_alpha"
+      },
+      "hand_loop_v1_l": {
+        "strip": "strips/spr_h_goblin_ritual_hand_loop_v1_line.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_hand_loop_v1_line"
+      },
+      "hand_loop_v2": {
+        "strip": "strips/spr_h_goblin_ritual_hand_loop_v2_alpha.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_hand_loop_v2_alpha"
+      },
+      "hand_loop_v2_l": {
+        "strip": "strips/spr_h_goblin_ritual_hand_loop_v2_line.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_hand_loop_v2_line"
+      },
+      "pen_loop": {
+        "strip": "strips/spr_h_goblin_ritual_pen_loop.png",
+        "frames": 75,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_pen_loop"
+      },
+      "touch_loop": {
+        "strip": "strips/spr_h_goblin_ritual_touch_loop.png",
+        "frames": 225,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_touch_loop"
+      },
+      "enter_loop": {
+        "strip": "strips/spr_h_goblin_ritual_enter_loop.png",
+        "frames": 225,
+        "xorig": 0,
+        "yorig": 90,
+        "folder": "spr_h_goblin_ritual_enter_loop"
+      }
+    }
+  },
+
+  {
+    "_note": "VANILLA PATCH — h_type 1 = vanilla WALL 2. Only fields specified here are overridden; everything else stays vanilla.",
+    "h_type": 1,
+
+    "_note_use_case": "Use this to swap background sprites on a vanilla cell without changing gameplay.",
+    "physical": {
+      "layers": [
+        [12, "spr_dirt_wall",          false, -1, false],
+        [0,  "spr_slot_wall_2_back",   false, -1],
+        [2,  "spr_slot_wall_1_handc",  true,  -1],
+        [5,  "spr_slot_wall_1_extra",  false, -1],
+        [7,  -1,                       false, -1, false],
+        [8,  -1,                       false, -1, false]
+      ]
+    }
+  }
+]
