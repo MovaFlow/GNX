@@ -64,4 +64,12 @@ The diffs are on the github under GNX\diffs for all modified files.
 ---
 
 ## Credit
-All credit goes to @BadColor for making this game.
+All credit goes to @BadColor for making this game. You are truly wonderful.
+
+Go support the developper, they deserve it:
+
+Steam Page: https://store.steampowered.com/app/3782910/Goblin_Nest/
+
+Itch.io : https://badcolor.itch.io/goblin-nest
+
+Discord (mod support is here): https://discord.gg/7HEAnEmyW2
