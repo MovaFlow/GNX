@@ -20,6 +20,8 @@ into `GNX_mods/` and run.
 10. [Vanilla Patches](#10-vanilla-patches)
 11. [Trade Shop & Birth Class Mapping](#11-trade-shop--birth-class-mapping)
 12. [Quick-Reference: Sprite Keys by Cell Type](#quick-reference-sprite-keys-by-cell-type)
+13. [Post-Raid Cage Escape](#13-post-raid-cage-escape)
+14. [Special Class Features](#14-special-class-features)
 
 ---
 
@@ -65,6 +67,32 @@ if they share a `class_id` or `h_type` (last writer wins).
 | `compatible_game_versions` | yes | Array of game version strings. Must include the running game version or the mod is silently skipped |
 | `classes` | no | Path relative to mod folder; omit if no classes |
 | `cells` | no | Path relative to mod folder; omit if no cells |
+| `quests` | no | Path relative to mod folder; omit if no quests/events |
+| `save_state` | no | Per-mod persistent state definition (see below) |
+
+### save_state
+
+Mods can declare persistent state fields that survive save/load. Declare
+defaults in `manifest.json`:
+
+```json
+{
+  "save_state": {
+    "version": 0,
+    "fields": {
+      "boss_state": -1,
+      "escape_count": 0
+    }
+  }
+}
+```
+
+Fields are initialized to their default values on first load. Stored in
+`global.val.gnx_mod_data.{mod_id}` and auto-serialized with saves.
+
+Access at runtime via quest side effects (`set_state`) or conditions
+(`state_equals`, `state_gte`). Reserved prefixes: `_q_`, `_b_`, `_d_`,
+`_version`.
 
 ---
 
@@ -658,15 +686,40 @@ Defines how frequently this class appears in raid encounters.
 ]
 ```
 
-| Field | Notes |
-|-------|-------|
-| `stage` | Raid stage index (0 = earliest) |
-| `level` | Encounter level within the stage |
-| `weight` | Relative spawn weight. Higher = appears more often. Vanilla classes use 100–200 |
-| `min_lvl` | Minimum unit level for this entry |
-| `max_lvl` | Maximum unit level for this entry |
+| Field | Required | Notes |
+|-------|----------|-------|
+| `stage` | yes | Raid stage index (0 = earliest) |
+| `level` | yes | Encounter level within the stage |
+| `weight` | yes | Relative spawn weight. Higher = appears more often. Vanilla classes use 100-200 |
+| `min_lvl` | yes | Minimum unit level for this entry |
+| `max_lvl` | yes | Maximum unit level for this entry |
+| `condition` | no | Condition object (same syntax as quest conditions). Evaluated at pick time; entry excluded if false |
+| `max_per_encounter` | no | Max units of this class_id per encounter. Default unlimited |
+| `ap_override` | no | `[fap, bap]` array. Replaces normal AP calculation for this unit. Use for bosses (e.g. `[300, 300]`) |
 
 Multiple entries can be provided to cover different stages/levels.
+
+### Conditional spawns
+
+Use `condition` to gate a spawn entry on mod state, game progress, etc.:
+
+```json
+{
+  "stage": 0,
+  "level": 2,
+  "weight": 30,
+  "min_lvl": 5,
+  "max_lvl": 5,
+  "condition": {"type": "state_equals", "key": "boss_state", "value": 0},
+  "max_per_encounter": 1,
+  "ap_override": [300, 300]
+}
+```
+
+This entry only appears in the pool when `boss_state == 0`, spawns at most
+one per encounter, and uses 300/300 AP instead of normal level-based stats.
+Condition types are the same as quest conditions (see
+[QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)).
 
 ---
 
@@ -716,21 +769,32 @@ picks `min(3, unlocked_stages)` random units from the combined pool for the
 shop's 3 trade slots. A class with `trade_stage` set has roughly a 3x-weighted
 chance to appear once its stage is reached, but is not guaranteed every visit.
 
-### birth_classes
+### birth_class (preferred)
+
+Maps this class to a goblin class (0-3) per species when giving birth.
+Determines which troop slot the offspring is grouped under in the raid screen.
 
 ```json
-"birth_classes": [0, 0, 0, 0]
+"birth_class": {"goblin": 2, "hobgoblin": 1, "tentacle": 0, "ogre": 3}
 ```
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `birth_classes` | int[4] | Maps this class to a vanilla `mon_class` (0-3, by `mon_type`) when it gives birth. Index = `mon_type` (0=goblin, 1=hobgoblin, 2=ogre, 3=?). Recommended for class_id ≥ 14 if the class can become pregnant |
+Values are clamped to 0-3. Omitting = goblin class 0 for all species
+(weakest, same as peasant). Species keys: `goblin`, `hobgoblin`, `tentacle`,
+`ogre`.
 
-Used by `s_slot_data.gml` (`scr_set_unit_*` birth logic): when a modded unit
-(`class_id >= 14`) gives birth, `_mon_class = birth_classes[_mon_type]` picks
-which vanilla breeder-window slot the offspring is grouped under, and the
-unit's `class_id` is registered into `global.gnx_br_unlock[_mon_type][_mon_class]`
-so its portrait cycles into that window (`s_mon_head_draw.gml`).
+### birth_classes (legacy array)
+
+```json
+"birth_classes": [2, 1, 0, 3]
+```
+
+Same semantics as `birth_class` but indexed by species number (0=goblin,
+1=hobgoblin, 2=tentacle, 3=ogre). `birth_class` struct takes priority if
+both are present. Prefer `birth_class` for new mods.
+
+**Note:** `birth_classes` on a CELL = array of human class_ids that can birth
+from that cell. `birth_classes` on a CLASS = goblin class per species. Same
+field name, different semantics.
 
 ---
 
@@ -757,3 +821,120 @@ Needs: `hand`, `tent_idle_head`, `tent_idle_breast`, `tent_idle_leg_1/2`,
 ### Icon sprites
 Required if `icon != -1`: frame count = 3 (one per skin), canvas 21×26,
 origin 10×13. Provide `icon_head` (and `icon_hair` if `icon_hair != -1`).
+
+---
+
+## 13. Post-Raid Cage Escape
+
+Classes can define escape behavior for captured units. After a raid win, GNX
+checks each cage slot for classes with `post_raid.cage_escape`.
+
+```json
+"post_raid": {
+  "cage_escape": {
+    "condition": {"type": "state_equals", "key": "boss_state", "value": 0},
+    "base_chance": 0,
+    "over_diff_scale": 300,
+    "counter_key": "escape_count",
+    "popup": "escape_popup",
+    "on_escape_event": "hint_event",
+    "escape_event_threshold": 2,
+    "on_survive_state": {"key": "boss_state", "value": 1},
+    "on_survive_event": "captured_dialog"
+  }
+}
+```
+
+| Field | Notes |
+|-------|-------|
+| `condition` | Must pass for escape to be attempted. Same syntax as quest conditions |
+| `base_chance` | Base escape % (0-100) |
+| `over_diff_scale` | Scaling factor based on raid power ratio. Higher = more likely to escape when player dominates |
+| `counter_key` | Save state key incremented on each escape |
+| `popup` | Key into quests.json `popups` map, shown on escape |
+| `on_escape_event` | Event fired after N escapes (see threshold) |
+| `escape_event_threshold` | Number of escapes before `on_escape_event` fires |
+| `on_survive_state` | State key/value set when the unit does NOT escape (stays captured) |
+| `on_survive_event` | Event fired when the unit stays captured |
+
+**Escape formula:** `irandom(1,100) <= (base_chance + irandom(1,100) - scale + scale * (over_diff - 1))`.
+At even raid power (over_diff=1) escape is near-impossible. At 2x player
+dominance (over_diff=2) escape chance ~50%. Set `base_chance: 100,
+over_diff_scale: 0` for guaranteed escape (testing).
+
+---
+
+## 14. Special Class Features
+
+### clothing_standard.max_row
+
+For `is_special` classes: limits which standard cell rows (WALL 1-4 etc.) the
+class has sprites for. Cells beyond this row index fall through to vanilla
+sprite assignment.
+
+```json
+"clothing_standard": {
+  "max_row": 4,
+  "phase_1": { ... },
+  "phase_2": { ... }
+}
+```
+
+Row index is computed as `h_type - spr_row_pos - 1`. If this exceeds
+`max_row`, the GNX is_special path is skipped.
+
+### is_special frame counts
+
+`is_special` classes use `skin = -1` (single skin variant), so their frame
+counts differ from standard 3-skin classes:
+
+| Animation | Standard (3 skins) | is_special (1 skin) |
+|-----------|-------------------|---------------------|
+| Standard idle/start | 90 (3x30) | 30 (1x30) |
+| Standard loop | 225 (3x75) | 75 (1x75) |
+| Big start | 36 (3x12) | 12 (1x12) |
+| Big idle | 48 (3x16) | 16 (1x16) |
+| Big loop | 105 (3x35) | 35 (1x35) |
+| Tent idle | 42 (3x14) | 14 (1x14) |
+| Tent loop | 105 (3x35) | 35 (1x35) |
+
+For big cells, breast/leg sprites are 2x the head frame count (doubled for
+the two sub-phases packed into one strip). E.g. big_start head = 12 frames,
+big_start breast/leg = 24 frames.
+
+Clothing overlay sprites (`_c` suffix) always match the head frame count
+(not the doubled count).
+
+### gb1_breast_d2
+
+Optional per-class breast sprite for the G.BANG 1 cell's second draw phase.
+Vanilla has per-class variants for special classes (cow, nyx, morrigan,
+lilith). Modded classes without this field fall back to the generic
+`spr_slot[2][1]` breast.
+
+```json
+"gb1_breast_d2": "gnx:gb1_breast"
+```
+
+Declare the sprite in `sprites` and reference it here.
+
+### mon_spr_overrides
+
+Generic per-class overrides for monster/goblin sprites that are normally
+hardcoded per vanilla class. Extensible key-value struct.
+
+```json
+"mon_spr_overrides": {
+  "patrol": "gnx:ogre_walk",
+  "ogre_touch": "gnx:ogre_touch"
+}
+```
+
+| Key | Overrides | Cell | Notes |
+|-----|-----------|------|-------|
+| `patrol` | `spr_patrol` | DISPLAY_B (h=24) | Custom ogre walk sprite. 8 frames, 115x115, origin 55x114 to match vanilla |
+| `ogre_touch` | `spr_h_ogre_touch_loop` | G.BANG 2 (h=18) | Custom ogre touch animation. 35 frames, origin 0x90 |
+
+Declare the sprites in `sprites` and reference them with `gnx:` keys.
+New override keys can be added to this struct as GNX adds support for more
+cell-specific monster sprites.
