@@ -266,7 +266,7 @@ with in cells.
    slots you don't have (e.g. `hair: -1` if `has_hair: false`).
 5. Optional fields, all documented in GNX_MODDING.md §3 and §11: `fap_mul`,
    `bap_mul`, `preg_c_override`, `preg_mon_type_override`, `raid_spawns`,
-   `trade_stage`, `birth_classes`.
+   `trade_stage`, `birth_class`.
 
 Pack sprites (step 3), then relaunch. Success looks like:
 ```
@@ -410,9 +410,22 @@ Once the basics above work, GNX_MODDING.md covers the rest:
 
 - [§11 Trade Shop & Birth Class Mapping](GNX_MODDING.md#11-trade-shop--birth-class-mapping) —
   `trade_stage` controls whether units of your class appear in the raid trader.
-  `birth_classes` controls how offspring of your class are grouped in the
-  breeder window. Both are optional but matter once your mod ships to users
-  with existing saves.
+  `birth_class` controls how offspring of your class map to goblin troop
+  types (0-3) per species. Both are optional but matter once your mod ships
+  to users with existing saves.
+
+- [§13 Post-Raid Cage Escape](GNX_MODDING.md#13-post-raid-cage-escape) —
+  boss-style characters that escape from the cage after capture, with
+  configurable escape chance, popups, and event chains.
+
+- [§14 Special Class Features](GNX_MODDING.md#14-special-class-features) —
+  `max_row`, `gb1_breast_d2`, and `mon_spr_overrides` for `is_special`
+  classes (Nyx/Lilith-tier) that need custom sprite handling.
+
+- **Quest/dialog system** — see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) for
+  the full reference on events, triggers, completion conditions, and
+  side effects. Declare `"quests": "quests.json"` in your manifest and
+  `save_state` for persistent flags.
 
 - **Multi-mod setups:** mods load in alphabetical folder-name order. A later
   mod can patch/override an earlier one's `h_type` or `class_id` (last-writer-
