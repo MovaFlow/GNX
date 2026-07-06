@@ -65,7 +65,7 @@ The diffs are on the github under GNX\diffs for all modified files.
 
 ## Credit
 All credit goes to @BadColor for making this game. You are truly wonderful.
-Credit to @nevereverever for their excellent work on the Frieren Mod ([link](https://github.com/nevereverever53/GN_Mod_Frieren), the advanced escape and conditional boss capture mecanics have been generalized to be used in GNX.
+Credit to @nevereverever for their excellent work on the Frieren Mod ([link](https://github.com/nevereverever53/GN_Mod_Frieren)), the advanced escape and conditional boss capture mecanics have been generalized to be used in GNX.
 
 Go support the developper, they deserve it:
 
