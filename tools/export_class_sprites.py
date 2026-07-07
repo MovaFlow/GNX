@@ -105,6 +105,10 @@ def main():
     parser.add_argument("--output",  required=True, type=Path, help="Destination sprites/ folder")
     args = parser.parse_args()
 
+    # If src is mage/shaman and folder is big/standard,tent then swap to shaman/mage
+    if args.src in {"mage", "shaman"}:
+        print(f"  WARNING: --src {args.src} sprites are split between mage and shaman names, so run twice with both values to get all sprites.")
+
     src_prefix = f"spr_h_{args.src}"
     dst_prefix = f"spr_h_{args.dst}"
     sprites_dir = args.sprites
@@ -147,16 +151,97 @@ def main():
         sprites_json[gnx_key] = entry
         print(f"  {src_folder.name} -> {dst_folder.name} ({n} frames)")
 
+
+    # GB1 Breast sprites
+    if args.src.lower() in {"nyx","cat","cow","morrigan","lilith"}:
+        gnx_key = "gb1_blb"
+        gb1_prefix = f"spr_h_gb_1_big_loop_breast"
+        gb1_src_name = f"{gb1_prefix}_{args.src}"
+        gb1_src = sprites_dir / gb1_src_name
+        if gb1_src.is_dir():
+            gb1_dst_name = f"{gb1_prefix}_{args.dst}"
+            gb1_dst = out_dir / gb1_dst_name
+            n = copy_sprite_folder(gb1_src, gb1_dst, gb1_src_name, gb1_dst_name)
+            total_copied += n
+            frames = frame_count(gb1_dst)
+            h = frame_height(gb1_dst, gb1_dst_name)
+            entry = build_sprite_entry(gnx_key, gb1_dst_name, gb1_dst_name, frames, xorig=0, yorig=h)
+            entry["folder"] = gb1_dst_name
+            sprites_json[gnx_key] = entry
+            print(f"  {gb1_src_name} -> {gb1_dst_name} ({n} frames)")
+        else:
+            print(f"  WARNING: No folders matching {gb1_src_name} - skipped")
+
+
+    # Special Class Base Body sprites
+    if args.src.lower() in {"nyx","cat","cow","morrigan","lilith"}:
+        base_src_prefix = f"spr_h_base"
+        src_folders = sorted(sprites_dir.glob(f"{base_src_prefix}_*_{args.src}"))
+        if not src_folders:
+            print(f"ERROR: No folders matching {base_src_prefix}_*_{args.src} in {sprites_dir}")
+            return
+
+        for src_folder in src_folders:
+            if not src_folder.is_dir():
+                continue
+
+            suffix = src_folder.name[len(base_src_prefix) + 1:-(len(args.src)+1)]
+            dst_name = f"{dst_prefix}_{suffix}"
+            dst_folder = out_dir / dst_name
+
+            n = copy_sprite_folder(src_folder, dst_folder, base_src_prefix, dst_prefix)
+            total_copied += n
+
+            gnx_key = SUFFIX_TO_KEY.get(suffix, suffix)
+            frames = frame_count(dst_folder)
+
+            if suffix == "hand":
+                entry = build_sprite_entry(gnx_key, dst_name, dst_name, frames, xorig=3, yorig=1)
+            else:
+                h = frame_height(dst_folder, dst_prefix)
+                entry = build_sprite_entry(gnx_key, dst_name, dst_name, frames, xorig=0, yorig=h)
+
+            if gnx_key != suffix:
+                entry["folder"] = dst_name
+
+            sprites_json[gnx_key] = entry
+            print(f"  {src_folder.name} -> {dst_folder.name} ({n} frames)")
+
+
+
     # Icon
     icon_src = sprites_dir / "spr_unit_icon_head"
     if icon_src.is_dir():
-        offset = args.src_id * 3
+	
+        match args.src.lower():
+            case "lilith":
+                offset = 24
+                head_frame_count = 1
+            case "cow":
+                offset = 25
+                head_frame_count = 1
+            case "nyx":
+                offset = 26
+                head_frame_count = 1
+            case "giant":
+                offset = 27
+                head_frame_count = 1
+            case "morrigan":
+                offset = 28
+                head_frame_count = 1
+            case "cat":
+                offset = 29
+                head_frame_count = 1
+            case _:
+                offset = args.src_id * 3
+                head_frame_count = 3
+
         icon_dst_name = f"spr_unit_icon_{args.dst}_head"
         icon_dst = out_dir / icon_dst_name
         icon_dst.mkdir(parents=True, exist_ok=True)
 
         ok = 0
-        for i in range(3):
+        for i in range(head_frame_count):
             src_frame = icon_src / f"spr_unit_icon_head_{offset + i}.png"
             dst_frame = icon_dst / f"{icon_dst_name}_{i}.png"
             if src_frame.exists():
@@ -166,7 +251,7 @@ def main():
                 print(f"  WARNING: icon frame not found: {src_frame}")
 
         total_copied += ok
-        print(f"  spr_unit_icon_head[{offset}-{offset+2}] -> {icon_dst_name} ({ok} frames)")
+        print(f"  spr_unit_icon_head[{offset}-{offset+head_frame_count-1}] -> {icon_dst_name} ({ok} frames)")
 
         w, h = Image.open(icon_dst / f"{icon_dst_name}_0.png").size
         sprites_json["icon_head"] = build_sprite_entry(
@@ -177,13 +262,65 @@ def main():
     else:
         print(f"  WARNING: {icon_src} not found - icon not extracted")
 
+    # Icon Hair
+    icon_hair_src = sprites_dir / "spr_unit_icon_hair"
+    if icon_hair_src.is_dir():
+
+        match args.src.lower():
+            case "lilith":
+                offset = 24
+                head_frame_count = 1
+            case "cow":
+                offset = 25
+                head_frame_count = 1
+            case "nyx":
+                offset = 26
+                head_frame_count = 1
+            case "giant":
+                offset = 27
+                head_frame_count = 1
+            case "morrigan":
+                offset = 28
+                head_frame_count = 1
+            case "cat":
+                offset = 29
+                head_frame_count = 1
+            case _:
+                offset = args.src_id * 3
+                head_frame_count = 3
+
+        icon_hair_dst_name = f"spr_unit_icon_{args.dst}_hair"
+        icon_hair_dst = out_dir / icon_hair_dst_name
+        icon_hair_dst.mkdir(parents=True, exist_ok=True)
+
+        ok = 0
+        for i in range(head_frame_count):
+            src_frame = icon_hair_src / f"spr_unit_icon_hair_{offset + i}.png"
+            dst_frame = icon_hair_dst / f"{icon_hair_dst_name}_{i}.png"
+            if src_frame.exists():
+                shutil.copy2(src_frame, dst_frame)
+                ok += 1
+            else:
+                print(f"  WARNING: icon hair frame not found: {src_frame}")
+
+        total_copied += ok
+        print(f"  spr_unit_icon_hair[{offset}-{offset+head_frame_count-1}] -> {icon_hair_dst_name} ({ok} frames)")
+
+        w, h = Image.open(icon_hair_dst / f"{icon_hair_dst_name}_0.png").size
+        sprites_json["icon_hair"] = build_sprite_entry(
+            "icon_hair", icon_hair_dst_name, icon_hair_dst_name,
+            frames=ok, xorig=10, yorig=13,
+            canvas_w=w, canvas_h=h,
+        )
+    else:
+        print(f"  WARNING: {icon_hair_src} not found - icon hair not extracted")
+
     # Ogre carry sprites
-    for carry_suffix, gnx_key in [("head", "carry_head"), ("hair", "carry_hair")]:
+    for carry_suffix, gnx_key in [("head", "carry_head"), ("hair", "carry_hair"), ("base", "carry_base")]:
         carry_src_name = f"spr_ogre_carry_{carry_suffix}_{args.src}"
         carry_src = sprites_dir / carry_src_name
         if not carry_src.is_dir():
-            if carry_suffix == "head":
-                print(f"  WARNING: {carry_src_name} not found - carry sprite skipped")
+            print(f"  WARNING: {carry_src_name} not found - carry sprite skipped")
             continue
         carry_dst_name = f"spr_ogre_carry_{carry_suffix}_{args.dst}"
         carry_dst = out_dir / carry_dst_name

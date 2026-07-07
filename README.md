@@ -66,7 +66,7 @@ The diffs are on the github under GNX\diffs for all modified files.
 ## Credit
 All credit goes to @BadColor for making this game. You are truly wonderful.
 Credit to @nevereverever for their excellent work on the Frieren Mod ([link](https://github.com/nevereverever53/GN_Mod_Frieren)), the advanced escape and conditional boss capture mecanics have been generalized to be used in GNX.
-
+Crdit to @kazull for improving the export_class_sprites script to include idons and work with special classes.
 Go support the developper, they deserve it:
 
 Steam Page: https://store.steampowered.com/app/3782910/Goblin_Nest/
