@@ -136,7 +136,6 @@ time. You can use string refs or integer IDs interchangeably in `class` and
 | `add_food` | `amount` | adds food |
 | `unlock_cell` | `h_type` (string ref or int) | unlocks cell in build menu |
 | `unlock_class` | `class` (string ref or int) | adds class to raid encounter pools |
-| `add_shop_item` | `item_type`, `stage` | adds item to raid shop |
 
 Side effects are applied **immediately** (synchronous) when a notification
 event fires, before the dialog is displayed.

@@ -22,6 +22,7 @@ into `GNX_mods/` and run.
 12. [Quick-Reference: Sprite Keys by Cell Type](#quick-reference-sprite-keys-by-cell-type)
 13. [Post-Raid Cage Escape](#13-post-raid-cage-escape)
 14. [Special Class Features](#14-special-class-features)
+15. [Tool System — tools.json](#15-tool-system--toolsjson)
 
 ---
 
@@ -34,9 +35,12 @@ into `GNX_mods/` and run.
       manifest.json
       classes.json     ← optional
       cells.json       ← optional
+      quests.json      ← optional
+      tools.json       ← optional
       strips/          ← packed sprite strips
         spr_h_myclass_idle_head.png
         ...
+      portraits/       ← quest dialog portraits (133x113)
 ```
 
 GNX auto-discovers mods: any direct subfolder of `GNX_mods/` that contains a
@@ -68,6 +72,7 @@ if they share a `class_id` or `h_type` (last writer wins).
 | `classes` | no | Path relative to mod folder; omit if no classes |
 | `cells` | no | Path relative to mod folder; omit if no cells |
 | `quests` | no | Path relative to mod folder; omit if no quests/events |
+| `tools` | no | Path relative to mod folder; omit if no tool buttons/keybinds |
 | `save_state` | no | Per-mod persistent state definition (see below) |
 
 ### save_state
@@ -141,9 +146,9 @@ string (`"my_mod.ClassName"`) or by integer ID — both work.
 
 Vanilla ID map:
 ```
-0=Peasant  1=Cleric   2=Knight   3=Ranger   4=Nun     5=Samurai
-6=Mage     7=Warrior  8=Lilith   9=Cow     10=Nyx    11=Giant
-12=Morrigan 13=Cat    14+ = mod range
+0=Peasant  1=Cleric    2=Knight   3=Ranger  4=Nun      5=Samurai
+6=Mage     7=Warrior   8=Cow      9=Nyx    10=Lilith  11=Cat
+12=Morrigan 13=Princess 14+ = mod range
 ```
 
 ### override
@@ -596,9 +601,8 @@ DRINK, shrines, tents, CHAINS/G.BANG, CLONE).
 | `death_fix_inc` | bool | If `true`, increments `global.death_fix` once at slot init | S.SHRINE |
 | `del_item_type` | int | On init, removes the first inventory item with this `item_type` from `global.inv_list` | DAIRY |
 
-> **Note:** `hand_frames` only supports `frame_1`/`frame_2`/`frame_3` at
-> runtime. A 4th frame variant (`hand_frame_4`, used by vanilla T.WALL1/2) is
-> not currently readable from `cells.json`.
+> **Note:** `hand_frames` supports `frame_1` through `frame_4`. `frame_4` is
+> used by vanilla T.WALL 1/2 for the birth pose with hands out.
 
 ---
 
@@ -938,3 +942,320 @@ hardcoded per vanilla class. Extensible key-value struct.
 Declare the sprites in `sprites` and reference them with `gnx:` keys.
 New override keys can be added to this struct as GNX adds support for more
 cell-specific monster sprites.
+
+---
+
+## 15. Tool System — tools.json
+
+Mods can declare tool buttons, keybinds, and continuous effects in
+`tools.json`. GNX renders a generic tool menu (Settings → DEBUG → mod
+categories → action buttons) and dispatches actions. No mod-side GML needed.
+
+Declare in `manifest.json`:
+
+```json
+{
+  "tools": "tools.json"
+}
+```
+
+If any loaded mod has a `tools.json`, GNX injects a DEBUG entry into the
+settings window. The tool menu is dormant until the player enables it.
+
+Tools require `save_state` in the manifest for any toggle buttons (the
+toggle key must exist in `save_state.fields`).
+
+---
+
+### tools.json structure
+
+```json
+{
+  "categories": [
+    {
+      "label": "GENERAL",
+      "buttons": [ ... ]
+    }
+  ],
+  "keybinds": [ ... ]
+}
+```
+
+Categories appear in the tool menu prefixed with the mod name (e.g.
+`"my_mod: GENERAL"`). If only one mod has tools, the prefix is omitted.
+
+---
+
+### Button fields
+
+```json
+{
+  "label": "Refill Mood",
+  "actions": [
+    {"type": "set_val", "key": "mood", "value": 100}
+  ],
+  "popup": "Mood refilled"
+}
+```
+
+| Field | Type | Required | Purpose |
+|-------|------|----------|---------|
+| `label` | string | yes | Button text |
+| `actions` | array | yes | Action chain executed on click |
+| `popup` | string | no | Toast popup after execution |
+| `toggle` | string | no | If set: toggle button. Value = `save_state` key for on/off state |
+| `undo_actions` | array | no | Actions when toggling OFF (requires `toggle`) |
+| `undo_popup` | string | no | Popup when toggling OFF |
+| `guard` | condition | no | Pre-check before executing. Same syntax as quest conditions |
+| `guard_fail_popup` | string | no | Popup shown when guard fails |
+
+### Toggle buttons
+
+When `"toggle"` is present, the button alternates between ON and OFF.
+State is stored in `save_state` and persists across saves.
+
+```json
+{
+  "label": "Lock Mood",
+  "toggle": "mood_locked",
+  "actions": [
+    {"type": "set_continuous", "key": "mood_lock", "value": true}
+  ],
+  "undo_actions": [
+    {"type": "set_continuous", "key": "mood_lock", "value": false}
+  ],
+  "popup": "Mood locked at 100",
+  "undo_popup": "Mood unlocked"
+}
+```
+
+The `toggle` key (`"mood_locked"`) must exist in your manifest's
+`save_state.fields`.
+
+### Guard conditions
+
+Same condition evaluator as quests (`state_equals`, `state_gte`,
+`gold_gte`, etc.) plus tool-specific types:
+
+| Type | Fields | Checks |
+|------|--------|--------|
+| `boss_locked` | `index` (0-5) | boss not yet unlocked |
+| `boss_unlocked` | `index` (0-5) | boss already unlocked |
+| `stage_undiscovered` | `stage` (0-3) | stage not yet discovered |
+| `has_unit_slot` | (none) | at least one empty unit_list slot |
+| `has_cage_space` | (none) | cage is not full |
+| `on_screen` | `screen` ("raid_map"/"shop"/"trade") | player is on that screen |
+
+If the guard fails, `guard_fail_popup` is shown with an error sound and
+the button is not executed.
+
+---
+
+### Action types (38 total)
+
+#### Resources (7)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `add_gold` | `amount` | adds gold (negative allowed, clamps to 0) |
+| `add_food` | `amount` | adds food |
+| `add_milk` | `rarity` (0-4 or -1=all), `amount` | adds milk items |
+| `add_orbs` | `amount` | adds shrine orbs |
+| `give_item` | `item_type`, `data`, `level` | creates a generic item |
+| `give_blueprint` | `h_type` (int or string ref), `fragment` (bool) | complete blueprint (default) or single fragment |
+| `give_prop` | `prop_id` | unlocks a decoration prop |
+
+#### Monsters (5)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `spawn_mon` | `species` (0-3), `amount` | spawns troops for all 4 goblin classes |
+| `set_troop_level` | `species` (0-3), `class` (0-3), `value` | sets goblin class level directly |
+| `add_troop_exp` | `species` (0-3), `class` (0-3), `amount` | adds exp via vanilla levelup logic |
+| `set_skill_level` | `species` (0-3), `class` (0-3), `value` | sets skill level directly |
+| `set_troop_size` | `value` (0-7) | max troop size index (6=320 cap, 7=unlimited) |
+
+Species: 0=goblin, 1=hobgoblin, 2=tentacle, 3=ogre.
+
+#### Units (2)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `create_unit` | `class_id` (int or string ref), `level` | creates a human captive in unit_list |
+| `create_unit_cage` | `class_id` (int or string ref), `level` | creates a human captive in the cage |
+
+#### Unlocks (7)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `unlock_boss` | `index` (0-4) | unlocks a boss (guards against double-unlock) |
+| `unlock_stage_next` | `stage` (0-3) | discovers stage or increments max level |
+| `unlock_breeds` | (none) | unlocks all breeding tips |
+| `unlock_cell` | `h_type` (int or string ref) | unlocks a cell in the build menu |
+| `unlock_prop` | `prop_id` | unlocks a decoration prop |
+| `unlock_raid` | (none) | enables the raid button |
+| `unlock_all_cells` | (none) | unlocks all vanilla + GNX cells |
+
+#### Environment (3)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `add_floor` | (none) | adds a new cave floor |
+| `set_day` | `value` | sets the day counter |
+| `add_day_time` | `amount` | advances the day timer |
+
+#### Speed / Display (3)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `set_speed` | `target` ("world"/"cart"/"range"), `value` | sets speed or cell range |
+| `swap_mouse` | (none) | swaps mouse button bindings |
+| `show_debug_overlay` | `enable` (bool) | toggles GameMaker debug tools |
+
+#### Generic setters (2)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `set_val` | `key`, `value` | sets `global.val.{key}`. Allowlisted keys only |
+| `set_var` | `key`, `value` | sets `global.{key}`. Allowlisted keys only |
+
+`set_val` allowlist: `mood`, `food`, `money`, `cart_spd`, `add_range`,
+`day`, `day_timer`, `orb_num`, `sfx_vol`, `bgm_vol`, `alpha_type`,
+`mon_alpha`, `crate_alpha_type`, `crate_alpha`, `show_head`, `ui_place`.
+
+`set_var` allowlist: `w_spd`.
+
+Unknown keys are logged and ignored.
+
+#### Raid / Shop (3)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `reroll_shop` | (none) | re-rolls shop stock (no-op if not on shop screen) |
+| `reroll_trade` | (none) | re-rolls trade stock (no-op if not on trade screen) |
+| `reroll_encounters` | (none) | re-rolls current stage encounters (no-op if not on raid map) |
+
+#### State / Meta (6)
+
+| Type | Fields | Effect |
+|------|--------|--------|
+| `set_state` | `key`, `value` | sets a per-mod save state key |
+| `set_continuous` | `key`, `enable` (bool) | registers/unregisters a continuous per-frame effect |
+| `fire_event` | `event_id` (string or int) | fires a GNX event (string) or vanilla event (int) |
+| `fire_trigger` | `hook` | force-evaluates GNX triggers for a hook |
+| `popup` | `text` | shows a toast popup |
+| `play_sfx` | `type` (1=click, 2=success) | plays a sound effect |
+
+---
+
+### Keybinds
+
+Per-frame keyboard shortcuts checked in `obj_control_Step_0`.
+
+```json
+"keybinds": [
+  {
+    "key": "F10",
+    "modifier": "none",
+    "actions": [{"type": "popup", "text": "Debug!"}],
+    "popup": "F10 pressed"
+  },
+  {
+    "key": "0-9",
+    "modifier": "none",
+    "action_per_key": {"type": "set_speed", "target": "world", "value": "{key}"},
+    "popup_template": "World speed = {key}"
+  }
+]
+```
+
+| Field | Type | Required | Purpose |
+|-------|------|----------|---------|
+| `key` | string | yes | Key name (`"F1"`-`"F12"`, `"A"`-`"Z"`, `"0"`-`"9"`, `"space"`, `"tab"`, `"escape"`) or range (`"0-9"`) |
+| `modifier` | string | no | `"none"` (default), `"shift"`, `"ctrl"`, `"alt"` |
+| `actions` | array | yes* | Action chain for single-key binds |
+| `action_per_key` | object | yes* | Template action for ranges. `{key}` is replaced with the pressed digit |
+| `popup` | string | no | Toast on activation |
+| `popup_template` | string | no | Template with `{key}` placeholder (for ranges) |
+
+*One of `actions` or `action_per_key` required.
+
+Keybinds are suppressed during transitions (`click_lock`, `trans_lock`,
+`speed_lock`). Modifier `"none"` rejects the key if shift/ctrl/alt is held,
+preventing overlap with modified bindings of the same key.
+
+---
+
+### Continuous effects
+
+Per-frame effects registered via the `set_continuous` action type. Used for
+behaviors that need to run every frame (e.g. mood lock).
+
+| Key | Effect |
+|-----|--------|
+| `mood_lock` | sets `global.val.mood = 100` every frame |
+
+The system is extensible: new keys map to new per-frame behaviors. Continuous
+effects are cleared when the player disables the tool system.
+
+---
+
+### Full example
+
+```json
+{
+  "categories": [
+    {
+      "label": "CHEATS",
+      "buttons": [
+        {
+          "label": "+1000 Gold",
+          "actions": [{"type": "add_gold", "amount": 1000}],
+          "popup": "Added 1000 gold"
+        },
+        {
+          "label": "Lock Mood",
+          "toggle": "mood_locked",
+          "actions": [{"type": "set_continuous", "key": "mood_lock", "value": true}],
+          "undo_actions": [{"type": "set_continuous", "key": "mood_lock", "value": false}],
+          "popup": "Mood locked",
+          "undo_popup": "Mood unlocked"
+        },
+        {
+          "label": "Unlock Hathor",
+          "actions": [{"type": "unlock_boss", "index": 0}],
+          "popup": "Unlocked Hathor",
+          "guard": {"type": "boss_locked", "index": 0},
+          "guard_fail_popup": "Already unlocked"
+        }
+      ]
+    }
+  ],
+  "keybinds": [
+    {
+      "key": "0-9",
+      "modifier": "none",
+      "action_per_key": {"type": "set_speed", "target": "world", "value": "{key}"},
+      "popup_template": "World speed = {key}"
+    }
+  ]
+}
+```
+
+Manifest for this example:
+
+```json
+{
+  "mod_id": "my_mod",
+  "name": "My Mod",
+  "version": "1.0.0",
+  "compatible_game_versions": ["1.33"],
+  "tools": "tools.json",
+  "save_state": {
+    "version": 1,
+    "fields": {
+      "mood_locked": 0
+    }
+  }
+}
+```
