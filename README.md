@@ -29,12 +29,16 @@ GNX_mods/
     manifest.json
     classes.json     ← optional
     cells.json       ← optional
+    quests.json      ← optional
+    tools.json       ← optional
     strips/          ← packed sprite strips
+    portraits/       ← quest dialog portraits
 ```
 
 **Docs:**
 - [`docs/TUTORIAL.md`](docs/TUTORIAL.md) — step-by-step walkthrough, from skeleton mod to custom class and cell.
 - [`docs/GNX_MODDING.md`](docs/GNX_MODDING.md) — full field-by-field reference for every JSON block.
+- [`docs/QUESTS_SCHEMA.md`](docs/QUESTS_SCHEMA.md) — quest/dialog system reference (events, triggers, conditions).
 - [`docs/example_mod/`](docs/example_mod/) — a working reference mod (custom class + custom cell + vanilla patch).
 
 **Tools** (in `tools/`, require Python 3.9+ and `pip install Pillow`):

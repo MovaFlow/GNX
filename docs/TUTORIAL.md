@@ -427,6 +427,12 @@ Once the basics above work, GNX_MODDING.md covers the rest:
   side effects. Declare `"quests": "quests.json"` in your manifest and
   `save_state` for persistent flags.
 
+- **Tool system** — mods can declare tool buttons, keybinds, and cheat
+  menus in `tools.json`. Declare `"tools": "tools.json"` in your manifest.
+  Supports 38 action types (resources, spawning, unlocks, speed, state),
+  toggle buttons with save persistence, guard conditions, and key ranges.
+  See [GNX_MODDING.md](GNX_MODDING.md) for the full reference.
+
 - **Multi-mod setups:** mods load in alphabetical folder-name order. A later
   mod can patch/override an earlier one's `h_type` or `class_id` (last-writer-
   wins). A single mod can declare multiple classes and cells in the same
