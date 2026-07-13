@@ -4,7 +4,27 @@
 
 > **Game version:** 1.33
 
-GNX is a mod layer patched into `data.win` that lets you add custom captive classes and dungeon cells via JSON files. No GameMaker, no recompilation — drop a folder into `GNX_mods/` and run.
+GNX is a mod layer patched into `data.win` that lets you add custom content via JSON files: captive classes, dungeon cells, quest chains, raid encounters, boss mechanics, tool menus, and more. No GameMaker, no recompilation — drop a folder into `GNX_mods/` and run.
+
+---
+
+## Features
+
+**Classes & Sprites** — custom captive classes with full sprite support: standard, big, and tent cell clothing layers, naked body layer overrides, goblin sprite overrides, patrol and ogre-touch sprites, unit icons, and special-class rendering. Hash-based ID auto-assignment means modders never pick IDs manually.
+
+**Cells** — custom dungeon cells with physical properties, sprite blocks, class restrictions, birth mappings, and build-menu integration. Hash-based h_type assignment, automatic unlock migration on save load.
+
+**Quests & Dialogs** — event-driven quest chains with dialog popups, portrait sprites, 12 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
+
+**Raid & Boss Mechanics** — custom raid encounter pools with conditional spawning, AP overrides, per-encounter limits, post-raid cage escape behaviors, and birth-class mapping (human class to goblin troop class per species).
+
+**Tool System** — mod-defined cheat/debug menus with 38 action types, keybind support (single keys, ranges, modifiers), toggle buttons with save-state persistence, guard conditions, and continuous effects.
+
+**Save Safety** — mod removal sanitize system replaces orphaned cells and units with vanilla equivalents on load. No save corruption when removing mods.
+
+**Performance** — off-screen draw culling for slots and goblins (~1.5-2x fps at 30+ floors), runtime sprite caching for fast reloads.
+
+**Self-Testing** — 40-test suite runs at boot, logs results to `gnx_debug.txt`.
 
 ---
 
@@ -50,6 +70,7 @@ GNX_mods/
 | `generate_class.py` | Interactive `classes.json` generator |
 | `generate_cell.py` | Interactive `cells.json` generator (also handles vanilla patches) |
 | `export_class_sprites.py` | Copy + rename a vanilla class's sprites as a starting point |
+| `gnx_pack_strips.py` | Pack per-frame PNG folders into sprite strips |
 | `build_mod.py` | Pack sprites, verify, and deploy a mod to the game folder |
 
 ---
@@ -57,6 +78,14 @@ GNX_mods/
 ## Compatibility
 
 GNX targets game version **1.33**. Mods declare which versions they support in `manifest.json` — a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
+
+---
+
+## In-Game Debug Tools
+
+GNX adds a **DEBUG** entry to the Settings menu. This provides framework-level toggles (perf logging, verbose debug logging) and any mod-defined tool buttons.
+
+Mods can define custom tools, keybinds, and toggles via `tools.json`. See [`docs/GNX_MODDING.md`](docs/GNX_MODDING.md) for details.
 
 ---
 
@@ -70,7 +99,7 @@ The diffs are on the github under GNX\diffs for all modified files.
 ## Credit
 All credit goes to @BadColor for making this game. You are truly wonderful. We look forward to your success.
 
-Go support the developper, they deserve it:
+Go support the developer, they deserve it:
 
 Steam Page: https://store.steampowered.com/app/3782910/Goblin_Nest/
 
@@ -78,7 +107,7 @@ Itch.io : https://badcolor.itch.io/goblin-nest
 
 Discord (mod support is here): https://discord.gg/7HEAnEmyW2
 
-Credit to @nevereverever for their excellent work on the Frieren Mod ([link](https://github.com/nevereverever53/GN_Mod_Frieren)), the advanced escape and conditional boss capture mecanics have been generalized to be used in GNX.
+Credit to @nevereverever for their excellent work on the Frieren Mod ([link](https://github.com/nevereverever53/GN_Mod_Frieren)), the advanced escape and conditional boss capture mechanics have been generalized to be used in GNX.
 
-Credit to @kazull for improving the export_class_sprites script to include idons and work with special classes.
+Credit to @kazull for improving the export_class_sprites script to include icons and work with special classes.
 
