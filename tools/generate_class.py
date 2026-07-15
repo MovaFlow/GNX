@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
 """
-generate_class.py — interactive classes.json entry generator (GNX)
+generate_class.py - interactive classes.json entry generator (GNX)
 
 Asks the modder a series of questions about a new (or override) class and
 writes a standalone JSON file containing one class entry, ready to be
 copy-pasted into a mod's classes.json array.
 
-Field semantics are sourced from gnx_resolve_class / gnx_resolve_class_phase /
-gnx_resolve_class_big_phase / gnx_resolve_special_phase / gnx_resolve_class_leg_variant
-(s_initials.gml) and docs/GNX_MODDING.md. Run with no arguments:
-
-    python3 generate_class.py
+Run with no arguments:  python generate_class.py
 """
 
 import json
@@ -70,11 +66,9 @@ def slugify(name):
 
 # ---------------------------------------------------------------------------
 # Sprite-key skeleton helpers
-# Frame counts / canvas per docs/GNX_MODDING.md §4 (Standard frame counts).
-# Each entry: (key, frames, xorig, yorig, note)
 # ---------------------------------------------------------------------------
 
-def standard_sprite_keys(has_hair, has_legp, has_cape):
+def standard_sprite_keys(has_hair, has_legp, has_cape, want_c):
     keys = [
         ("hand", 2, 3, 1, "Hand sprite, 2 frames (open/closed)."),
         ("idle_head", 90, 0, 90, "Idle phase (phase_1), 90 = 3 skins x 30."),
@@ -86,81 +80,118 @@ def standard_sprite_keys(has_hair, has_legp, has_cape):
         ("loop_leg_1", 225, 0, 90, None),
         ("loop_leg_2", 225, 0, 90, None),
     ]
+    if want_c:
+        keys += [
+            ("hand_c", 2, 3, 1, "Clothed hand variant."),
+            ("idle_breast_c", 90, 0, 90, "Clothed breast (phase_1)."),
+            ("idle_leg_c", 90, 0, 90, "Clothed leg (phase_1)."),
+            ("loop_breast_c", 225, 0, 90, "Clothed breast (phase_2)."),
+            ("loop_leg_c", 225, 0, 90, "Clothed leg (phase_2)."),
+        ]
     if has_hair:
-        keys += [
-            ("idle_hair", 90, 0, 90, "Hair layer (has_hair=true)."),
-            ("loop_hair", 225, 0, 90, None),
-        ]
+        keys += [("idle_hair", 90, 0, 90, "Hair layer."), ("loop_hair", 225, 0, 90, None)]
     if has_legp:
-        keys += [
-            ("idle_legp", 90, 0, 90, "Cloth hem/skirt overlay."),
-            ("loop_legp", 225, 0, 90, None),
-        ]
+        keys += [("idle_legp", 90, 0, 90, "Cloth hem/skirt overlay."), ("loop_legp", 225, 0, 90, None)]
+        if want_c:
+            keys += [("idle_legp_c", 90, 0, 90, None), ("loop_legp_c", 225, 0, 90, None)]
     if has_cape:
-        keys += [
-            ("idle_cape", 90, 0, 90, "Cape/cloak overlay."),
-            ("loop_cape", 225, 0, 90, None),
-        ]
+        keys += [("idle_cape", 90, 0, 90, "Cape/cloak overlay."), ("loop_cape", 225, 0, 90, None)]
     return keys
 
 
-def big_sprite_keys(has_hair):
+def big_sprite_keys(has_hair, want_c):
     keys = [
-        ("big_start_head", 36, 0, 90, "Big cell start, 36 = 3 skins x 12."),
+        ("big_start_head", 36, 0, 90, "Big cell start."),
         ("big_start_breast", 36, 0, 90, None),
-        ("big_start_leg", 36, 0, 90, "Single leg sprite (leg_any) for start."),
-        ("big_idle_head", 48, 0, 90, "Big cell idle, 48 = 3 skins x 16 (or 42 = 3x14, check vanilla ref)."),
+        ("big_start_leg", 36, 0, 90, "Single leg (leg_any) for start."),
+        ("big_idle_head", 48, 0, 90, "Big cell idle."),
         ("big_idle_breast", 48, 0, 90, None),
         ("big_idle_leg_1", 48, 0, 90, None),
         ("big_idle_leg_2", 48, 0, 90, None),
-        ("big_loop_head", 105, 0, 90, "Big cell loop, 105 = 3 skins x 35."),
+        ("big_loop_head", 105, 0, 90, "Big cell loop."),
         ("big_loop_breast", 105, 0, 90, None),
-        ("big_loop_leg", 105, 0, 90, "Single leg sprite (leg_any) for loop."),
+        ("big_loop_leg", 105, 0, 90, "Single leg (leg_any) for loop."),
     ]
-    if has_hair:
+    if want_c:
         keys += [
-            ("big_start_hair", 36, 0, 90, None),
-            ("big_idle_hair", 48, 0, 90, None),
-            ("big_loop_hair", 105, 0, 90, None),
+            ("big_start_breast_c", 36, 0, 90, None), ("big_start_leg_c", 36, 0, 90, None),
+            ("big_idle_breast_c", 48, 0, 90, None), ("big_idle_leg_c", 48, 0, 90, None),
+            ("big_loop_breast_c", 105, 0, 90, None), ("big_loop_leg_c", 105, 0, 90, None),
         ]
+    if has_hair:
+        keys += [("big_start_hair", 36, 0, 90, None), ("big_idle_hair", 48, 0, 90, None),
+                 ("big_loop_hair", 105, 0, 90, None)]
     return keys
 
 
-def tent_sprite_keys(has_hair):
+def tent_sprite_keys(has_hair, has_legp, want_c):
     keys = []
     for phase, frames in (("idle", 42), ("loop", 105), ("birth", 42)):
         keys += [
-            (f"tent_{phase}_head", frames, 0, 90, f"Tent {phase}, {frames} = 3 skins x {frames // 3}."),
+            (f"tent_{phase}_head", frames, 0, 90, f"Tent {phase}."),
             (f"tent_{phase}_breast", frames, 0, 90, None),
             (f"tent_{phase}_leg_1", frames, 0, 90, None),
             (f"tent_{phase}_leg_2", frames, 0, 90, None),
-            (f"tent_{phase}_legp", frames, 0, 90, "Cloth hem/skirt overlay."),
         ]
+        if want_c:
+            keys += [(f"tent_{phase}_breast_c", frames, 0, 90, None),
+                     (f"tent_{phase}_leg_c", frames, 0, 90, None)]
+        if has_legp:
+            keys.append((f"tent_{phase}_legp", frames, 0, 90, None))
+            if want_c:
+                keys.append((f"tent_{phase}_legp_c", frames, 0, 90, None))
         if has_hair:
             keys.append((f"tent_{phase}_hair", frames, 0, 90, None))
     return keys
 
 
-def icon_sprite_key():
-    return ("icon_head", 3, 10, 13, "Unit portrait icon. 3 frames (one per skin), canvas 21x26, origin 10x13.")
+def naked_sprite_keys(cell_type):
+    keys = []
+    if cell_type == "standard":
+        keys += [
+            ("naked_idle_head", 90, 0, 90, "Naked base body (phase_1)."),
+            ("naked_idle_breast", 90, 0, 90, None), ("naked_idle_leg", 90, 0, 90, None),
+            ("naked_idle_legp", 90, 0, 90, None),
+            ("naked_loop_head", 225, 0, 90, "Naked base body (phase_2)."),
+            ("naked_loop_breast", 225, 0, 90, None), ("naked_loop_leg", 225, 0, 90, None),
+            ("naked_loop_legp", 225, 0, 90, None),
+            ("naked_hand", 2, 3, 1, "Naked hand."),
+        ]
+    elif cell_type == "big":
+        keys += [
+            ("naked_big_start_head", 36, 0, 90, "Naked big start."),
+            ("naked_big_start_breast", 36, 0, 90, None), ("naked_big_start_leg", 36, 0, 90, None),
+            ("naked_big_idle_head", 48, 0, 90, "Naked big idle."),
+            ("naked_big_idle_breast", 48, 0, 90, None),
+            ("naked_big_idle_leg_1", 48, 0, 90, None), ("naked_big_idle_leg_2", 48, 0, 90, None),
+            ("naked_big_loop_head", 105, 0, 90, "Naked big loop."),
+            ("naked_big_loop_breast", 105, 0, 90, None), ("naked_big_loop_leg", 105, 0, 90, None),
+            ("naked_big_hand", 2, 3, 1, "Naked hand (big)."),
+        ]
+    elif cell_type == "tent":
+        for phase, frames in (("idle", 42), ("loop", 105), ("birth", 42)):
+            keys += [
+                (f"naked_tent_{phase}_head", frames, 0, 90, f"Naked tent {phase}."),
+                (f"naked_tent_{phase}_breast", frames, 0, 90, None),
+                (f"naked_tent_{phase}_leg", frames, 0, 90, None),
+                (f"naked_tent_{phase}_legp", frames, 0, 90, None),
+            ]
+        keys.append(("naked_tent_hand", 2, 3, 1, "Naked hand (tent)."))
+    return keys
 
 
 def carry_sprite_keys(has_hair):
-    keys = [("carry_head", 24, 55, 114, "Ogre patrol carry portrait. 24 frames, canvas 115x115, origin 55,114.")]
+    keys = [("carry_head", 24, 55, 114, "Ogre carry portrait.")]
     if has_hair:
         keys.append(("carry_hair", 24, 55, 114, None))
+    keys.append(("carry_base", 24, 55, 114, "Ogre carry base body."))
     return keys
 
 
 def sprite_def(prefix, key, frames, xorig, yorig, canvas=None, note=None):
     folder = f"{prefix}_{key}"
-    d = {
-        "strip": f"strips/{folder}.png",
-        "frames": frames,
-        "xorig": xorig,
-        "yorig": yorig,
-        "folder": folder,
-    }
+    d = {"strip": f"strips/{folder}.png", "frames": frames,
+         "xorig": xorig, "yorig": yorig, "folder": folder}
     if canvas:
         d["canvas_w"], d["canvas_h"] = canvas
     if note:
@@ -169,19 +200,25 @@ def sprite_def(prefix, key, frames, xorig, yorig, canvas=None, note=None):
 
 
 # ---------------------------------------------------------------------------
-# Clothing map skeletons (gnx_resolve_class_phase / _big_phase / _leg_variant)
+# Clothing map skeletons
 # ---------------------------------------------------------------------------
 
-def leg_variant(prefix_idle_or_loop, has_hair, has_legp, with_hand=False):
-    out = {
-        "hair": f"gnx:{prefix_idle_or_loop}_hair" if has_hair else -1,
-        "head": f"gnx:{prefix_idle_or_loop}_head",
-        "breast": f"gnx:{prefix_idle_or_loop}_breast",
-    }
+def R(key):
+    return f"gnx:{key}"
+
+
+def leg_variant(prefix, has_hair, has_legp, with_hand=False, has_cape=False):
+    out = {}
+    if has_hair:
+        out["hair"] = R(f"{prefix}_hair")
+    out["head"] = R(f"{prefix}_head")
+    out["breast"] = R(f"{prefix}_breast")
     if with_hand:
-        out["hand"] = "gnx:hand"
-    out["leg"] = None  # filled by caller (leg_1 / leg_2)
-    out["leg_part"] = f"gnx:{prefix_idle_or_loop}_legp" if has_legp else -1
+        out["hand"] = R("hand")
+    out["leg"] = None
+    out["leg_part"] = R(f"{prefix}_legp") if has_legp else -1
+    if has_cape:
+        out["cape"] = R(f"{prefix}_cape")
     return out
 
 
@@ -190,40 +227,129 @@ def clothing_standard_skeleton(has_hair, has_legp, has_cape):
     for phase, prefix in (("phase_1", "idle"), ("phase_2", "loop")):
         block = {}
         for legkey in ("leg_1", "leg_2"):
-            lv = leg_variant(prefix, has_hair, has_legp, with_hand=True)
-            lv["leg"] = f"gnx:{prefix}_{legkey}"
+            lv = leg_variant(prefix, has_hair, has_legp, with_hand=True, has_cape=has_cape)
+            lv["leg"] = R(f"{prefix}_{legkey}")
             block[legkey] = lv
-        if has_cape:
-            block["cape"] = f"gnx:{prefix}_cape"
         out[phase] = block
+    return out
+
+
+def _spr_array(hair, head, breast, hand, leg, legp, cape):
+    return [hair, head, breast, hand, leg, legp, cape]
+
+
+def clothing_standard_special():
+    out = {}
+    for phase, p in (("phase_1", "idle"), ("phase_2", "loop")):
+        out[phase] = {
+            "spr_array": _spr_array(R(f"{p}_hair"), R(f"{p}_head"), R(f"{p}_breast"),
+                                    R("hand"), R(f"{p}_leg"), R(f"{p}_legp"), R(f"{p}_cape")),
+            "spr_c_array": _spr_array(R(f"{p}_hair"), R(f"{p}_head"), R(f"{p}_breast_c"),
+                                      R("hand_c"), R(f"{p}_leg_c"), R(f"{p}_legp_c"), R(f"{p}_cape")),
+        }
     return out
 
 
 def clothing_big_skeleton(has_hair):
     out = {}
-    for sub, prefix in (("start", "big_start"), ("loop", "big_loop")):
-        d = {"head": f"gnx:{prefix}_head", "breast": f"gnx:{prefix}_breast", "leg_any": f"gnx:{prefix}_leg"}
-        if has_hair:
-            d["hair"] = f"gnx:{prefix}_hair"
+    for sub, p in (("start", "big_start"), ("loop", "big_loop")):
+        d = {"head": R(f"{p}_head"), "breast": R(f"{p}_breast"), "leg_any": R(f"{p}_leg")}
+        if has_hair: d["hair"] = R(f"{p}_hair")
         out[sub] = d
-    d = {"head": "gnx:big_idle_head", "breast": "gnx:big_idle_breast",
-         "leg_1": "gnx:big_idle_leg_1", "leg_2": "gnx:big_idle_leg_2"}
-    if has_hair:
-        d["hair"] = "gnx:big_idle_hair"
+    d = {"head": R("big_idle_head"), "breast": R("big_idle_breast"),
+         "leg_1": R("big_idle_leg_1"), "leg_2": R("big_idle_leg_2")}
+    if has_hair: d["hair"] = R("big_idle_hair")
     out["idle"] = d
+    return out
+
+
+def clothing_big_special():
+    out = {}
+    for phase, p in (("phase_0", "big_start"), ("phase_1", "big_idle"), ("phase_2", "big_loop")):
+        out[phase] = {
+            "spr_array": _spr_array(R(f"{p}_hair"), R(f"{p}_head"), R(f"{p}_breast"),
+                                    R("hand"), R(f"{p}_leg"), R(f"{p}_legp"), R(f"{p}_cape")),
+            "spr_c_array": _spr_array(R(f"{p}_hair"), R(f"{p}_head"), R(f"{p}_breast_c"),
+                                      R("hand_c"), R(f"{p}_leg_c"), R(f"{p}_legp_c"), R(f"{p}_cape")),
+        }
     return out
 
 
 def clothing_tent_skeleton(has_hair, has_legp):
     out = {}
-    for phase, prefix in (("phase_1", "tent_idle"), ("phase_2", "tent_loop"), ("phase_4", "tent_birth")):
+    for phase, p in (("phase_1", "tent_idle"), ("phase_2", "tent_loop"), ("phase_4", "tent_birth")):
         block = {}
         for legkey in ("leg_1", "leg_2"):
-            lv = leg_variant(prefix, has_hair, has_legp, with_hand=True)
-            lv["leg"] = f"gnx:{prefix}_{legkey}"
+            lv = leg_variant(p, has_hair, has_legp, with_hand=True)
+            lv["leg"] = R(f"{p}_{legkey}")
             block[legkey] = lv
         out[phase] = block
     return out
+
+
+def clothing_tent_special():
+    out = {}
+    for phase, p in (("phase_1", "tent_idle"), ("phase_2", "tent_loop"), ("phase_4", "tent_birth")):
+        out[phase] = {
+            "spr_array": _spr_array(R(f"{p}_hair"), R(f"{p}_head"), R(f"{p}_breast"),
+                                    R("hand"), R(f"{p}_leg"), R(f"{p}_legp"), R(f"{p}_cape")),
+            "spr_c_array": _spr_array(R(f"{p}_hair"), R(f"{p}_head"), R(f"{p}_breast_c"),
+                                      R("hand_c"), R(f"{p}_leg_c"), R(f"{p}_legp_c"), R(f"{p}_cape")),
+        }
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Naked-layer skeletons
+# ---------------------------------------------------------------------------
+
+def naked_standard_skeleton():
+    out = {}
+    for phase, p in (("phase_1", "idle"), ("phase_2", "loop")):
+        out[phase] = {
+            "leg_any": {
+                "head": R(f"naked_{p}_head"),
+                "breast": R(f"naked_{p}_breast"),
+                "leg": R(f"naked_{p}_leg"),
+                "leg_part": R(f"naked_{p}_legp"),
+            }
+        }
+    out["hand"] = R("naked_hand")
+    return out
+
+
+def naked_big_skeleton():
+    out = {}
+    for phase, p in (("start", "naked_big_start"), ("idle", "naked_big_idle"), ("loop", "naked_big_loop")):
+        d = {"head": R(f"{p}_head"), "breast": R(f"{p}_breast")}
+        if phase == "idle":
+            d["leg_1"] = R(f"{p}_leg_1")
+            d["leg_2"] = R(f"{p}_leg_2")
+        else:
+            d["leg_any"] = R(f"{p}_leg")
+        out[phase] = d
+    out["hand"] = R("naked_big_hand")
+    return out
+
+
+def naked_tent_skeleton():
+    out = {}
+    for phase, p in (("phase_1", "naked_tent_idle"), ("phase_2", "naked_tent_loop"),
+                     ("phase_4", "naked_tent_birth")):
+        out[phase] = {
+            "leg_any": {
+                "head": R(f"{p}_head"),
+                "breast": R(f"{p}_breast"),
+                "leg": R(f"{p}_leg"),
+                "leg_part": R(f"{p}_legp"),
+            }
+        }
+    out["hand"] = R("naked_tent_hand")
+    return out
+
+
+def carry_base_spr_skeleton():
+    return R("carry_base")
 
 
 # ---------------------------------------------------------------------------
@@ -231,185 +357,204 @@ def clothing_tent_skeleton(has_hair, has_legp):
 # ---------------------------------------------------------------------------
 
 def main():
-    print("=== GNX classes.json — class entry generator ===")
-    print("Answer the questions. Empty input = default value shown in [].")
+    print("=" * 60)
+    print("  GNX classes.json Entry Generator")
+    print("=" * 60)
     print()
 
-    name = ask("Class name (in-game, UPPERCASE)", "MY_CLASS")
-    name = name.upper()
+    # --- Identity ---
+    name = ask("Class display name (e.g. 'Witch')")
+    if not name:
+        print("Name is required.")
+        sys.exit(1)
 
-    override = ask_bool("Reskin an existing vanilla class (override)?", False)
-    if override:
-        print("  -> class_id must be an existing vanilla class (0-13).")
-        class_id = ask_int("class_id (vanilla, 0-13)", 0)
+    prefix = ask("Sprite prefix (e.g. spr_h_witch)", f"spr_h_{slugify(name)}")
+
+    is_override = ask_bool("Is this an override of a vanilla class?")
+    if is_override:
+        class_id = ask_int("Vanilla class_id to override (0-13)")
     else:
-        class_id = ask_int("class_id (mod range, >=14)", 14)
-        if class_id < 14:
-            print("  WARNING: class_id < 14 without override = possible collision with a vanilla class.")
+        use_hash = ask_bool("Auto-assign class_id via hash? (recommended for new classes)", True)
+        if use_hash:
+            class_id = None
+            print("  -> class_id will be auto-assigned by GNX at load time.")
+        else:
+            class_id = ask_int("Manual class_id (>= 14)")
 
-    is_special = ask_bool("is_special (Nyx/Lilith tier: different spawn caps)?", False)
-    has_hair = ask_bool("has_hair (separate hair layer)?", True)
+    is_special = ask_bool("Is this an is_special class? (like Lilith, Nyx, etc.)")
 
-    default_prefix = f"spr_h_{slugify(name)}"
-    sprite_prefix = ask("sprite_prefix (runtime sprite name prefix)", default_prefix)
+    # --- Layers ---
+    has_hair = ask_bool("Has hair layer?")
+    has_legp = ask_bool("Has leg_part (cloth hem/skirt)?")
+    has_cape = ask_bool("Has cape/cloak?") if not is_special else False
+    want_c = ask_bool("Has _c clothing variants (breast_c, leg_c, etc.)?")
+    want_naked = ask_bool("Has naked layer overrides?")
+    want_carry = ask_bool("Has ogre carry sprites?")
+    want_gb1 = ask_bool("Has gb1_breast_d2 (G.BANG 1 breast)?") if is_special else False
 
-    print()
-    print("--- Stats (leave blank = game default behavior) ---")
-    fap_mul = ask_float("fap_mul (fap income multiplier)", 1.0)
-    bap_mul = ask_float("bap_mul (birth income multiplier, engine default = 0)", 0.0)
-    preg_c_override = ask_int("preg_c_override (pregnancy capacity, -1 = class default)", -1, allow_blank=True)
-    preg_mon_type_override = ask_int(
-        "preg_mon_type_override (0=goblin,1=hobgoblin,2=ogre, blank = omitted)", None, allow_blank=True)
+    # --- Raid ---
+    want_raid = ask_bool("Configure raid spawns?")
+    want_birth = ask_bool("Configure birth_class mapping?")
 
-    print()
-    print("--- Special sprites ---")
-    want_hand_color = ask_bool("Include hand_color (hand color overlay, gnx:hand)?", True)
-    want_icon = ask_bool("Include a unit icon (gnx:icon_head)?", True)
-    want_icon_hair = has_hair and want_icon and ask_bool("  + icon_hair (hair overlay on the icon)?", False)
-    want_carry = ask_bool("Include ogre carry sprites (gnx:carry_head/carry_hair)?", False)
+    # --- Build sprite defs ---
+    sprites = {}
+    all_keys = []
 
-    print()
-    print("--- Cell types used (for the sprites/clothing skeleton) ---")
-    want_standard = ask_bool("Standard cells (slot_type 0: WALL, RIDE...)?", True)
-    has_legp = want_standard and ask_bool("  + leg_part (skirt/cloth hem)?", False)
-    has_cape = want_standard and ask_bool("  + cape/cloak overlay?", False)
-    want_big = ask_bool("Big cells (slot_type 2: DAIRY, GIANT, G.BANG...)?", False)
-    want_tent = ask_bool("Tent cells (slot_type 3: T.WALL, RECOVER...)?", False)
+    # Standard
+    for key, frames, xo, yo, note in standard_sprite_keys(has_hair, has_legp, has_cape, want_c):
+        sprites[key] = sprite_def(prefix, key, frames, xo, yo, note=note)
+        all_keys.append(key)
 
-    print()
-    print("--- Raid spawns ---")
-    raid_spawns = []
-    if ask_bool("Add raid_spawns entries?", True):
-        n = ask_int("How many entries?", 1)
-        for i in range(n):
-            print(f"  Entry {i + 1}:")
-            stage = ask_int("    stage (0=first)", 0)
-            level = ask_int("    level (0 = disables this entry)", 1)
-            weight = ask_int("    weight (vanilla ~100-200)", 100)
-            min_lvl = ask_int("    min_lvl", 0)
-            max_lvl = ask_int("    max_lvl", 1)
-            raid_spawns.append({
-                "stage": stage, "level": level, "weight": weight,
-                "min_lvl": min_lvl, "max_lvl": max_lvl,
-            })
+    # Big
+    for key, frames, xo, yo, note in big_sprite_keys(has_hair, want_c):
+        sprites[key] = sprite_def(prefix, key, frames, xo, yo, note=note)
+        all_keys.append(key)
 
-    print()
-    print("--- Pregnancy / birth / trade ---")
-    birth_classes = None
-    if ask_bool("Can this class get pregnant (define birth_classes)?", False):
-        print("  birth_classes[mon_type] = vanilla mon_class (0-3) assigned at birth.")
-        print("  mon_type: 0=goblin 1=hobgoblin 2=ogre 3=?")
-        birth_classes = [ask_int(f"  birth_classes[{i}]", 0) for i in range(4)]
+    # Tent
+    for key, frames, xo, yo, note in tent_sprite_keys(has_hair, has_legp, want_c):
+        sprites[key] = sprite_def(prefix, key, frames, xo, yo, note=note)
+        all_keys.append(key)
 
-    trade_stage = ask_int(
-        "trade_stage (0-4, stage at which this class appears in the raid trader; blank = never)",
-        None, allow_blank=True)
+    # Carry
+    if want_carry:
+        for key, frames, xo, yo, note in carry_sprite_keys(has_hair):
+            sprites[key] = sprite_def(prefix, key, frames, xo, yo, note=note)
+            all_keys.append(key)
 
-    # -----------------------------------------------------------------
-    # Assemble class entry
-    # -----------------------------------------------------------------
-    entry = {
-        "_note": "Generated by tools/generate_class.py — review before integration.",
-        "class_id": class_id,
-        "name": name,
-        "override": override,
-        "is_special": is_special,
-        "has_hair": has_hair,
-        "sprite_prefix": sprite_prefix,
+    # Naked
+    if want_naked:
+        for cell_type in ("standard", "big", "tent"):
+            for key, frames, xo, yo, note in naked_sprite_keys(cell_type):
+                sprites[key] = sprite_def(prefix, key, frames, xo, yo, note=note)
+                all_keys.append(key)
+
+    # GB1
+    if want_gb1:
+        sprites["gb1_blb"] = sprite_def(prefix, "gb1_blb", 105, 0, 90,
+                                        note="G.BANG 1 big_loop breast override.")
+        all_keys.append("gb1_blb")
+
+    # Icon (always)
+    sprites["icon_head"] = {
+        "strip": f"strips/spr_unit_icon_{slugify(name)}_head.png",
+        "frames": 3, "xorig": 10, "yorig": 13,
+        "canvas_w": 21, "canvas_h": 26,
+        "_note": "Icon head (21x26 canvas).",
+    }
+    sprites["icon_hair"] = {
+        "strip": f"strips/spr_unit_icon_{slugify(name)}_hair.png",
+        "frames": 3, "xorig": 10, "yorig": 13,
+        "canvas_w": 21, "canvas_h": 26,
     }
 
-    if want_hand_color:
-        entry["hand_color"] = "gnx:hand"
-    if want_icon:
-        entry["icon"] = "gnx:icon_head"
-        entry["icon_hair"] = "gnx:icon_hair" if want_icon_hair else -1
-    elif not override:
-        entry["icon"] = -1
-        entry["icon_hair"] = -1
+    # --- Clothing ---
+    if is_special:
+        clothing_standard = clothing_standard_special()
+        clothing_big = clothing_big_special()
+        clothing_tent = clothing_tent_special()
+    else:
+        clothing_standard = clothing_standard_skeleton(has_hair, has_legp, has_cape)
+        clothing_big = clothing_big_skeleton(has_hair)
+        clothing_tent = clothing_tent_skeleton(has_hair, has_legp)
 
-    entry["fap_mul"] = fap_mul
-    entry["bap_mul"] = bap_mul
-    if preg_c_override is not None and preg_c_override != -1:
-        entry["preg_c_override"] = preg_c_override
-    if preg_mon_type_override is not None:
-        entry["preg_mon_type_override"] = preg_mon_type_override
+    # --- Build class entry ---
+    entry = {"name": name}
+    if class_id is not None:
+        entry["class_id"] = class_id
+    if is_override:
+        entry["override"] = True
+    if is_special:
+        entry["is_special"] = True
 
-    if raid_spawns:
-        entry["raid_spawns"] = raid_spawns
-    if birth_classes is not None:
-        entry["birth_classes"] = birth_classes
-    if trade_stage is not None:
-        entry["trade_stage"] = trade_stage
+    entry["sprites"] = sprites
+    entry["clothing_standard"] = clothing_standard
+    entry["clothing_big"] = clothing_big
+    entry["clothing_tent"] = clothing_tent
 
-    # -----------------------------------------------------------------
-    # sprites dict + clothing maps
-    # -----------------------------------------------------------------
-    sprites = {}
+    # Naked layers
+    if want_naked:
+        entry["naked_standard"] = naked_standard_skeleton()
+        entry["naked_big"] = naked_big_skeleton()
+        entry["naked_tent"] = naked_tent_skeleton()
 
-    def add_keys(keylist):
-        for key, frames, xo, yo, note in keylist:
-            canvas = None
-            if key == "icon_head":
-                canvas = (21, 26)
-            if key in ("carry_head", "carry_hair"):
-                canvas = (115, 115)
-            sprites[key] = sprite_def(sprite_prefix, key, frames, xo, yo, canvas, note)
-
-    if want_hand_color:
-        add_keys([("hand", 2, 3, 1, "Hand sprite, 2 frames (open/closed).")])
-    if want_icon:
-        add_keys([icon_sprite_key()])
-        if want_icon_hair:
-            add_keys([("icon_hair", 3, 10, 13, "Hair overlay for icon, same canvas as icon_head.")])
+    # Carry base
     if want_carry:
-        add_keys(carry_sprite_keys(has_hair))
+        entry["carry_base_spr"] = carry_base_spr_skeleton()
 
-    if want_standard:
-        add_keys(standard_sprite_keys(has_hair, has_legp, has_cape))
-        entry["clothing_standard"] = clothing_standard_skeleton(has_hair, has_legp, has_cape)
-    if want_big:
-        add_keys(big_sprite_keys(has_hair))
-        entry["clothing_big"] = clothing_big_skeleton(has_hair)
-    if want_tent:
-        add_keys(tent_sprite_keys(has_hair))
-        entry["clothing_tent"] = clothing_tent_skeleton(has_hair, True)
+    # GB1
+    if want_gb1:
+        entry["gb1_breast_d2"] = R("gb1_blb")
 
-    # Reorder: keep top-level scalars first, sprites + clothing_* last
-    ordered = {}
-    for k in ("_note", "class_id", "name", "override", "is_special", "has_hair",
-              "hand_color", "icon", "icon_hair", "sprite_prefix",
-              "preg_c_override", "preg_mon_type_override", "fap_mul", "bap_mul",
-              "raid_spawns", "birth_classes", "trade_stage"):
-        if k in entry:
-            ordered[k] = entry[k]
-    ordered["sprites"] = sprites
-    for k in ("clothing_standard", "clothing_big", "clothing_tent"):
-        if k in entry:
-            ordered[k] = entry[k]
+    # Birth class
+    if want_birth:
+        print()
+        print("  Goblin class mapping per species (0-3):")
+        print("  0=weakest(peasant-like) 1 2 3=strongest(ranger-like)")
+        bc = {}
+        for sp in ("goblin", "hobgoblin", "tentacle", "ogre"):
+            bc[sp] = ask_int(f"  {sp}", default=0)
+        entry["birth_class"] = bc
 
-    output = [ordered]
+    # Raid spawns
+    if want_raid:
+        print()
+        print("  Raid spawn configuration.")
+        spawns = []
+        while True:
+            print(f"\n  --- Spawn entry #{len(spawns)+1} ---")
+            stage = ask_int("  Stage (0-4)", default=0)
+            level = ask_int("  Level within stage", default=0)
+            weight = ask_int("  Weight (higher = more frequent)", default=50)
+            min_lvl = ask_int("  Min unit level", default=1)
+            max_lvl = ask_int("  Max unit level", default=3)
+
+            sp = {"stage": stage, "level": level, "weight": weight,
+                  "min_lvl": min_lvl, "max_lvl": max_lvl}
+
+            if ask_bool("  Add spawn condition?"):
+                cond_type = ask("  Condition type (state_equals/state_gte/floor_gte)", "state_equals")
+                cond = {"type": cond_type}
+                if cond_type.startswith("state"):
+                    cond["key"] = ask("  State key")
+                cond["value"] = ask_int("  Value", default=0)
+                sp["condition"] = cond
+
+            mpe = ask_int("  max_per_encounter (blank=unlimited)", allow_blank=True)
+            if mpe is not None:
+                sp["max_per_encounter"] = mpe
+
+            if ask_bool("  Add ap_override? (custom boss AP)"):
+                fap = ask_int("  Front AP", default=100)
+                bap = ask_int("  Back AP", default=100)
+                sp["ap_override"] = [fap, bap]
+
+            spawns.append(sp)
+            if not ask_bool("  Add another spawn entry?"):
+                break
+        entry["raid_spawns"] = spawns
+
+    # --- Output ---
+    out_name = f"{slugify(name)}_class.json"
+    out_path = Path(out_name)
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(entry, f, indent=2, ensure_ascii=False)
 
     print()
-    default_out = f"class_{slugify(name)}.json"
-    out_path = ask("Output file", default_out)
-    out_file = Path(out_path)
-    out_file.write_text(json.dumps(output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
+    print("=" * 60)
+    print(f"  Written: {out_path.resolve()}")
+    print(f"  {len(sprites)} sprite defs, {len(all_keys)} keys")
+    if want_naked:
+        print("  Includes naked_standard / naked_big / naked_tent skeletons")
+    if want_carry:
+        print("  Includes carry_base_spr")
+    if want_gb1:
+        print("  Includes gb1_breast_d2")
     print()
-    print(f"Written: {out_file.resolve()}")
-    print("To do before integration:")
-    print("  - copy this object into the mod's classes.json array")
-    print("  - replace the 'strips/...' placeholders with your real strips (gnx_pack_strips.py)")
-    print("  - verify xorig/yorig/canvas for each declared sprite")
-    if want_standard or want_big or want_tent:
-        print("  - fill in the generated clothing_* maps (review docs/GNX_MODDING.md §5)")
-    if not override and class_id < 14:
-        print("  - WARNING: class_id < 14 without override -> likely vanilla collision")
+    print("  Copy this entry into your mod's classes.json array.")
+    print("  Replace gnx:KEY refs with actual sprite strip paths if needed.")
+    print("=" * 60)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError):
-        print("\nCancelled.")
-        sys.exit(1)
+    main()

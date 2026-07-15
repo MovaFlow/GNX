@@ -109,5 +109,5 @@ Discord (mod support is here): https://discord.gg/7HEAnEmyW2
 
 Credit to @nevereverever for their excellent work on the Frieren Mod ([link](https://github.com/nevereverever53/GN_Mod_Frieren)), the advanced escape and conditional boss capture mechanics have been generalized to be used in GNX.
 
-Credit to @kazull for improving the export_class_sprites script to include icons and work with special classes.
+Credit to @kazull for the improved export_class_sprites and scaffold_class scripts, including icon extraction, special class support, and the contributor-submitted codebase that was extended with GNX feature coverage.
 

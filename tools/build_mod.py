@@ -27,7 +27,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PACK_STRIPS = Path(__file__).resolve().parent.parent / "gnx_pack_strips.py"
+PACK_STRIPS = Path(__file__).resolve().parent / "gnx_pack_strips.py"
 
 
 def load_json_loose(path: Path):

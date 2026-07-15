@@ -2,6 +2,9 @@
 """
 export_class_sprites.py
 
+Original by @kazull. Extended with GNX feature coverage (SPECIAL_ICON_OFFSETS,
+extract_icon helper, _c clothing variants, hand_c, non-fatal base body fallback).
+
 Copies all sprites for a source class to a new target class name,
 renaming folders and files. Also extracts the icon frames from the
 shared spr_unit_icon_head sprite sheet, and copies ogre carry sprites.
@@ -30,19 +33,30 @@ from PIL import Image
 # All other suffixes: gnx key == folder suffix
 SUFFIX_TO_KEY = {
     "idle_leg_part":       "idle_legp",
+    "idle_leg_part_c":     "idle_legp_c",
     "loop_leg_part":       "loop_legp",
+    "loop_leg_part_c":     "loop_legp_c",
     "big_start_leg_part":  "big_start_legp",
     "big_idle_leg_part":   "big_idle_legp",
     "big_loop_leg_part":   "big_loop_legp",
     "tent_idle_leg_part":  "tent_idle_legp",
+    "tent_idle_leg_part_c": "tent_idle_legp_c",
     "tent_loop_leg_part":  "tent_loop_legp",
+    "tent_loop_leg_part_c": "tent_loop_legp_c",
     "tent_birth_leg_part": "tent_birth_legp",
+    "tent_birth_leg_part_c": "tent_birth_legp_c",
     "tent_idle_leg_v1":    "tent_idle_leg_1",
     "tent_idle_leg_v2":    "tent_idle_leg_2",
     "tent_loop_leg_v1":    "tent_loop_leg_1",
     "tent_loop_leg_v2":    "tent_loop_leg_2",
     "tent_birth_leg_v1":   "tent_birth_leg_1",
     "tent_birth_leg_v2":   "tent_birth_leg_2",
+}
+
+# Special class names and their icon offsets (1 frame each)
+SPECIAL_ICON_OFFSETS = {
+    "lilith": 24, "cow": 25, "nyx": 26,
+    "giant": 27, "morrigan": 28, "cat": 29,
 }
 
 
@@ -96,6 +110,49 @@ def build_sprite_entry(
     return entry
 
 
+def extract_icon(sprites_dir, src_name, dst_name, out_dir, src_id, icon_type="head"):
+    """Extract icon frames from shared sprite sheet. Returns (entry, count) or None."""
+    icon_src = sprites_dir / f"spr_unit_icon_{icon_type}"
+    if not icon_src.is_dir():
+        print(f"  WARNING: spr_unit_icon_{icon_type} not found - icon {icon_type} not extracted")
+        return None
+
+    src_lower = src_name.lower()
+    if src_lower in SPECIAL_ICON_OFFSETS:
+        offset = SPECIAL_ICON_OFFSETS[src_lower]
+        n_frames = 1
+    else:
+        offset = src_id * 3
+        n_frames = 3
+
+    icon_dst_name = f"spr_unit_icon_{dst_name}_{icon_type}"
+    icon_dst = out_dir / icon_dst_name
+    icon_dst.mkdir(parents=True, exist_ok=True)
+
+    ok = 0
+    for i in range(n_frames):
+        src_frame = icon_src / f"spr_unit_icon_{icon_type}_{offset + i}.png"
+        dst_frame = icon_dst / f"{icon_dst_name}_{i}.png"
+        if src_frame.exists():
+            shutil.copy2(src_frame, dst_frame)
+            ok += 1
+        else:
+            print(f"  WARNING: icon {icon_type} frame not found: {src_frame}")
+
+    print(f"  spr_unit_icon_{icon_type}[{offset}-{offset+n_frames-1}] -> {icon_dst_name} ({ok} frames)")
+
+    if ok == 0:
+        return None
+
+    w, h = Image.open(icon_dst / f"{icon_dst_name}_0.png").size
+    entry = build_sprite_entry(
+        f"icon_{icon_type}", icon_dst_name, icon_dst_name,
+        frames=ok, xorig=10, yorig=13,
+        canvas_w=w, canvas_h=h,
+    )
+    return entry, ok
+
+
 def main():
     parser = argparse.ArgumentParser(description="Copy + rename class sprites.")
     parser.add_argument("--src",     required=True, help="Source class name, e.g. ranger")
@@ -139,7 +196,7 @@ def main():
         gnx_key = SUFFIX_TO_KEY.get(suffix, suffix)
         frames = frame_count(dst_folder)
 
-        if suffix == "hand":
+        if suffix in ("hand", "hand_c"):
             entry = build_sprite_entry(gnx_key, dst_name, dst_name, frames, xorig=3, yorig=1)
         else:
             h = frame_height(dst_folder, dst_prefix)
@@ -153,7 +210,7 @@ def main():
 
 
     # GB1 Breast sprites
-    if args.src.lower() in {"nyx","cat","cow","morrigan","lilith"}:
+    if args.src.lower() in SPECIAL_ICON_OFFSETS:
         gnx_key = "gb1_blb"
         gb1_prefix = f"spr_h_gb_1_big_loop_breast"
         gb1_src_name = f"{gb1_prefix}_{args.src}"
@@ -174,12 +231,11 @@ def main():
 
 
     # Special Class Base Body sprites
-    if args.src.lower() in {"nyx","cat","cow","morrigan","lilith"}:
+    if args.src.lower() in SPECIAL_ICON_OFFSETS:
         base_src_prefix = f"spr_h_base"
         src_folders = sorted(sprites_dir.glob(f"{base_src_prefix}_*_{args.src}"))
         if not src_folders:
-            print(f"ERROR: No folders matching {base_src_prefix}_*_{args.src} in {sprites_dir}")
-            return
+            print(f"  INFO: No base body folders matching {base_src_prefix}_*_{args.src}")
 
         for src_folder in src_folders:
             if not src_folder.is_dir():
@@ -209,111 +265,19 @@ def main():
 
 
 
-    # Icon
-    icon_src = sprites_dir / "spr_unit_icon_head"
-    if icon_src.is_dir():
-	
-        match args.src.lower():
-            case "lilith":
-                offset = 24
-                head_frame_count = 1
-            case "cow":
-                offset = 25
-                head_frame_count = 1
-            case "nyx":
-                offset = 26
-                head_frame_count = 1
-            case "giant":
-                offset = 27
-                head_frame_count = 1
-            case "morrigan":
-                offset = 28
-                head_frame_count = 1
-            case "cat":
-                offset = 29
-                head_frame_count = 1
-            case _:
-                offset = args.src_id * 3
-                head_frame_count = 3
-
-        icon_dst_name = f"spr_unit_icon_{args.dst}_head"
-        icon_dst = out_dir / icon_dst_name
-        icon_dst.mkdir(parents=True, exist_ok=True)
-
-        ok = 0
-        for i in range(head_frame_count):
-            src_frame = icon_src / f"spr_unit_icon_head_{offset + i}.png"
-            dst_frame = icon_dst / f"{icon_dst_name}_{i}.png"
-            if src_frame.exists():
-                shutil.copy2(src_frame, dst_frame)
-                ok += 1
-            else:
-                print(f"  WARNING: icon frame not found: {src_frame}")
-
+    # Icon head
+    result = extract_icon(sprites_dir, args.src, args.dst, out_dir, args.src_id, "head")
+    if result:
+        entry, ok = result
+        sprites_json["icon_head"] = entry
         total_copied += ok
-        print(f"  spr_unit_icon_head[{offset}-{offset+head_frame_count-1}] -> {icon_dst_name} ({ok} frames)")
 
-        w, h = Image.open(icon_dst / f"{icon_dst_name}_0.png").size
-        sprites_json["icon_head"] = build_sprite_entry(
-            "icon_head", icon_dst_name, icon_dst_name,
-            frames=ok, xorig=10, yorig=13,
-            canvas_w=w, canvas_h=h,
-        )
-    else:
-        print(f"  WARNING: {icon_src} not found - icon not extracted")
-
-    # Icon Hair
-    icon_hair_src = sprites_dir / "spr_unit_icon_hair"
-    if icon_hair_src.is_dir():
-
-        match args.src.lower():
-            case "lilith":
-                offset = 24
-                head_frame_count = 1
-            case "cow":
-                offset = 25
-                head_frame_count = 1
-            case "nyx":
-                offset = 26
-                head_frame_count = 1
-            case "giant":
-                offset = 27
-                head_frame_count = 1
-            case "morrigan":
-                offset = 28
-                head_frame_count = 1
-            case "cat":
-                offset = 29
-                head_frame_count = 1
-            case _:
-                offset = args.src_id * 3
-                head_frame_count = 3
-
-        icon_hair_dst_name = f"spr_unit_icon_{args.dst}_hair"
-        icon_hair_dst = out_dir / icon_hair_dst_name
-        icon_hair_dst.mkdir(parents=True, exist_ok=True)
-
-        ok = 0
-        for i in range(head_frame_count):
-            src_frame = icon_hair_src / f"spr_unit_icon_hair_{offset + i}.png"
-            dst_frame = icon_hair_dst / f"{icon_hair_dst_name}_{i}.png"
-            if src_frame.exists():
-                shutil.copy2(src_frame, dst_frame)
-                ok += 1
-            else:
-                print(f"  WARNING: icon hair frame not found: {src_frame}")
-
+    # Icon hair
+    result = extract_icon(sprites_dir, args.src, args.dst, out_dir, args.src_id, "hair")
+    if result:
+        entry, ok = result
+        sprites_json["icon_hair"] = entry
         total_copied += ok
-        print(f"  spr_unit_icon_hair[{offset}-{offset+head_frame_count-1}] -> {icon_hair_dst_name} ({ok} frames)")
-
-        w, h = Image.open(icon_hair_dst / f"{icon_hair_dst_name}_0.png").size
-        sprites_json["icon_hair"] = build_sprite_entry(
-            "icon_hair", icon_hair_dst_name, icon_hair_dst_name,
-            frames=ok, xorig=10, yorig=13,
-            canvas_w=w, canvas_h=h,
-        )
-    else:
-        print(f"  WARNING: {icon_hair_src} not found - icon hair not extracted")
 
     # Ogre carry sprites
     for carry_suffix, gnx_key in [("head", "carry_head"), ("hair", "carry_hair"), ("base", "carry_base")]:

@@ -2,6 +2,9 @@
 """
 scaffold_class.py — GNX class scaffold generator.
 
+Original by @kazull. Extended with GNX feature coverage (naked layer detection,
+carry_base_spr, naked_standard/big/tent builders).
+
 Scans a mod's sprites/ folder and generates a complete classes.json entry stub
 with all sprite slots detected, all clothing sections pre-wired, and stat fields
 set to sensible defaults. Modder only needs to fill in stats and merge into classes.json.
@@ -37,65 +40,133 @@ from pathlib import Path
 # template  → {prefix} and {name} are substituted at runtime
 SPRITES = {
     # Misc
-    "hand":              (3,   1,   None),
+    "hand":                (3,   1,   None),
+    "hand_c":              (3,   1,   None),
     # Icon (different prefix convention)
-    "icon_head":         (10,  13,  "spr_unit_icon_{name}_head"),
-    "icon_hair":         (10,  13,  "spr_unit_icon_{name}_hair"),
+    "icon_head":           (10,  13,  "spr_unit_icon_{name}_head"),
+    "icon_hair":           (10,  13,  "spr_unit_icon_{name}_hair"),
     # Carry (different prefix convention)
-    "carry_head":        (55,  114, "spr_ogre_carry_head_{name}"),
+    "carry_head":          (55,  114, "spr_ogre_carry_head_{name}"),
     # Standard / idle
-    "idle_hair":         (0,   90,  None),
-    "idle_head":         (0,   90,  None),
-    "idle_breast":       (0,   90,  None),
-    "idle_leg_1":        (0,   90,  None),
-    "idle_leg_2":        (0,   90,  None),
-    "idle_legp":         (0,   90,  "{prefix}_idle_leg_part"),
-    "idle_cape":         (0,   90,  None),
+    "idle_hair":           (0,   90,  None),
+    "idle_head":           (0,   90,  None),
+    "idle_breast":         (0,   90,  None),
+    "idle_breast_c":       (0,   90,  None),
+    "idle_leg":            (0,   90,  None),
+    "idle_leg_1":          (0,   90,  None),
+    "idle_leg_2":          (0,   90,  None),
+    "idle_leg_c":          (0,   90,  None),
+    "idle_legp":           (0,   90,  "{prefix}_idle_leg_part"),
+    "idle_legp_c":         (0,   90,  "{prefix}_idle_leg_part_c"),
+    "idle_cape":           (0,   90,  None),
     # Standard / loop
-    "loop_hair":         (0,   90,  None),
-    "loop_head":         (0,   90,  None),
-    "loop_breast":       (0,   90,  None),
-    "loop_leg_1":        (0,   90,  None),
-    "loop_leg_2":        (0,   90,  None),
-    "loop_legp":         (0,   90,  "{prefix}_loop_leg_part"),
-    "loop_cape":         (0,   90,  None),
+    "loop_hair":           (0,   90,  None),
+    "loop_head":           (0,   90,  None),
+    "loop_breast":         (0,   90,  None),
+    "loop_breast_c":       (0,   90,  None),
+    "loop_leg":            (0,   90,  None),
+    "loop_leg_1":          (0,   90,  None),
+    "loop_leg_2":          (0,   90,  None),
+    "loop_leg_c":          (0,   90,  None),
+    "loop_legp":           (0,   90,  "{prefix}_loop_leg_part"),
+    "loop_legp_c":         (0,   90,  "{prefix}_loop_leg_part_c"),
+    "loop_cape":           (0,   90,  None),
     # Big / start
-    "big_start_hair":    (0,   90,  None),
-    "big_start_head":    (0,   90,  None),
-    "big_start_breast":  (0,   90,  None),
-    "big_start_leg":     (0,   90,  None),
+    "big_start_hair":      (0,   90,  None),
+    "big_start_head":      (0,   90,  None),
+    "big_start_breast":    (0,   90,  None),
+    "big_start_breast_c":  (0,   90,  None),
+    "big_start_leg":       (0,   90,  None),
+    "big_start_leg_c":     (0,   90,  None),
     # Big / idle
-    "big_idle_hair":     (0,   90,  None),
-    "big_idle_head":     (0,   90,  None),
-    "big_idle_breast":   (0,   90,  None),
-    "big_idle_leg_1":    (0,   90,  None),
-    "big_idle_leg_2":    (0,   90,  None),
+    "big_idle_hair":       (0,   90,  None),
+    "big_idle_head":       (0,   90,  None),
+    "big_idle_breast":     (0,   90,  None),
+    "big_idle_breast_c":   (0,   90,  None),
+    "big_idle_leg":        (0,   90,  None),
+    "big_idle_leg_1":      (0,   90,  None),
+    "big_idle_leg_2":      (0,   90,  None),
+    "big_idle_leg_c":      (0,   90,  None),
     # Big / loop
-    "big_loop_hair":     (0,   90,  None),
-    "big_loop_head":     (0,   90,  None),
-    "big_loop_breast":   (0,   90,  None),
-    "big_loop_leg":      (0,   90,  None),
+    "big_loop_hair":       (0,   90,  None),
+    "big_loop_head":       (0,   90,  None),
+    "big_loop_breast":     (0,   90,  None),
+    "big_loop_breast_c":   (0,   90,  None),
+    "big_loop_leg":        (0,   90,  None),
+    "big_loop_leg_c":      (0,   90,  None),
+    "gb1_breast_d2":       (0,   90,  "spr_h_gb_1_big_loop_breast_{name}"),
     # Tent / idle
-    "tent_idle_hair":    (0,   90,  None),
-    "tent_idle_head":    (0,   90,  None),
-    "tent_idle_breast":  (0,   90,  None),
-    "tent_idle_leg_1":   (0,   90,  "{prefix}_tent_idle_leg_v1"),
-    "tent_idle_leg_2":   (0,   90,  "{prefix}_tent_idle_leg_v2"),
-    "tent_idle_legp":    (0,   90,  "{prefix}_tent_idle_leg_part"),
+    "tent_idle_hair":      (0,   90,  None),
+    "tent_idle_head":      (0,   90,  None),
+    "tent_idle_breast":    (0,   90,  None),
+    "tent_idle_breast_c":  (0,   90,  None),
+    "tent_idle_leg":       (0,   90,  None),
+    "tent_idle_leg_1":     (0,   90,  "{prefix}_tent_idle_leg_v1"),
+    "tent_idle_leg_2":     (0,   90,  "{prefix}_tent_idle_leg_v2"),
+    "tent_idle_leg_c":     (0,   90,  None),
+    "tent_idle_legp":      (0,   90,  "{prefix}_tent_idle_leg_part"),
+    "tent_idle_legp_c":    (0,   90,  "{prefix}_tent_idle_leg_part_c"),
     # Tent / loop
-    "tent_loop_hair":    (0,   90,  None),
-    "tent_loop_head":    (0,   90,  None),
-    "tent_loop_breast":  (0,   90,  None),
-    "tent_loop_leg_1":   (0,   90,  "{prefix}_tent_loop_leg_v1"),
-    "tent_loop_leg_2":   (0,   90,  "{prefix}_tent_loop_leg_v2"),
-    "tent_loop_legp":    (0,   90,  "{prefix}_tent_loop_leg_part"),
+    "tent_loop_hair":      (0,   90,  None),
+    "tent_loop_head":      (0,   90,  None),
+    "tent_loop_breast":    (0,   90,  None),
+    "tent_loop_breast_c":  (0,   90,  None),
+    "tent_loop_leg":       (0,   90,  None),
+    "tent_loop_leg_1":     (0,   90,  "{prefix}_tent_loop_leg_v1"),
+    "tent_loop_leg_2":     (0,   90,  "{prefix}_tent_loop_leg_v2"),
+    "tent_loop_leg_c":     (0,   90,  None),
+    "tent_loop_legp":      (0,   90,  "{prefix}_tent_loop_leg_part"),
+    "tent_loop_legp_c":    (0,   90,  "{prefix}_tent_loop_leg_part_c"),
     # Tent / birth
-    "tent_birth_hair":   (0,   90,  None),
-    "tent_birth_head":   (0,   90,  None),
-    "tent_birth_breast": (0,   90,  None),
-    "tent_birth_leg_1":  (0,   90,  "{prefix}_tent_birth_leg_v1"),
-    "tent_birth_leg_2":  (0,   90,  "{prefix}_tent_birth_leg_v2"),
-    "tent_birth_legp":   (0,   90,  "{prefix}_tent_birth_leg_part"),
+    "tent_birth_hair":     (0,   90,  None),
+    "tent_birth_head":     (0,   90,  None),
+    "tent_birth_breast":   (0,   90,  None),
+    "tent_birth_breast_c": (0,   90,  None),
+    "tent_birth_leg":      (0,   90,  None),
+    "tent_birth_leg_1":    (0,   90,  "{prefix}_tent_birth_leg_v1"),
+    "tent_birth_leg_2":    (0,   90,  "{prefix}_tent_birth_leg_v2"),
+    "tent_birth_leg_c":    (0,   90,  None),
+    "tent_birth_legp":     (0,   90,  "{prefix}_tent_birth_leg_part"),
+    "tent_birth_legp_c":   (0,   90,  "{prefix}_tent_birth_leg_part_c"),
+    # Carry
+    "carry_hair":          (55,  114, "spr_ogre_carry_hair_{name}"),
+    "carry_base":          (55,  114, "spr_ogre_carry_base_{name}"),
+    # Naked / standard
+    "naked_idle_head":     (0,   90,  None),
+    "naked_idle_breast":   (0,   90,  None),
+    "naked_idle_leg":      (0,   90,  None),
+    "naked_idle_legp":     (0,   90,  "{prefix}_naked_idle_leg_part"),
+    "naked_loop_head":     (0,   90,  None),
+    "naked_loop_breast":   (0,   90,  None),
+    "naked_loop_leg":      (0,   90,  None),
+    "naked_loop_legp":     (0,   90,  "{prefix}_naked_loop_leg_part"),
+    "naked_hand":          (3,   1,   None),
+    # Naked / big
+    "naked_big_start_head":   (0, 90, None),
+    "naked_big_start_breast": (0, 90, None),
+    "naked_big_start_leg":    (0, 90, None),
+    "naked_big_idle_head":    (0, 90, None),
+    "naked_big_idle_breast":  (0, 90, None),
+    "naked_big_idle_leg_1":   (0, 90, None),
+    "naked_big_idle_leg_2":   (0, 90, None),
+    "naked_big_loop_head":    (0, 90, None),
+    "naked_big_loop_breast":  (0, 90, None),
+    "naked_big_loop_leg":     (0, 90, None),
+    "naked_big_hand":         (3, 1,  None),
+    # Naked / tent
+    "naked_tent_idle_head":     (0, 90, None),
+    "naked_tent_idle_breast":   (0, 90, None),
+    "naked_tent_idle_leg":      (0, 90, None),
+    "naked_tent_idle_legp":     (0, 90, "{prefix}_naked_tent_idle_leg_part"),
+    "naked_tent_loop_head":     (0, 90, None),
+    "naked_tent_loop_breast":   (0, 90, None),
+    "naked_tent_loop_leg":      (0, 90, None),
+    "naked_tent_loop_legp":     (0, 90, "{prefix}_naked_tent_loop_leg_part"),
+    "naked_tent_birth_head":    (0, 90, None),
+    "naked_tent_birth_breast":  (0, 90, None),
+    "naked_tent_birth_leg":     (0, 90, None),
+    "naked_tent_birth_legp":    (0, 90, "{prefix}_naked_tent_birth_leg_part"),
+    "naked_tent_hand":          (3, 1,  None),
 }
 
 ICON_CANVAS = {"canvas_w": 21, "canvas_h": 26}
@@ -168,6 +239,50 @@ def build_clothing_standard(det: dict, has_hair: bool, has_cape: bool) -> dict:
     }
 
 
+def _spr_array_helper(det, hair, head, breast, hand, leg, leg_part, cape):
+    d = []
+    d.append(R(hair, det))
+    d.append(R(head, det))
+    d.append(R(breast, det))
+    d.append(R(hand, det))
+    d.append(R(leg, det))
+    d.append(R(leg_part, det))
+    d.append(R(cape, det))
+    return d
+
+
+def build_clothing_standard_special(det: dict) -> dict:
+    def phase(hair, head, breast, breast_c, hand, hand_c, leg, leg_c, legp, legp_c, cp):
+        return {
+            "spr_array": _spr_array_helper(det, hair, head, breast, hand, leg, legp, cp),
+            "spr_c_array": _spr_array_helper(det, hair, head, breast_c, hand_c, leg_c, legp_c, cp),
+        }
+    return {
+        "phase_1": phase("idle_hair",
+                         "idle_head",
+                         "idle_breast",
+                         "idle_breast_c",
+                         "hand",
+                         "hand_c",
+                         "idle_leg",
+                         "idle_leg_c",
+                         "idle_leg_part",
+                         "idle_leg_part_c",
+                         "cape"),
+        "phase_2": phase("loop_hair",
+                         "loop_head",
+                         "loop_breast",
+                         "loop_breast_c",
+                         "hand",
+                         "hand_c",
+                         "loop_leg",
+                         "loop_leg_c",
+                         "loop_leg_part",
+                         "loop_leg_part_c",
+                         "cape"),
+    }
+
+
 def build_clothing_big(det: dict, has_hair: bool) -> dict:
     def slot(hr, hd, br, l1=None, l2=None, la=None):
         d = {}
@@ -189,6 +304,49 @@ def build_clothing_big(det: dict, has_hair: bool) -> dict:
                       l1="big_idle_leg_1", l2="big_idle_leg_2"),
         "loop":  slot("big_loop_hair",  "big_loop_head",  "big_loop_breast",
                       la="big_loop_leg"),
+    }
+
+
+def build_clothing_big_special(det: dict) -> dict:
+    def phase(hair, head, breast, breast_c, hand, hand_c, leg, leg_c, legp, legp_c, cp):
+        return {
+            "spr_array": _spr_array_helper(det, hair, head, breast, hand, leg, legp, cp),
+            "spr_c_array": _spr_array_helper(det, hair, head, breast_c, hand_c, leg_c, legp_c, cp),
+        }
+    return {
+        "phase_0": phase("big_start_hair",
+                         "big_start_head",
+                         "big_start_breast",
+                         "big_start_breast_c",
+                         "hand",
+                         "hand_c",
+                         "big_start_leg",
+                         "big_start_leg_c",
+                         "big_start_leg_part",
+                         "big_start_leg_part_c",
+                         "cape"),
+        "phase_1": phase("big_idle_hair",
+                         "big_idle_head",
+                         "big_idle_breast",
+                         "big_idle_breast_c",
+                         "hand",
+                         "hand_c",
+                         "big_idle_leg",
+                         "big_idle_leg_c",
+                         "big_idle_leg_part",
+                         "big_idle_leg_part_c",
+                         "cape"),
+        "phase_2": phase("big_loop_hair",
+                         "big_loop_head",
+                         "big_loop_breast",
+                         "big_loop_breast_c",
+                         "hand",
+                         "hand_c",
+                         "big_loop_leg",
+                         "big_loop_leg_c",
+                         "big_loop_leg_part",
+                         "big_loop_leg_part_c",
+                         "cape"),
     }
 
 
@@ -229,6 +387,120 @@ def build_clothing_tent(det: dict, has_hair: bool) -> dict:
     }
 
 
+def build_clothing_tent_special(det: dict) -> dict:
+    def phase(hair, head, breast, breast_c, hand, hand_c, leg, leg_c, legp, legp_c, cp):
+        return {
+            "spr_array": _spr_array_helper(det, hair, head, breast, hand, leg, legp, cp),
+            "spr_c_array": _spr_array_helper(det, hair, head, breast_c, hand_c, leg_c, legp_c, cp),
+        }
+    return {
+        "phase_1": phase("tent_idle_hair",
+                         "tent_idle_head",
+                         "tent_idle_breast",
+                         "tent_idle_breast_c",
+                         "hand",
+                         "hand_c",
+                         "tent_idle_leg",
+                         "tent_idle_leg_c",
+                         "tent_idle_leg_part",
+                         "tent_idle_leg_part_c",
+                         "cape"),
+        "phase_2": phase("tent_loop_hair",
+                         "tent_loop_head",
+                         "tent_loop_breast",
+                         "tent_loop_breast_c",
+                         "hand",
+                         "hand_c",
+                         "tent_loop_leg",
+                         "tent_loop_leg_c",
+                         "tent_loop_leg_part",
+                         "tent_loop_leg_part_c",
+                         "cape"),
+        "phase_4": phase("tent_birth_hair",
+                         "tent_birth_head",
+                         "tent_birth_breast",
+                         "tent_birth_breast_c",
+                         "hand",
+                         "hand_c",
+                         "tent_birth_leg",
+                         "tent_birth_leg_c",
+                         "tent_birth_leg_part",
+                         "tent_birth_leg_part_c",
+                         "cape"),
+    }
+
+
+def build_gb1_breast(det: dict):
+    return R("gb1_breast_d2", det)
+
+
+# ─── Naked layer builders ──────────────────────────────────────────────────────────────
+
+def _naked_phase(det, phase_prefix):
+    keys = {"head": f"{phase_prefix}_head", "breast": f"{phase_prefix}_breast",
+            "leg": f"{phase_prefix}_leg", "legp": f"{phase_prefix}_legp"}
+    block = {}
+    for part, spr_key in keys.items():
+        ref = R(spr_key, det)
+        if ref != -1:
+            real_part = "leg_part" if part == "legp" else part
+            block[real_part] = ref
+    return block if block else None
+
+
+def build_naked_standard(det):
+    out = {}
+    for phase_key, pfx in (("phase_1", "naked_idle"), ("phase_2", "naked_loop")):
+        phase = _naked_phase(det, pfx)
+        if phase:
+            out[phase_key] = {"leg_any": phase}
+    if "naked_hand" in det:
+        out["hand"] = R("naked_hand", det)
+    return out if out else None
+
+
+def build_naked_big(det):
+    out = {}
+    for phase_key, pfx in (("start", "naked_big_start"), ("idle", "naked_big_idle"),
+                            ("loop", "naked_big_loop")):
+        d = {}
+        for part in ("head", "breast"):
+            ref = R(f"{pfx}_{part}", det)
+            if ref != -1:
+                d[part] = ref
+        if phase_key == "idle":
+            for lk in ("leg_1", "leg_2"):
+                ref = R(f"{pfx}_{lk}", det)
+                if ref != -1:
+                    d[lk] = ref
+        else:
+            ref = R(f"{pfx}_leg", det)
+            if ref != -1:
+                d["leg_any"] = ref
+        if d:
+            out[phase_key] = d
+    if "naked_big_hand" in det:
+        out["hand"] = R("naked_big_hand", det)
+    return out if out else None
+
+
+def build_naked_tent(det):
+    out = {}
+    for phase_key, pfx in (("phase_1", "naked_tent_idle"), ("phase_2", "naked_tent_loop"),
+                            ("phase_4", "naked_tent_birth")):
+        phase = _naked_phase(det, pfx)
+        if phase:
+            out[phase_key] = {"leg_any": phase}
+    if "naked_tent_hand" in det:
+        out["hand"] = R("naked_tent_hand", det)
+    return out if out else None
+
+
+def build_carry_base_spr(det):
+    ref = R("carry_base", det)
+    return ref if ref != -1 else None
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -251,6 +523,7 @@ Examples:
     ap.add_argument("--mod-dir",  required=True, dest="mod_dir")
     ap.add_argument("--output",   default=None,
                     help="Output path (default: <mod_dir>/class_<name>_scaffold.json)")
+    ap.add_argument("--is_special", action="store_true", help="Clothing sprites are in spr_array format")
     args = ap.parse_args()
 
     mod_dir  = Path(args.mod_dir).resolve()
@@ -279,8 +552,12 @@ Examples:
         mark   = "✓" if key in det else "✗"
         print(f"  {mark} {key:<22} sprites/{folder}/")
 
+    naked_count = sum(1 for k in det if k.startswith("naked_"))
+    has_carry_base = "carry_base" in det
+
     print(f"\nauto-detected:  has_hair={has_hair}  has_cape={has_cape}  "
-          f"has_icon={has_icon}  has_icon_hair={has_icon_hair}")
+          f"has_icon={has_icon}  has_icon_hair={has_icon_hair}  "
+          f"naked={naked_count}  carry_base={has_carry_base}")
 
     # Build entry
     # class_id is omitted for new classes — GNX loader assigns a stable ID via hash.
@@ -291,19 +568,37 @@ Examples:
     entry.update({
         "name":              args.name,
         "override":          False,         # set true to replace a vanilla class (requires class_id)
-        "is_special":        False,
+        "is_special":        args.is_special,
         "has_hair":          has_hair,
         "hand_color":        "gnx:hand",
         "icon":              ("gnx:icon_head" if has_icon else -1),
         "icon_hair":         ("gnx:icon_hair" if has_icon_hair else -1),
         "sprite_prefix":     prefix,
         "sprites":           det,
-        "clothing_standard": build_clothing_standard(det, has_hair, has_cape),
-        "clothing_big":      build_clothing_big(det, has_hair),
-        "clothing_tent":     build_clothing_tent(det, has_hair),
+	"gb1_breast_d2":     build_gb1_breast(det),
+        "clothing_standard": (build_clothing_standard_special(det) if args.is_special else build_clothing_standard(det, has_hair, has_cape)),
+        "clothing_big":      (build_clothing_big_special(det) if args.is_special else build_clothing_big(det, has_hair)),
+        "clothing_tent":     (build_clothing_tent_special(det) if args.is_special else build_clothing_tent(det, has_hair)),
+    })
+
+    # Naked layer overrides (only added if sprites detected)
+    ns = build_naked_standard(det)
+    if ns:
+        entry["naked_standard"] = ns
+    nb = build_naked_big(det)
+    if nb:
+        entry["naked_big"] = nb
+    nt = build_naked_tent(det)
+    if nt:
+        entry["naked_tent"] = nt
+    cbs = build_carry_base_spr(det)
+    if cbs:
+        entry["carry_base_spr"] = cbs
+
+    entry.update({
         # ── Fill these in before merging into classes.json ─────────────────
-        # birth_classes: which class_id each of the 4 offspring slots produce
-        "birth_classes":     [0, 0, 0, 0],
+        # birth_class: which class_id each of the 4 offspring slots produce
+        "birth_class":       {"goblin": 0, "hobgoblin": 0, "tentacle": 0, "ogre": 0},
         # trade_stage: shop stage at which this class becomes available (1-3)
         "trade_stage":       2,
         # raid_spawns: list of {stage, level, weight, min_lvl, max_lvl} entries
