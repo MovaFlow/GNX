@@ -1,0 +1,154 @@
+{
+  "portraits": {
+    "witch_face": {"strip": "portraits/witch_portrait.png"},
+    "siren_face": {"strip": "portraits/siren_portrait.png"}
+  },
+
+  "popups": {
+    "siren_escaped": "The Siren has vanished from the cage!",
+    "witch_welcome": "A mysterious witch has arrived.",
+    "quest_done": "Quest complete! Reward received."
+  },
+
+  "events": {
+    "witch_intro": {
+      "_comment": "=== NOTIFICATION EVENT (dialog then chain) ===",
+      "type": "notification",
+      "dialog": [
+        {"speaker": "Witch", "portrait": "witch_face", "text": "I've been watching your dungeon grow."},
+        {"speaker": "Witch", "portrait": "witch_face", "text": "Perhaps we can help each other."}
+      ],
+      "side_effects": [
+        {"type": "set_state", "key": "quest_progress", "value": 0}
+      ],
+      "next_event": "witch_quest_1"
+    },
+
+    "witch_quest_1": {
+      "_comment": "=== QUEST EVENT (tracked in quest menu, has completion condition) ===",
+      "type": "quest",
+      "quest_text": "Build a Hex Room for the Witch.",
+      "completion": {"type": "cell_built", "h_type": "example_mod.HEX ROOM"},
+      "completion_hook": "cell_built",
+      "reward": {"type": "gold", "amount": 500},
+      "side_effects": [
+        {"type": "set_state", "key": "quest_progress", "value": 1}
+      ],
+      "next_event": "witch_quest_2_intro"
+    },
+
+    "witch_quest_2_intro": {
+      "type": "notification",
+      "dialog": [
+        {"speaker": "Witch", "portrait": "witch_face", "text": "Well done. Now capture a Siren from the forest raids."}
+      ],
+      "next_event": "witch_quest_2"
+    },
+
+    "witch_quest_2": {
+      "_comment": "=== QUEST with boss_captured completion + post_raid hook ===",
+      "type": "quest",
+      "quest_text": "Capture a Siren in a forest raid.",
+      "completion": {"type": "boss_captured", "class": "example_mod.SIREN"},
+      "completion_hook": "post_raid",
+      "reward": {"type": "gold", "amount": 1000},
+      "side_effects": [
+        {"type": "set_state", "key": "quest_progress", "value": 2},
+        {"type": "set_state", "key": "boss_state", "value": 1},
+        {"type": "unlock_cell", "h_type": "example_mod.SIREN POOL"},
+        {"type": "unlock_class", "class": "example_mod.SIREN"}
+      ],
+      "next_event": "witch_finale"
+    },
+
+    "witch_finale": {
+      "_comment": "=== Chains to passive_gold_quest after dialog ===",
+      "type": "notification",
+      "dialog": [
+        {"speaker": "Witch", "portrait": "witch_face", "text": "The Siren Pool is now unlocked. Use it wisely."}
+      ],
+      "side_effects": [
+        {"type": "add_gold", "amount": 200},
+        {"type": "add_food", "amount": 50}
+      ],
+      "next_event": "passive_gold_quest"
+    },
+
+    "siren_hint": {
+      "_comment": "=== Fired after N cage escapes (see post_raid.cage_escape in classes.json) ===",
+      "type": "notification",
+      "dialog": [
+        {"speaker": "Siren", "portrait": "siren_face", "text": "You cannot hold me forever..."},
+        {"speaker": "Siren", "portrait": "siren_face", "text": "Build the Siren Pool. Only there will I stay."}
+      ],
+      "next_event": null
+    },
+
+    "passive_gold_quest": {
+      "_comment": "=== QUEST with frame completion hook (checked every frame) ===",
+      "type": "quest",
+      "quest_text": "Accumulate 5000 gold.",
+      "completion": {"type": "gold_gte", "value": 5000},
+      "completion_hook": "frame",
+      "reward": {"type": "gold", "amount": 500},
+      "side_effects": [
+        {"type": "set_state", "key": "quest_progress", "value": 3}
+      ],
+      "next_event": null
+    }
+  },
+
+  "triggers": [
+    {
+      "_comment": "=== Trigger with state_equals + stage_cleared conditions ===",
+      "event": "witch_intro",
+      "hook": "post_raid_win",
+      "conditions": [
+        {"type": "state_equals", "key": "quest_progress", "value": -1},
+        {"type": "stage_cleared", "stage": 0, "min_level": 2}
+      ]
+    },
+
+    {
+      "_comment": "=== cell_built trigger hook ===",
+      "event": "witch_quest_2_intro",
+      "hook": "cell_built",
+      "conditions": [
+        {"type": "state_equals", "key": "quest_progress", "value": 1},
+        {"type": "cell_built", "h_type": "example_mod.HEX ROOM"}
+      ]
+    },
+
+    {
+      "_comment": "=== post_raid_loss hook trigger ===",
+      "event": "siren_hint",
+      "hook": "post_raid_loss",
+      "conditions": [
+        {"type": "state_gte", "key": "escape_count", "value": 3},
+        {"type": "state_equals", "key": "boss_state", "value": 0}
+      ]
+    },
+
+    {
+      "_comment": "=== All condition types for reference (not a real trigger) ===",
+      "_comment2": "Uncomment one at a time to test",
+      "_disabled": true,
+      "event": "witch_intro",
+      "hook": "post_raid_win",
+      "conditions": [
+        {"type": "state_equals", "key": "quest_progress", "value": -1},
+        {"type": "state_gte", "key": "escape_count", "value": 3},
+        {"type": "unit_count", "class": "example_mod.WITCH", "min": 1},
+        {"type": "gold_gte", "value": 1000},
+        {"type": "floor_gte", "value": 5},
+        {"type": "cell_count", "h_type": "example_mod.HEX ROOM", "min": 2},
+        {"type": "cell_built", "h_type": "example_mod.HEX ROOM"},
+        {"type": "cell_occupied", "h_type": "example_mod.HEX ROOM"},
+        {"type": "stage_discovered", "stage": 2},
+        {"type": "stage_cleared", "stage": 1, "min_level": 3},
+        {"type": "boss_captured", "class": "example_mod.SIREN"},
+        {"type": "raid_won"}
+      ]
+    }
+  ]
+}
