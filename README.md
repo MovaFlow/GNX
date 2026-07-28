@@ -115,3 +115,5 @@ Credit to @nevereverever for their excellent work on the Frieren Mod ([link](htt
 
 Credit to @kazull for the improved export_class_sprites and scaffold_class scripts, including icon extraction, special class support, and the contributor-submitted codebase that was extended with GNX feature coverage.
 
+Credit to @Jadwick for the original Moan Mod ([link](https://jadwick.dev/mods/moan-mod/)) — its voices and SFX are ported into GNX's sound system.
+
