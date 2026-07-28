@@ -389,8 +389,19 @@ big changes.
 - `[GNX] REG-STANDARD class=N phase=N head/breast/leg/head_c/leg_c=...` fires
   whenever a goblin is placed in a standard cell — confirms your class's
   clothing maps resolve.
-- `[GNX] class_spr h=N class=N ...` fires for goblins dispatched to a
-  GNX-registered cell.
+- `[GNX] class_spr h=N (vanilla|custom) class=N phase=N mode=M base_body=B is_special=N`
+  fires for **every** cell a captive is dispatched into (vanilla and custom
+  alike) — the complete dispatch trace. `mode=fixed base_body=?` is normal for
+  fixed-art cells like shrines (they have no `base_body`, so `?` just means
+  "field not present"); `mode=class` is the normal clothing/naked path.
+
+**Turn these on first.** The two logs above (and the `[DRINK]`/`[PROP]` traces)
+are gated behind verbose logging, which is **off by default**. Enable it in-game
+at **Settings → DEBUG → GNX DEBUG → VERBOSE LOG**, then trigger the action you're
+debugging (place a captive, etc.) — they only fire on placement/state-change,
+not while units merely animate. The DEBUG entry itself always writes a
+`[GNX-TOOL] set_var gnx_debug_verbose = 1` line when you toggle it, which is a
+quick confirmation the menu is dispatching your clicks.
 
 ---
 
@@ -432,6 +443,11 @@ Once the basics above work, GNX_MODDING.md covers the rest:
   Supports 38 action types (resources, spawning, unlocks, speed, state),
   toggle buttons with save persistence, guard conditions, and key ranges.
   See [GNX_MODDING.md](GNX_MODDING.md) for the full reference.
+
+- **Sound system** — add moan voice banks and h-scene SFX via `sounds.json`
+  (declare `"sounds": "sounds.json"`). Clips must be **OGG Vorbis**. Adds a
+  SOUND settings page; supports per-class voices (`voice` / `voice_map`) and
+  oral-cell SFX (`sfx_type`). See [§16](GNX_MODDING.md#16-sound-system--soundsjson).
 
 - **Multi-mod setups:** mods load in alphabetical folder-name order. A later
   mod can patch/override an earlier one's `h_type` or `class_id` (last-writer-

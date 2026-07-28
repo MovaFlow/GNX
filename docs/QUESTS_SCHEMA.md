@@ -112,6 +112,7 @@ Used in triggers, quest completion, and conditional raid_spawns.
 |------|--------|-----------|
 | `state_equals` | `key`, `value` | mod save state key == value |
 | `state_gte` | `key`, `value` | mod save state key >= value |
+| `state_lte` | `key`, `value` | mod save state key <= value |
 | `unit_count` | `class` (optional), `value` | units of that class >= value. Omit `class` to count all units |
 | `gold_gte` | `value` | `global.val.money >= value` |
 | `floor_gte` | `value` | `global.val.floor >= value` |

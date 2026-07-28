@@ -14,17 +14,19 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Cells** — custom dungeon cells with physical properties, sprite blocks, class restrictions, birth mappings, and build-menu integration. Hash-based h_type assignment, automatic unlock migration on save load.
 
-**Quests & Dialogs** — event-driven quest chains with dialog popups, portrait sprites, 12 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
+**Quests & Dialogs** — event-driven quest chains with dialog popups, portrait sprites, 13 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
 
 **Raid & Boss Mechanics** — custom raid encounter pools with conditional spawning, AP overrides, per-encounter limits, post-raid cage escape behaviors, and birth-class mapping (human class to goblin troop class per species).
 
 **Tool System** — mod-defined cheat/debug menus with 38 action types, keybind support (single keys, ranges, modifiers), toggle buttons with save-state persistence, guard conditions, and continuous effects.
 
+**Sound & Voice** — runtime-loaded moan voice banks and h-scene SFX (orgasm, plap, ejaculation, oral) via `sounds.json`, per-class voice assignment, positional 3D audio, and an in-game SOUND settings page (volume + frequency sliders). Sounds persist with the save.
+
 **Save Safety** — mod removal sanitize system replaces orphaned cells and units with vanilla equivalents on load. No save corruption when removing mods.
 
 **Performance** — off-screen draw culling for slots and goblins (~1.5-2x fps at 30+ floors), runtime sprite caching for fast reloads.
 
-**Self-Testing** — 40-test suite runs at boot, logs results to `gnx_debug.txt`.
+**Self-Testing** — 43-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
 
 ---
 
@@ -51,15 +53,17 @@ GNX_mods/
     cells.json       ← optional
     quests.json      ← optional
     tools.json       ← optional
+    sounds.json      ← optional
     strips/          ← packed sprite strips
     portraits/       ← quest dialog portraits
+    sounds/          ← .ogg voice + sfx clips
 ```
 
 **Docs:**
 - [`docs/TUTORIAL.md`](docs/TUTORIAL.md) — step-by-step walkthrough, from skeleton mod to custom class and cell.
 - [`docs/GNX_MODDING.md`](docs/GNX_MODDING.md) — full field-by-field reference for every JSON block.
 - [`docs/QUESTS_SCHEMA.md`](docs/QUESTS_SCHEMA.md) — quest/dialog system reference (events, triggers, conditions).
-- [`docs/example_mod/`](docs/example_mod/) — a working reference mod (custom class + custom cell + vanilla patch).
+- [`docs/example_mod/`](docs/example_mod/) — a reference mod showcasing every JSON feature (classes, cells, quests, tools, sounds, vanilla patches). Schema-complete; sprite/audio paths are placeholders.
 
 **Tools** (in `tools/`, require Python 3.9+ and `pip install Pillow`):
 

@@ -23,6 +23,7 @@ into `GNX_mods/` and run.
 13. [Post-Raid Cage Escape](#13-post-raid-cage-escape)
 14. [Special Class Features](#14-special-class-features)
 15. [Tool System — tools.json](#15-tool-system--toolsjson)
+16. [Sound System — sounds.json](#16-sound-system--soundsjson)
 
 ---
 
@@ -63,16 +64,24 @@ if they share a `class_id` or `h_type` (last writer wins).
 }
 ```
 
+> **The mod's identity is its folder name**, not any manifest field. The loader
+> keys everything — save state, string refs like `"my_mod.ClassName"`, error
+> messages — off the folder name. `mod_id` is **not read by the loader**; it's
+> optional and informational. If you include it, keep it equal to the folder
+> name to avoid confusion.
+
 | Field | Required | Notes |
 |-------|----------|-------|
-| `mod_id` | yes | Must match folder name |
-| `name` | yes | Display name |
+| `name` | yes | Display name (shown in load logs) |
 | `version` | yes | Semver string |
+| `mod_id` | no | Informational only — not read by the loader. Conventionally set equal to the folder name |
+| `compatible_game_versions` | yes | Array of game version strings. Must include the running game version or the mod is silently skipped |
 | `compatible_game_versions` | yes | Array of game version strings. Must include the running game version or the mod is silently skipped |
 | `classes` | no | Path relative to mod folder; omit if no classes |
 | `cells` | no | Path relative to mod folder; omit if no cells |
 | `quests` | no | Path relative to mod folder; omit if no quests/events |
 | `tools` | no | Path relative to mod folder; omit if no tool buttons/keybinds |
+| `sounds` | no | Path relative to mod folder; omit if no custom sounds. See [§16](#16-sound-system--soundsjson) |
 | `save_state` | no | Per-mod persistent state definition (see below) |
 
 ### save_state
@@ -93,7 +102,7 @@ defaults in `manifest.json`:
 ```
 
 Fields are initialized to their default values on first load. Stored in
-`global.val.gnx_mod_data.{mod_id}` and auto-serialized with saves.
+`global.val.gnx_mod_data.{folder_name}` and auto-serialized with saves.
 
 Access at runtime via quest side effects (`set_state`) or conditions
 (`state_equals`, `state_gte`). Reserved prefixes: `_q_`, `_b_`, `_d_`,
@@ -144,18 +153,26 @@ classes it's a silent collision. Prefer omitting the field to let GNX hash it.
 `required_class` and `birth_classes` in cells.json can reference classes by
 string (`"my_mod.ClassName"`) or by integer ID — both work.
 
-Vanilla ID map:
+Vanilla ID map (verified against the game's class registry in `s_initials.gml`):
 ```
-0=Peasant  1=Cleric    2=Knight   3=Ranger  4=Nun      5=Samurai
-6=Mage     7=Warrior   8=Cow      9=Nyx    10=Lilith  11=Cat
-12=Morrigan 13=Princess 14+ = mod range
+0=Peasant  1=Cleric   2=Knight   3=Ranger   4=Nun      5=Samurai
+6=Mage     7=Warrior  8=Lilith   9=Cow     10=Nyx     11=Giant
+12=Morrigan 13=Cat    14+ = mod range
 ```
 
 ### override
 
-`true` = replace an existing vanilla class's sprites. The class_id must match
-a vanilla class (0–13). Stats fields (`preg_c_override` etc.) still apply.
-Use this to reskin Peasant, Cleric, etc.
+`true` = modify an existing vanilla class (0–13). The `class_id` must match a
+vanilla class. Use this to reskin Peasant/Cleric, or to tweak a single behavior
+field on a special (Lilith, etc.).
+
+**Overrides merge, they don't wipe.** GNX only overwrites the fields your JSON
+actually specifies; every field you omit is kept from the existing entry. So a
+minimal override that sets only `birth_class` or `preg_c_override` leaves the
+class's vanilla sprites/clothing fully intact. You do **not** need to re-declare
+sprites just to change a stat. (This also makes a voice-only override safe — but
+for pure voice config prefer the `sounds.json` `voice_map`, see [§16](#16-sound-system--soundsjson),
+which needs no class registration at all.)
 
 ### Core fields
 
@@ -169,6 +186,7 @@ Use this to reskin Peasant, Cleric, etc.
 | `icon_hair` | string or -1 | Sprite key for icon hair overlay. `-1` = no hair on icon |
 | `sprite_prefix` | string | Prefix used to name all runtime sprites, e.g. `"spr_h_witch"` |
 | `default_leg` | int | Optional. Forces all units of this class to a fixed leg variant: `0`=warrior kneeling body (`spr_h_base_*_3`), `1`=leg_1, `2`=leg_2. Omit to use normal random leg selection |
+| `voice` | struct | Optional. Fixed moan voice for this class: `{"bank": "soft", "pitch": 1.0}`. `bank` is a voice-bank name from a `sounds.json` (auto-prefixed with the owning mod). `pitch` optional (default random 0.9–1.15). Requires a sound mod to be loaded. See [§16](#16-sound-system--soundsjson) |
 
 ### Ogre patrol carry sprites (`gnx:carry_head` / `gnx:carry_hair`)
 
@@ -205,7 +223,7 @@ without a portrait while carried.
 | Field | Type | Default | Notes |
 |-------|------|---------|-------|
 | `preg_c_override` | int | class-specific | Pregnancy capacity override |
-| `preg_mon_type_override` | int | 0 | Monster type for offspring: 0=goblin, 1=hobgoblin, 2=ogre |
+| `preg_mon_type_override` | int | (none) | Pins offspring species regardless of who bred her: 0=goblin, 1=hobgoblin, 2=tentacle, 3=ogre. Omit to let the breeding monster's species decide |
 | `fap_mul` | float | 1.0 | Multiplier on fap income from this class |
 | `bap_mul` | float | 0 | Multiplier on birth income from this class. **Default is 0 (birth income disabled).** Set explicitly if births should generate income |
 
@@ -692,7 +710,7 @@ Defines how frequently this class appears in raid encounters.
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `stage` | yes | Raid stage index (0 = earliest) |
+| `stage` | yes | Raid stage index: 0=Village, 1=Forest, 2=Mountain, 3=Castle, 4=Tower |
 | `level` | yes | Encounter level within the stage |
 | `weight` | yes | Relative spawn weight. Higher = appears more often. Vanilla classes use 100-200 |
 | `min_lvl` | yes | Minimum unit level for this entry |
@@ -959,11 +977,22 @@ Declare in `manifest.json`:
 }
 ```
 
-If any loaded mod has a `tools.json`, GNX injects a DEBUG entry into the
-settings window. The tool menu is dormant until the player enables it.
+GNX always injects a **DEBUG** entry into the settings window (Settings →
+DEBUG), even with no mod `tools.json` loaded. It always contains a built-in
+**GNX DEBUG** category with two framework toggles:
+
+- **PERF LOG** — sets `gnx_perf_enabled`; logs draw-cull/fps stats every ~2s.
+- **VERBOSE LOG** — sets `gnx_debug_verbose`; enables the high-frequency
+  dispatch/drink/prop/pool traces in `gnx_debug.txt`. Turn this on to debug why
+  a cell or class renders wrong (see the `[GNX] class_spr` trace). Toggling
+  either always writes `[GNX-TOOL] set_var <key> = <v>` to `gnx_debug.txt`,
+  which confirms the menu is dispatching clicks.
+
+Any loaded mod's `tools.json` adds its own categories alongside GNX DEBUG.
 
 Tools require `save_state` in the manifest for any toggle buttons (the
-toggle key must exist in `save_state.fields`).
+toggle key must exist in `save_state.fields`). The framework GNX DEBUG toggles
+use in-memory state and are never persisted (they reset each session).
 
 ---
 
@@ -1259,3 +1288,114 @@ Manifest for this example:
   }
 }
 ```
+
+---
+
+## 16. Sound System — sounds.json
+
+Mods can add moan voices and h-scene SFX that load at runtime. Declare the file
+in `manifest.json` (`"sounds": "sounds.json"`) and drop the audio in a `sounds/`
+subfolder. When any loaded mod provides sounds, GNX adds a **SOUND** page to the
+Settings menu (6 sliders: moan/plap/ej/bj volume + moan/orgasm frequency).
+
+> **Audio format must be OGG Vorbis (`.ogg`).** Runtime loading uses
+> `audio_create_stream`, which only accepts `.ogg` — `.wav` files fail silently
+> (the clip loads as `-1`, the bank ends up empty, and nothing plays). Convert
+> first, e.g. `ffmpeg -i in.wav -c:a libvorbis -q:a 5 out.ogg`.
+
+```
+my_mod/
+  manifest.json          ← "sounds": "sounds.json"
+  sounds.json
+  sounds/
+    soft_1.ogg
+    orgasm_1.ogg
+    ...
+```
+
+### sounds.json schema
+
+```json
+{
+  "voice_banks": {
+    "soft":  {"clips": ["soft_1.ogg", "soft_2.ogg"]},
+    "loud":  {"clips": ["loud_1.ogg"]}
+  },
+  "sfx": {
+    "orgasm":     ["orgasm_1.ogg"],
+    "bj_slurp":   ["slurp.ogg"],
+    "bj_gag":     ["gag.ogg"],
+    "bj_moan":    ["bj_moan.ogg"],
+    "bj_breathe": ["breathe.ogg"]
+  },
+  "voice_map": {
+    "8":  {"bank": "soft", "pitch": 0.91},
+    "13": {"bank": "loud", "pitch": 1.10}
+  },
+  "settings_defaults": {
+    "moan_vol": 0.5, "moan_frq": 15, "orgasm_frq": 5,
+    "plap_vol": 0.5, "ej_vol": 0.5, "bj_vol": 0.5
+  }
+}
+```
+
+### voice_banks
+
+Named pools of moan clips. Each captive is assigned one bank; a random clip
+plays as her moan. Bank names are auto-prefixed with the mod id internally
+(`my_mod.soft`) so two mods can't collide. All values are filenames inside
+`sounds/`.
+
+Assignment order for a unit: `voice_map` (fixed per class) → the class's
+`classes.json` `voice.bank` → a random bank. Units at **level 6 or 7** (captured
+bosses) always get a random voice regardless of the maps.
+
+### sfx pools
+
+Global pools that all sound mods contribute to. Played during the relevant
+h-scene beats:
+
+| Pool | When |
+|------|------|
+| `orgasm` | climax on normal cells |
+| `bj_slurp` / `bj_gag` | oral cells, non-moan beats |
+| `bj_moan` | oral cells, moan beat |
+| `bj_breathe` | oral cells, climax |
+
+BJ pools fire on cells GNX recognizes as oral: vanilla h_types 6 and 18, plus
+any custom cell whose `cells.json` sets `"sfx_type": "bj"`.
+
+### voice_map (fixed voice for vanilla classes)
+
+Maps a **vanilla** `class_id` (string key) to a fixed `{bank, pitch}`. Use this
+to give named characters (Lilith, Nyx, Morrigan, etc.) a signature voice **without**
+a `classes.json` override — overriding a vanilla class just to set a voice is
+unnecessary here, and `voice_map` needs no class registration at all. `pitch` is
+optional (default random 0.9–1.15).
+
+### settings_defaults
+
+Initial slider values, applied the first time a sound mod loads (first mod
+wins). Volumes are 0.0–5.0 (shown as 0–500 %); frequencies are 0–100. Users can
+change these in Settings → SOUND; their choices persist with the save.
+
+### classes.json voice field
+
+A mod class can pin its own voice inline instead of via `voice_map`:
+
+```json
+"voice": {"bank": "soft", "pitch": 1.0}
+```
+
+`bank` refers to a voice bank from any loaded `sounds.json` (prefixed with this
+mod's id). See [§3 Core fields](#core-fields).
+
+### cells.json sfx_type
+
+Mark a custom cell as an oral cell so the BJ sfx pools fire on it:
+
+```json
+"sfx_type": "bj"
+```
+
+Add it alongside the cell's other top-level fields in `cells.json`.

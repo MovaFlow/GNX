@@ -13,14 +13,16 @@ classes.json    3 classes demonstrating all variants:
                 - WITCH: standard, non-special, has_hair, cape, full clothing (std+big+tent),
                   full naked layer (std+big+tent) with leg_0/leg_1/leg_2 variants,
                   carry_base_spr (per-leg struct form), raid_spawns, birth_class,
-                  icon + icon_hair, fap_mul/bap_mul, preg_c_override, "folder" field
+                  icon + icon_hair, fap_mul/bap_mul, preg_c_override, "folder" field,
+                  voice (fixed moan bank + pitch)
                 - SIREN: special (is_special:true), gb1_breast_d2, cage_escape,
                   mon_spr_overrides (patrol + ogre_touch), spr_array/spr_c_array clothing_big,
                   "max_row" field
                 - PEASANT override: override:true with class_id:0, partial clothing
 cells.json      4 cells demonstrating all slot types and modes:
                 - HEX ROOM: standard (slot_type 0), base+class mode, full goblin sprites
-                - RITUAL: standard (slot_type 0), fixed mode, spr_array/spr_c_array
+                - RITUAL: standard (slot_type 0), fixed mode, spr_array/spr_c_array,
+                  sfx_type:"bj" (marks it an oral cell for the BJ sound pools)
                 - SIREN POOL: large (slot_type 2), birth_classes
                 - BINDING: tent (slot_type 3)
 quests.json     Quest chain with all features:
@@ -38,6 +40,14 @@ tools.json      Debug menu with all 38 action types across 9 categories.
                 - Guard conditions on buttons
                 - Keybinds: single key, modifier key, range with {n} substitution
                 - Continuous effects (mood_lock, inf_food)
+sounds.json     Sound system reference:
+                - voice_banks (soft, loud) — named moan-clip pools
+                - sfx pools (orgasm, bj_slurp, bj_gag, bj_moan, bj_breathe)
+                - voice_map — fixed voice for vanilla classes 10 (Nyx) and 13 (Cat)
+                - settings_defaults — initial SOUND-page slider values
+                Clips are .ogg paths only (like the sprites). NOTE: audio MUST be
+                OGG Vorbis; runtime loading (audio_create_stream) rejects .wav.
+                See also classes.json WITCH "voice" and cells.json RITUAL "sfx_type".
 
 
 NAKED LAYER NOTES
