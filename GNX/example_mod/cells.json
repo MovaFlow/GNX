@@ -51,8 +51,10 @@
 
   {
     "_comment": "=== STANDARD CELL (fixed mode) ===",
-    "_comment2": "Controls human sprites directly via spr_array, ignores class clothing",
-    "_categories": "Standard: breed / utility / pleasure | Large: b_breed / b_utility / b_pleasure | Tent: t_breed / t_utility / t_pleasure",
+    "_comment2": "Controls human sprites directly via spr_array, ignores class clothing system.",
+    "_comment3": "spr_array slots: [0]=hair, [1]=head, [2]=breast, [3]=breast_d, [4]=leg, [5]=arm, [6]=extra.",
+    "_comment4": "spr_c_array slots: [0]=hair_c (controls hair visibility on head layers), [1]=head_c, [2]=breast_c, [3]=breast_d_c, [4]=leg_c, [5]=arm_c, [6]=extra_c. Set [0] to a sprite to show hair, -1 to hide.",
+    "_categories": "Standard: breed / utility / pleasure | Large: b_breed / b_utility / b_other | Tent: t_breed / t_utility",
     "name": "RITUAL",
     "slot_type": 0,
     "category": "pleasure",
@@ -60,13 +62,17 @@
     "price": 500,
     "spawn_info": "mood 3",
     "required_class": -1,
-    "phase_1": {
-      "spr_array": ["gnx:ritual_idle_hair", "gnx:ritual_idle_head", "gnx:ritual_idle_breast", -1, "gnx:ritual_idle_leg", -1, -1],
-      "spr_c_array": [-1, -1, "gnx:ritual_idle_breast_c", -1, "gnx:ritual_idle_leg_c", -1, -1]
-    },
-    "phase_2": {
-      "spr_array": ["gnx:ritual_loop_hair", "gnx:ritual_loop_head", "gnx:ritual_loop_breast", -1, "gnx:ritual_loop_leg", -1, -1],
-      "spr_c_array": [-1, -1, "gnx:ritual_loop_breast_c", -1, "gnx:ritual_loop_leg_c", -1, -1]
+    "human_spr": {
+      "mode": "fixed",
+      "base_body": "standard",
+      "phase_1": {
+        "spr_array": ["gnx:ritual_idle_hair", "gnx:ritual_idle_head", "gnx:ritual_idle_breast", -1, "gnx:ritual_idle_leg", -1, -1],
+        "spr_c_array": [-1, -1, "gnx:ritual_idle_breast_c", -1, "gnx:ritual_idle_leg_c", -1, -1]
+      },
+      "phase_2": {
+        "spr_array": ["gnx:ritual_loop_hair", "gnx:ritual_loop_head", "gnx:ritual_loop_breast", -1, "gnx:ritual_loop_leg", -1, -1],
+        "spr_c_array": [-1, -1, "gnx:ritual_loop_breast_c", -1, "gnx:ritual_loop_leg_c", -1, -1]
+      }
     },
     "mon_spr": {
       "phase_1": {
@@ -96,6 +102,46 @@
       "ritual_loop_body_alpha": {"strip": "strips/ritual_loop_body_alpha.png", "frames": 75},
       "ritual_loop_body_line": {"strip": "strips/ritual_loop_body_line.png", "frames": 75}
     }
+  },
+
+  {
+    "_comment": "=== STANDARD CELL (class_map mode) ===",
+    "_comment2": "Per-class human sprite dispatch. Each class can have its own spr_array/spr_c_array.",
+    "_comment3": "Classes not listed fall back to 'default'. Use string refs ('mod.ClassName') or integer class_ids as keys.",
+    "_comment4": "Cross-mod refs resolved automatically after all mods load (deferred resolution).",
+    "name": "ARENA",
+    "slot_type": 0,
+    "category": "breed",
+    "price": 400,
+    "spawn_info": "coin 2 mood 2",
+    "required_class": -1,
+    "human_spr": {
+      "mode": "class_map",
+      "base_body": "standard",
+      "default": {
+        "phase_1": {
+          "spr_array": ["gnx:arena_idle_hair", "gnx:arena_idle_head", "gnx:arena_idle_breast", -1, "gnx:arena_idle_leg", -1, -1],
+          "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+        },
+        "phase_2": {
+          "spr_array": ["gnx:arena_loop_hair", "gnx:arena_loop_head", "gnx:arena_loop_breast", -1, "gnx:arena_loop_leg", -1, -1],
+          "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+        }
+      },
+      "classes": {
+        "example_mod.WITCH": {
+          "phase_1": {
+            "spr_array": ["gnx:arena_witch_idle_hair", "gnx:arena_witch_idle_head", "gnx:arena_witch_idle_breast", -1, "gnx:arena_witch_idle_leg", -1, -1],
+            "spr_c_array": ["gnx:arena_witch_idle_hair_c", -1, "gnx:arena_witch_idle_breast_c", -1, "gnx:arena_witch_idle_leg_c", -1, -1]
+          },
+          "phase_2": {
+            "spr_array": ["gnx:arena_witch_loop_hair", "gnx:arena_witch_loop_head", "gnx:arena_witch_loop_breast", -1, "gnx:arena_witch_loop_leg", -1, -1],
+            "spr_c_array": ["gnx:arena_witch_loop_hair_c", -1, "gnx:arena_witch_loop_breast_c", -1, "gnx:arena_witch_loop_leg_c", -1, -1]
+          }
+        }
+      }
+    },
+    "sprites": {}
   },
 
   {

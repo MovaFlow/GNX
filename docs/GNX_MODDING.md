@@ -441,7 +441,7 @@ field to let GNX hash it.
 |-------|-------|
 | `h_type` | Optional. Omit for auto hash-assignment (≥100, stable across runs). If explicit, must be ≥43 |
 | `name` | Display name in build menu (uppercase) |
-| `category` | `"breed"`, `"utility"`, or `"pleasure"` |
+| `category` | Build menu tab. Standard: `"breed"`, `"utility"`, `"pleasure"`. Large: `"b_breed"`, `"b_utility"`, `"b_other"`. Tent: `"t_breed"`, `"t_utility"` |
 | `mon_types` | Array of monster species that can use this cell: 0=goblin, 1=hobgoblin, 2=ogre |
 | `slot_type` | `0`=standard wall, `2`=large cell, `3`=tent |
 | `price` | Gold cost to build |
@@ -628,7 +628,16 @@ DRINK, shrines, tents, CHAINS/G.BANG, CLONE).
 
 ### human_spr
 
-Defines how the human character is drawn in this cell.
+Defines how the human character is drawn in this cell. Three dispatch modes
+are available, set via the `mode` field.
+
+`base_body`: `"standard"` for normal cells, `"big"` for large cells, `"tent"` for tent cells.
+
+#### Mode: `base+class` (default)
+
+Cell provides the base body; class clothing tables provide per-class sprites.
+`is_special` classes override with their own sprite tables. This is the standard
+mode used by all vanilla cells.
 
 ```json
 "human_spr": {
@@ -637,12 +646,110 @@ Defines how the human character is drawn in this cell.
 }
 ```
 
-| `mode` | Description |
-|--------|-------------|
-| `"base+class"` | Standard: draws base body with class-specific clothing on top |
-| `"class_only"` | Draws only the class clothing, no base body underneath |
+No additional fields needed. Sprites come from `clothing_standard`/`clothing_big`/
+`clothing_tent` in the class's `classes.json` entry.
 
-`base_body`: `"standard"` for normal cells, `"big"` for large cells.
+#### Mode: `fixed`
+
+Cell controls human sprites directly via `spr_array`/`spr_c_array` per phase.
+Class clothing is ignored; all classes render the same. Good for shrines,
+environmental cells, single-pose scenes.
+
+```json
+"human_spr": {
+  "mode": "fixed",
+  "base_body": "standard",
+  "phase_1": {
+    "spr_array": ["gnx:idle_hair", "gnx:idle_head", "gnx:idle_breast", -1, "gnx:idle_leg", -1, -1],
+    "spr_c_array": [-1, -1, "gnx:idle_breast_c", -1, "gnx:idle_leg_c", -1, -1]
+  },
+  "phase_2": {
+    "spr_array": ["gnx:loop_hair", "gnx:loop_head", "gnx:loop_breast", -1, "gnx:loop_leg", -1, -1],
+    "spr_c_array": [-1, -1, "gnx:loop_breast_c", -1, "gnx:loop_leg_c", -1, -1]
+  }
+}
+```
+
+Available phases: `phase_0` (big start), `phase_1` (idle), `phase_2` (loop),
+`phase_4` (tent birth). Only define the phases your cell uses.
+
+**`spr_array` slots:** `[0]`=hair, `[1]`=head, `[2]`=breast, `[3]`=breast_d,
+`[4]`=leg, `[5]`=arm, `[6]`=extra.
+
+**`spr_c_array` slots:** `[0]`=hair_c (controls hair visibility on head layers),
+`[1]`=head_c, `[2]`=breast_c, `[3]`=breast_d_c, `[4]`=leg_c, `[5]`=arm_c,
+`[6]`=extra_c. Set `[0]` to a sprite to show hair, `-1` to hide.
+
+#### Mode: `class_map`
+
+Per-class sprite dispatch on custom cells. Each class_id can have its own phase
+entries. Classes not listed fall back to `default`. Solves the multi-mod sprite
+conflict problem of `base+class` (where two mods adding rows to the same base
+strip would collide).
+
+```json
+"human_spr": {
+  "mode": "class_map",
+  "base_body": "standard",
+  "default": {
+    "phase_1": {
+      "spr_array": ["gnx:default_idle_hair", "gnx:default_idle_head", "gnx:default_idle_breast", -1, "gnx:default_idle_leg", -1, -1],
+      "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+    },
+    "phase_2": {
+      "spr_array": ["gnx:default_loop_hair", "gnx:default_loop_head", "gnx:default_loop_breast", -1, "gnx:default_loop_leg", -1, -1],
+      "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+    }
+  },
+  "classes": {
+    "my_mod.Witch": {
+      "phase_1": {
+        "spr_array": ["gnx:witch_idle_hair", "gnx:witch_idle_head", "gnx:witch_idle_breast", -1, "gnx:witch_idle_leg", -1, -1],
+        "spr_c_array": ["gnx:witch_idle_hair_c", -1, "gnx:witch_idle_breast_c", -1, "gnx:witch_idle_leg_c", -1, -1]
+      },
+      "phase_2": { "..." : "..." }
+    }
+  }
+}
+```
+
+**`classes` keys:** string refs (`"mod.ClassName"`) or integer class_ids as strings
+(`"14"`). String refs are resolved to integer IDs at load time. Cross-mod string
+refs (referencing classes from another mod) are also supported and resolved in a
+deferred pass after all mods load.
+
+**`default`:** fallback for classes without a specific entry. Provide `default`
+unless you're certain every possible class has an entry.
+
+**Important:** if `class_map` is set but the dispatched class has no matching entry
+AND no `default`, the dispatch does NOT fall through to `is_special` or `base+class`.
+The modder must provide a `default` or cover all classes.
+
+Same `spr_array`/`spr_c_array` slot layout and phases as `fixed` mode.
+
+#### Dispatch priority
+
+When resolving human sprites, GNX checks modes in this order:
+
+1. `fixed` -> returns phase sprites directly
+2. `class_map` -> looks up `classes[class_id]`, falls back to `default`
+3. `is_special` class -> class-side clothing override
+4. `base+class` -> base body + class clothing from strips
+
+#### Categories
+
+Build menu categories for the `category` field:
+
+| Category | Menu |
+|----------|------|
+| `breed` | Standard breed |
+| `utility` | Standard utility |
+| `pleasure` | Standard pleasure |
+| `b_breed` | Large breed |
+| `b_utility` | Large utility |
+| `b_other` | Large other/pleasure |
+| `t_breed` | Tent breed |
+| `t_utility` | Tent utility |
 
 ### mon_spr
 
@@ -942,24 +1049,80 @@ Declare the sprite in `sprites` and reference it here.
 
 ### mon_spr_overrides
 
-Generic per-class overrides for monster/goblin sprites that are normally
-hardcoded per vanilla class. Extensible key-value struct.
+Per-class overrides for monster/goblin sprites that are normally hardcoded per
+vanilla class in the `switch (_class)` blocks. Covers 25 dispatch sites across
+goblin, hobgoblin, and ogre interactions. Without these, modded classes (>= 14)
+falling through vanilla switches get default goblin sprites.
 
 ```json
 "mon_spr_overrides": {
   "patrol": "gnx:ogre_walk",
-  "ogre_touch": "gnx:ogre_touch"
+  "ogre_touch": "gnx:ogre_touch",
+  "goblin_wall_touch_start": "gnx:gob_touch_start",
+  "goblin_wall_touch_loop": "gnx:gob_touch_loop",
+  "goblin_wall_enter_loop": "gnx:gob_enter_loop"
 }
 ```
 
-| Key | Overrides | Cell | Notes |
-|-----|-----------|------|-------|
-| `patrol` | `spr_patrol` | DISPLAY_B (h=24) | Custom ogre walk sprite. 8 frames, 115x115, origin 55x114 to match vanilla |
-| `ogre_touch` | `spr_h_ogre_touch_loop` | G.BANG 2 (h=18) | Custom ogre touch animation. 35 frames, origin 0x90 |
+Declare sprites in `sprites` and reference them with `gnx:` keys.
 
-Declare the sprites in `sprites` and reference them with `gnx:` keys.
-New override keys can be added to this struct as GNX adds support for more
-cell-specific monster sprites.
+**Goblin keys:**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `goblin_drink_touch` | touch sprite | DRINK |
+| `goblin_drink_draw` | draw loop sprite | DRINK (draw) |
+| `goblin_gb1_body` | body_b | G.BANG 1 |
+| `goblin_gb1_draw_body_b` | draw body alpha | G.BANG 1 (draw) |
+| `goblin_gb1_draw_body_l` | draw body line | G.BANG 1 (draw) |
+| `goblin_gb2_body` | body_b | G.BANG 2 |
+| `goblin_gb2_enter` | enter sprite | G.BANG 2 |
+| `goblin_gb3_hand` | hand_b | G.BANG 3 |
+| `goblin_gb3_enter` | enter sprite | G.BANG 3 |
+| `goblin_wall_touch_start` | touch | WALL start |
+| `goblin_wall_touch_loop` | touch | WALL loop |
+| `goblin_wall_enter_loop` | enter | WALL loop |
+| `goblin_wall_touch_ej` | touch | WALL ej (fallback: `goblin_wall_touch_loop`) |
+| `goblin_wall_enter_ej` | enter | WALL ej (fallback: `goblin_wall_enter_loop`) |
+| `goblin_wall_touch_anal_start` | touch | WALL anal start |
+| `goblin_wall_touch_anal_loop` | touch | WALL anal loop |
+| `goblin_wall_enter_anal_loop` | enter | WALL anal loop |
+| `goblin_wall_touch_anal_ej` | touch | WALL anal ej (fallback: `goblin_wall_touch_anal_loop`) |
+| `goblin_wall_enter_anal_ej` | enter | WALL anal ej (fallback: `goblin_wall_enter_anal_loop`) |
+
+**Hobgoblin keys:**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `hobgoblin_gb1_body` | body_b | HOB G.BANG 1 |
+| `hobgoblin_gb3_hand` | hand_b | HOB G.BANG 3 |
+| `hobgoblin_gb3_enter` | enter | HOB G.BANG 3 |
+| `hobgoblin_wall_body_start` | body_b | HOB WALL start |
+| `hobgoblin_wall_hand_start` | hand_b | HOB WALL start |
+| `hobgoblin_wall_touch_loop` | touch | HOB WALL loop |
+| `hobgoblin_wall_enter_loop` | enter | HOB WALL loop |
+| `hobgoblin_wall_touch_ej` | touch | HOB WALL ej (fallback: `hobgoblin_wall_touch_loop`) |
+| `hobgoblin_wall_enter_ej` | enter | HOB WALL ej (fallback: `hobgoblin_wall_enter_loop`) |
+| `hobgoblin_wall_touch_anal_loop` | touch | HOB WALL anal loop |
+| `hobgoblin_wall_enter_anal_loop` | enter | HOB WALL anal loop |
+
+**Ogre keys:**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `ogre_wall_body_start` | body_b | OGRE WALL start |
+| `ogre_wall_body_loop` | body_b | OGRE WALL loop |
+
+**Pre-existing keys:**
+
+| Key | Target | Cell | Notes |
+|-----|--------|------|-------|
+| `patrol` | patrol walk | DISPLAY_B | 8 frames, 115x115, origin 55x114 |
+| `ogre_touch` | ogre touch | G.BANG 2 | 35 frames, origin 0x90 |
+
+**Ej fallback chains:** ej touch/enter keys fall back to their loop counterparts
+if not defined. Anal ej falls back to anal loop. This reduces the number of
+required sprites for modders who don't need separate ej animations.
 
 ---
 

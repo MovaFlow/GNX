@@ -12,7 +12,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Classes & Sprites** — custom captive classes with full sprite support: standard, big, and tent cell clothing layers, naked body layer overrides, goblin sprite overrides, patrol and ogre-touch sprites, unit icons, and special-class rendering. Hash-based ID auto-assignment means modders never pick IDs manually.
 
-**Cells** — custom dungeon cells with physical properties, sprite blocks, class restrictions, birth mappings, and build-menu integration. Hash-based h_type assignment, automatic unlock migration on save load.
+**Cells** — custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Hash-based h_type assignment, automatic unlock migration on save load.
 
 **Quests & Dialogs** — event-driven quest chains with dialog popups, portrait sprites, 13 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
 
@@ -26,7 +26,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Performance** — off-screen draw culling for slots and goblins (~1.5-2x fps at 30+ floors), runtime sprite caching for fast reloads.
 
-**Self-Testing** — 43-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
+**Self-Testing** — 45-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
 
 ---
 

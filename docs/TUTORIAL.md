@@ -409,6 +409,13 @@ quick confirmation the menu is dispatching your clicks.
 
 Once the basics above work, GNX_MODDING.md covers the rest:
 
+- [§8 Cell Sprite Blocks](GNX_MODDING.md#8-cell-sprite-blocks) — three cell
+  dispatch modes: `base+class` (default, class clothing system), `fixed`
+  (cell-controlled sprites, all classes render the same), and `class_map`
+  (per-class sprites with a default fallback, solves multi-mod sprite
+  conflicts). Read this if you're building a cell that needs different sprites
+  per class without the clothing strip system.
+
 - [§5 Clothing Maps](GNX_MODDING.md#5-clothing-maps) — the full structure of
   `clothing_standard`/`big`/`tent`, including how leg variants, shared sprites,
   and the `leg_any` fallback key work. Read this when your class's sprites

@@ -19,10 +19,13 @@ classes.json    3 classes demonstrating all variants:
                   mon_spr_overrides (patrol + ogre_touch), spr_array/spr_c_array clothing_big,
                   "max_row" field
                 - PEASANT override: override:true with class_id:0, partial clothing
-cells.json      4 cells demonstrating all slot types and modes:
+cells.json      5 cells demonstrating all slot types and dispatch modes:
                 - HEX ROOM: standard (slot_type 0), base+class mode, full goblin sprites
                 - RITUAL: standard (slot_type 0), fixed mode, spr_array/spr_c_array,
                   sfx_type:"bj" (marks it an oral cell for the BJ sound pools)
+                - ARENA: standard (slot_type 0), class_map mode, per-class sprite dispatch
+                  with default fallback and a WITCH-specific entry. Demonstrates cross-mod
+                  string refs in class keys.
                 - SIREN POOL: large (slot_type 2), birth_classes
                 - BINDING: tent (slot_type 3)
 quests.json     Quest chain with all features:
@@ -36,10 +39,12 @@ quests.json     Quest chain with all features:
                 - Cage escape event (siren_hint, fired from classes.json)
                 - Frame completion hook quest (passive_gold_quest)
 tools.json      Debug menu with all 38 action types across 9 categories.
-                - Toggle buttons with save_key persistence
+                - Toggle buttons (toggle = save_state key string)
                 - Guard conditions on buttons
                 - Keybinds: single key, modifier key, range with {n} substitution
-                - Continuous effects (mood_lock, inf_food)
+                - Continuous effects (mood_lock)
+                NOTE: tool actions use numeric IDs only (no string ref resolution).
+                Use numeric class_id and h_type values.
 sounds.json     Sound system reference:
                 - voice_banks (soft, loud) — named moan-clip pools
                 - sfx pools (orgasm, bj_slurp, bj_gag, bj_moan, bj_breathe)
@@ -48,6 +53,23 @@ sounds.json     Sound system reference:
                 Clips are .ogg paths only (like the sprites). NOTE: audio MUST be
                 OGG Vorbis; runtime loading (audio_create_stream) rejects .wav.
                 See also classes.json WITCH "voice" and cells.json RITUAL "sfx_type".
+
+
+CELL DISPATCH MODES
+-------------------
+
+The 5 cells demonstrate all 3 dispatch modes:
+
+  base+class (HEX ROOM): Cell provides base_body type, class_registry provides
+    clothing sprites. Standard approach for most cells.
+
+  fixed (RITUAL): Cell controls human sprites directly via spr_array/spr_c_array.
+    Class clothing ignored. Good for shrines, single-pose scenes.
+
+  class_map (ARENA): Per-class sprite dispatch. Each class_id can have its own
+    spr_array/spr_c_array entry. Classes not listed fall back to "default".
+    Solves multi-mod row conflicts. Cross-mod string refs in class keys are
+    resolved automatically after all mods load.
 
 
 NAKED LAYER NOTES
@@ -91,4 +113,5 @@ Cross-references between files use "mod_id.Name" format:
   "example_mod.WITCH"      -> resolves to WITCH's hash-assigned class_id
   "example_mod.HEX ROOM"   -> resolves to HEX ROOM's hash-assigned h_type
 
-These are resolved at load time. Never hardcode numeric IDs.
+These are resolved at load time in classes.json, cells.json, and quests.json.
+NOTE: tools.json actions do NOT support string refs. Use numeric IDs there.
