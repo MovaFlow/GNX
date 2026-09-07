@@ -24,6 +24,7 @@ into `GNX_mods/` and run.
 14. [Special Class Features](#14-special-class-features)
 15. [Tool System — tools.json](#15-tool-system--toolsjson)
 16. [Sound System — sounds.json](#16-sound-system--soundsjson)
+17. [Custom Props — props.json](#17-custom-props--propsjson)
 
 ---
 
@@ -38,9 +39,12 @@ into `GNX_mods/` and run.
       cells.json       ← optional
       quests.json      ← optional
       tools.json       ← optional
+      props.json       ← optional
+      sounds.json    ← optional
       strips/          ← packed sprite strips
         spr_h_myclass_idle_head.png
         ...
+      sounds/          ← custom sound files
       portraits/       ← quest dialog portraits (133x113)
 ```
 
@@ -58,7 +62,7 @@ if they share a `class_id` or `h_type` (last writer wins).
   "mod_id": "my_mod",
   "name": "My Mod",
   "version": "1.0.0",
-  "compatible_game_versions": ["1.33"],
+  "compatible_game_versions": ["1.38"],
   "classes": "classes.json",
   "cells": "cells.json"
 }
@@ -76,12 +80,12 @@ if they share a `class_id` or `h_type` (last writer wins).
 | `version` | yes | Semver string |
 | `mod_id` | no | Informational only — not read by the loader. Conventionally set equal to the folder name |
 | `compatible_game_versions` | yes | Array of game version strings. Must include the running game version or the mod is silently skipped |
-| `compatible_game_versions` | yes | Array of game version strings. Must include the running game version or the mod is silently skipped |
 | `classes` | no | Path relative to mod folder; omit if no classes |
 | `cells` | no | Path relative to mod folder; omit if no cells |
 | `quests` | no | Path relative to mod folder; omit if no quests/events |
 | `tools` | no | Path relative to mod folder; omit if no tool buttons/keybinds |
 | `sounds` | no | Path relative to mod folder; omit if no custom sounds. See [§16](#16-sound-system--soundsjson) |
+| `props` | no | Path relative to mod folder; omit if no custom props. See [§17](#17-custom-props--propsjson) |
 | `save_state` | no | Per-mod persistent state definition (see below) |
 
 ### save_state
@@ -227,6 +231,46 @@ without a portrait while carried.
 | `fap_mul` | float | 1.0 | Multiplier on fap income from this class |
 | `bap_mul` | float | 0 | Multiplier on birth income from this class. **Default is 0 (birth income disabled).** Set explicitly if births should generate income |
 
+
+### birth_spr
+
+Optional object mapping cell-type keys to custom infant/birth-prop sprites.
+When a class is placed in a birth or restraint cell, the loader checks for a
+matching key; missing keys fall back to vanilla birth props.
+
+```json
+"birth_spr": {
+  "birth_1": {
+    "goblin": "gnx:myclass_birth1_goblin",
+    "hobgoblin": "gnx:myclass_birth1_hobgoblin",
+    "tentacle": "gnx:myclass_birth1_tentacle",
+    "ogre": "gnx:myclass_birth1_ogre"
+  },
+  "birth_2": {
+    "goblin": "gnx:myclass_birth2_goblin"
+  },
+  "bind_1": "gnx:myclass_bind1",
+  "bind_2": "gnx:myclass_bind2",
+  "t_wall_1": "gnx:myclass_twall1",
+  "t_wall_2": "gnx:myclass_twall2",
+  "t_wall_3": "gnx:myclass_twall3",
+  "giant": "gnx:myclass_giant"
+}
+```
+
+| Key | Value type | Notes |
+|-----|-----------|-------|
+| `birth_1` | object | Per-species sprites (keys: `goblin`, `hobgoblin`, `tentacle`, `ogre`). Each species key is optional |
+| `birth_2` | object | Same as `birth_1`, for second birth cell type |
+| `bind_1` | string | Single SprRef for BIND 1 cell |
+| `bind_2` | string | Single SprRef for BIND 2 cell |
+| `t_wall_1` | string | Single SprRef for T.WALL 1 |
+| `t_wall_2` | string | Single SprRef for T.WALL 2 |
+| `t_wall_3` | string | Single SprRef for T.WALL 3 |
+| `giant` | string | Single SprRef for GIANT cell |
+
+All sprite references use `gnx:key` format and must be declared in the
+`sprites` dict. Validated by test T58 at boot.
 ---
 
 ## 4. Sprite Strips
@@ -1441,7 +1485,7 @@ Manifest for this example:
   "mod_id": "my_mod",
   "name": "My Mod",
   "version": "1.0.0",
-  "compatible_game_versions": ["1.33"],
+  "compatible_game_versions": ["1.38"],
   "tools": "tools.json",
   "save_state": {
     "version": 1,
@@ -1562,3 +1606,97 @@ Mark a custom cell as an oral cell so the BJ sfx pools fire on it:
 ```
 
 Add it alongside the cell's other top-level fields in `cells.json`.
+
+---
+
+## 17. Custom Props — props.json
+
+Mods can add custom decorative props (the items placed between cells in edit
+mode: lamps, barrels, swords, etc.). Declare the file in `manifest.json`
+(`"props": "props.json"`) and provide sprites in `strips/`.
+
+```
+my_mod/
+  manifest.json          ← "props": "props.json"
+  props.json
+  strips/
+    prop_candle.png
+    prop_barrel.png
+```
+
+### props.json schema
+
+```json
+{
+  "schema_version": 1,
+  "props": [
+    {
+      "id": "iron_candle",
+      "display_name_key": "Iron Candle",
+      "code_text": "IC",
+      "position": "top",
+      "sprite": "gnx:candle_spr",
+      "price": 50,
+      "y_offset": -30,
+      "x_random_range": 5,
+      "xscale_random": true
+    }
+  ],
+  "sprites": {
+    "candle_spr": { "strip": "strips/prop_candle.png", "frames": 1 },
+    "barrel_spr": { "strip": "strips/prop_barrel.png", "frames": 1, "xorig": 16, "yorig": 32 }
+  }
+}
+```
+
+### Prop entry fields
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `id` | string | yes | | Unique identifier. Prefixed `mod_id.` at registration, then DJB2-hashed to a numeric prop_type (100–9999) |
+| `display_name_key` | string | yes | | Text displayed on the edit-mode button |
+| `code_text` | string | yes | | 1–2 letter code shown on the button |
+| `position` | string | yes | | `"top"`, `"mid"`, or `"bot"`. Determines which edit menu group the prop appears in |
+| `sprite` | string | yes | | Sprite reference. `"gnx:<key>"` for a sprite in the `sprites` block, or a plain key name |
+| `price` | int | no | -1 | Cost in edit mode. -1 = free |
+| `y_offset` | int | no | *position-dependent* | Vertical offset in pixels. Defaults: top=-30, mid=-10, bot=0 |
+| `x_random_range` | int | no | 0 | Horizontal random offset amplitude (pixels). Each placed prop picks a random value in [-range, +range] |
+| `xscale_random` | bool | no | false | If true, randomly flips the sprite horizontally when placed |
+
+### Sprites block
+
+Same format as `cells.json` / `classes.json` sprite declarations. Resolved via
+`gnx_resolve_sprite` and atlas-compatible.
+
+### Menu placement
+
+Props are added to the edit-mode menu based on `position`:
+
+| Position | Menu group | Default y_offset | Default depth |
+|----------|-----------|-------------------|---------------|
+| `"top"` | Top row (edit_top) | -30 | -751 |
+| `"mid"` | Middle row (edit_mid) | -10 | -751 |
+| `"bot"` | Bottom row (edit_bot) | 0 | -770 |
+
+### Save/load behavior
+
+Props are saved as their numeric `prop_type` (the DJB2 hash). On load,
+`scr_create_prop` looks up `global.prop_registry` for types >= 100. No schema
+change needed.
+
+If a mod is removed, orphaned custom props (prop_type >= 100, not in registry)
+are automatically deleted from save data during the sanitize pass. No crash, no
+stale sprites.
+
+### Drawing
+
+Custom props use SprRef-aware rendering via `gnx_draw_sprite_ext`. Hover
+highlight uses additive blending (yellow tint at 15% alpha), matching vanilla
+`scr_draw_highlight_prop`.
+
+### Testing
+
+T59 in the boot test suite validates every registered prop has a valid sprite,
+non-empty display name, valid position, and presence in the correct menu order
+array.
+
