@@ -2,7 +2,7 @@
 
 # GNX — Goblin Nest Extender
 
-> **Game version:** 1.33
+> **Game version:** 1.38
 
 GNX is a mod layer patched into `data.win` that lets you add custom content via JSON files: captive classes, dungeon cells, quest chains, raid encounters, boss mechanics, tool menus, and more. No GameMaker, no recompilation — drop a folder into `GNX_mods/` and run.
 
@@ -22,11 +22,15 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Sound & Voice** — runtime-loaded moan voice banks and h-scene SFX (orgasm, plap, ejaculation, oral) via `sounds.json`, per-class voice assignment, positional 3D audio, and an in-game SOUND settings page (volume + frequency sliders). Sounds persist with the save.
 
+**Custom Props** — custom decorative props (lamps, barrels, swords, etc.) via `props.json`. Props appear in the edit-mode menu, support custom sprites (SprRef-aware), random placement offsets, and horizontal flip. Orphaned props from removed mods are sanitized on load.
+
+**Birth Sprites** — modded classes can define custom birth/infant prop sprites per cell type and monster species via `birth_spr` in `classes.json`.
+
 **Save Safety** — mod removal sanitize system replaces orphaned cells and units with vanilla equivalents on load. No save corruption when removing mods.
 
 **Performance** — off-screen draw culling for slots and goblins (~1.5-2x fps at 30+ floors), runtime sprite caching for fast reloads.
 
-**Self-Testing** — 45-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
+**Self-Testing** — 59-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
 
 ---
 
@@ -53,6 +57,7 @@ GNX_mods/
     cells.json       ← optional
     quests.json      ← optional
     tools.json       ← optional
+    props.json       ← optional
     sounds.json      ← optional
     strips/          ← packed sprite strips
     portraits/       ← quest dialog portraits
@@ -81,7 +86,7 @@ GNX_mods/
 
 ## Compatibility
 
-GNX targets game version **1.33**. Mods declare which versions they support in `manifest.json` — a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
+GNX targets game version **1.38**. Mods declare which versions they support in `manifest.json` — a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
 
 ---
 
