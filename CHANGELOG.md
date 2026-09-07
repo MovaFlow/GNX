@@ -18,6 +18,8 @@
 
 - **Birth sprite regression** (Bug #17): 12x `sprite_get_number` → `gnx_sprite_get_number` in `s_slot_draw.gml` (hand sprites on all cells). Added `scr_draw_prop_infant_gnx` for SprRef-aware infant prop rendering.
 
+- **Atlas Packing documentation**: added section 18 to modding guide covering the optional texture atlas system, packer tool usage, uv.json format, and runtime behavior.
+
 ### Documentation Fixes
 
 - Fixed `cells.json` schema errors: `"data"` → `"physical"`, `"hand_frame"` → `"hand_frames"`, `{ "1": [...] }` → `{ "frame_1": [...] }` in modder guide and schema docs.

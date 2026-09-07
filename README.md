@@ -30,6 +30,8 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Performance** — off-screen draw culling for slots and goblins (~1.5-2x fps at 30+ floors), runtime sprite caching for fast reloads.
 
+**Atlas Packing** — optional texture atlas system (`gnx_atlas_pack.py`) packs sprite strips into large atlas PNGs, cutting texture pages from hundreds to single digits, VRAM by ~45%, and boot time from 94s to 1.8s. Fully backwards-compatible: mods work with or without atlas.
+
 **Self-Testing** — 59-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
 
 ---
