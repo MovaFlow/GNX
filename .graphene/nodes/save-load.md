@@ -15,3 +15,4 @@ edges:
 ---
 
 - Multi-map travel uses a deferred compiled-state-machine approach (Path A, 2026-08-10): scr_gnx_travel only snapshots + sets gnx_travel_data + gnx_trigger_load; next frame obj_control_Step_0 destroys instances, calls scr_create_initials(), sets load_file (0=restore via snapshot bypass, -1=fresh/New-Game path), sets obj_np.load_state=6. Entire feature SHELVED behind global.gnx_multimap_enabled=false. <!-- id:9843 -->
+- Version compatibility check (s_initials.gml scr_gnx_load_mod ~4062): _game_ver = string(global.val.version) — currently "1.38" (global.val.version is the NUMBER 1.38 as of the 1.38 rebase). manifest.json compatible_game_versions must contain the exact string "1.38". Mismatch => gnx_report_mod_error + exit (mod fully skipped, no content registered), logged to gnx_debug.txt. Every game-version bump requires updating every mod manifest. <!-- id:7f54 -->
