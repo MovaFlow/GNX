@@ -20,3 +20,4 @@ edges:
 ---
 
 - obj_np.obj_raid (raid window, obj_window interact_type=4) is a PERMANENT compiled-code singleton created once by scr_create_raid — never destroy it during any UI cleanup or every subsequent obj_np.obj_raid access (scr_mouse_control every frame) crashes. Same for the 3 dungeon HUD button groups (Value_32/34/35) — compiled-code singletons, scr_load_slot does not recreate them. <!-- id:2833 -->
+- s_slot_prop.gml is a NEW file added in v1.3.14 (vanilla 1.38 base + GNX patches, ~73KB): custom-prop default case, scr_draw_gnx_prop, birth-sprite dispatch, scr_draw_prop_infant_gnx (SprRef-aware infant prop rendering). Props + birth sprites render here. <!-- id:8e01 -->

@@ -10,3 +10,4 @@ metadata: {"entry":"scr_gnx_test_suite (~7654), scr_gnx_test_dispatch_routing (~
 ---
 
 - Test count grew past the CLAUDE.md's T57: v1.3.14 adds T58 (birth_spr resolution) and T59 (prop registry). ATLAS_SYSTEM_README cites 42/42 tests + 549 DROUTE PASS as the passing baseline in atlas mode. <!-- id:5880 -->
+- Current test range is T01-T59 (game 1.38 / GNX v1.3.14). T58 = birth_spr sprite resolution, T59 = prop_registry validity (sprite + display_name_key + position). T54-T57 (multi-map) log SKIP because global.gnx_multimap_enabled is false. Earlier T46-T53 (GMLC) were REMOVED, not skipped — GMLC is not shipped. <!-- id:f16d -->
