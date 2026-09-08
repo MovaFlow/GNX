@@ -3,4 +3,4 @@ category: convention
 subject: git-hygiene
 ---
 
-.gitattributes enforces LF line endings (eol=lf) — UMT exports LF, do not change. Baseline tags: v<version>-vanilla marks a clean UMT export (e.g. old v1.32-vanilla). Re-baseline workflow when a new vanilla export lands: rm -rf .git; git init; add+commit "vanilla <v>"; tag; then overwrite with mod files and commit "mod: initial state". Commit/push only when the user asks.
+No `.gitattributes` in this repo (the old CLAUDE.md claim of LF enforcement was stale from the `Code/` era). `core.autocrlf=true` globally. Tracked `GNX/diffs/*.patch` are UTF-16 LE with CRLF (as UMT/G3M exports them) — leave them. Graphene `.md` files trigger CRLF warnings on commit; harmless, they store fine. Baseline tags: `v<version>-vanilla` for a clean UMT export. Commit/push only when the user asks. Prefer a new commit over amending.
