@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.4.2
+
+**Game version:** 1.38
+
+### Bug Fixes
+
+- **Atlas packer: wrong frame counts** — the packer looked for `"path"` in classes.json but GNX uses `"strip"`, causing every sprite to fall through to heuristic frame-count inference. Most multi-frame strips got wrong counts, producing misaligned frames, wrong cell types, and skin-tone cycling in atlas mode.
+- **Atlas packer: trailing comma tolerance** — classes.json files with trailing commas (valid in JS, not JSON) caused a silent parse failure, compounding the frame-count bug.
+- **Atlas packer: missing sprite origins** — the packer did not read `xorig`/`yorig` from classes.json, so all atlas sprites rendered with (0,0) origin instead of their declared offsets (typically bottom-aligned). Origins are now written into uv.json and applied at load time.
+- **Atlas runtime: origin fallback** — if an atlas SprRef has no origin but the caller's JSON declares one, the resolver now applies it. Covers atlases packed before the origin fix.
+
+### Tools
+
+- Updated `gnx_atlas_pack.py` with all fixes above. Mods using atlas mode should re-pack with the updated tool.
+
 ## v1.4.1
 
 **Game version:** 1.38 (rebased from 1.33)
