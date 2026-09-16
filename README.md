@@ -1,47 +1,61 @@
 <img width="416" height="416" alt="gnx_logo" src="https://github.com/user-attachments/assets/ee2b9912-30fb-404c-b447-fe62f0832e9e" />
 
-# GNX — Goblin Nest Extender
+# GNX  - Goblin Nest Extender
 
 > **Game version:** 1.38
 
-GNX is a mod layer patched into `data.win` that lets you add custom content via JSON files: captive classes, dungeon cells, quest chains, raid encounters, boss mechanics, tool menus, and more. No GameMaker, no recompilation — drop a folder into `GNX_mods/` and run.
+GNX is a mod layer patched into `data.win` that lets you add custom content via JSON files: captive classes, dungeon cells, quest chains, raid encounters, boss mechanics, tool menus, and more. No GameMaker, no recompilation  - drop a folder into `GNX_mods/` and run.
 
 ---
 
 ## Features
 
-**Classes & Sprites** — custom captive classes with full sprite support: standard, big, and tent cell clothing layers, naked body layer overrides, goblin sprite overrides, patrol and ogre-touch sprites, unit icons, and special-class rendering. Hash-based ID auto-assignment means modders never pick IDs manually.
+**Classes & Sprites**  - custom captive classes with full sprite support: standard, big, and tent cell clothing layers, naked body layer overrides, goblin sprite overrides, patrol and ogre-touch sprites, unit icons, and special-class rendering. Hash-based ID auto-assignment means modders never pick IDs manually.
 
-**Cells** — custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Hash-based h_type assignment, automatic unlock migration on save load.
+**Cells**  - custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Hash-based h_type assignment, automatic unlock migration on save load.
 
-**Quests & Dialogs** — event-driven quest chains with dialog popups, portrait sprites, 13 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
+**Quests & Dialogs**  - event-driven quest chains with dialog popups, portrait sprites, 13 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
 
-**Raid & Boss Mechanics** — custom raid encounter pools with conditional spawning, AP overrides, per-encounter limits, post-raid cage escape behaviors, and birth-class mapping (human class to goblin troop class per species).
+**Raid & Boss Mechanics**  - custom raid encounter pools with conditional spawning, AP overrides, per-encounter limits, post-raid cage escape behaviors, and birth-class mapping (human class to goblin troop class per species).
 
-**Tool System** — mod-defined cheat/debug menus with 38 action types, keybind support (single keys, ranges, modifiers), toggle buttons with save-state persistence, guard conditions, and continuous effects.
+**Tool System**  - mod-defined cheat/debug menus with 38 action types, keybind support (single keys, ranges, modifiers), toggle buttons with save-state persistence, guard conditions, and continuous effects.
 
-**Sound & Voice** — runtime-loaded moan voice banks and h-scene SFX (orgasm, plap, ejaculation, oral) via `sounds.json`, per-class voice assignment, positional 3D audio, and an in-game SOUND settings page (volume + frequency sliders). Sounds persist with the save.
+**Sound & Voice**  - runtime-loaded moan voice banks and h-scene SFX (orgasm, plap, ejaculation, oral) via `sounds.json`, per-class voice assignment, positional 3D audio, and an in-game SOUND settings page (volume + frequency sliders). Sounds persist with the save.
 
-**Custom Props** — custom decorative props (lamps, barrels, swords, etc.) via `props.json`. Props appear in the edit-mode menu, support custom sprites (SprRef-aware), random placement offsets, and horizontal flip. Orphaned props from removed mods are sanitized on load.
+**Custom Props**  - custom decorative props (lamps, barrels, swords, etc.) via `props.json`. Props appear in the edit-mode menu, support custom sprites (SprRef-aware), random placement offsets, and horizontal flip. Orphaned props from removed mods are sanitized on load.
 
-**Birth Sprites** — modded classes can define custom birth/infant prop sprites per cell type and monster species via `birth_spr` in `classes.json`.
+**Birth Sprites**  - modded classes can define custom birth/infant prop sprites per cell type and monster species via `birth_spr` in `classes.json`.
 
-**Save Safety** — mod removal sanitize system replaces orphaned cells and units with vanilla equivalents on load. No save corruption when removing mods.
+**Save Safety**  - mod removal sanitize system replaces orphaned cells and units with vanilla equivalents on load. No save corruption when removing mods.
 
-**Performance** — off-screen draw culling for slots and goblins (~1.5-2x fps at 30+ floors), runtime sprite caching for fast reloads.
+**Performance**  - off-screen draw culling for slots and goblins (~1.5-2x fps at 30+ floors), runtime sprite caching for fast reloads.
 
-**Atlas Packing** — optional texture atlas system (`gnx_atlas_pack.py`) packs sprite strips into large atlas PNGs, cutting texture pages from hundreds to single digits, VRAM by ~45%, and boot time from 94s to 1.8s. Fully backwards-compatible: mods work with or without atlas.
+**Atlas Packing**  - optional texture atlas system (`gnx_atlas_pack.py`) packs sprite strips into large atlas PNGs, cutting texture pages from hundreds to single digits, VRAM by ~45%, and boot time from 94s to 1.8s. Fully backwards-compatible: mods work with or without atlas.
 
-**Self-Testing** — 59-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
+**Self-Testing**  - 59-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
 
 ---
 
 ## Installing GNX
 
+### Standalone Installer (recommended)
+
+1. Download `GNX_v<version>.exe` from the [Releases](https://github.com/MovaFlow/GNX/releases) page.
+2. Place it next to `GoblinNest.exe` in your game folder.
+3. Run it. GNX is installed. No mod manager, no downloads, no command line.
+
+To **update**: drop the newer exe in the same folder and run it  - it patches from your backup automatically.
+To **uninstall**: run the exe and choose "Restore Backup".
+To **install mods**: drag a mod `.zip` onto the exe.
+
+### Via G3M (mod manager)
+
 1. Install [G3M](https://github.com/y114git/G3M).
 2. Add Goblin Nest as a custom game in G3M.
-3. Download **Goblin Nest eXtender _GNX_1.3.X.zip** and add it as a mod for Goblin Nest in G3M.
+3. Download the GNX package and add it as a mod for Goblin Nest in G3M.
 4. Activate it and launch from G3M.
+
+### Verifying
 
 On first boot, `gnx_debug.txt` is written to `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt`. It should end with `[GNX-TEST] N/N passed`.
 
@@ -67,10 +81,10 @@ GNX_mods/
 ```
 
 **Docs:**
-- [`docs/TUTORIAL.md`](docs/TUTORIAL.md) — step-by-step walkthrough, from skeleton mod to custom class and cell.
-- [`docs/GNX_MODDING.md`](docs/GNX_MODDING.md) — full field-by-field reference for every JSON block.
-- [`docs/QUESTS_SCHEMA.md`](docs/QUESTS_SCHEMA.md) — quest/dialog system reference (events, triggers, conditions).
-- [`docs/example_mod/`](docs/example_mod/) — a reference mod showcasing every JSON feature (classes, cells, quests, tools, sounds, vanilla patches). Schema-complete; sprite/audio paths are placeholders.
+- [`docs/TUTORIAL.md`](docs/TUTORIAL.md)  - step-by-step walkthrough, from skeleton mod to custom class and cell.
+- [`docs/GNX_MODDING.md`](docs/GNX_MODDING.md)  - full field-by-field reference for every JSON block.
+- [`docs/QUESTS_SCHEMA.md`](docs/QUESTS_SCHEMA.md)  - quest/dialog system reference (events, triggers, conditions).
+- [`docs/example_mod/`](docs/example_mod/)  - a reference mod showcasing every JSON feature (classes, cells, quests, tools, sounds, vanilla patches). Schema-complete; sprite/audio paths are placeholders.
 
 **Tools** (in `tools/`, require Python 3.9+ and `pip install Pillow`):
 
@@ -88,7 +102,7 @@ GNX_mods/
 
 ## Compatibility
 
-GNX targets game version **1.38**. Mods declare which versions they support in `manifest.json` — a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
+GNX targets game version **1.38**. Mods declare which versions they support in `manifest.json`  - a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
 
 ---
 
@@ -122,5 +136,5 @@ Credit to @nevereverever for their excellent work on the Frieren Mod ([link](htt
 
 Credit to @kazull for the improved export_class_sprites and scaffold_class scripts, including icon extraction, special class support, and the contributor-submitted codebase that was extended with GNX feature coverage.
 
-Credit to @Jadwick for the original Moan Mod ([link](https://jadwick.dev/mods/moan-mod/)) — its voices and SFX are ported into GNX's sound system.
+Credit to @Jadwick for the original Moan Mod ([link](https://jadwick.dev/mods/moan-mod/))  - its voices and SFX are ported into GNX's sound system. Also credit to Jadwick for [GBF](https://github.com/Jadwick/GBF) (Goblin's Best Friend), whose fossil-delta patching architecture inspired the GNX standalone installer.
 

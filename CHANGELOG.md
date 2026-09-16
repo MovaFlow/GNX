@@ -1,44 +1,37 @@
 # Changelog
 
-## v1.3.14 — Rebase to vanilla 1.38
+## v1.4.1
 
 **Game version:** 1.38 (rebased from 1.33)
 
+Everything below is new since the last public release (v1.3.11, game 1.33).
+
 ### New Features
 
-- **Custom Decorative Props** (`props.json`): mods can now add custom props to the edit-mode menu with custom sprites, placement offsets, random flip, and per-group positioning (top/mid/bot). Full save/load support with orphan sanitize on mod removal. Test T59 validates prop registry at boot.
+- **Rebased to game version 1.38**: full rebase of all 49 patched scripts from vanilla 1.33 to 1.38. All new vanilla content (cells, sprites, UI changes) is preserved. Existing mods only need to update `compatible_game_versions` in their manifest.
 
-- **Custom Birth Sprites** (`birth_spr` in `classes.json`): modded classes can define per-cell-type, per-species infant/birth prop sprites. Supports birth_1, birth_2, bind, tent walls, and giant cells. Test T58 validates birth sprite resolution at boot.
+- **Standalone Installer**: GNX now ships as a single `.exe` that patches the game directly  - no mod manager, no downloads, no command line. Drop it next to `GoblinNest.exe` and run. Supports install, update-in-place (run a newer exe), restore/uninstall, and drag-and-drop mod `.zip` install. Based on fossil-delta binary patching (inspired by Jadwick's GBF).
+
+- **Multi-Map Travel** (`map`, `map_button`, `map_start` in `manifest.json`): mods can declare a second map  - a fully independent dungeon the player travels to and from via a button on the gameplay screen. Each map has its own floor layout, cells, monsters, raid state, quests, and economy. State is frozen on departure and restored on return. Day counter is shared across all maps. First visit applies configurable starting state (floors, gold, food, mood, goblins). Deferred mod loading ensures map-specific content only loads when needed. Save/load fully supported with map label shown on save-select screen.
+
+- **Custom Decorative Props** (`props.json`): mods can now add custom props to the edit-mode menu with custom sprites, placement offsets, random flip, and per-group positioning (top/mid/bot). Full save/load support with orphan sanitize on mod removal.
+
+- **Custom Birth Sprites** (`birth_spr` in `classes.json`): modded classes can define per-cell-type, per-species infant/birth prop sprites. Supports birth_1, birth_2, bind, tent walls, and giant cells.
+
+- **Unsaved Progress Warning**: "Return to Menu" now shows a confirmation dialog ("Unsaved progress will be lost!") before quitting to the menu.
+
+- **Atlas Packing** (optional performance): texture atlas system (`gnx_atlas_pack.py`) packs sprite strips into large atlas PNGs, cutting texture pages from hundreds to single digits, VRAM by ~45%, and boot time from 94s to 1.8s. Fully backwards-compatible.
 
 ### Bug Fixes
 
-- **SprRef/Atlas draw regression** (Bug #7/#9): restored `gnx_draw_sprite_ext` wrappers on all registry-sourced draw calls across `s_mon_draw.gml`, `s_slot_draw.gml`, `s_unit_head_draw.gml`, `s_raid_draw.gml`. Restored `gnx_sprite_get_number/width/height` query wrappers in `s_slot_data.gml`, `s_slot_function.gml`, `s_button_activate.gml`, `s_slot_windows.gml`. Fixes invisible sprites when 4+ mods loaded in atlas mode.
+- **SprRef/Atlas draw regression** (Bug #7/#9): fixed invisible sprites when 4+ mods loaded in atlas mode. Restored `gnx_draw_sprite_ext` wrappers on all registry-sourced draw calls.
+- **Hand position regression** (Bug #10): custom `hand_x`/`hand_y` values now apply correctly.
+- **Birth sprite regression** (Bug #17): SprRef-aware infant prop rendering via `scr_draw_prop_infant_gnx`.
+- **Debug overlay removed**: disabled `show_debug_overlay(true)` that was causing the GameMaker debug menu bar and FPS counter to appear.
 
-- **Hand position regression** (Bug #10): fixed by the `sprite_get_number` → `gnx_sprite_get_number` restoration in Bug #17. Custom `hand_x`/`hand_y` values now apply correctly.
+### Documentation
 
-- **Birth sprite regression** (Bug #17): 12x `sprite_get_number` → `gnx_sprite_get_number` in `s_slot_draw.gml` (hand sprites on all cells). Added `scr_draw_prop_infant_gnx` for SprRef-aware infant prop rendering.
-
-- **Atlas Packing documentation**: added section 18 to modding guide covering the optional texture atlas system, packer tool usage, uv.json format, and runtime behavior.
-
-### Documentation Fixes
-
-- Fixed `cells.json` schema errors: `"data"` → `"physical"`, `"hand_frame"` → `"hand_frames"`, `{ "1": [...] }` → `{ "frame_1": [...] }` in modder guide and schema docs.
-- Added `props.json` schema documentation.
-- Added `birth_spr` documentation to `classes.json` schema.
-
-### Files Changed
-
-| File | Changes |
-|------|---------|
-| `s_initials.gml` | prop_registry init, hash, register, load, apply/migrate unlocks, T58+T59 tests, birth_spr loader |
-| `s_slot_prop.gml` | New file (vanilla 1.38 + GNX patches): custom prop default case, `scr_draw_gnx_prop`, birth sprite dispatch, `scr_draw_prop_infant_gnx` |
-| `s_slot_draw.gml` | 12x `sprite_get_number` → `gnx_sprite_get_number` |
-| `s_mon_draw.gml` | 26x `draw_sprite_ext` → `gnx_draw_sprite_ext` on `_mon_spr.*` |
-| `s_unit_head_draw.gml` | `gnx_draw_sprite_ext` on icon sprites |
-| `s_raid_draw.gml` | `gnx_draw_sprite_ext` on `_gnx_icon` |
-| `s_slot_data.gml` | 1x `sprite_get_number` → `gnx_sprite_get_number` |
-| `s_slot_function.gml` | 1x `sprite_get_number` → `gnx_sprite_get_number` |
-| `s_button_activate.gml` | 3x `sprite_get_number` → `gnx_sprite_get_number` |
-| `s_slot_windows.gml` | 2x `sprite_get_width/height` → `gnx_sprite_get_width/height` |
-| `s_button_text.gml` | `scr_set_prop_text` GNX hook, `scr_lang_prop_text` guard |
-| `s_patch_updates.gml` | Orphaned prop sanitize, prop unlock apply/migrate in post |
+- Full modding reference updated for 1.38 (all JSON schemas, new sections for props, birth sprites, multi-map, atlas packing).
+- Fixed `cells.json` schema errors in docs.
+- Updated tutorial and example mod compatibility from 1.33 to 1.38.
+- Updated README with standalone installer as recommended install path.

@@ -1,4 +1,4 @@
-# GNX Quest System — JSON Schema
+# GNX Quest System  - JSON Schema
 
 ## manifest.json
 
@@ -162,10 +162,10 @@ event fires, before the dialog is displayed.
 ## Completion hooks (for quest events)
 
 `completion_hook` determines when the quest's completion condition is checked:
-- `"frame"` — checked every frame during gameplay
-- `"post_raid"` — checked after any raid return
-- `"post_raid_win"` — checked after winning a raid only
-- `"cell_built"` — checked when any cell is placed via build menu
+- `"frame"`  - checked every frame during gameplay
+- `"post_raid"`  - checked after any raid return
+- `"post_raid_win"`  - checked after winning a raid only
+- `"cell_built"`  - checked when any cell is placed via build menu
 
 ## Event chaining
 

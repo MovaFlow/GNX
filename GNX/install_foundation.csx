@@ -42,7 +42,7 @@ string[] gmlFiles = Directory.GetFiles(gmlDir!, "*.gml");
 if (gmlFiles.Length == 0)
     throw new Exception($"No .gml files found in: {gmlDir}");
 
-SetProgressBar(null, "GNX Foundation — Code", 0, gmlFiles.Length);
+SetProgressBar(null, "GNX Foundation  - Code", 0, gmlFiles.Length);
 StartProgressBarUpdater();
 
 long queueMs = 0, importMs = 0, totalBytes = 0;
@@ -59,10 +59,10 @@ await Task.Run(() =>
     foreach (string file in gmlFiles)
     {
         string code = File.ReadAllText(file);
-        // Inline the GNX_LOG macro — UTMT cross-script macro resolution is unreliable
+        // Inline the GNX_LOG macro  - UTMT cross-script macro resolution is unreliable
         code = code.Replace("GNX_LOG", "\"gnx_debug.txt\"");
         string codeName = Path.GetFileNameWithoutExtension(file);
-        // Skip s_macro — macros are now inlined, no script entry needed
+        // Skip s_macro  - macros are now inlined, no script entry needed
         if (codeName == "gml_GlobalScript_s_macro") { IncrementProgress(); continue; }
         totalBytes += code.Length;
         importGroup.QueueReplace(codeName, code);
@@ -144,6 +144,11 @@ if (assetsDir != null)
         {
             UndertaleSprite refSpr = Data.Sprites.ByName("spr_option_window");
             if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
+        }
+        else if (baseName == "gnx_map_button")
+        {
+            // travel marker  - centered origin like the vanilla raid-map buttons
+            ox = w / 2; oy = h / 2;
         }
 
         // Create the sprite resource

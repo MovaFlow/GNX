@@ -1,6 +1,6 @@
-# GNX Modding Tutorial — Building Your First Mod
+# GNX Modding Tutorial  - Building Your First Mod
 
-> **Compatibility:** GNX v1.0 · Game version 1.33
+> **Compatibility:** GNX v1.4+ · Game version 1.38
 
 This is a hands-on walkthrough for a new modder. It builds up a mod step by
 step, from "hello world" to a custom class and a custom cell, using
@@ -18,8 +18,8 @@ worked*.
 - [1. Mod skeleton (no sprites yet)](#1-mod-skeleton-no-sprites-yet)
 - [2. Easiest real change: patch a vanilla cell (no sprites)](#2-easiest-real-change-patch-a-vanilla-cell-no-sprites)
 - [3. Sprite pipeline basics](#3-sprite-pipeline-basics)
-- [4. Custom class — your own character](#4-custom-class--your-own-character)
-- [5. Custom cell — your own room](#5-custom-cell--your-own-room)
+- [4. Custom class  - your own character](#4-custom-class--your-own-character)
+- [5. Custom cell  - your own room](#5-custom-cell--your-own-room)
 - [6. Test, debug, iterate](#6-test-debug-iterate)
 - [7. Going further](#7-going-further)
 - [8. Tooling reference](#8-tooling-reference)
@@ -36,10 +36,10 @@ worked*.
 
 **Software:**
 
-- **GNX** — install via [G3M](https://github.com/y114git/G3M) (the mod manager). Add Goblin Nest as a custom game, add the GNX package as a mod, activate it, and launch from G3M. You don't touch any game files yourself.
-- **Python 3.9+** — required to run the modding tools. Download from
+- **GNX**  - install via the standalone installer (drop `GNX_v<version>.exe` next to `GoblinNest.exe` and run it) or via [G3M](https://github.com/y114git/G3M) (the mod manager). With G3M: add Goblin Nest as a custom game, add the GNX package as a mod, activate it, and launch from G3M.
+- **Python 3.9+**  - required to run the modding tools. Download from
   [python.org](https://www.python.org/downloads/).
-- **Pillow** — Python image library used by all tools:
+- **Pillow**  - Python image library used by all tools:
   ```
   pip install Pillow
   ```
@@ -47,14 +47,14 @@ worked*.
 
 **Setting up `<tools>/`:**
 
-All commands in this tutorial reference `<tools>/` — the folder containing the
+All commands in this tutorial reference `<tools>/`  - the folder containing the
 GNX modding scripts. Depending on how you got them:
 
 - **From G3M:** extract `tools.zip` (shipped alongside the GNX mod) to any
   folder. That folder is `<tools>/`.
 - **From this repo:** the `tools/` directory in the repo root is `<tools>/`.
 
-Example — if you extracted to `C:\GNX\tools\`:
+Example  - if you extracted to `C:\GNX\tools\`:
 ```bash
 python C:\GNX\tools\scaffold_class.py --name Barbarian ...
 ```
@@ -82,7 +82,7 @@ real content.
 
 1. Inside `GNX_mods/`, right-click → New Folder → name it `my_mod`.
    Inside `my_mod/`, create a new text file, rename it `manifest.json`
-   (make sure Windows isn't hiding the `.txt` extension — it should not say
+   (make sure Windows isn't hiding the `.txt` extension  - it should not say
    `manifest.json.txt`). Open it and paste:
    ```json
    {
@@ -97,7 +97,7 @@ real content.
    `mod_id` **must match the folder name**. If you have no classes or cells
    yet, omit those two keys entirely (don't point to files that don't exist).
 
-2. Launch the game. Open `gnx_debug.txt` — written to
+2. Launch the game. Open `gnx_debug.txt`  - written to
    `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt` (GameMaker's default sandbox
    folder on Windows). You should see:
    ```
@@ -155,7 +155,7 @@ This confirms: cells.json is being read, and patching an existing `h_type`
 works.
 
 **Note on IDs:** vanilla `h_type` is 0–42, vanilla `class_id` is 0–13. For
-new cells and classes, **omit the numeric ID** — GNX auto-assigns a stable
+new cells and classes, **omit the numeric ID**  - GNX auto-assigns a stable
 hash-based value (`h_type` ≥100, `class_id` ≥14) derived from your mod folder
 name and entry name. Same ID every run, no coordination needed between mods.
 You can still supply an explicit ID (≥43 / ≥14) if you prefer, but omitting is
@@ -173,7 +173,7 @@ PNGs into a single strip image + metadata block.
 [§8 → export_class_sprites.py](#export_class_spritespy--copy--rename-a-vanilla-class))
 to copy a vanilla class's full sprite set and rename it to your prefix. This
 gives you a working sprite folder you can pack and test immediately, then swap
-for real art later. The script requires a one-time UMT sprite export — the full
+for real art later. The script requires a one-time UMT sprite export  - the full
 steps are in §8.
 
 **Basic workflow:**
@@ -209,23 +209,23 @@ If instead you see:
 [GNX] WARN idle_head: no strip/path/frames, returning fallback
 ```
 the packer never ran (or the JSON edit happened after packing and the
-`strip` key is missing/wrong) — the sprite falls back to a placeholder.
+`strip` key is missing/wrong)  - the sprite falls back to a placeholder.
 
 Two fields matter beyond `xorig`/`yorig`:
 - `folder`: exact source folder name, when it doesn't match
   `{sprite_prefix}_{key}`.
-- `canvas_w` / `canvas_h`: pad frames to a fixed size — required when a
+- `canvas_w` / `canvas_h`: pad frames to a fixed size  - required when a
   sprite must match a vanilla slot exactly (e.g. class icons must be 21×26,
   origin 10×13).
 
 ---
 
-## 4. Custom class — your own character
+## 4. Custom class  - your own character
 
 Goal: a new selectable class (`class_id >= 14`) that goblins can interact
 with in cells.
 
-**Choosing a tool — pick one:**
+**Choosing a tool  - pick one:**
 
 - **You copied vanilla sprites in §3** → run `scaffold_class.py` now
   (see [§8 → scaffold_class.py](#scaffold_classpy--generate-a-classesjson-stub-from-detected-sprites)).
@@ -242,17 +242,17 @@ with in cells.
 **Steps:**
 
 1. **Choose a `sprite_prefix`** (e.g. `spr_h_mychar`). You can omit
-   `class_id` entirely — GNX will hash-assign a stable ID. Only supply one if
+   `class_id` entirely  - GNX will hash-assign a stable ID. Only supply one if
    you have a specific reason (e.g. cross-mod references by integer).
 2. **Decide `override`**:
    - `false` = brand new class, fully separate from vanilla.
    - `true` + a vanilla `class_id` (0–13) = reskin an existing class. Logged
      as `[GNX] class_id <N> override`. Without `override: true`, registering
      an already-used `class_id` is logged as
-     `[GNX] class_id <N> collision — skipped` and your class is dropped
+     `[GNX] class_id <N> collision  - skipped` and your class is dropped
      entirely.
 3. **Declare every sprite your cells will need** in the `sprites` dict. The
-   minimum set depends on which cell types your class will be placed in —
+   minimum set depends on which cell types your class will be placed in  -
    see [GNX_MODDING.md Quick-Reference](GNX_MODDING.md#quick-reference-sprite-keys-by-cell-type):
    - Standard cells (slot_type 0): `hand`, `idle_*`, `loop_*` (head/breast/leg_1/leg_2/legp).
    - Large cells (slot_type 2): `big_start_*`, `big_idle_*`, `big_loop_*`.
@@ -275,21 +275,21 @@ Pack sprites (step 3), then relaunch. Success looks like:
 Each sprite line should show `strip frames=N idx=ref sprite <N>` with frame
 counts matching what the cell-type table expects (e.g. 90 = 3 skins × 30
 frames for `idle_*`, 225 = 3 skins × 75 frames for `loop_*`). A frame-count
-mismatch won't error here, but will desync animations in-game — double-check
+mismatch won't error here, but will desync animations in-game  - double-check
 against [GNX_MODDING.md §4](GNX_MODDING.md#4-sprite-strips).
 
 You can test a new class immediately by giving it `raid_spawns` (so it
-appears in raid encounters) — no custom cell required, since it can occupy
+appears in raid encounters)  - no custom cell required, since it can occupy
 any vanilla cell its `mon_types`/`required_class` allow.
 
 ---
 
-## 5. Custom cell — your own room
+## 5. Custom cell  - your own room
 
 Goal: a new cell type (`h_type >= 43`) with its own background, hand-cursor
 animation, and h-scene sprites.
 
-**Choosing a tool — pick one:**
+**Choosing a tool  - pick one:**
 
 - **Starting from scratch** → run `scaffold_cell.py`
   (see [§8 → scaffold_cell.py](#scaffold_cellpy--generate-a-cell-stub)).
@@ -316,19 +316,19 @@ sprite folders it lists, add your art, then pack (§3).
 
 **Key fields** (full reference: first entry in `example_mod/cells.json`, "RITUAL"):
 
-- `physical.layers`: background/foreground sprite layers — see
+- `physical.layers`: background/foreground sprite layers  - see
   [GNX_MODDING.md §7](GNX_MODDING.md#7-cell-physical-block).
 - `physical.scr_idle` / `physical.scr_h`: state-machine script names.
-  **These must already exist in the game's code** — GNX cells reuse existing
+  **These must already exist in the game's code**  - GNX cells reuse existing
   scripts (e.g. `scr_slot_h_base_*`), they don't let you inject new GML. If
   you typo one, you'll see `[GNX] WARNING: script not found: <name>` and that
   phase falls back silently.
-- `required_class`: restrict the cell to your custom class(es) — e.g. `[14]`
+- `required_class`: restrict the cell to your custom class(es)  - e.g. `[14]`
   to make it Witch-only. Accepts integer IDs or `"mod_id.ClassName"` string
   refs.
 - `mon_spr`: per-phase goblin sprite assignment (`start`/`loop`, each with
   `body`, `hand`, `pen`, `touch`, optional `head`/`enter`). Every `_alpha`
-  (fill) sprite needs a matching `_line` sprite — the linework overlay drawn
+  (fill) sprite needs a matching `_line` sprite  - the linework overlay drawn
   on top in the game's color modes 1 and 2.
 - `sprites`: strip declarations for both the cell's own background sprites
   (`wall`, `handc`, `extra`) and every goblin h-scene sprite referenced by
@@ -342,7 +342,7 @@ Pack sprites, relaunch. Success:
 ```
 If `h_type` collides with one already registered (vanilla *or* another mod),
 you'll instead get `[GNX] patched h=<N> by mod=...` and only the fields you
-specified are applied on top — usually not what you want for a brand-new cell.
+specified are applied on top  - usually not what you want for a brand-new cell.
 Omit `h_type` entirely and let GNX hash-assign one.
 
 ---
@@ -350,7 +350,7 @@ Omit `h_type` entirely and let GNX hash-assign one.
 ## 6. Test, debug, iterate
 
 After every change: relaunch the game, read `gnx_debug.txt` top to bottom.
-It's at `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt` — cleared on every launch.
+It's at `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt`  - cleared on every launch.
 
 **Loader section** (one block per mod, in alphabetical load order):
 ```
@@ -362,13 +362,13 @@ It's at `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt` — cleared on every launch.
 [GNX] loader done
 ```
 
-**Self-test section** — runs automatically after loading:
+**Self-test section**  - runs automatically after loading:
 ```
 [GNX-TEST] N/N passed                          (count varies with GNX version)
 [GNX-TEST] DROUTE: N PASS N FAIL N SKIP        (numbers vary with game content)
 ```
 Any `FAIL` here points at a structural problem (registry size, missing
-required field) — it's not specific to your content but worth checking after
+required field)  - it's not specific to your content but worth checking after
 big changes.
 
 **Common log messages and what they mean:**
@@ -381,24 +381,24 @@ big changes.
 | `cells file not found: <path>` | `manifest.json` points to a missing `cells.json` | Fix path or remove the `"cells"` key |
 | `WARNING: script not found: <name>` | `scr_idle`/`scr_h`/etc. references a nonexistent script | Use an existing vanilla script name |
 | `WARN <key>: no strip/path/frames, returning fallback` | Sprite not packed yet, or `strip` key wrong | Run `gnx_pack_strips.py` |
-| `class_id <N> collision — skipped` | `class_id` already used, no `override` | Pick a free `class_id`, or set `override: true` |
+| `class_id <N> collision  - skipped` | `class_id` already used, no `override` | Pick a free `class_id`, or set `override: true` |
 | `class_id <N> override` | Reskinning an existing `class_id` | Expected if intentional |
-| `patched h=<N> by mod=<id>` | `h_type` already registered (vanilla or earlier mod) — only your fields applied | Expected for vanilla patches; omit `h_type` for new cells |
+| `patched h=<N> by mod=<id>` | `h_type` already registered (vanilla or earlier mod)  - only your fields applied | Expected for vanilla patches; omit `h_type` for new cells |
 
 **In-game checks**, once `gnx_debug.txt` looks clean:
 - `[GNX] REG-STANDARD class=N phase=N head/breast/leg/head_c/leg_c=...` fires
-  whenever a goblin is placed in a standard cell — confirms your class's
+  whenever a goblin is placed in a standard cell  - confirms your class's
   clothing maps resolve.
 - `[GNX] class_spr h=N (vanilla|custom) class=N phase=N mode=M base_body=B is_special=N`
   fires for **every** cell a captive is dispatched into (vanilla and custom
-  alike) — the complete dispatch trace. `mode=fixed base_body=?` is normal for
+  alike)  - the complete dispatch trace. `mode=fixed base_body=?` is normal for
   fixed-art cells like shrines (they have no `base_body`, so `?` just means
   "field not present"); `mode=class` is the normal clothing/naked path.
 
 **Turn these on first.** The two logs above (and the `[DRINK]`/`[PROP]` traces)
 are gated behind verbose logging, which is **off by default**. Enable it in-game
 at **Settings → DEBUG → GNX DEBUG → VERBOSE LOG**, then trigger the action you're
-debugging (place a captive, etc.) — they only fire on placement/state-change,
+debugging (place a captive, etc.)  - they only fire on placement/state-change,
 not while units merely animate. The DEBUG entry itself always writes a
 `[GNX-TOOL] set_var gnx_debug_verbose = 1` line when you toggle it, which is a
 quick confirmation the menu is dispatching your clicks.
@@ -409,49 +409,49 @@ quick confirmation the menu is dispatching your clicks.
 
 Once the basics above work, GNX_MODDING.md covers the rest:
 
-- [§8 Cell Sprite Blocks](GNX_MODDING.md#8-cell-sprite-blocks) — three cell
+- [§8 Cell Sprite Blocks](GNX_MODDING.md#8-cell-sprite-blocks)  - three cell
   dispatch modes: `base+class` (default, class clothing system), `fixed`
   (cell-controlled sprites, all classes render the same), and `class_map`
   (per-class sprites with a default fallback, solves multi-mod sprite
   conflicts). Read this if you're building a cell that needs different sprites
   per class without the clothing strip system.
 
-- [§5 Clothing Maps](GNX_MODDING.md#5-clothing-maps) — the full structure of
+- [§5 Clothing Maps](GNX_MODDING.md#5-clothing-maps)  - the full structure of
   `clothing_standard`/`big`/`tent`, including how leg variants, shared sprites,
   and the `leg_any` fallback key work. Read this when your class's sprites
   aren't rendering or are rendering for the wrong leg types.
 
-- [§9 Raid Spawns](GNX_MODDING.md#9-raid-spawns) — how to add your class to
+- [§9 Raid Spawns](GNX_MODDING.md#9-raid-spawns)  - how to add your class to
   enemy encounter pools, control spawn rates per stage, and weight the trader
   pool. The fastest way to see your new class in-game without building a custom
   cell first.
 
-- [§11 Trade Shop & Birth Class Mapping](GNX_MODDING.md#11-trade-shop--birth-class-mapping) —
+- [§11 Trade Shop & Birth Class Mapping](GNX_MODDING.md#11-trade-shop--birth-class-mapping)  -
   `trade_stage` controls whether units of your class appear in the raid trader.
   `birth_class` controls how offspring of your class map to goblin troop
   types (0-3) per species. Both are optional but matter once your mod ships
   to users with existing saves.
 
-- [§13 Post-Raid Cage Escape](GNX_MODDING.md#13-post-raid-cage-escape) —
+- [§13 Post-Raid Cage Escape](GNX_MODDING.md#13-post-raid-cage-escape)  -
   boss-style characters that escape from the cage after capture, with
   configurable escape chance, popups, and event chains.
 
-- [§14 Special Class Features](GNX_MODDING.md#14-special-class-features) —
+- [§14 Special Class Features](GNX_MODDING.md#14-special-class-features)  -
   `max_row`, `gb1_breast_d2`, and `mon_spr_overrides` for `is_special`
   classes (Nyx/Lilith-tier) that need custom sprite handling.
 
-- **Quest/dialog system** — see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) for
+- **Quest/dialog system**  - see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) for
   the full reference on events, triggers, completion conditions, and
   side effects. Declare `"quests": "quests.json"` in your manifest and
   `save_state` for persistent flags.
 
-- **Tool system** — mods can declare tool buttons, keybinds, and cheat
+- **Tool system**  - mods can declare tool buttons, keybinds, and cheat
   menus in `tools.json`. Declare `"tools": "tools.json"` in your manifest.
   Supports 38 action types (resources, spawning, unlocks, speed, state),
   toggle buttons with save persistence, guard conditions, and key ranges.
   See [GNX_MODDING.md](GNX_MODDING.md) for the full reference.
 
-- **Sound system** — add moan voice banks and h-scene SFX via `sounds.json`
+- **Sound system**  - add moan voice banks and h-scene SFX via `sounds.json`
   (declare `"sounds": "sounds.json"`). Clips must be **OGG Vorbis**. Adds a
   SOUND settings page; supports per-class voices (`voice` / `voice_map`) and
   oral-cell SFX (`sfx_type`). See [§16](GNX_MODDING.md#16-sound-system--soundsjson).
@@ -459,7 +459,7 @@ Once the basics above work, GNX_MODDING.md covers the rest:
 - **Multi-mod setups:** mods load in alphabetical folder-name order. A later
   mod can patch/override an earlier one's `h_type` or `class_id` (last-writer-
   wins). A single mod can declare multiple classes and cells in the same
-  `classes.json`/`cells.json` arrays — `example_mod` shows one of each plus a
+  `classes.json`/`cells.json` arrays  - `example_mod` shows one of each plus a
   vanilla patch, all in one `cells.json`.
 
 ---
@@ -471,19 +471,19 @@ path). Run them with Python 3. All require Pillow (`pip install Pillow`).
 
 ---
 
-### `export_class_sprites.py` — copy + rename a vanilla class
+### `export_class_sprites.py`  - copy + rename a vanilla class
 
 Use this when you want to base a new class on an existing vanilla class's
 sprites. It does the mechanical rename work so you can immediately pack and
 test, then replace frames with real art incrementally.
 
-**One-time prerequisite — export vanilla sprites with UMT:**
+**One-time prerequisite  - export vanilla sprites with UMT:**
 
 1. Download UMT from
    [GitHub](https://github.com/krzys-h/UndertaleModTool/releases)
    and extract it.
 2. Open UMT and load your game's `data.win` (File → Open).
-3. Run Scripts → Export all sprites and choose an output folder — this becomes
+3. Run Scripts → Export all sprites and choose an output folder  - this becomes
    `<umt-sprites>/`. The export takes a few minutes and only needs to be done
    once.
 
@@ -517,7 +517,7 @@ three icon frames (offset = `src_id × 3` in the shared icon sheet) and copies
 ogre carry sprites if they exist for the source class.
 
 **Output:** renamed PNG folders in `--output`, plus a full `sprites` JSON
-block printed to the console — copy-paste it directly into your `classes.json`
+block printed to the console  - copy-paste it directly into your `classes.json`
 entry's `"sprites"` dict.
 
 **After running:** follow up immediately with `scaffold_class.py` (below) to
@@ -525,7 +525,7 @@ generate the `classes.json` stub, then pack with `gnx_pack_strips.py`.
 
 ---
 
-### `scaffold_class.py` — generate a classes.json stub from detected sprites
+### `scaffold_class.py`  - generate a classes.json stub from detected sprites
 
 Run this immediately after `export_class_sprites.py`, pointing at the same mod
 folder. It scans `sprites/` for all folders matching known sprite key patterns
@@ -547,9 +547,9 @@ Output: `<mod-dir>/class_barbarian_scaffold.json`. Fill in the stat fields
 
 ---
 
-### `scaffold_cell.py` — generate a cell stub
+### `scaffold_cell.py`  - generate a cell stub
 
-Generates a `cells.json` stub for a new cell from scratch — no existing sprites
+Generates a `cells.json` stub for a new cell from scratch  - no existing sprites
 needed. Defines the sprite folder naming convention and pre-wires all `mon_spr`
 and layer refs so you know exactly which folders to create and fill.
 
@@ -575,7 +575,7 @@ together.
 
 ---
 
-### `generate_class.py` — interactive classes.json generator
+### `generate_class.py`  - interactive classes.json generator
 
 An alternative to `scaffold_class.py` for when you have no sprites yet or
 prefer a guided questionnaire over a scan-based stub.
@@ -592,7 +592,7 @@ your mod's `classes.json` array.
 
 ---
 
-### `generate_cell.py` — interactive cells.json generator
+### `generate_cell.py`  - interactive cells.json generator
 
 An alternative to `scaffold_cell.py`, also handles vanilla patches.
 
@@ -603,8 +603,8 @@ python <tools>/generate_cell.py
 Two modes:
 
 - **Vanilla patch** (h_type 0–42, see §2): asks only for the four layer
-  sprites and writes `physical.layers` — nothing else is touched.
-- **New cell** (h_type ≥ 43, see §5): full questionnaire — name, category,
+  sprites and writes `physical.layers`  - nothing else is touched.
+- **New cell** (h_type ≥ 43, see §5): full questionnaire  - name, category,
   mon_types, slot_type, price, spawn_info, optional `required_class`, h-scene
   toggle. Builds the complete `physical` block (layers, scr_idle/scr_h,
   hand positioning, splash VFX), `human_spr`, `mon_spr`, and a
@@ -613,12 +613,12 @@ Two modes:
 
 Writes a standalone `cell_<slug>.json` (or `patch_h<N>.json`). Paste the
 resulting object into your mod's `cells.json` array. Advanced physical fields
-(DAIRY/DRINK/tent/shrine-style mechanics) are not covered — add those by hand
+(DAIRY/DRINK/tent/shrine-style mechanics) are not covered  - add those by hand
 if needed; see [GNX_MODDING.md §7](GNX_MODDING.md#7-cell-physical-block).
 
 ---
 
-### `build_mod.py` — pack + verify + deploy
+### `build_mod.py`  - pack + verify + deploy
 
 Replaces the manual sprite-packing and deploy steps with one command. Use this
 once your mod is working and you want a clean deployment to the game folder.
@@ -632,13 +632,13 @@ python <tools>/build_mod.py <mod_dir> <game_dir> [--dry-run] [--force] [--skip-p
 
 Steps it runs:
 
-1. `gnx_pack_strips.py <mod_dir>` — pack sprites (skip with `--skip-pack` if
+1. `gnx_pack_strips.py <mod_dir>`  - pack sprites (skip with `--skip-pack` if
    `strips/` is already current; add `--force` to repack everything).
 2. Verify every `sprites` entry in `classes.json`/`cells.json` has a `strip`
-   key — warns on leftovers that would ship as fallback sprites.
+   key  - warns on leftovers that would ship as fallback sprites.
 3. Clean-rebuild `<game_dir>/GNX_mods/<mod_id>/` from `manifest.json`,
    the declared JSON files, and `strips/`. Source `sprites/` frames are not
-   copied — only packed strips go to the game.
+   copied  - only packed strips go to the game.
 
 Use `--dry-run` to preview what would be written without touching anything.
 After deploying, relaunch the game and check `gnx_debug.txt` as in §6.

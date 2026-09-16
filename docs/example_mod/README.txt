@@ -41,10 +41,10 @@ tools.json      Debug menu with all 38 action types across 9 categories.
                 - Keybinds: single key, modifier key, range with {n} substitution
                 - Continuous effects (mood_lock, inf_food)
 sounds.json     Sound system reference:
-                - voice_banks (soft, loud) — named moan-clip pools
+                - voice_banks (soft, loud)  - named moan-clip pools
                 - sfx pools (orgasm, bj_slurp, bj_gag, bj_moan, bj_breathe)
-                - voice_map — fixed voice for vanilla classes 10 (Nyx) and 13 (Cat)
-                - settings_defaults — initial SOUND-page slider values
+                - voice_map  - fixed voice for vanilla classes 10 (Nyx) and 13 (Cat)
+                - settings_defaults  - initial SOUND-page slider values
                 Clips are .ogg paths only (like the sprites). NOTE: audio MUST be
                 OGG Vorbis; runtime loading (audio_create_stream) rejects .wav.
                 See also classes.json WITCH "voice" and cells.json RITUAL "sfx_type".
