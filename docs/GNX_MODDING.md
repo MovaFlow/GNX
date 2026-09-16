@@ -1,7 +1,7 @@
 # GNX Modding Reference
 
 GNX (Goblin Nest Extender) is a mod layer patched into `data.win` that loads
-JSON-defined classes and cells at startup. No recompilation needed — drop files
+JSON-defined classes and cells at startup. No recompilation needed  - drop files
 into `GNX_mods/` and run.
 
 ---
@@ -10,10 +10,10 @@ into `GNX_mods/` and run.
 
 1. [Mod Folder Structure](#1-mod-folder-structure)
 2. [manifest.json](#2-manifestjson)
-3. [Custom Classes — classes.json](#3-custom-classes--classesjson)
+3. [Custom Classes  - classes.json](#3-custom-classes--classesjson)
 4. [Sprite Strips](#4-sprite-strips)
 5. [Clothing Maps](#5-clothing-maps)
-6. [Custom Cells — cells.json](#6-custom-cells--cellsjson)
+6. [Custom Cells  - cells.json](#6-custom-cells--cellsjson)
 7. [Cell Physical Block](#7-cell-physical-block)
 8. [Cell Sprite Blocks](#8-cell-sprite-blocks)
 9. [Raid Spawns](#9-raid-spawns)
@@ -22,10 +22,11 @@ into `GNX_mods/` and run.
 12. [Quick-Reference: Sprite Keys by Cell Type](#quick-reference-sprite-keys-by-cell-type)
 13. [Post-Raid Cage Escape](#13-post-raid-cage-escape)
 14. [Special Class Features](#14-special-class-features)
-15. [Tool System — tools.json](#15-tool-system--toolsjson)
-16. [Sound System — sounds.json](#16-sound-system--soundsjson)
-17. [Custom Props — props.json](#17-custom-props--propsjson)
+15. [Tool System  - tools.json](#15-tool-system--toolsjson)
+16. [Sound System  - sounds.json](#16-sound-system--soundsjson)
+17. [Custom Props  - props.json](#17-custom-props--propsjson)
 18. [Atlas Packing](#18-atlas-packing-optional-performance)
+19. [Multi-Map Travel](#19-multi-map-travel)
 
 ---
 
@@ -50,7 +51,7 @@ into `GNX_mods/` and run.
 ```
 
 GNX auto-discovers mods: any direct subfolder of `GNX_mods/` that contains a
-`manifest.json` is loaded. No index file needed — just drop the folder in.
+`manifest.json` is loaded. No index file needed  - just drop the folder in.
 Load order is alphabetical by folder name. Later mods can override earlier ones
 if they share a `class_id` or `h_type` (last writer wins).
 
@@ -70,8 +71,8 @@ if they share a `class_id` or `h_type` (last writer wins).
 ```
 
 > **The mod's identity is its folder name**, not any manifest field. The loader
-> keys everything — save state, string refs like `"my_mod.ClassName"`, error
-> messages — off the folder name. `mod_id` is **not read by the loader**; it's
+> keys everything  - save state, string refs like `"my_mod.ClassName"`, error
+> messages  - off the folder name. `mod_id` is **not read by the loader**; it's
 > optional and informational. If you include it, keep it equal to the folder
 > name to avoid confusion.
 
@@ -79,7 +80,7 @@ if they share a `class_id` or `h_type` (last writer wins).
 |-------|----------|-------|
 | `name` | yes | Display name (shown in load logs) |
 | `version` | yes | Semver string |
-| `mod_id` | no | Informational only — not read by the loader. Conventionally set equal to the folder name |
+| `mod_id` | no | Informational only  - not read by the loader. Conventionally set equal to the folder name |
 | `compatible_game_versions` | yes | Array of game version strings. Must include the running game version or the mod is silently skipped |
 | `classes` | no | Path relative to mod folder; omit if no classes |
 | `cells` | no | Path relative to mod folder; omit if no cells |
@@ -87,6 +88,9 @@ if they share a `class_id` or `h_type` (last writer wins).
 | `tools` | no | Path relative to mod folder; omit if no tool buttons/keybinds |
 | `sounds` | no | Path relative to mod folder; omit if no custom sounds. See [§16](#16-sound-system--soundsjson) |
 | `props` | no | Path relative to mod folder; omit if no custom props. See [§17](#17-custom-props--propsjson) |
+| `map` | no | Unique map identifier for multi-map travel. See [§19](#19-multi-map-travel) |
+| `map_button` | no | Travel button config (requires `map`). See [§19](#19-multi-map-travel) |
+| `map_start` | no | Starting state for first visit (requires `map`). See [§19](#19-multi-map-travel) |
 | `save_state` | no | Per-mod persistent state definition (see below) |
 
 ### save_state
@@ -115,7 +119,7 @@ Access at runtime via quest side effects (`set_state`) or conditions
 
 ---
 
-## 3. Custom Classes — classes.json
+## 3. Custom Classes  - classes.json
 
 Array of class objects. Each defines a capturable human unit type.
 
@@ -148,15 +152,15 @@ Array of class objects. Each defines a capturable human unit type.
 
 **Optional.** Vanilla classes occupy IDs 0–13. For new classes (≥14), omit
 `class_id` and GNX assigns a stable ID automatically using a hash of
-`"mod_folder.ClassName"` — same ID every run, no manual coordination needed.
+`"mod_folder.ClassName"`  - same ID every run, no manual coordination needed.
 
 If you supply an explicit `class_id` it must be ≥14. Two mods declaring the
-same explicit `class_id` — the last loaded wins (alphabetical order). For
+same explicit `class_id`  - the last loaded wins (alphabetical order). For
 vanilla overrides (0–13) this is intentional (`"override": true`); for new
 classes it's a silent collision. Prefer omitting the field to let GNX hash it.
 
 `required_class` and `birth_classes` in cells.json can reference classes by
-string (`"my_mod.ClassName"`) or by integer ID — both work.
+string (`"my_mod.ClassName"`) or by integer ID  - both work.
 
 Vanilla ID map (verified against the game's class registry in `s_initials.gml`):
 ```
@@ -175,7 +179,7 @@ field on a special (Lilith, etc.).
 actually specifies; every field you omit is kept from the existing entry. So a
 minimal override that sets only `birth_class` or `preg_c_override` leaves the
 class's vanilla sprites/clothing fully intact. You do **not** need to re-declare
-sprites just to change a stat. (This also makes a voice-only override safe — but
+sprites just to change a stat. (This also makes a voice-only override safe  - but
 for pure voice config prefer the `sounds.json` `voice_map`, see [§16](#16-sound-system--soundsjson),
 which needs no class registration at all.)
 
@@ -197,7 +201,7 @@ which needs no class registration at all.)
 
 When an ogre on patrol carries off a captured unit of this class, it draws a
 head/hair portrait on the ogre's back. For `class_id >= 14`, declare these in
-`sprites` and `gnx_resolve_class` will pick them up automatically — no
+`sprites` and `gnx_resolve_class` will pick them up automatically  - no
 reference needed elsewhere (no `gnx:` key in any clothing map).
 
 ```json
@@ -217,7 +221,7 @@ reference needed elsewhere (no `gnx:` key in any clothing map).
 }
 ```
 
-24 frames, 115×115 canvas, origin (55, 114) — matches vanilla
+24 frames, 115×115 canvas, origin (55, 114)  - matches vanilla
 `spr_ogre_carry_head_*` / `spr_ogre_carry_hair_*`. If `has_hair` is `false`,
 omit `carry_hair` (resolves to `-1`, no hair drawn). If omitted entirely,
 `carry_head_spr`/`carry_hair_spr` resolve to `-1` and the captive is drawn
@@ -331,14 +335,14 @@ These match the vanilla game's animation lengths:
 |-----------|-------|----------------------|
 | Standard idle/start | 1 | 90 (3×30) |
 | Standard loop | 2 | 225 (3×75) |
-| Big cell start | — | 36 (3×12) |
-| Big cell idle | — | 48 (3×16) or 42 (3×14) |
-| Big cell loop | — | 105 (3×35) |
+| Big cell start |  - | 36 (3×12) |
+| Big cell idle |  - | 48 (3×16) or 42 (3×14) |
+| Big cell loop |  - | 105 (3×35) |
 | Tent idle | 1 | 42 (3×14) |
 | Tent loop | 2 | 105 (3×35) |
 | Tent birth | 4 | 42 (3×14) |
-| Hand sprite | — | 2 (open/closed) |
-| Icon | — | 3 (one per skin) |
+| Hand sprite |  - | 2 (open/closed) |
+| Icon |  - | 3 (one per skin) |
 
 ### Packing strips
 
@@ -386,7 +390,7 @@ Each phase has two leg variants (leg_1, leg_2).
 
 ### clothing_big
 
-All large cells (`slot_type 2`) whose `human_spr.base_body` is `"big"` — this
+All large cells (`slot_type 2`) whose `human_spr.base_body` is `"big"`  - this
 includes both standard large cells (G.BANG, RIDE 2, BEHIND, etc.) and special
 large cells (DAIRY, GIANT, CHAINS, all SHRINES). Three sub-phases: start, idle, loop.
 
@@ -422,7 +426,7 @@ Inside clothing maps, the key used for the leg slot determines which leg variant
 |-----|---------|
 | `leg_1` | Standard leg variant 1 (most poses) |
 | `leg_2` | Standard leg variant 2 (alternate pose) |
-| `leg_any` | Universal fallback — applies to all leg types. Use this when the sprite is the same regardless of leg variant (common for big-cell start/loop phases) |
+| `leg_any` | Universal fallback  - applies to all leg types. Use this when the sprite is the same regardless of leg variant (common for big-cell start/loop phases) |
 | `leg_0` | Warrior/kneeling body (`spr_h_base_*_3` sprites). Only needed for classes with `default_leg: 0` |
 
 ### clothing_tent
@@ -449,16 +453,16 @@ Tent cells. Three phases: idle (1), loop (2), birth (4). Each has two leg varian
 
 ---
 
-## 6. Custom Cells — cells.json
+## 6. Custom Cells  - cells.json
 
 Array of cell objects. Each defines a dungeon cell.
 
 h_type values 0–42 are reserved for vanilla. For new cells (≥43), omit
 `h_type` and GNX assigns a stable ID automatically using a hash of
-`"mod_folder.CellName"` — same ID every run, no manual coordination needed.
+`"mod_folder.CellName"`  - same ID every run, no manual coordination needed.
 
 If you supply an explicit `h_type` it must be ≥43. Two mods declaring the
-same explicit `h_type` — the last loaded wins. For vanilla patches (0–42) this
+same explicit `h_type`  - the last loaded wins. For vanilla patches (0–42) this
 is intentional; for new cells it's a silent collision. Prefer omitting the
 field to let GNX hash it.
 
@@ -540,6 +544,7 @@ Controls gameplay behaviour: which scripts run, hand positions, unlock rules.
 |-------|-------|
 | `allow_preg` | Whether this cell can result in pregnancy |
 | `max_mon_num` | Max simultaneous goblins (usually 1) |
+| `mon_placements` | Per-position species list (optional). Array of arrays, e.g. `[[0,1],[0],[3]]`  - position 0 accepts goblin or hob, position 1 goblin only, position 2 ogre only. Length should match `max_mon_num`. Species: 0=goblin, 1=hobgoblin, 2=tentacle, 3=ogre. If omitted, all positions share the same pool (from `mon_types` or default `[0,1]`) |
 | `anal` | Whether the cell uses anal variants |
 | `slot_dirt_init` | Initial dirt level (0 = clean) |
 | `character_row` | Vertical row for the human character: 0=front, 1=back |
@@ -550,7 +555,7 @@ Controls gameplay behaviour: which scripts run, hand positions, unlock rules.
 
 ### Physical extension fields
 
-These are GNX-only — vanilla cells do not have them.
+These are GNX-only  - vanilla cells do not have them.
 
 | Field | Notes |
 |-------|-------|
@@ -572,8 +577,8 @@ Each entry defines one rendering layer for the cell background:
 |-------|---------|
 | 0 | Layer type (see table below) |
 | 1 | Sprite name (string) or `"gnx:key"` or `-1` for none |
-| 2 | Animated (bool) — whether the sprite advances frames during h-scene |
-| 3 | Shift index — which `spr_slot` entry controls this layer's mod; `-1` = not moddable |
+| 2 | Animated (bool)  - whether the sprite advances frames during h-scene |
+| 3 | Shift index  - which `spr_slot` entry controls this layer's mod; `-1` = not moddable |
 | 4 | (Optional) extra flag, layer-type specific |
 
 **Layer types:**
@@ -625,17 +630,17 @@ Which animation frames trigger hand transitions:
 ### sp_spr / sq / sp positions
 
 Squirt and splash VFX:
-- `sp_spr` — sprite name for the splash effect
-- `sq_x/y` — squirt emission position
-- `sp_x/y` — splash landing position
-- `sp_anim_x/y` — splash drift per frame
+- `sp_spr`  - sprite name for the splash effect
+- `sq_x/y`  - squirt emission position
+- `sp_x/y`  - splash landing position
+- `sp_anim_x/y`  - splash drift per frame
 
 ---
 
 ### Advanced physical fields (vanilla-pattern cells)
 
 All optional. Each is read individually (`variable_struct_exists` guard) by
-`scr_gnx_register_cell` / `scr_set_slot_h_data` — omit any you don't need.
+`scr_gnx_register_cell` / `scr_set_slot_h_data`  - omit any you don't need.
 These exist to let GNX cells replicate specific vanilla mechanics (DAIRY,
 DRINK, shrines, tents, CHAINS/G.BANG, CLONE).
 
@@ -1171,7 +1176,7 @@ required sprites for modders who don't need separate ej animations.
 
 ---
 
-## 15. Tool System — tools.json
+## 15. Tool System  - tools.json
 
 Mods can declare tool buttons, keybinds, and continuous effects in
 `tools.json`. GNX renders a generic tool menu (Settings → DEBUG → mod
@@ -1189,8 +1194,8 @@ GNX always injects a **DEBUG** entry into the settings window (Settings →
 DEBUG), even with no mod `tools.json` loaded. It always contains a built-in
 **GNX DEBUG** category with two framework toggles:
 
-- **PERF LOG** — sets `gnx_perf_enabled`; logs draw-cull/fps stats every ~2s.
-- **VERBOSE LOG** — sets `gnx_debug_verbose`; enables the high-frequency
+- **PERF LOG**  - sets `gnx_perf_enabled`; logs draw-cull/fps stats every ~2s.
+- **VERBOSE LOG**  - sets `gnx_debug_verbose`; enables the high-frequency
   dispatch/drink/prop/pool traces in `gnx_debug.txt`. Turn this on to debug why
   a cell or class renders wrong (see the `[GNX] class_spr` trace). Toggling
   either always writes `[GNX-TOOL] set_var <key> = <v>` to `gnx_debug.txt`,
@@ -1218,8 +1223,67 @@ use in-memory state and are never persisted (they reset each session).
 }
 ```
 
-Categories appear in the tool menu prefixed with the mod name (e.g.
-`"my_mod: GENERAL"`). If only one mod has tools, the prefix is omitted.
+Categories appear in the tool menu. If only one mod has tools, the prefix
+is omitted.
+
+#### Nested sub-categories
+
+A category can contain `categories` (sub-menus) instead of `buttons`.
+Nesting is unlimited  - sub-categories can contain further sub-categories.
+Clicking a sub-category navigates into it; BACK returns to the parent.
+
+```json
+{
+  "categories": [
+    {
+      "label": "MY SPAWNS",
+      "categories": [
+        {
+          "label": "GOBLINS",
+          "buttons": [
+            {"label": "WARRIOR", "actions": [{"type": "spawn_mon", "species": 0, "class": 0, "amount": 1}]},
+            {"label": "RANGER",  "actions": [{"type": "spawn_mon", "species": 0, "class": 1, "amount": 1}]}
+          ]
+        },
+        {
+          "label": "HOBGOBLINS",
+          "buttons": [
+            {"label": "WARRIOR", "actions": [{"type": "spawn_mon", "species": 1, "class": 0, "amount": 1}]}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Auto-generated SPAWN menu
+
+GNX automatically generates a **SPAWN** category that appears as the last
+entry in the tool menu. It requires no `tools.json`  - the framework builds
+it from the loaded registries after all mods finish loading.
+
+Structure:
+
+- **SPAWN → MONSTERS**  - 4 species (Goblin, Hobgoblin, Tentacle, Ogre),
+  each with 4 class buttons (Warrior, Ranger, Mage, Shaman).
+- **SPAWN → UNITS**  - grouped by mod. Vanilla classes (0–13) under
+  "VANILLA", modded classes under their mod name. A **rank selector**
+  appears on the left panel when viewing unit spawn buttons:
+  - Ranks 0–4: star count 1–5 (displayed as the number)
+  - Rank 5: "MAX"
+  - Rank 6: "CLONE"
+  - Rank 7: "SPECIAL"
+  - Non-special units are clamped to ranks 0–4, or clone (6).
+  - Special units (`is_special: true` in class registry) always spawn at
+    rank 5 (MAX), unless clone (6) or special (7) is selected.
+  - A popup confirms each spawn (e.g. "Peasant added!" or "Prison is full!").
+- **SPAWN → CELLS**  - grouped by mod. Only buildable cells (those present
+  in an order array) are included. Vanilla cells under "VANILLA", modded
+  cells under their mod name. A popup confirms each unlock
+  (e.g. "Breeding Pit unlocked!").
+
+The auto-spawn menu coexists with any custom `tools.json` categories.
 
 ---
 
@@ -1306,7 +1370,7 @@ the button is not executed.
 
 | Type | Fields | Effect |
 |------|--------|--------|
-| `spawn_mon` | `species` (0-3), `amount` | spawns troops for all 4 goblin classes |
+| `spawn_mon` | `species` (0-3), `amount`, `class` (0-3, optional) | spawns troops. Without `class`: all 4 classes. With `class`: only that class |
 | `set_troop_level` | `species` (0-3), `class` (0-3), `value` | sets goblin class level directly |
 | `add_troop_exp` | `species` (0-3), `class` (0-3), `amount` | adds exp via vanilla levelup logic |
 | `set_skill_level` | `species` (0-3), `class` (0-3), `value` | sets skill level directly |
@@ -1318,7 +1382,7 @@ Species: 0=goblin, 1=hobgoblin, 2=tentacle, 3=ogre.
 
 | Type | Fields | Effect |
 |------|--------|--------|
-| `create_unit` | `class_id` (int or string ref), `level` | creates a human captive in unit_list |
+| `create_unit` | `class_id` (int or string ref), `level` (optional) | creates a human captive in unit_list. When `level` is omitted, uses the rank selector value. Non-special classes are clamped to 0–4 or clone (6); special classes default to 5 (MAX) unless clone/special selected. Shows a popup on success or "Prison is full!" |
 | `create_unit_cage` | `class_id` (int or string ref), `level` | creates a human captive in the cage |
 
 #### Unlocks (7)
@@ -1328,7 +1392,7 @@ Species: 0=goblin, 1=hobgoblin, 2=tentacle, 3=ogre.
 | `unlock_boss` | `index` (0-4) | unlocks a boss (guards against double-unlock) |
 | `unlock_stage_next` | `stage` (0-3) | discovers stage or increments max level |
 | `unlock_breeds` | (none) | unlocks all breeding tips |
-| `unlock_cell` | `h_type` (int or string ref) | unlocks a cell in the build menu |
+| `unlock_cell` | `h_type` (int or string ref) | unlocks a cell in the build menu. Shows a popup (e.g. "Breeding Pit unlocked!") |
 | `unlock_prop` | `prop_id` | unlocks a decoration prop |
 | `unlock_raid` | (none) | enables the raid button |
 | `unlock_all_cells` | (none) | unlocks all vanilla + GNX cells |
@@ -1499,7 +1563,7 @@ Manifest for this example:
 
 ---
 
-## 16. Sound System — sounds.json
+## 16. Sound System  - sounds.json
 
 Mods can add moan voices and h-scene SFX that load at runtime. Declare the file
 in `manifest.json` (`"sounds": "sounds.json"`) and drop the audio in a `sounds/`
@@ -1507,7 +1571,7 @@ subfolder. When any loaded mod provides sounds, GNX adds a **SOUND** page to the
 Settings menu (6 sliders: moan/plap/ej/bj volume + moan/orgasm frequency).
 
 > **Audio format must be OGG Vorbis (`.ogg`).** Runtime loading uses
-> `audio_create_stream`, which only accepts `.ogg` — `.wav` files fail silently
+> `audio_create_stream`, which only accepts `.ogg`  - `.wav` files fail silently
 > (the clip loads as `-1`, the bank ends up empty, and nothing plays). Convert
 > first, e.g. `ffmpeg -i in.wav -c:a libvorbis -q:a 5 out.ogg`.
 
@@ -1577,7 +1641,7 @@ any custom cell whose `cells.json` sets `"sfx_type": "bj"`.
 
 Maps a **vanilla** `class_id` (string key) to a fixed `{bank, pitch}`. Use this
 to give named characters (Lilith, Nyx, Morrigan, etc.) a signature voice **without**
-a `classes.json` override — overriding a vanilla class just to set a voice is
+a `classes.json` override  - overriding a vanilla class just to set a voice is
 unnecessary here, and `voice_map` needs no class registration at all. `pitch` is
 optional (default random 0.9–1.15).
 
@@ -1610,7 +1674,7 @@ Add it alongside the cell's other top-level fields in `cells.json`.
 
 ---
 
-## 17. Custom Props — props.json
+## 17. Custom Props  - props.json
 
 Mods can add custom decorative props (the items placed between cells in edit
 mode: lamps, barrels, swords, etc.). Declare the file in `manifest.json`
@@ -1796,3 +1860,104 @@ draw time.
 - The packer auto-sizes atlases (tries 4096x4096 first, shrinks only if it
   saves significant VRAM)
 - ~10x more mods can be loaded simultaneously with atlas packing vs without
+
+---
+
+## 19. Multi-Map Travel
+
+A mod can declare a **second map**  - a fully independent dungeon the player
+travels to and from. Each map has its own floor layout, cells, monsters, save
+state, and economy. The day counter is shared across all maps.
+
+### Manifest fields
+
+Add three fields to `manifest.json`:
+
+```json
+{
+  "name": "Outpost Mod",
+  "version": "1.0",
+  "compatible_game_versions": ["1.38"],
+  "map": "outpost_mod",
+  "map_button": {
+    "label": "Outpost",
+    "x": 185,
+    "y": 55,
+    "map_sprite": "map_gray.png",
+    "return_label": "Village"
+  },
+  "map_start": {
+    "floors": 1,
+    "money": 400,
+    "food": 60,
+    "mood": 85,
+    "goblins": 5
+  }
+}
+```
+
+#### `map`
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `map` | yes | Unique map identifier string. Must match the mod's folder name. Used as the key in `gnx_inactive_maps` and save data |
+
+A mod with a `map` field is **deferred** at boot: its classes, cells, quests,
+sounds, and props are only loaded when the player travels to that map.
+
+#### `map_button`
+
+Controls the travel button shown on the vanilla map.
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `label` | yes | Button text (e.g. "Outpost") |
+| `x` | yes | X position on the gameplay screen |
+| `y` | yes | Y position on the gameplay screen |
+| `map_sprite` | no | PNG file in the mod folder used as the map background. Loaded via `sprite_add` at boot |
+| `return_label` | no | Label for the return-to-vanilla button shown on the mod map (default: "Return") |
+
+The travel button uses `gnx_map_button.png` from `GNX_assets/` as its sprite.
+
+#### `map_start`
+
+Defines the starting state when the player first visits this map. Only applied
+once (first visit); returning to a previously visited map restores the snapshot.
+
+| Field | Required | Default | Notes |
+|-------|----------|---------|-------|
+| `floors` | no | 1 | Number of dungeon floors to create (entrance floor is always floor 0) |
+| `money` | no | 0 | Starting gold |
+| `food` | no | 0 | Starting food |
+| `mood` | no | 50 | Starting mood (0–100) |
+| `goblins` | no | 5 | Number of basic goblins to spawn. Set to 0 for no starting goblins |
+
+### How travel works
+
+1. Player clicks the travel button on either map
+2. The current map's full state is **snapshot** (val, slots, monsters, raid,
+   quests, ds_lists) and stored in `global.gnx_inactive_maps`
+3. The game reinitializes via `scr_create_initials`
+4. If the target map was visited before, the snapshot is restored (Load path)
+5. If the target map is new, the New Game path runs and `map_start` is applied
+6. The day counter carries forward (shared timeline  - time never goes backwards)
+
+### Save/load behavior
+
+- `gnx_active_map` and `gnx_inactive_maps` are serialized with save files
+- The save-select screen shows the map name (e.g. "Outpost") next to the save
+  title when the save was made on a non-vanilla map
+- Loading a save on a non-vanilla map triggers deferred mod loading automatically
+
+### Unlocks
+
+Unlocks (raid button, shop, settings features) are **carried over** from the
+vanilla map. A fresh non-vanilla map starts with the same unlocked features the
+player had on vanilla.
+
+### Limitations (current)
+
+- One mod map at a time (multiple map mods are not yet supported in parallel)
+- Inventory does not travel between maps
+- No pre-travel resource/unit selector (planned for a future phase)
+- Map-specific quests and encounter pools are not yet implemented
