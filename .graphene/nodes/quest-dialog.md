@@ -17,3 +17,5 @@ edges:
   - to: save-load type: depends_on reason: quest state serialized separately via scr_gnx_save/restore_quest_state
   - to: rendering type: related_to reason: dialog renderer lives in obj_window Draw_0/Draw_64 and s_text_draw portrait override
 ---
+
+- Multi-map: a fresh map reached via travel used to replay the New Game tutorial/quest chain. Fix (2026-09-09): NEW patched file `gml/gml_GlobalScript_s_main_room_step.gml` (faithful vanilla 1.38 copy of scr_room_step + scr_main_end_step + one guard). In the state-0 `if (!_load)` New Game branch, `scr_add_event(UnknownEnum.Value_0, false)` (the tutorial chain: mouse->cell->"Build a WALL 1"->captive->birth...) is now gated `if (!global.gnx_multimap_enabled || global.gnx_active_map == "vanilla")`. During a fresh-map travel gnx_active_map is the mod map (kept via gnx_in_travel), so the tutorial is skipped; a real New Game keeps gnx_active_map == "vanilla" so it still fires. scr_set_stage_data + trade/shop rerolls still run (the map stays raid-playable). This is a NEW file in the patched set — needs full G3M re-patch + diffs/ regen. <!-- id:280d -->
