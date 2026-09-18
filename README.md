@@ -139,5 +139,6 @@ Credit to @kazull for the improved export_class_sprites and scaffold_class scrip
 Credit to @Jadwick for the original Moan Mod ([link](https://jadwick.dev/mods/moan-mod/))  - its voices and SFX are ported into GNX's sound system. Also credit to Jadwick for [GBF](https://github.com/Jadwick/GBF) (Goblin's Best Friend), whose fossil-delta patching architecture inspired the GNX standalone installer.
 
 ## Coffee
+GNX is and will always be free.
 If you really like GNX and want to say thank you in some way, [coffee for me please](https://patreon.com/MovaFlow).
 
