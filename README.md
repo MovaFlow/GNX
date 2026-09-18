@@ -2,7 +2,7 @@
 
 # GNX  - Goblin Nest Extender
 
-> **Game version:** 1.38
+> **Game version:** 1.39
 
 GNX is a mod layer patched into `data.win` that lets you add custom content via JSON files: captive classes, dungeon cells, quest chains, raid encounters, boss mechanics, tool menus, and more. No GameMaker, no recompilation  - drop a folder into `GNX_mods/` and run.
 
@@ -137,4 +137,7 @@ Credit to @nevereverever for their excellent work on the Frieren Mod ([link](htt
 Credit to @kazull for the improved export_class_sprites and scaffold_class scripts, including icon extraction, special class support, and the contributor-submitted codebase that was extended with GNX feature coverage.
 
 Credit to @Jadwick for the original Moan Mod ([link](https://jadwick.dev/mods/moan-mod/))  - its voices and SFX are ported into GNX's sound system. Also credit to Jadwick for [GBF](https://github.com/Jadwick/GBF) (Goblin's Best Friend), whose fossil-delta patching architecture inspired the GNX standalone installer.
+
+## Coffee
+If you really like GNX and want to say thank you in some way, [coffee for me please](https://patreon.com/MovaFlow).
 
