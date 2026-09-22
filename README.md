@@ -12,11 +12,11 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Classes & Sprites**  - custom captive classes with full sprite support: standard, big, and tent cell clothing layers, naked body layer overrides, goblin sprite overrides, patrol and ogre-touch sprites, unit icons, and special-class rendering. Hash-based ID auto-assignment means modders never pick IDs manually.
 
-**Cells**  - custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Hash-based h_type assignment, automatic unlock migration on save load.
+**Cells**  - custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Multi-monster cells (2+ goblins per cell with per-slot species, offsets, and sprite overrides), locked cells gated behind quest rewards, and `by_class`/`by_mon_type` sprite overrides for fixed-mode cells. Hash-based h_type assignment, automatic unlock migration on save load.
 
 **Quests & Dialogs**  - event-driven quest chains with dialog popups, portrait sprites, 13 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
 
-**Raid & Boss Mechanics**  - custom raid encounter pools with conditional spawning, AP overrides, per-encounter limits, post-raid cage escape behaviors, and birth-class mapping (human class to goblin troop class per species).
+**Raid & Boss Mechanics**  - custom raid encounter pools with conditional spawning, AP overrides, per-encounter limits, post-raid cage escape behaviors, birth-class mapping (human class to goblin troop class per species), and tower boss support (modded classes as endgame tower bosses via `tower_boss_condition`).
 
 **Tool System**  - mod-defined cheat/debug menus with 38 action types, keybind support (single keys, ranges, modifiers), toggle buttons with save-state persistence, guard conditions, and continuous effects.
 
@@ -32,7 +32,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Atlas Packing**  - optional texture atlas system (`gnx_atlas_pack.py`) packs sprite strips into large atlas PNGs, cutting texture pages from hundreds to single digits, VRAM by ~45%, and boot time from 94s to 1.8s. Fully backwards-compatible: mods work with or without atlas.
 
-**Self-Testing**  - 59-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
+**Self-Testing**  - 84-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
 
 ---
 
