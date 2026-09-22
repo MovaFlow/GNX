@@ -195,6 +195,7 @@ which needs no class registration at all.)
 | `icon_hair` | string or -1 | Sprite key for icon hair overlay. `-1` = no hair on icon |
 | `sprite_prefix` | string | Prefix used to name all runtime sprites, e.g. `"spr_h_witch"` |
 | `default_leg` | int | Optional. Forces all units of this class to a fixed leg variant: `0`=warrior kneeling body (`spr_h_base_*_3`), `1`=leg_1, `2`=leg_2. Omit to use normal random leg selection |
+| `scr_unit` | int | Optional. Unit script type for passive regeneration: `-1` = none (default), `0` = milk regeneration (like Hathor), `1` = pregnancy regeneration (like Selene). Omit or `-1` to disable |
 | `voice` | struct | Optional. Fixed moan voice for this class: `{"bank": "soft", "pitch": 1.0}`. `bank` is a voice-bank name from a `sounds.json` (auto-prefixed with the owning mod). `pitch` optional (default random 0.9–1.15). Requires a sound mod to be loaded. See [§16](#16-sound-system--soundsjson) |
 
 ### Ogre patrol carry sprites (`gnx:carry_head` / `gnx:carry_hair`)
@@ -517,7 +518,7 @@ Controls gameplay behaviour: which scripts run, hand positions, unlock rules.
 "physical": {
   "allow_preg": true,
   "max_mon_num": 1,
-  "anal": false,
+  "anal": -1,
   "slot_dirt_init": 0,
   "character_row": 0,
   "layers": [ ... ],
@@ -545,7 +546,7 @@ Controls gameplay behaviour: which scripts run, hand positions, unlock rules.
 | `allow_preg` | Whether this cell can result in pregnancy |
 | `max_mon_num` | Max simultaneous goblins (usually 1) |
 | `mon_placements` | Per-position species list (optional). Array of arrays, e.g. `[[0,1],[0],[3]]`  - position 0 accepts goblin or hob, position 1 goblin only, position 2 ogre only. Length should match `max_mon_num`. Species: 0=goblin, 1=hobgoblin, 2=tentacle, 3=ogre. If omitted, all positions share the same pool (from `mon_types` or default `[0,1]`) |
-| `anal` | Whether the cell uses anal variants |
+| `anal` | Anal animation mode: `-1` = disabled (default, most cells), `false` = rollable (goblin entering may trigger anal), `true` = always anal. Only Wall-type cells use `false` in vanilla |
 | `slot_dirt_init` | Initial dirt level (0 = clean) |
 | `character_row` | Vertical row for the human character: 0=front, 1=back |
 | `scr_idle` | Script name for the idle state machine. Use `"scr_slot_h_state_idle"` for standard idle |
