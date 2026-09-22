@@ -70,6 +70,22 @@ Map of event_id → event definition. Two types: `notification` and `quest`.
 }
 ```
 
+#### silent notification (no dialog)
+
+If `dialog` is omitted or an empty array, the notification fires silently: side
+effects apply immediately, `next_event` chains, and no bell icon or dialog is
+shown. Use this for invisible quest steps (e.g. tracking raid count).
+
+```json
+"raid_counter_step": {
+  "type": "notification",
+  "side_effects": [
+    {"type": "increment_state", "key": "raids_done", "value": 1}
+  ],
+  "next_event": null
+}
+```
+
 #### quest event
 
 ```json
@@ -169,4 +185,4 @@ event fires, before the dialog is displayed.
 
 ## Event chaining
 
-Events chain via `next_event`. When a notification is dismissed (textbox closed), the next event fires. When a quest is completed and reward claimed, the next event fires. This replicates vanilla's `event_after` pattern.
+Events chain via `next_event`. When a notification is dismissed (textbox closed), the next event fires. When a quest is completed and reward claimed, the next event fires. Silent notifications (no dialog) chain immediately without player interaction. This replicates vanilla's `event_after` pattern.
