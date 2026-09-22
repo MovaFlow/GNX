@@ -21,12 +21,13 @@ into `GNX_mods/` and run.
 11. [Trade Shop & Birth Class Mapping](#11-trade-shop--birth-class-mapping)
 12. [Quick-Reference: Sprite Keys by Cell Type](#quick-reference-sprite-keys-by-cell-type)
 13. [Post-Raid Cage Escape](#13-post-raid-cage-escape)
-14. [Special Class Features](#14-special-class-features)
-15. [Tool System  - tools.json](#15-tool-system--toolsjson)
-16. [Sound System  - sounds.json](#16-sound-system--soundsjson)
-17. [Custom Props  - props.json](#17-custom-props--propsjson)
-18. [Atlas Packing](#18-atlas-packing-optional-performance)
-19. [Multi-Map Travel](#19-multi-map-travel)
+14. [Tower Boss Condition](#14-tower-boss-condition)
+15. [Special Class Features](#15-special-class-features)
+16. [Tool System  - tools.json](#16-tool-system--toolsjson)
+17. [Sound System  - sounds.json](#17-sound-system--soundsjson)
+18. [Custom Props  - props.json](#18-custom-props--propsjson)
+19. [Atlas Packing](#19-atlas-packing-optional-performance)
+20. [Multi-Map Travel](#20-multi-map-travel)
 
 ---
 
@@ -86,11 +87,11 @@ if they share a `class_id` or `h_type` (last writer wins).
 | `cells` | no | Path relative to mod folder; omit if no cells |
 | `quests` | no | Path relative to mod folder; omit if no quests/events |
 | `tools` | no | Path relative to mod folder; omit if no tool buttons/keybinds |
-| `sounds` | no | Path relative to mod folder; omit if no custom sounds. See [§16](#16-sound-system--soundsjson) |
-| `props` | no | Path relative to mod folder; omit if no custom props. See [§17](#17-custom-props--propsjson) |
-| `map` | no | Unique map identifier for multi-map travel. See [§19](#19-multi-map-travel) |
-| `map_button` | no | Travel button config (requires `map`). See [§19](#19-multi-map-travel) |
-| `map_start` | no | Starting state for first visit (requires `map`). See [§19](#19-multi-map-travel) |
+| `sounds` | no | Path relative to mod folder; omit if no custom sounds. See [§17](#17-sound-system--soundsjson) |
+| `props` | no | Path relative to mod folder; omit if no custom props. See [§18](#18-custom-props--propsjson) |
+| `map` | no | Unique map identifier for multi-map travel. See [§20](#20-multi-map-travel) |
+| `map_button` | no | Travel button config (requires `map`). See [§20](#20-multi-map-travel) |
+| `map_start` | no | Starting state for first visit (requires `map`). See [§20](#20-multi-map-travel) |
 | `save_state` | no | Per-mod persistent state definition (see below) |
 
 ### save_state
@@ -180,7 +181,7 @@ actually specifies; every field you omit is kept from the existing entry. So a
 minimal override that sets only `birth_class` or `preg_c_override` leaves the
 class's vanilla sprites/clothing fully intact. You do **not** need to re-declare
 sprites just to change a stat. (This also makes a voice-only override safe  - but
-for pure voice config prefer the `sounds.json` `voice_map`, see [§16](#16-sound-system--soundsjson),
+for pure voice config prefer the `sounds.json` `voice_map`, see [§17](#17-sound-system--soundsjson),
 which needs no class registration at all.)
 
 ### Core fields
@@ -196,7 +197,7 @@ which needs no class registration at all.)
 | `sprite_prefix` | string | Prefix used to name all runtime sprites, e.g. `"spr_h_witch"` |
 | `default_leg` | int | Optional. Forces all units of this class to a fixed leg variant: `0`=warrior kneeling body (`spr_h_base_*_3`), `1`=leg_1, `2`=leg_2. Omit to use normal random leg selection |
 | `scr_unit` | int | Optional. Unit script type for passive regeneration: `-1` = none (default), `0` = milk regeneration (like Hathor), `1` = pregnancy regeneration (like Selene). Omit or `-1` to disable |
-| `voice` | struct | Optional. Fixed moan voice for this class: `{"bank": "soft", "pitch": 1.0}`. `bank` is a voice-bank name from a `sounds.json` (auto-prefixed with the owning mod). `pitch` optional (default random 0.9–1.15). Requires a sound mod to be loaded. See [§16](#16-sound-system--soundsjson) |
+| `voice` | struct | Optional. Fixed moan voice for this class: `{"bank": "soft", "pitch": 1.0}`. `bank` is a voice-bank name from a `sounds.json` (auto-prefixed with the owning mod). `pitch` optional (default random 0.9–1.15). Requires a sound mod to be loaded. See [§17](#17-sound-system--soundsjson) |
 
 ### Ogre patrol carry sprites (`gnx:carry_head` / `gnx:carry_hair`)
 
@@ -1119,7 +1120,7 @@ over_diff_scale: 0` for guaranteed escape (testing).
 
 ---
 
-## 14. Special Class Features
+## 15. Special Class Features
 
 ### clothing_standard.max_row
 
@@ -1252,7 +1253,7 @@ required sprites for modders who don't need separate ej animations.
 
 ---
 
-## 15. Tool System  - tools.json
+## 16. Tool System  - tools.json
 
 Mods can declare tool buttons, keybinds, and continuous effects in
 `tools.json`. GNX renders a generic tool menu (Settings → DEBUG → mod
@@ -1639,7 +1640,7 @@ Manifest for this example:
 
 ---
 
-## 16. Sound System  - sounds.json
+## 17. Sound System  - sounds.json
 
 Mods can add moan voices and h-scene SFX that load at runtime. Declare the file
 in `manifest.json` (`"sounds": "sounds.json"`) and drop the audio in a `sounds/`
@@ -1750,7 +1751,7 @@ Add it alongside the cell's other top-level fields in `cells.json`.
 
 ---
 
-## 17. Custom Props  - props.json
+## 18. Custom Props  - props.json
 
 Mods can add custom decorative props (the items placed between cells in edit
 mode: lamps, barrels, swords, etc.). Declare the file in `manifest.json`
@@ -1844,7 +1845,7 @@ array.
 
 ---
 
-## 18. Atlas Packing (Optional Performance)
+## 19. Atlas Packing (Optional Performance)
 
 By default, each sprite strip is loaded individually via `sprite_add` at boot.
 For mods with many sprites this is slow and VRAM-heavy (one texture page per
@@ -1939,7 +1940,7 @@ draw time.
 
 ---
 
-## 19. Multi-Map Travel
+## 20. Multi-Map Travel
 
 A mod can declare a **second map**  - a fully independent dungeon the player
 travels to and from. Each map has its own floor layout, cells, monsters, save

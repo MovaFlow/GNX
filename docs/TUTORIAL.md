@@ -436,7 +436,26 @@ Once the basics above work, GNX_MODDING.md covers the rest:
   boss-style characters that escape from the cage after capture, with
   configurable escape chance, popups, and event chains.
 
-- [§14 Special Class Features](GNX_MODDING.md#14-special-class-features)  -
+- [§14 Tower Boss Condition](GNX_MODDING.md#14-tower-boss-condition)  -
+  add your modded class to the endgame tower boss pool. Pair with
+  `post_raid.cage_escape` for the full boss experience: escape, recapture,
+  then appear in the tower.
+
+- **Locked cells**  - set `"locked": true` on a cell to prevent it from
+  auto-appearing in the build menu. Unlock it later via the `unlock_cell`
+  quest side effect as a reward. See the SIREN POOL in `example_mod/cells.json`.
+
+- **Multi-monster cells**  - cells with `max_mon_num > 1` support multiple
+  goblins. Use `mon_placements` to control species per slot, `mon_positions`
+  for per-slot visual offsets, and `mon_spr_pN` keys for per-slot goblin
+  sprite variants. See the DOUBLE PIT in `example_mod/cells.json`.
+
+- **Fixed-mode by_class/by_mon_type**  - `fixed` mode phases can nest
+  `by_class` to show different human sprites per captive class, and further
+  nest `by_mon_type` per monster species. See the RITUAL cell in
+  `example_mod/cells.json`.
+
+- [§15 Special Class Features](GNX_MODDING.md#15-special-class-features)  -
   `max_row`, `gb1_breast_d2`, and `mon_spr_overrides` for `is_special`
   classes (Nyx/Lilith-tier) that need custom sprite handling.
 
