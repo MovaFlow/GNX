@@ -492,6 +492,7 @@ field to let GNX hash it.
 | `h_type` | Optional. Omit for auto hash-assignment (≥100, stable across runs). If explicit, must be ≥43 |
 | `name` | Display name in build menu (uppercase) |
 | `category` | Build menu tab. Standard: `"breed"`, `"utility"`, `"pleasure"`. Large: `"b_breed"`, `"b_utility"`, `"b_other"`. Tent: `"t_breed"`, `"t_utility"` |
+| `locked` | If `true`, cell is registered but not auto-added to the build menu. Use quest side effect `"unlock_cell"` to unlock it as a reward. Default: `false` (auto-unlocked on load) |
 | `mon_types` | Array of monster species that can use this cell: 0=goblin, 1=hobgoblin, 2=ogre |
 | `slot_type` | `0`=standard wall, `2`=large cell, `3`=tent |
 | `price` | Gold cost to build |
@@ -546,6 +547,7 @@ Controls gameplay behaviour: which scripts run, hand positions, unlock rules.
 | `allow_preg` | Whether this cell can result in pregnancy |
 | `max_mon_num` | Max simultaneous goblins (usually 1) |
 | `mon_placements` | Per-position species list (optional). Array of arrays, e.g. `[[0,1],[0],[3]]`  - position 0 accepts goblin or hob, position 1 goblin only, position 2 ogre only. Length should match `max_mon_num`. Species: 0=goblin, 1=hobgoblin, 2=tentacle, 3=ogre. If omitted, all positions share the same pool (from `mon_types` or default `[0,1]`) |
+| `mon_positions` | Per-placement visual offsets (optional). Array of `{x, y}` objects, one per placement slot. Shifts the monster's draw position relative to the default. Length should match `max_mon_num`. Example: `[{"x": 0, "y": 0}, {"x": 30, "y": -5}]` moves the second goblin 30px right and 5px up |
 | `anal` | Anal animation mode: `-1` = disabled (default, most cells), `false` = rollable (goblin entering may trigger anal), `true` = always anal. Only Wall-type cells use `false` in vanilla |
 | `slot_dirt_init` | Initial dirt level (0 = clean) |
 | `character_row` | Vertical row for the human character: 0=front, 1=back |
@@ -560,7 +562,7 @@ These are GNX-only  - vanilla cells do not have them.
 
 | Field | Notes |
 |-------|-------|
-| `required_class` | Array of class IDs that can be placed here. Omit = any class allowed. String refs (`"mod_id.ClassName"`) are supported alongside integer IDs |
+| `required_class` | Class restriction for this cell. Can be a single class ID (`14`) or an array of class IDs (`[0, 14]`). Omit = any class allowed. String refs (`"mod_id.ClassName"`) are supported alongside integer IDs. Also overrides vanilla hardcoded class locks (cow/giant/morrigan/lilith) |
 | `range_draw_func` | Script to draw the range indicator. Omit = default |
 | `scr_unoccupy` | Script called when a unit is removed. Use `"scr_gnx_unoccupy_log"` for logging-only |
 
@@ -731,6 +733,31 @@ Available phases: `phase_0` (big start), `phase_1` (idle), `phase_2` (loop),
 `[1]`=head_c, `[2]`=breast_c, `[3]`=breast_d_c, `[4]`=leg_c, `[5]`=arm_c,
 `[6]`=extra_c. Set `[0]` to a sprite to show hair, `-1` to hide.
 
+##### `by_class` / `by_mon_type` overrides (fixed mode)
+
+Fixed-mode phase entries can optionally override sprites per captive class and per monster type. Nest `by_class` inside a phase entry, keyed by class ID (string). Each `by_class` entry can further nest `by_mon_type`, keyed by monster type (`"0"`=goblin, `"1"`=hobgoblin, `"2"`=tentacle, `"3"`=ogre).
+
+```json
+"phase_1": {
+  "spr_array": ["gnx:default_hair", "gnx:default_head", ...],
+  "spr_c_array": [-1, -1, ...],
+  "by_class": {
+    "14": {
+      "spr_array": ["gnx:class14_hair", "gnx:class14_head", ...],
+      "spr_c_array": [-1, -1, ...],
+      "by_mon_type": {
+        "1": {
+          "spr_array": ["gnx:class14_hob_hair", "gnx:class14_hob_head", ...],
+          "spr_c_array": [-1, -1, ...]
+        }
+      }
+    }
+  }
+}
+```
+
+Dispatch priority: `by_mon_type` > `by_class` > base phase sprites.
+
 #### Mode: `class_map`
 
 Per-class sprite dispatch on custom cells. Each class_id can have its own phase
@@ -847,6 +874,26 @@ per encounter). Provide one or more `{alpha, line}` objects.
 
 **`hand_xscale`:** `"random"` = mirror randomly per encounter. Or a fixed
 integer: `1` (normal) or `-1` (always mirrored).
+
+### Per-placement sprite variants
+
+For multi-monster cells (`max_mon_num > 1`), you can provide different goblin sprites per placement slot. Add top-level keys alongside `mon_spr`:
+
+| Key | Placement |
+|-----|-----------|
+| `mon_spr_p0`, `mon_spr_p1`, `mon_spr_p2` | Goblin sprites for slot 0, 1, 2 |
+| `mon_spr_hob_p0`, `mon_spr_hob_p1`, `mon_spr_hob_p2` | Hobgoblin sprites per slot |
+| `mon_spr_ogr_p0`, `mon_spr_ogr_p1`, `mon_spr_ogr_p2` | Ogre sprites per slot |
+
+Each uses the same structure as `mon_spr`. If a per-placement key is not present, the base `mon_spr`/`mon_spr_hob`/`mon_spr_ogr` is used as fallback.
+
+```json
+{
+  "mon_spr": { "...base goblin sprites..." },
+  "mon_spr_p1": { "...different sprites for the second goblin..." },
+  "mon_spr_hob_p0": { "...hobgoblin sprites for first slot..." }
+}
+```
 
 ---
 
@@ -1036,6 +1083,34 @@ checks each cage slot for classes with `post_raid.cage_escape`.
 | `escape_event_threshold` | Number of escapes before `on_escape_event` fires |
 | `on_survive_state` | State key/value set when the unit does NOT escape (stays captured) |
 | `on_survive_event` | Event fired when the unit stays captured |
+
+---
+
+## 14. Tower Boss Condition
+
+Modded classes can appear as bosses in the endgame tower. Add `tower_boss_condition` to a class entry in `classes.json`:
+
+```json
+"tower_boss_condition": {"type": "state_equals", "key": "boss_state", "value": 1}
+```
+
+The condition uses the same syntax as quest conditions (see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). When the condition evaluates to true, the class is added to the tower's special boss pool alongside vanilla bosses (cow, lilith, morrigan, nyx, giant, valkyrie).
+
+The class appears at level 6 (boss tier) and is selected with the same `_spe_chnc` roll as vanilla bosses. Works in both floor-1 and endless tower modes.
+
+**Typical pattern:** pair with `post_raid.cage_escape` so the boss can escape the cage, and use `on_survive_state` to set the state key that `tower_boss_condition` checks:
+
+```json
+{
+  "tower_boss_condition": {"type": "state_equals", "key": "boss_captured", "value": 1},
+  "post_raid": {
+    "cage_escape": {
+      "condition": {"type": "state_equals", "key": "boss_captured", "value": 0},
+      "on_survive_state": {"key": "boss_captured", "value": 1}
+    }
+  }
+}
+```
 
 **Escape formula:** `irandom(1,100) <= (base_chance + irandom(1,100) - scale + scale * (over_diff - 1))`.
 At even raid power (over_diff=1) escape is near-impossible. At 2x player
