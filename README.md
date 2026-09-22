@@ -44,7 +44,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 2. Place it next to `GoblinNest.exe` in your game folder.
 3. Run it. GNX is installed. No mod manager, no downloads, no command line.
 
-To **update**: drop the newer exe in the same folder and run it  - it patches from your backup automatically.
+To **update**: the installer checks for new versions on launch and offers to update itself. You can also drop a newer exe in the same folder and run it  - it patches from your backup automatically.
 To **uninstall**: run the exe and choose "Restore Backup".
 To **install mods**: drag a mod `.zip` onto the exe.
 
@@ -102,7 +102,7 @@ GNX_mods/
 
 ## Compatibility
 
-GNX targets game version **1.38**. Mods declare which versions they support in `manifest.json`  - a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
+GNX targets game version **1.39**. Mods declare which versions they support in `manifest.json`  - a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
 
 ---
 
@@ -138,7 +138,10 @@ Credit to @kazull for the improved export_class_sprites and scaffold_class scrip
 
 Credit to @Jadwick for the original Moan Mod ([link](https://jadwick.dev/mods/moan-mod/))  - its voices and SFX are ported into GNX's sound system. Also credit to Jadwick for [GBF](https://github.com/Jadwick/GBF) (Goblin's Best Friend), whose fossil-delta patching architecture inspired the GNX standalone installer.
 
+Credit to @Jadwick and @Radeonix for bug reports and fixes that improved GNX stability.
+
+Credit to @Mav for the multi-monster cell extensions: per-placement sprite variants, per-placement visual offsets (`mon_positions`), `by_class`/`by_mon_type` sprite dispatch for fixed-mode cells, consolidated `required_class` array support for special vanilla cells, bugfixes for `spr_data` initialization, `start_frame` defaults, and multi-slot unit removal. Also credit to Mav for tower boss support (`tower_boss_condition` for modded classes in endgame tower encounters) and the locked cells feature (`"locked": true` to gate cells behind quest rewards).
+
 ## Coffee
 GNX is and will always be free.
 If you really like GNX and want to say thank you in some way, [coffee for me please](https://patreon.com/MovaFlow).
-
