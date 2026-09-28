@@ -492,7 +492,7 @@ field to let GNX hash it.
 |-------|-------|
 | `h_type` | Optional. Omit for auto hash-assignment (≥100, stable across runs). If explicit, must be ≥43 |
 | `name` | Display name in build menu (uppercase) |
-| `category` | Build menu tab. Standard: `"breed"`, `"utility"`, `"pleasure"`. Large: `"b_breed"`, `"b_utility"`, `"b_other"`. Tent: `"t_breed"`, `"t_utility"` |
+| `category` | Build menu tab. Standard: `"breed"`, `"utility"`, `"pleasure"`. Large: `"b_breed"`, `"b_utility"`, `"b_other"`. Tent: `"t_breed"`, `"t_utility"`. XL (150px wide): `"xl_breed"` |
 | `locked` | If `true`, cell is registered but not auto-added to the build menu. Use quest side effect `"unlock_cell"` to unlock it as a reward. Default: `false` (auto-unlocked on load) |
 | `mon_types` | Array of monster species that can use this cell: 0=goblin, 1=hobgoblin, 2=ogre |
 | `slot_type` | `0`=standard wall, `2`=large cell, `3`=tent |
@@ -566,6 +566,14 @@ These are GNX-only  - vanilla cells do not have them.
 | `required_class` | Class restriction for this cell. Can be a single class ID (`14`) or an array of class IDs (`[0, 14]`). Omit = any class allowed. String refs (`"mod_id.ClassName"`) are supported alongside integer IDs. Also overrides vanilla hardcoded class locks (cow/giant/morrigan/lilith) |
 | `range_draw_func` | Script to draw the range indicator. Omit = default |
 | `scr_unoccupy` | Script called when a unit is removed. Use `"scr_gnx_unoccupy_log"` for logging-only |
+
+### Patching vanilla cells
+
+Multiple mods can patch the same vanilla cell (e.g. SHRINE, CHAINS). When two
+mods define `by_class` for different classes, both entries are kept. When they
+define `by_class` for the same class, the later-loaded mod wins. A patch phase
+that omits `spr_array`/`spr_c_array` keeps the existing arrays from the earlier
+mod or vanilla. `required_class` arrays are merged across mods.
 
 ### layers array
 
@@ -1239,6 +1247,45 @@ Declare sprites in `sprites` and reference them with `gnx:` keys.
 |-----|--------|------|
 | `ogre_wall_body_start` | body_b | OGRE WALL start |
 | `ogre_wall_body_loop` | body_b | OGRE WALL loop |
+| `ogre_chain_body` | body | CHAINS |
+
+**Shrine keys (goblin):**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `goblin_shrine_start_body_alpha` | body alpha | SHRINE start (2 frames) |
+| `goblin_shrine_start_body_line` | body line | SHRINE start (2 frames) |
+| `goblin_shrine_start_hand_alpha` | hand alpha | SHRINE start (2 frames) |
+| `goblin_shrine_start_hand_line` | hand line | SHRINE start (2 frames) |
+| `goblin_shrine_start_pen` | pen | SHRINE start (2 frames) |
+| `goblin_shrine_body_alpha` | body alpha | SHRINE loop (5 frames) |
+| `goblin_shrine_body_line` | body line | SHRINE loop (5 frames) |
+| `goblin_shrine_touch` | touch | SHRINE loop (5 frames) |
+| `goblin_shrine_enter` | enter | SHRINE loop (5 frames) |
+
+**Shrine keys (hobgoblin):** same 9 names with `hobgoblin_shrine_` prefix. Same frame counts.
+
+**Shrine keys (ogre):**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `ogre_shrine_start_alpha` | body alpha | SHRINE start (2 frames) |
+| `ogre_shrine_start_pen` | pen | SHRINE start (2 frames) |
+| `ogre_shrine_start_line` | body line | SHRINE start (2 frames) |
+| `ogre_shrine_loop_alpha` | body alpha | SHRINE loop (5 frames) |
+| `ogre_shrine_loop_enter` | enter | SHRINE loop (5 frames) |
+| `ogre_shrine_loop_line` | body line | SHRINE loop (5 frames) |
+
+**Shrine environment keys:**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `shrine_bg` | background | SHRINE |
+| `shrine_dirt` | dirt (3 frames, one per level) | SHRINE |
+| `shrine_sign` | sign above cell (1 frame) | SHRINE |
+
+> **Note:** touch and enter are not drawn for `is_special` classes without their
+> own override — vanilla sprites would pick the wrong frame because `skin = -1`.
 
 **Pre-existing keys:**
 
