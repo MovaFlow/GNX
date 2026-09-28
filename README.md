@@ -28,7 +28,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Save Safety**  - mod removal sanitize system replaces orphaned cells and units with vanilla equivalents on load. No save corruption when removing mods.
 
-**Performance**  - off-screen draw culling for slots and goblins (~1.5-2x fps at 30+ floors), runtime sprite caching for fast reloads.
+**Performance**  - off-screen draw culling on slots, monsters, buttons, and empty cells (~3x fps on large saves; 12 to 35-38 FPS on a 74-floor endless tower), throttled ambient speaker scans, runtime sprite caching for fast reloads.
 
 **Atlas Packing**  - optional texture atlas system (`gnx_atlas_pack.py`) packs sprite strips into large atlas PNGs, cutting texture pages from hundreds to single digits, VRAM by ~45%, and boot time from 94s to 1.8s. Fully backwards-compatible: mods work with or without atlas.
 
@@ -140,7 +140,7 @@ Credit to @Jadwick for the original Moan Mod ([link](https://jadwick.dev/mods/mo
 
 Credit to @Jadwick and @Radeonix for bug reports and fixes that improved GNX stability.
 
-Credit to @Mav for the multi-monster cell extensions: per-placement sprite variants, per-placement visual offsets (`mon_positions`), `by_class`/`by_mon_type` sprite dispatch for fixed-mode cells, consolidated `required_class` array support for special vanilla cells, bugfixes for `spr_data` initialization, `start_frame` defaults, and multi-slot unit removal. Also credit to Mav for tower boss support (`tower_boss_condition` for modded classes in endgame tower encounters) and the locked cells feature (`"locked": true` to gate cells behind quest rewards).
+Credit to @Mav for the multi-monster cell extensions: per-placement sprite variants, per-placement visual offsets (`mon_positions`), `by_class`/`by_mon_type` sprite dispatch for fixed-mode cells, consolidated `required_class` array support for special vanilla cells, bugfixes for `spr_data` initialization, `start_frame` defaults, and multi-slot unit removal. Also credit to Mav for tower boss support (`tower_boss_condition` for modded classes in endgame tower encounters), the locked cells feature (`"locked": true` to gate cells behind quest rewards), XL cells (slot type 6, 150px wide cells with dedicated backgrounds and the `xl_breed` build-menu category), shrine and chains monster sprite overrides (`shrine_bg`, `shrine_dirt`, `shrine_sign`, `ogre_chain_body` per-class keys in `mon_spr_overrides`), and cell patch merging (multiple mods patching the same vanilla cell with `required_class`/`by_class` merge logic).
 
 ## Coffee
 GNX is and will always be free.
