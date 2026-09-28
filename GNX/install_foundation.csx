@@ -1,8 +1,19 @@
-// GNX Foundation Installer v1.2
+// GNX Foundation Installer v1.3
 // Applies all GoblinNest Extender code + asset changes to data.win.
 // Run via patcher.bat (UTMT CLI), or via G3M as a DATA patch (G3MTool).
 //
-// v1.2 = v1.1 (GML import + GNX_assets sprite import) + patch timing/diagnostics.
+// v1.3 = v1.2, but with the two steps SWAPPED: sprites now import BEFORE
+//   the GML code compiles. Reason: our GML now references brand-new sprite
+//   names (spr_xl_slot_back and its 3 variants) that don't exist anywhere
+//   in vanilla data.win. If the GML compiler runs first and doesn't find
+//   them, UTMT's AutoCreateAssets (see QueueReplace/Import below) silently
+//   creates a blank placeholder sprite just so the code compiles at all —
+//   then the real PNG-import step sees "already present" for that name and
+//   skips it, so the true pixel data never gets attached. Net result: the
+//   sprite exists, but it's forever empty/invisible, and the rotate button
+//   just cycles between several equally-blank sprites. Importing the real
+//   PNGs FIRST means the GML compiler finds the real sprites already in
+//   place and just references them — no stand-ins needed.
 // Timing + a sprite-import summary are appended to
 //   %LOCALAPPDATA%\goblin_nest\gnx_patch_timing.txt
 // (ScriptMessage is suppressed under G3M, so the report goes to a file.)
@@ -28,65 +39,15 @@ string?[] candidateDirs =
     Directory.GetCurrentDirectory()
 };
 
-// ── 1. GML Code Import ─────────────────────────────────────────────────
-
-string? gmlDir = candidateDirs
-    .Where(d => !string.IsNullOrEmpty(d))
-    .Select(d => Path.Combine(d!, "gml"))
-    .FirstOrDefault(Directory.Exists);
-
-if (gmlDir == null)
-    throw new Exception("GML folder not found. Checked next to the script, next to the data file, and the current directory.");
-
-string[] gmlFiles = Directory.GetFiles(gmlDir!, "*.gml");
-if (gmlFiles.Length == 0)
-    throw new Exception($"No .gml files found in: {gmlDir}");
-
-SetProgressBar(null, "GNX Foundation  - Code", 0, gmlFiles.Length);
-StartProgressBarUpdater();
-
-long queueMs = 0, importMs = 0, totalBytes = 0;
-
-await Task.Run(() =>
-{
-    var swQueue = Stopwatch.StartNew();
-
-    var importGroup = new UndertaleModLib.Compiler.CodeImportGroup(Data)
-    {
-        AutoCreateAssets = true
-    };
-
-    foreach (string file in gmlFiles)
-    {
-        string code = File.ReadAllText(file);
-        // Inline the GNX_LOG macro  - UTMT cross-script macro resolution is unreliable
-        code = code.Replace("GNX_LOG", "\"gnx_debug.txt\"");
-        string codeName = Path.GetFileNameWithoutExtension(file);
-        // Skip s_macro  - macros are now inlined, no script entry needed
-        if (codeName == "gml_GlobalScript_s_macro") { IncrementProgress(); continue; }
-        totalBytes += code.Length;
-        importGroup.QueueReplace(codeName, code);
-        IncrementProgress();
-    }
-
-    swQueue.Stop();
-    queueMs = swQueue.ElapsedMilliseconds;
-
-    var swImport = Stopwatch.StartNew();
-    importGroup.Import();       // all GML compilation + linking happens here
-    swImport.Stop();
-    importMs = swImport.ElapsedMilliseconds;
-});
-
-await StopProgressBarUpdater();
-HideProgressBar();
-
-// ── 2. GNX_assets Sprite Import ────────────────────────────────────────
+// ── 1. GNX_assets Sprite Import ─────────────────────────────────────────
 // Imports every PNG in GNX_assets/ as a native sprite resource (spr_<filename>).
 // Each sprite gets its own texture page. Origin is copied from the vanilla
 // reference sprite when one exists (e.g. spr_option_window for gnx_option_window).
 // In G3M, GNX_assets/ must be added alongside install_foundation.csx (not as
 // an extra file), so it lands next to ScriptPath where candidateDirs finds it.
+//
+// This now runs FIRST (before the GML import below) — see the note at the
+// top of the file for why that order matters.
 
 var swSprites = Stopwatch.StartNew();
 
@@ -145,10 +106,25 @@ if (assetsDir != null)
             UndertaleSprite refSpr = Data.Sprites.ByName("spr_option_window");
             if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
         }
-        else if (baseName == "gnx_map_button")
+        else if (baseName == "xl_slot_back")
         {
-            // travel marker  - centered origin like the vanilla raid-map buttons
-            ox = w / 2; oy = h / 2;
+            UndertaleSprite refSpr = Data.Sprites.ByName("spr_big_slot_back");
+            if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
+        }
+        else if (baseName == "xl_slot_back_brick")
+        {
+            UndertaleSprite refSpr = Data.Sprites.ByName("spr_big_slot_back_brick");
+            if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
+        }
+        else if (baseName == "xl_slot_back_pillar")
+        {
+            UndertaleSprite refSpr = Data.Sprites.ByName("spr_big_slot_back_pillar");
+            if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
+        }
+        else if (baseName == "xl_slot_back_rock")
+        {
+            UndertaleSprite refSpr = Data.Sprites.ByName("spr_big_slot_back_rock");
+            if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
         }
 
         // Create the sprite resource
@@ -178,13 +154,70 @@ else
 }
 
 swSprites.Stop();
+
+// ── 2. GML Code Import ─────────────────────────────────────────────────
+// Runs AFTER sprite import (see note at top of file). By now, any sprite
+// our GML references by name (spr_xl_slot_back, etc.) already exists as a
+// real asset with real pixel data, so the compiler just links to it.
+
+string? gmlDir = candidateDirs
+    .Where(d => !string.IsNullOrEmpty(d))
+    .Select(d => Path.Combine(d!, "gml"))
+    .FirstOrDefault(Directory.Exists);
+
+if (gmlDir == null)
+    throw new Exception("GML folder not found. Checked next to the script, next to the data file, and the current directory.");
+
+string[] gmlFiles = Directory.GetFiles(gmlDir!, "*.gml");
+if (gmlFiles.Length == 0)
+    throw new Exception($"No .gml files found in: {gmlDir}");
+
+SetProgressBar(null, "GNX Foundation — Code", 0, gmlFiles.Length);
+StartProgressBarUpdater();
+
+long queueMs = 0, importMs = 0, totalBytes = 0;
+
+await Task.Run(() =>
+{
+    var swQueue = Stopwatch.StartNew();
+
+    var importGroup = new UndertaleModLib.Compiler.CodeImportGroup(Data)
+    {
+        AutoCreateAssets = true
+    };
+
+    foreach (string file in gmlFiles)
+    {
+        string code = File.ReadAllText(file);
+        // Inline the GNX_LOG macro — UTMT cross-script macro resolution is unreliable
+        code = code.Replace("GNX_LOG", "\"gnx_debug.txt\"");
+        string codeName = Path.GetFileNameWithoutExtension(file);
+        // Skip s_macro — macros are now inlined, no script entry needed
+        if (codeName == "gml_GlobalScript_s_macro") { IncrementProgress(); continue; }
+        totalBytes += code.Length;
+        importGroup.QueueReplace(codeName, code);
+        IncrementProgress();
+    }
+
+    swQueue.Stop();
+    queueMs = swQueue.ElapsedMilliseconds;
+
+    var swImport = Stopwatch.StartNew();
+    importGroup.Import();       // all GML compilation + linking happens here
+    swImport.Stop();
+    importMs = swImport.ElapsedMilliseconds;
+});
+
+await StopProgressBarUpdater();
+HideProgressBar();
+
 swTotal.Stop();
 
 // ── 3. Timing + sprite report ──────────────────────────────────────────
 try
 {
     var sb = new StringBuilder();
-    sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] GNX patch (v1.2)");
+    sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] GNX patch (v1.3)");
     sb.AppendLine($"  files queued : {gmlFiles.Length}");
     sb.AppendLine($"  total GML     : {totalBytes / 1024} KB");
     sb.AppendLine($"  queue+read    : {queueMs} ms");
@@ -209,4 +242,4 @@ catch
     catch { /* best-effort */ }
 }
 
-ScriptMessage($"GNX Foundation v1.2 installed ({gmlFiles.Length} scripts patched, {spriteCount} sprites imported, compile {importMs} ms).");
+ScriptMessage($"GNX Foundation v1.3 installed ({gmlFiles.Length} scripts patched, {spriteCount} sprites imported, compile {importMs} ms).");
