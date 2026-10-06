@@ -1,0 +1,171 @@
+--- gml_138/gml_GlobalScript_s_slot_prop.gml	2026-09-02 08:45:16.155545700 +0200
++++ gml/gml_GlobalScript_s_slot_prop.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -387,6 +387,64 @@
+                             break;
+                     }
+                     
++                    if (arg0.unit_data != -1 && arg0.unit_data.class >= 14)
++                    {
++                        var _rclass = ds_map_find_value(global.class_registry, arg0.unit_data.class);
++                        
++                        if (_rclass != undefined && variable_struct_exists(_rclass, "birth_spr"))
++                        {
++                            var _bspr = _rclass.birth_spr;
++                            var _h = arg0.slot_data.h_type;
++                            var _mt = prop_data.mon_data.mon_type;
++                            var _resolved = -1;
++                            
++                            switch (_h)
++                            {
++                                case UnknownEnum.Value_5:
++                                    _resolved = gnx_birth_spr_lookup(_bspr, "birth_1", _mt);
++                                    break;
++                                
++                                case UnknownEnum.Value_12:
++                                    _resolved = gnx_birth_spr_lookup(_bspr, "birth_2", _mt);
++                                    break;
++                                
++                                case UnknownEnum.Value_27:
++                                    _resolved = gnx_birth_spr_lookup(_bspr, "bind_1", _mt);
++                                    break;
++                                
++                                case UnknownEnum.Value_28:
++                                    _resolved = gnx_birth_spr_lookup(_bspr, "bind_2", _mt);
++                                    break;
++                                
++                                case UnknownEnum.Value_31:
++                                    _resolved = gnx_birth_spr_lookup(_bspr, "t_wall_1", _mt);
++                                    break;
++                                
++                                case UnknownEnum.Value_32:
++                                    _resolved = gnx_birth_spr_lookup(_bspr, "t_wall_2", _mt);
++                                    break;
++                                
++                                case UnknownEnum.Value_29:
++                                    _resolved = gnx_birth_spr_lookup(_bspr, "t_wall_3", _mt);
++                                    break;
++                                
++                                case UnknownEnum.Value_37:
++                                    _resolved = gnx_birth_spr_lookup(_bspr, "giant", _mt);
++                                    break;
++                            }
++                            
++                            if (_resolved != undefined && _resolved != -1)
++                            {
++                                gnx_birth_spr = _resolved;
++                                
++                                if (!is_struct(_resolved))
++                                    sprite_index = _resolved;
++                                else
++                                    sprite_index = spr_empty;
++                            }
++                        }
++                    }
++                    
+                     image_index = 0;
+                     mask_index = spr_empty;
+                 }
+@@ -1500,6 +1558,38 @@
+                 }
+                 
+                 break;
++            
++            default:
++                var _rprop = ds_map_find_value(global.prop_registry, arg1);
++                
++                if (_rprop != undefined)
++                {
++                    var _gy = _rprop.y_offset;
++                    var _gx = (_rprop.x_random_range > 0) ? irandom_range(-_rprop.x_random_range, _rprop.x_random_range) : 0;
++                    var _gxs = _rprop.xscale_random ? choose(-1, 1) : 1;
++                    _prop = instance_create_depth(x + _gx, y + _gy, (_rprop.position == "bot") ? -770 : -751, obj_prop);
++                    
++                    with (_prop)
++                    {
++                        prop_data.prop_type = arg1;
++                        prop_data.prop_step = arg3;
++                        prop_data.prop_pos = arg2;
++                        prop_data.shift_x = _gx;
++                        prop_data.shift_y = _gy;
++                        prop_data.xscale = _gxs;
++                        slot_id = other.id;
++                        activate = false;
++                        follow = true;
++                        center = true;
++                        gnx_prop_spr = _rprop.sprite;
++                        scr_prop_draw = scr_draw_gnx_prop;
++                        sprite_index = spr_between_prop;
++                        image_index = 0;
++                        image_xscale = _gxs;
++                    }
++                }
++                
++                break;
+         }
+         
+         if (!_exists)
+@@ -1552,12 +1642,20 @@
+ 
+ function scr_draw_prop_infant()
+ {
+-    draw_self();
++    if (variable_instance_exists(id, "gnx_birth_spr") && gnx_birth_spr != -1)
++        gnx_draw_sprite_ext(gnx_birth_spr, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++    else if (sprite_exists(sprite_index))
++        draw_self();
+     
+     if (!prop_data.spawn)
+     {
+         if (slot_id.hover)
+-            scr_draw_highlight(draw_self);
++        {
++            if (variable_instance_exists(id, "gnx_birth_spr") && gnx_birth_spr != -1)
++                scr_draw_highlight(scr_draw_prop_infant_gnx);
++            else if (sprite_exists(sprite_index))
++                scr_draw_highlight(draw_self);
++        }
+     }
+     else
+     {
+@@ -1570,6 +1668,14 @@
+     }
+ }
+ 
++function scr_draw_prop_infant_gnx()
++{
++    if (variable_instance_exists(id, "gnx_birth_spr") && gnx_birth_spr != -1)
++        gnx_draw_sprite_ext(gnx_birth_spr, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++    else if (sprite_exists(sprite_index))
++        draw_self();
++}
++
+ function scr_draw_highlight_prop(arg0)
+ {
+     draw_self();
+@@ -1578,6 +1684,26 @@
+         scr_draw_highlight(scr_prop_draw);
+ }
+ 
++function scr_draw_gnx_prop(arg0)
++{
++    if (variable_instance_exists(id, "gnx_prop_spr") && gnx_prop_spr != -1)
++        gnx_draw_sprite_ext(gnx_prop_spr, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++    else
++        draw_self();
++    
++    if (arg0 && slot_id.hover)
++    {
++        gpu_set_blendmode(bm_add);
++        
++        if (variable_instance_exists(id, "gnx_prop_spr") && gnx_prop_spr != -1)
++            gnx_draw_sprite_ext(gnx_prop_spr, 0, x, y, image_xscale, image_yscale, image_angle, 65535, 0.15);
++        else
++            draw_sprite_ext(sprite_index, image_index, x, y, image_xscale, image_yscale, image_angle, c_yellow, 0.15);
++        
++        gpu_set_blendmode(bm_normal);
++    }
++}
++
+ function scr_draw_plaque_prop(arg0)
+ {
+     draw_self();

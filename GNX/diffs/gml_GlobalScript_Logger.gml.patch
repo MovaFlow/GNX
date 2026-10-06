@@ -1,0 +1,123 @@
+--- /dev/null	2026-10-05 20:22:36.000000000 +0200
++++ gml/gml_GlobalScript_Logger.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -0,0 +1,120 @@
++function Logger(arg0 = undefined) : PropertyHolder() constructor
++{
++    static timeFormatPlaceholder = struct_from_entries([["{Y}", "{0}"], ["{m}", "{1}"], ["{d}", "{2}"], ["{H}", "{3}"], ["{M}", "{4}"], ["{S}", "{5}"]]);
++    static messageFormatPlaceholder = struct_from_entries([["{message}", "{0}"], ["{time}", "{1}"], ["{level}", "{2}"]]);
++    
++    static print = function(arg0, arg1, arg2 = undefined)
++    {
++        if (arg0 < level)
++            exit;
++        
++        var _timeString = "";
++        
++        if (!is_undefined(timeFormat))
++            _timeString = string(timeFormat, current_year, current_month, current_day, current_hour, current_minute, current_second);
++        
++        if (!is_string(arg1))
++            arg1 = string(arg1);
++        
++        if (is_array(arg2))
++            arg1 = string_ext(arg1, arg2);
++        
++        var _messageString = arg1;
++        
++        if (!is_undefined(messageFormat))
++            _messageString = string(messageFormat, arg1, _timeString, variable_struct_get(levelNames, arg0));
++        
++        show_debug_message(_messageString);
++        return _messageString;
++    };
++    
++    static debug = function(arg0, arg1 = undefined)
++    {
++        return print(UnknownEnum.Value_10, arg0, arg1);
++    };
++    
++    static info = function(arg0, arg1 = undefined)
++    {
++        return print(UnknownEnum.Value_20, arg0, arg1);
++    };
++    
++    static warning = function(arg0, arg1 = undefined)
++    {
++        return print(UnknownEnum.Value_30, arg0, arg1);
++    };
++    
++    static error = function(arg0, arg1 = undefined)
++    {
++        return print(UnknownEnum.Value_40, arg0, arg1);
++    };
++    
++    static critical = function(arg0, arg1 = undefined)
++    {
++        return print(UnknownEnum.Value_50, arg0, arg1);
++    };
++    
++    static basicConfig = function(arg0, arg1 = undefined, arg2 = undefined)
++    {
++        level = arg0;
++        
++        if (!is_undefined(arg1))
++            setFormat(arg1);
++        
++        if (!is_undefined(arg2))
++            setTimeFormat(arg2);
++    };
++    
++    static setLevel = function(arg0)
++    {
++        level = arg0;
++    };
++    
++    static setFormat = function(arg0)
++    {
++        static messagePlaceholders = variable_struct_get_names(messageFormatPlaceholder);
++        static messagePlaceholdersCount = array_length(messagePlaceholders);
++        
++        for (var _i = 0; _i < messagePlaceholdersCount; _i++)
++        {
++            var _name = messagePlaceholders[_i];
++            arg0 = string_replace_all(arg0, _name, variable_struct_get(messageFormatPlaceholder, _name));
++        }
++        
++        messageFormat = arg0;
++    };
++    
++    static setTimeFormat = function(arg0)
++    {
++        static timePlaceholders = variable_struct_get_names(timeFormatPlaceholder);
++        static timePlaceholdersCount = array_length(timePlaceholders);
++        
++        for (var _i = 0; _i < timePlaceholdersCount; _i++)
++        {
++            var _name = timePlaceholders[_i];
++            arg0 = string_replace_all(arg0, _name, variable_struct_get(timeFormatPlaceholder, _name));
++        }
++        
++        timeFormat = arg0;
++    };
++    
++    level = addProperty("level", UnknownEnum.Value_10, is_numeric);
++    levelNames = {};
++    variable_struct_set(levelNames, UnknownEnum.Value_10, "DEBUG");
++    variable_struct_set(levelNames, UnknownEnum.Value_20, "INFO");
++    variable_struct_set(levelNames, UnknownEnum.Value_30, "WARNING");
++    variable_struct_set(levelNames, UnknownEnum.Value_40, "ERROR");
++    variable_struct_set(levelNames, UnknownEnum.Value_50, "CRITICAL");
++    timeFormat = addProperty("timeFormat", "{3}:{4}:{5}", is_string, setTimeFormat);
++    messageFormat = addProperty("messageFormat", "[{2}]: {0}", is_string, setFormat);
++    config(config_get(self));
++    config(arg0);
++}
++
++enum UnknownEnum
++{
++    Value_10 = 10,
++    Value_20 = 20,
++    Value_30 = 30,
++    Value_40 = 40,
++    Value_50 = 50
++}

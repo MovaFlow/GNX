@@ -1,0 +1,599 @@
+--- gml_138/gml_GlobalScript_s_window_alpha.gml	2026-09-02 08:45:16.543618000 +0200
++++ gml/gml_GlobalScript_s_window_alpha.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -15,16 +15,19 @@
+             y += 13;
+         }
+         
+-        interact_type = UnknownEnum.Value_9;
++        interact_type = 9;
+         source_id = other.id;
+         scr_window_draw = scr_draw_alpha_window;
+         gui = true;
+-        scr_create_button_layout(12, 11, depth - 1, 12, 2, 23, 12, 0, spr_button_arrow, UnknownEnum.Value_31, id, false, scr_create_alpha_set_button, -1, scr_draw_hover_button);
+-        scr_create_button_layout(-111, 20, depth - 1, 3, 1, 1, 34, 0, spr_button_load, UnknownEnum.Value_53, id, false, scr_create_save_button, -1, scr_draw_save_data_button);
+-        scr_create_button(35, 85, depth - 1, spr_button_oval, UnknownEnum.Value_31, id, scr_create_alpha_set_button, -1, scr_draw_hover_button, 12, 10);
+-        scr_create_button(35, 98, depth - 1, spr_button_oval, UnknownEnum.Value_31, id, scr_create_alpha_set_button, -1, scr_draw_hover_button, 13, 10);
+-        scr_create_button(-5, 111, depth - 1, spr_button_guide_icon, UnknownEnum.Value_31, id, scr_create_option_guide, -1, scr_draw_hover_guide_button, 14, 11);
+-        scr_create_button(35, 112, depth - 1, spr_button_oval, UnknownEnum.Value_31, id, scr_create_option_button, -1, scr_draw_hover_button, 15, 11);
++        scr_create_button_layout(12, 11, depth - 1, 12, 2, 23, 12, 0, spr_button_arrow, 31, id, false, scr_create_alpha_set_button, -1, scr_draw_hover_button);
++        scr_create_button_layout(-111, 20, depth - 1, 3, 1, 1, 34, 0, spr_button_load, 53, id, false, scr_create_save_button, -1, scr_draw_save_data_button);
++        scr_create_button(35, 85, depth - 1, spr_button_oval, 31, id, scr_create_alpha_set_button, -1, scr_draw_hover_button, 12, 10);
++        scr_create_button(35, 98, depth - 1, spr_button_oval, 31, id, scr_create_alpha_set_button, -1, scr_draw_hover_button, 13, 10);
++        scr_create_button(-5, 111, depth - 1, spr_button_guide_icon, 31, id, scr_create_option_guide, -1, scr_draw_hover_guide_button, 14, 11);
++        scr_create_button(35, 112, depth - 1, spr_button_oval, 31, id, scr_create_option_button, -1, scr_draw_hover_button, 15, 11);
++        
++        if (global.gnx_has_sounds || global.gnx_has_ambience)
++            scr_create_button(-13, 61, depth - 1, spr_button_oval, 31, id, scr_create_option_button, -1, scr_draw_hover_button, 16, 10);
+     }
+     
+     return _window;
+@@ -32,7 +35,7 @@
+ 
+ function scr_draw_alpha_window()
+ {
+-    draw_sprite_ext(spr_option_window, image_index, x, y, 1, 1, image_angle, image_blend, image_alpha);
++    gnx_draw_sprite_ext(spr_option_window, image_index, x, y, 1, 1, image_angle, image_blend, image_alpha);
+     var _x = x - 32;
+     var _y = y + 8;
+     var _width = 55;
+@@ -47,7 +50,7 @@
+     
+     switch (global.val.language)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             draw_text(_x, _y, "MON TYPE");
+             draw_text(_x, _y + 12, "OPACITY");
+             draw_text(_x, _y + 24, "PROP TYPE");
+@@ -64,7 +67,7 @@
+             draw_text(_save_x, _save_y + (_height * 2), "SAVE 3");
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             draw_text(_x, _y, "怪物類型");
+             draw_text(_x, _y + 12, "不透明度");
+             draw_text(_x, _y + 24, "道具類型");
+@@ -81,7 +84,7 @@
+             draw_text(_save_x - 1, _save_y + (_height * 2), "存檔3");
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             draw_text(_x, _y, "怪物类型");
+             draw_text(_x, _y + 12, "不透明度");
+             draw_text(_x, _y + 24, "道具类型");
+@@ -98,7 +101,7 @@
+             draw_text(_save_x - 1, _save_y + (_height * 2), "存档3");
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             draw_text(_x, _y, "敵種");
+             draw_text(_x, _y + 12, "不透明度");
+             draw_text(_x, _y + 24, "道具");
+@@ -115,7 +118,7 @@
+             draw_text(_save_x, _save_y + (_height * 2), "セーブ3");
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             draw_text(_x, _y, "몹 형태");
+             draw_text(_x, _y + 12, "투명도");
+             draw_text(_x, _y + 24, "소품형태");
+@@ -132,7 +135,7 @@
+             draw_text(_save_x, _save_y + (_height * 2), "파일 3");
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             draw_text(_x, _y, "ТИП МОН.");
+             draw_text(_x, _y + 12, "ПРОЗРАЧ");
+             draw_text(_x, _y + 24, "ТИП ПОДСТ.");
+@@ -149,14 +152,14 @@
+             draw_text(_save_x, _save_y + (_height * 2), "SAVE 3");
+             break;
+         
+-        case UnknownEnum.Value_4:
+-            draw_text(_x, _y, "ESTILO.M");
++        case 4:
++            draw_text(_x, _y, "E.MONSTRUO");
+             draw_text(_x, _y + 12, "OPACIDAD");
+-            draw_text(_x, _y + 24, "ESTILO.U");
++            draw_text(_x, _y + 24, "E.APOYO");
+             draw_text(_x, _y + 36, "OPACIDAD");
+             draw_text(_x, _y + 49, "SFX");
+             draw_text(_x, _y + 61, "BGM");
+-            draw_text(_x, _y + 74, "DISPOSICIÓN");
++            draw_text(_x, _y + 74, "INTERFAZ");
+             draw_text(_x, _y + 87, "P.COMPLETA");
+             draw_text(_x - 1, _y + 100, "GUÍA");
+             draw_text(_x + 42, _y + 100, "SALIR");
+@@ -166,7 +169,7 @@
+             draw_text(_save_x, _save_y + (_height * 2), "ARCHIVO 3");
+             break;
+         
+-        case UnknownEnum.Value_6:
++        case 6:
+             draw_text(_x, _y, "TYPE DE M.");
+             draw_text(_x, _y + 12, "OPACITÉ");
+             draw_text(_x, _y + 24, "TYPE D'ACC.");
+@@ -183,7 +186,7 @@
+             draw_text(_save_x, _save_y + (_height * 2), "SAUVEGARDE 3");
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             draw_text(_x, _y, "MON.TYP");
+             draw_text(_x, _y + 12, "DECKKRAFT");
+             draw_text(_x, _y + 24, "REQ.TYP");
+@@ -200,7 +203,7 @@
+             draw_text(_save_x, _save_y + (_height * 2), "SAVE 3");
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 5:
+             draw_text(_x, _y, "T.MONSTRO");
+             draw_text(_x, _y + 12, "OPACIDADE");
+             draw_text(_x, _y + 24, "T.OBJETO");
+@@ -231,7 +234,7 @@
+ 
+ function scr_draw_guide_window()
+ {
+-    draw_sprite_ext(spr_guide_window, image_index, x, y, 1, 1, image_angle, image_blend, image_alpha);
++    gnx_draw_sprite_ext(spr_guide_window, image_index, x, y, 1, 1, image_angle, image_blend, image_alpha);
+     var _x = x - 97;
+     var _y = y + 9;
+     draw_set_color(c_white);
+@@ -240,43 +243,43 @@
+     
+     switch (global.val.language)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "GUIDE");
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "指南");
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "指南");
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "ガイド");
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "가이드");
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "ГАЙД");
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "GUÍA");
+             break;
+         
+-        case UnknownEnum.Value_6:
++        case 6:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "GUIDE");
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "FÜHRUNG");
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 5:
+             draw_text(_x + _lang_pos[0], _y + _lang_pos[1], "GUIA");
+             break;
+     }
+@@ -317,7 +320,7 @@
+     
+     switch (global.val.language)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             switch (button_num)
+             {
+                 case 0:
+@@ -340,7 +343,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             switch (button_num)
+             {
+                 case 0:
+@@ -363,7 +366,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             switch (button_num)
+             {
+                 case 0:
+@@ -386,7 +389,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             switch (button_num)
+             {
+                 case 0:
+@@ -409,7 +412,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             switch (button_num)
+             {
+                 case 0:
+@@ -432,7 +435,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             switch (button_num)
+             {
+                 case 0:
+@@ -455,7 +458,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             switch (button_num)
+             {
+                 case 0:
+@@ -478,7 +481,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_6:
++        case 6:
+             switch (button_num)
+             {
+                 case 0:
+@@ -501,7 +504,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             switch (button_num)
+             {
+                 case 0:
+@@ -524,7 +527,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 5:
+             switch (button_num)
+             {
+                 case 0:
+@@ -557,7 +560,7 @@
+     
+     switch (global.val.language)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             switch (button_num)
+             {
+                 case 0:
+@@ -611,7 +614,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             switch (button_num)
+             {
+                 case 0:
+@@ -665,7 +668,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             switch (button_num)
+             {
+                 case 0:
+@@ -719,7 +722,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             switch (button_num)
+             {
+                 case 0:
+@@ -773,7 +776,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             switch (button_num)
+             {
+                 case 0:
+@@ -827,7 +830,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             switch (button_num)
+             {
+                 case 0:
+@@ -881,7 +884,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             switch (button_num)
+             {
+                 case 0:
+@@ -905,7 +908,7 @@
+                     break;
+                 
+                 case 5:
+-                    guide_text = "RACIONAR";
++                    guide_text = "COMIDA";
+                     break;
+                 
+                 case 6:
+@@ -935,7 +938,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_6:
++        case 6:
+             switch (button_num)
+             {
+                 case 0:
+@@ -989,7 +992,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1043,7 +1046,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 5:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1127,7 +1130,7 @@
+         
+         switch (global.val.language)
+         {
+-            case UnknownEnum.Value_0:
++            case 0:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1181,7 +1184,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_9:
++            case 9:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1235,7 +1238,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_2:
++            case 2:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1289,7 +1292,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_1:
++            case 1:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1343,7 +1346,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_3:
++            case 3:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1397,7 +1400,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_7:
++            case 7:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1451,7 +1454,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_4:
++            case 4:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1491,7 +1494,7 @@
+                         break;
+                     
+                     case 9:
+-                        guide_text = "ALTAR R.";
++                        guide_text = "ALTAR C.";
+                         break;
+                     
+                     case 10:
+@@ -1505,7 +1508,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_6:
++            case 6:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1559,7 +1562,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_8:
++            case 8:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1613,7 +1616,7 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_5:
++            case 5:
+                 switch (button_num)
+                 {
+                     case 0:
+@@ -1687,7 +1690,7 @@
+     
+     switch (global.val.language)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1725,7 +1728,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1763,7 +1766,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1801,7 +1804,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1839,7 +1842,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1877,7 +1880,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1915,7 +1918,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1953,7 +1956,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_6:
++        case 6:
+             switch (button_num)
+             {
+                 case 0:
+@@ -1991,7 +1994,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             switch (button_num)
+             {
+                 case 0:
+@@ -2029,7 +2032,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 5:
+             switch (button_num)
+             {
+                 case 0:
+@@ -2068,19 +2071,3 @@
+             break;
+     }
+ }
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_31 = 31,
+-    Value_53 = 53
+-}

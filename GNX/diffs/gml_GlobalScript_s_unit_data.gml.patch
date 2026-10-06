@@ -1,0 +1,2951 @@
+--- gml_138/gml_GlobalScript_s_unit_data.gml	2026-09-02 08:45:16.552128800 +0200
++++ gml/gml_GlobalScript_s_unit_data.gml	2026-10-05 18:44:50.342403100 +0200
+@@ -11,25 +11,694 @@
+     var _leg = -1;
+     var _leg_p = -1;
+     
+-    if (arg1 == UnknownEnum.Value_3)
+-        arg1 = UnknownEnum.Value_2;
++    if (arg1 == 3)
++        arg1 = 2;
++    
++    if (!global.use_legacy_dispatch)
++    {
++        var _rcell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++        var _rclass = ds_map_find_value(global.class_registry, arg0.class);
++        
++        if (_rclass != undefined && _rclass.is_special)
++        {
++            arg0.skin = -1;
++            _skin = -1;
++        }
++
++        // POPRAWKA (GNX): GIANT (h37) - klasa z sekcja "clothing_giant" rysowana z niej (faza 0/1/2/4; wytrysk = 2)
++        if (slot_data.h_type == 37 && _rclass != undefined && variable_struct_exists(_rclass, "clothing_giant"))
++        {
++            var _gnx_gph = "phase_" + string(arg1);
++
++            if (variable_struct_exists(_rclass.clothing_giant, _gnx_gph))
++            {
++                var _gnx_gt = variable_struct_get(_rclass.clothing_giant, _gnx_gph);
++                return [_gnx_gt.spr_array, _gnx_gt.spr_c_array];
++            }
++
++            // POPRAWKA (GNX): fazy nie ma (np. start = 0) - -1 oznacza "nie zmieniaj sprite'ow"
++            if (_rclass.is_special)
++                return -1;
++        }
++
++        if (_rcell != undefined && _rcell.human_spr != undefined)
++        {
++            _rclass = ds_map_find_value(global.class_registry, arg0.class);
++            gnx_first_hit(slot_data.h_type, "h", string(arg1), arg0.class);
++            gnx_cov_hit("h." + string(slot_data.h_type) + "." + string(arg0.class));
++            var _rrule_pre = _rcell.human_spr;
++            
++            if (arg1 == 0 && variable_struct_exists(_rcell, "gnx_price") && (!variable_struct_exists(_rrule_pre, "base_body") || _rrule_pre.base_body != "big"))
++                arg1 = 1;
++            
++            if (global.gnx_debug_verbose)
++            {
++                var _dbg_mode = variable_struct_exists(_rrule_pre, "mode") ? _rrule_pre.mode : "class";
++                var _dbg_bb = variable_struct_exists(_rrule_pre, "base_body") ? _rrule_pre.base_body : "?";
++                var _dbg_gnx = variable_struct_exists(_rcell, "gnx_price") ? "custom" : "vanilla";
++                var _dbgf = file_text_open_append("gnx_debug.txt");
++                file_text_write_string(_dbgf, "[GNX] class_spr h=" + string(slot_data.h_type) + " (" + _dbg_gnx + ") class=" + string(arg0.class) + " phase=" + string(arg1) + " mode=" + _dbg_mode + " base_body=" + _dbg_bb + " is_special=" + string((_rclass != undefined) ? _rclass.is_special : "no_rclass") + "\n");
++                file_text_close(_dbgf);
++            }
++            
++            if (variable_struct_exists(_rrule_pre, "mode") && _rrule_pre.mode == "fixed")
++            {
++                var _rfixed = -1;
++                
++                if (arg1 == 0 && variable_struct_exists(_rrule_pre, "phase_0"))
++                    _rfixed = _rrule_pre.phase_0;
++                else if (arg1 == 1 && variable_struct_exists(_rrule_pre, "phase_1"))
++                    _rfixed = _rrule_pre.phase_1;
++                else if (arg1 == 2 && variable_struct_exists(_rrule_pre, "phase_2"))
++                    _rfixed = _rrule_pre.phase_2;
++                else if (arg1 == 4 && variable_struct_exists(_rrule_pre, "phase_4"))
++                    _rfixed = _rrule_pre.phase_4;
++                
++                if (_rfixed != -1)
++                {
++                    if (variable_struct_exists(_rfixed, "by_class"))
++                    {
++                        var _bc = variable_struct_get(_rfixed.by_class, string(arg0.class));
++                        
++                        if (_bc != undefined)
++                        {
++                            if (variable_struct_exists(_bc, "by_mon_type") && variable_instance_exists(id, "h_unit_list") && array_length(h_unit_list) > 0)
++                            {
++                                var _bmt = variable_struct_get(_bc.by_mon_type, string(h_unit_list[0].mon_data.mon_type));
++                                
++                                if (_bmt != undefined)
++                                    return [_bmt.spr_array, _bmt.spr_c_array];
++                            }
++                            
++                            return [_bc.spr_array, _bc.spr_c_array];
++                        }
++                    }
++                    
++                    return [_rfixed.spr_array, _rfixed.spr_c_array];
++                }
++            }
++            else if (variable_struct_exists(_rrule_pre, "mode") && _rrule_pre.mode == "class_map")
++            {
++                var _cm_entry = undefined;
++                
++                if (variable_struct_exists(_rrule_pre, "classes"))
++                    _cm_entry = variable_struct_get(_rrule_pre.classes, string(arg0.class));
++                
++                if (_cm_entry == undefined && variable_struct_exists(_rrule_pre, "default"))
++                    _cm_entry = variable_struct_get(_rrule_pre, "default");
++                
++                if (_cm_entry != undefined)
++                {
++                    if (global.gnx_debug_verbose)
++                    {
++                        var _cm_src = (variable_struct_exists(_rrule_pre, "default") && _cm_entry == variable_struct_get(_rrule_pre, "default")) ? "default" : "class";
++                        var _cmlog = file_text_open_append("gnx_debug.txt");
++                        file_text_write_string(_cmlog, "[GNX] class_map h=" + string(slot_data.h_type) + " c=" + string(arg0.class) + " src=" + _cm_src + "\n");
++                        file_text_close(_cmlog);
++                    }
++                    
++                    var _cm_phase = -1;
++                    
++                    if (arg1 == 0 && variable_struct_exists(_cm_entry, "phase_0"))
++                        _cm_phase = _cm_entry.phase_0;
++                    else if (arg1 == 1 && variable_struct_exists(_cm_entry, "phase_1"))
++                        _cm_phase = _cm_entry.phase_1;
++                    else if (arg1 == 2 && variable_struct_exists(_cm_entry, "phase_2"))
++                        _cm_phase = _cm_entry.phase_2;
++                    else if (arg1 == 4 && variable_struct_exists(_cm_entry, "phase_4"))
++                        _cm_phase = _cm_entry.phase_4;
++                    
++                    if (_cm_phase != -1)
++                    {
++                        if (variable_struct_exists(_cm_phase, "by_mon_type") && variable_instance_exists(id, "h_unit_list") && array_length(h_unit_list) > 0)
++                        {
++                            var _bmt = variable_struct_get(_cm_phase.by_mon_type, string(h_unit_list[0].mon_data.mon_type));
++
++                            if (_bmt != undefined)
++                                return [_bmt.spr_array, _bmt.spr_c_array];
++                        }
++
++                        return [_cm_phase.spr_array, _cm_phase.spr_c_array];
++                    }
++                    
++                    if (global.gnx_debug_verbose)
++                    {
++                        var _cmwf = file_text_open_append("gnx_debug.txt");
++                        file_text_write_string(_cmwf, "[GNX-WARN] class_map h=" + string(slot_data.h_type) + " c=" + string(arg0.class) + " missing phase_" + string(arg1) + "\n");
++                        file_text_close(_cmwf);
++                    }
++                }
++            }
++            else if (_rclass != undefined)
++            {
++                if (_rclass.is_special && _rrule_pre.base_body == "standard")
++                {
++                    var _skip_special = false;
++                    
++                    if (variable_struct_exists(_rclass.clothing_standard, "max_row"))
++                    {
++                        var _srp = variable_struct_exists(_rcell, "spr_row_pos") ? _rcell.spr_row_pos : 0;
++                        
++                        if ((slot_data.h_type - _srp - 1) >= _rclass.clothing_standard.max_row)
++                            _skip_special = true;
++                    }
++                    
++                    if (!_skip_special)
++                    {
++                        var _rptable = -1;
++                        
++                        if (arg1 == 1)
++                            _rptable = _rclass.clothing_standard.phase_1;
++                        else if (arg1 == 2)
++                            _rptable = _rclass.clothing_standard.phase_2;
++                        
++                        if (_rptable != -1)
++                            return [_rptable.spr_array, _rptable.spr_c_array];
++                    }
++                }
++                else if (_rclass.is_special && _rrule_pre.base_body == "tent")
++                {
++                    if (variable_struct_exists(_rclass, "clothing_tent"))
++                    {
++                        var _rstent = -1;
++                        
++                        if (arg1 == 1 && variable_struct_exists(_rclass.clothing_tent, "phase_1"))
++                            _rstent = _rclass.clothing_tent.phase_1;
++                        else if (arg1 == 2 && variable_struct_exists(_rclass.clothing_tent, "phase_2"))
++                            _rstent = _rclass.clothing_tent.phase_2;
++                        else if (arg1 == 4 && variable_struct_exists(_rclass.clothing_tent, "phase_4"))
++                            _rstent = _rclass.clothing_tent.phase_4;
++                        
++                        if (_rstent != -1)
++                            return [_rstent.spr_array, _rstent.spr_c_array];
++                    }
++                }
++                else if (_rclass.is_special && _rrule_pre.base_body == "big")
++                {
++                    if (variable_struct_exists(_rclass, "clothing_big"))
++                    {
++                        var _rsbig = -1;
++                        
++                        if (arg1 == 0 && variable_struct_exists(_rclass.clothing_big, "phase_0"))
++                            _rsbig = _rclass.clothing_big.phase_0;
++                        else if (arg1 == 1 && variable_struct_exists(_rclass.clothing_big, "phase_1"))
++                            _rsbig = _rclass.clothing_big.phase_1;
++                        else if (arg1 == 2 && variable_struct_exists(_rclass.clothing_big, "phase_2"))
++                            _rsbig = _rclass.clothing_big.phase_2;
++                        
++                        if (_rsbig != -1)
++                            return [_rsbig.spr_array, _rsbig.spr_c_array];
++                    }
++                }
++                else
++                {
++                    var _rrule = _rcell.human_spr;
++                    
++                    if (_rrule.mode == "base+class" && _rrule.base_body == "standard")
++                    {
++                        var _rhead = -1;
++                        var _rbreast = -1;
++                        var _rleg = -1;
++                        var _rlegp = -1;
++                        
++                        if (arg1 == 1)
++                        {
++                            _rhead = spr_h_base_idle_head;
++                            _rbreast = spr_h_base_idle_breast;
++                            _rlegp = spr_h_base_idle_leg_part;
++                            
++                            switch (arg0.leg)
++                            {
++                                case 1:
++                                    _rleg = spr_h_base_idle_leg_1;
++                                    break;
++                                
++                                case 2:
++                                    _rleg = spr_h_base_idle_leg_2;
++                                    break;
++                                
++                                case 0:
++                                    _rhead = spr_h_base_idle_head_3;
++                                    _rbreast = spr_h_base_idle_breast_3;
++                                    _rleg = spr_h_base_idle_leg_3;
++                                    _rlegp = spr_h_base_idle_leg_part_3;
++                                    break;
++                            }
++                        }
++                        else if (arg1 == 2)
++                        {
++                            _rhead = spr_h_base_loop_head;
++                            _rbreast = spr_h_base_loop_breast;
++                            _rlegp = spr_h_base_loop_leg_part;
++                            
++                            switch (arg0.leg)
++                            {
++                                case 1:
++                                    _rleg = spr_h_base_loop_leg_1;
++                                    break;
++                                
++                                case 2:
++                                    _rleg = spr_h_base_loop_leg_2;
++                                    break;
++                                
++                                case 0:
++                                    _rhead = spr_h_base_loop_head_3;
++                                    _rbreast = spr_h_base_loop_breast_3;
++                                    _rleg = spr_h_base_loop_leg_3;
++                                    _rlegp = spr_h_base_loop_leg_part_3;
++                                    break;
++                            }
++                        }
++                        
++                        if (_rhead != -1)
++                        {
++                            var _rspr = [-1, _rhead, _rbreast, spr_h_base_hand, _rleg, _rlegp, -1];
++                            
++                            if (variable_struct_exists(_rclass, "naked_standard"))
++                            {
++                                var _nks = _rclass.naked_standard;
++                                var _nkp = -1;
++                                
++                                if (arg1 == 1 && variable_struct_exists(_nks, "phase_1"))
++                                    _nkp = _nks.phase_1;
++                                else if (arg1 == 2 && variable_struct_exists(_nks, "phase_2"))
++                                    _nkp = _nks.phase_2;
++                                
++                                if (_nkp != -1)
++                                {
++                                    var _nklk = (arg0.leg == 0) ? "leg_0" : ((arg0.leg == 2) ? "leg_2" : "leg_1");
++                                    var _nkv = -1;
++                                    
++                                    if (variable_struct_exists(_nkp, _nklk))
++                                        _nkv = variable_struct_get(_nkp, _nklk);
++                                    else if (variable_struct_exists(_nkp, "leg_any"))
++                                        _nkv = _nkp.leg_any;
++                                    
++                                    if (_nkv != -1 && is_struct(_nkv))
++                                    {
++                                        if (variable_struct_exists(_nkv, "head") && sprite_exists(_nkv.head))
++                                            _rspr[1] = _nkv.head;
++                                        
++                                        if (variable_struct_exists(_nkv, "breast") && sprite_exists(_nkv.breast))
++                                            _rspr[2] = _nkv.breast;
++                                        
++                                        if (variable_struct_exists(_nkv, "leg") && sprite_exists(_nkv.leg))
++                                            _rspr[4] = _nkv.leg;
++                                        
++                                        if (variable_struct_exists(_nkv, "leg_part") && sprite_exists(_nkv.leg_part))
++                                            _rspr[5] = _nkv.leg_part;
++                                    }
++                                }
++                                
++                                if (variable_struct_exists(_nks, "hand") && sprite_exists(_nks.hand))
++                                    _rspr[3] = _nks.hand;
++                            }
++                            
++                            var _rptable = -1;
++                            
++                            if (arg1 == 1)
++                                _rptable = _rclass.clothing_standard.phase_1;
++                            else if (arg1 == 2)
++                                _rptable = _rclass.clothing_standard.phase_2;
++                            
++                            if (_rptable != -1)
++                            {
++                                if (variable_struct_exists(_rptable, "cape") && _rptable.cape != -1)
++                                    _rspr[6] = _rptable.cape;
++                                
++                                var _rlkey = "";
++                                
++                                switch (arg0.leg)
++                                {
++                                    case 1:
++                                        _rlkey = "leg_1";
++                                        break;
++                                    
++                                    case 2:
++                                        _rlkey = "leg_2";
++                                        break;
++                                    
++                                    case 0:
++                                        _rlkey = "leg_0";
++                                        break;
++                                }
++                                
++                                var _rcl = -1;
++                                
++                                if (variable_struct_exists(_rptable, _rlkey))
++                                    _rcl = variable_struct_get(_rptable, _rlkey);
++                                else if (variable_struct_exists(_rptable, "leg_any"))
++                                    _rcl = variable_struct_get(_rptable, "leg_any");
++                                
++                                if (_rcl != -1)
++                                {
++                                    var _rcspr = [_rcl.hair, _rcl.head, _rcl.breast, _rclass.hand_color, _rcl.leg, _rcl.leg_part];
++                                    
++                                    if (global.gnx_debug_verbose)
++                                    {
++                                        var _dbg = file_text_open_append("gnx_debug.txt");
++                                        file_text_write_string(_dbg, "[GNX] REG-STANDARD class=" + string(arg0.class) + " phase=" + string(arg1) + " head=" + string(_rspr[1]) + " breast=" + string(_rspr[2]) + " leg=" + string(_rspr[4]) + " head_c=" + string(_rcspr[1]) + " leg_c=" + string(_rcspr[4]) + "\n");
++                                        file_text_close(_dbg);
++                                    }
++                                    
++                                    return [_rspr, _rcspr];
++                                }
++                            }
++                        }
++                    }
++                    else if (_rrule.base_body == "big")
++                    {
++                        var _rbt_big = -1;
++                        var _rphase_big = "";
++                        
++                        if (arg1 == 0)
++                            _rphase_big = "start";
++                        else if (arg1 == 1)
++                            _rphase_big = "idle";
++                        else if (arg1 == 2)
++                            _rphase_big = "loop";
++                        
++                        if (_rphase_big != "" && variable_struct_exists(_rclass, "clothing_big") && variable_struct_exists(_rclass.clothing_big, _rphase_big))
++                            _rbt_big = variable_struct_get(_rclass.clothing_big, _rphase_big);
++                        
++                        if (_rbt_big != -1)
++                        {
++                            var _rbhead = -1;
++                            var _rbbreast = -1;
++                            var _rbleg = -1;
++                            
++                            if (arg1 == 0)
++                            {
++                                _rbhead = spr_h_base_big_start_head;
++                                _rbbreast = spr_h_base_big_start_breast;
++                                
++                                switch (arg0.leg)
++                                {
++                                    case 1:
++                                        _rbleg = spr_h_base_big_start_leg_1;
++                                        break;
++                                    
++                                    case 2:
++                                        _rbleg = spr_h_base_big_start_leg_2;
++                                        break;
++                                    
++                                    case 0:
++                                        _rbhead = spr_h_base_big_start_head_3;
++                                        _rbbreast = spr_h_base_big_start_breast_3;
++                                        _rbleg = spr_h_base_big_start_leg_3;
++                                        break;
++                                }
++                            }
++                            else if (arg1 == 1)
++                            {
++                                _rbhead = spr_h_base_big_idle_head;
++                                _rbbreast = spr_h_base_big_idle_breast;
++                                
++                                switch (arg0.leg)
++                                {
++                                    case 1:
++                                        _rbleg = spr_h_base_big_idle_leg_1;
++                                        break;
++                                    
++                                    case 2:
++                                        _rbleg = spr_h_base_big_idle_leg_2;
++                                        break;
++                                    
++                                    case 0:
++                                        _rbhead = spr_h_base_big_idle_head_3;
++                                        _rbbreast = spr_h_base_big_idle_breast_3;
++                                        _rbleg = spr_h_base_big_idle_leg_3;
++                                        break;
++                                }
++                            }
++                            else if (arg1 == 2)
++                            {
++                                _rbhead = spr_h_base_big_loop_head;
++                                _rbbreast = spr_h_base_big_loop_breast;
++                                
++                                switch (arg0.leg)
++                                {
++                                    case 1:
++                                        _rbleg = spr_h_base_big_loop_leg_1;
++                                        break;
++                                    
++                                    case 2:
++                                        _rbleg = spr_h_base_big_loop_leg_2;
++                                        break;
++                                    
++                                    case 0:
++                                        _rbhead = spr_h_base_big_loop_head_3;
++                                        _rbbreast = spr_h_base_big_loop_breast_3;
++                                        _rbleg = spr_h_base_big_loop_leg_3;
++                                        break;
++                                }
++                            }
++                            
++                            if (_rbhead != -1)
++                            {
++                                var _rbspr = [-1, _rbhead, _rbbreast, spr_h_base_hand, _rbleg, -1, -1];
++                                
++                                if (variable_struct_exists(_rclass, "naked_big"))
++                                {
++                                    var _nkb = _rclass.naked_big;
++                                    var _nkbp = -1;
++                                    
++                                    if (arg1 == 0 && variable_struct_exists(_nkb, "start"))
++                                        _nkbp = _nkb.start;
++                                    else if (arg1 == 1 && variable_struct_exists(_nkb, "idle"))
++                                        _nkbp = _nkb.idle;
++                                    else if (arg1 == 2 && variable_struct_exists(_nkb, "loop"))
++                                        _nkbp = _nkb.loop;
++                                    
++                                    if (_nkbp != -1)
++                                    {
++                                        if (arg0.leg == 0 && variable_struct_exists(_nkbp, "leg_0") && is_struct(_nkbp.leg_0))
++                                        {
++                                            var _nkbl0 = _nkbp.leg_0;
++                                            
++                                            if (variable_struct_exists(_nkbl0, "head") && sprite_exists(_nkbl0.head))
++                                                _rbspr[1] = _nkbl0.head;
++                                            
++                                            if (variable_struct_exists(_nkbl0, "breast") && sprite_exists(_nkbl0.breast))
++                                                _rbspr[2] = _nkbl0.breast;
++                                            
++                                            if (variable_struct_exists(_nkbl0, "leg") && sprite_exists(_nkbl0.leg))
++                                                _rbspr[4] = _nkbl0.leg;
++                                        }
++                                        else
++                                        {
++                                            if (variable_struct_exists(_nkbp, "head") && sprite_exists(_nkbp.head))
++                                                _rbspr[1] = _nkbp.head;
++                                            
++                                            if (variable_struct_exists(_nkbp, "breast") && sprite_exists(_nkbp.breast))
++                                                _rbspr[2] = _nkbp.breast;
++                                            
++                                            var _nkblk = (arg0.leg == 2) ? "leg_2" : "leg_1";
++                                            
++                                            if (variable_struct_exists(_nkbp, _nkblk) && sprite_exists(variable_struct_get(_nkbp, _nkblk)))
++                                                _rbspr[4] = variable_struct_get(_nkbp, _nkblk);
++                                            else if (variable_struct_exists(_nkbp, "leg_any") && sprite_exists(_nkbp.leg_any))
++                                                _rbspr[4] = _nkbp.leg_any;
++                                        }
++                                    }
++                                    
++                                    if (variable_struct_exists(_nkb, "hand") && sprite_exists(_nkb.hand))
++                                        _rbspr[3] = _nkb.hand;
++                                }
++                                
++                                var _rbcleg = -1;
++                                
++                                if (variable_struct_exists(_rbt_big, "leg_1") && arg0.leg == 1)
++                                    _rbcleg = _rbt_big.leg_1;
++                                else if (variable_struct_exists(_rbt_big, "leg_2") && arg0.leg == 2)
++                                    _rbcleg = _rbt_big.leg_2;
++                                else if (variable_struct_exists(_rbt_big, "leg_any"))
++                                    _rbcleg = _rbt_big.leg_any;
++                                
++                                var _rbchair = -1;
++                                
++                                if (variable_struct_exists(_rbt_big, "hair"))
++                                    _rbchair = _rbt_big.hair;
++                                
++                                var _rbcspr = [_rbchair, _rbt_big.head, _rbt_big.breast, _rclass.hand_color, _rbcleg, -1];
++                                return [_rbspr, _rbcspr];
++                            }
++                        }
++                    }
++                    else if (_rrule.base_body == "tent")
++                    {
++                        var _rthead = -1;
++                        var _rtbreast = -1;
++                        var _rtleg = -1;
++                        var _rtlegp = -1;
++                        
++                        if (arg1 == 1)
++                        {
++                            _rthead = spr_h_tent_idle_head;
++                            _rtbreast = spr_h_tent_idle_breast;
++                            _rtlegp = spr_h_tent_idle_leg_part;
++                            
++                            switch (arg0.leg)
++                            {
++                                case 1:
++                                    _rtleg = spr_h_tent_idle_leg_1;
++                                    break;
++                                
++                                case 2:
++                                    _rtleg = spr_h_tent_idle_leg_2;
++                                    break;
++                                
++                                case 0:
++                                    _rthead = spr_h_tent_idle_head_3;
++                                    _rtbreast = spr_h_tent_idle_breast_3;
++                                    _rtleg = spr_h_tent_idle_leg_3;
++                                    _rtlegp = spr_h_tent_idle_leg_part_3;
++                                    break;
++                            }
++                        }
++                        else if (arg1 == 2)
++                        {
++                            _rthead = spr_h_tent_loop_head;
++                            _rtbreast = spr_h_tent_loop_breast;
++                            _rtlegp = spr_h_tent_loop_leg_part;
++                            
++                            switch (arg0.leg)
++                            {
++                                case 1:
++                                    _rtleg = spr_h_tent_loop_leg_1;
++                                    break;
++                                
++                                case 2:
++                                    _rtleg = spr_h_tent_loop_leg_2;
++                                    break;
++                                
++                                case 0:
++                                    _rthead = spr_h_tent_loop_head_3;
++                                    _rtbreast = spr_h_tent_loop_breast_3;
++                                    _rtleg = spr_h_tent_loop_leg_3;
++                                    _rtlegp = spr_h_tent_loop_leg_part_3;
++                                    break;
++                            }
++                        }
++                        else if (arg1 == 4)
++                        {
++                            _rthead = spr_h_tent_birth_head;
++                            _rtbreast = spr_h_tent_birth_breast;
++                            _rtlegp = spr_h_tent_birth_leg_part;
++                            
++                            switch (arg0.leg)
++                            {
++                                case 1:
++                                    _rtleg = spr_h_tent_birth_leg_1;
++                                    break;
++                                
++                                case 2:
++                                    _rtleg = spr_h_tent_birth_leg_2;
++                                    break;
++                                
++                                case 0:
++                                    _rthead = spr_h_tent_birth_head_3;
++                                    _rtbreast = spr_h_tent_birth_breast_3;
++                                    _rtleg = spr_h_tent_birth_leg_3;
++                                    _rtlegp = spr_h_tent_birth_leg_part_3;
++                                    break;
++                            }
++                        }
++                        
++                        if (_rthead != -1 && variable_struct_exists(_rclass, "clothing_tent"))
++                        {
++                            var _rtspr = [-1, _rthead, _rtbreast, spr_h_base_hand, _rtleg, _rtlegp, -1];
++                            
++                            if (variable_struct_exists(_rclass, "naked_tent"))
++                            {
++                                var _nkt = _rclass.naked_tent;
++                                var _nktp = -1;
++                                
++                                if (arg1 == 1 && variable_struct_exists(_nkt, "phase_1"))
++                                    _nktp = _nkt.phase_1;
++                                else if (arg1 == 2 && variable_struct_exists(_nkt, "phase_2"))
++                                    _nktp = _nkt.phase_2;
++                                else if (arg1 == 4 && variable_struct_exists(_nkt, "phase_4"))
++                                    _nktp = _nkt.phase_4;
++                                
++                                if (_nktp != -1)
++                                {
++                                    var _nktlk = (arg0.leg == 0) ? "leg_0" : ((arg0.leg == 2) ? "leg_2" : "leg_1");
++                                    var _nktv = -1;
++                                    
++                                    if (variable_struct_exists(_nktp, _nktlk))
++                                        _nktv = variable_struct_get(_nktp, _nktlk);
++                                    else if (variable_struct_exists(_nktp, "leg_any"))
++                                        _nktv = _nktp.leg_any;
++                                    
++                                    if (_nktv != -1 && is_struct(_nktv))
++                                    {
++                                        if (variable_struct_exists(_nktv, "head") && sprite_exists(_nktv.head))
++                                            _rtspr[1] = _nktv.head;
++                                        
++                                        if (variable_struct_exists(_nktv, "breast") && sprite_exists(_nktv.breast))
++                                            _rtspr[2] = _nktv.breast;
++                                        
++                                        if (variable_struct_exists(_nktv, "leg") && sprite_exists(_nktv.leg))
++                                            _rtspr[4] = _nktv.leg;
++                                        
++                                        if (variable_struct_exists(_nktv, "leg_part") && sprite_exists(_nktv.leg_part))
++                                            _rtspr[5] = _nktv.leg_part;
++                                    }
++                                }
++                                
++                                if (variable_struct_exists(_nkt, "hand") && sprite_exists(_nkt.hand))
++                                    _rtspr[3] = _nkt.hand;
++                            }
++                            
++                            var _rtptable = -1;
++                            
++                            if (arg1 == 1 && variable_struct_exists(_rclass.clothing_tent, "phase_1"))
++                                _rtptable = _rclass.clothing_tent.phase_1;
++                            else if (arg1 == 2 && variable_struct_exists(_rclass.clothing_tent, "phase_2"))
++                                _rtptable = _rclass.clothing_tent.phase_2;
++                            else if (arg1 == 4 && variable_struct_exists(_rclass.clothing_tent, "phase_4"))
++                                _rtptable = _rclass.clothing_tent.phase_4;
++                            
++                            if (_rtptable != -1)
++                            {
++                                var _rtlkey = (arg0.leg == 2) ? "leg_2" : ((arg0.leg == 0) ? "leg_0" : "leg_1");
++                                var _rtcl = -1;
++                                
++                                if (variable_struct_exists(_rtptable, _rtlkey))
++                                    _rtcl = variable_struct_get(_rtptable, _rtlkey);
++                                else if (variable_struct_exists(_rtptable, "leg_any"))
++                                    _rtcl = variable_struct_get(_rtptable, "leg_any");
++                                
++                                if (_rtcl != -1)
++                                {
++                                    var _rtcspr = [_rtcl.hair, _rtcl.head, _rtcl.breast, _rtcl.hand, _rtcl.leg, _rtcl.leg_part];
++                                    return [_rtspr, _rtcspr];
++                                }
++                            }
++                        }
++                    }
++                }
++            }
++        }
++    }
+     
+     switch (slot_data.slot_type)
+     {
+-        case UnknownEnum.Value_1:
++        case 1:
+             switch (slot_data.h_type)
+             {
+-                case UnknownEnum.Value_36:
++                case 36:
+                     _set = true;
+                     
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_cow_idle_head, spr_cow_breast, -1, -1, -1];
+                             _spr_c_array = [-1, -1, -1, spr_cow_idle_hand, spr_cow_idle_leg, -1];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_cow_loop_head, spr_cow_breast, -1, -1, -1];
+                             _spr_c_array = [-1, -1, -1, spr_cow_loop_hand, spr_cow_loop_leg, -1];
+                             break;
+@@ -37,17 +706,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_38:
++                case 38:
+                     _set = true;
+                     
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, -1, spr_h_morrigan_chain_idle_breast, -1, spr_h_morrigan_chain_idle_leg, -1];
+                             _spr_c_array = [-1, -1, spr_h_morrigan_chain_idle_breast_c, -1, spr_h_morrigan_chain_idle_leg_c, -1];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, -1, spr_h_morrigan_chain_loop_breast, -1, spr_h_morrigan_chain_loop_leg, -1];
+                             _spr_c_array = [-1, -1, spr_h_morrigan_chain_loop_breast_c, -1, spr_h_morrigan_chain_loop_leg_c, -1];
+                             break;
+@@ -55,17 +724,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_39:
++                case 39:
+                     _set = true;
+                     
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_lilith_shrine_idle_head, spr_h_lilith_shrine_idle_breast, spr_h_lilith_hand, spr_h_lilith_shrine_idle_leg, -1];
+                             _spr_c_array = [-1, -1, spr_h_lilith_shrine_idle_breast_c, spr_h_lilith_hand_c, spr_h_lilith_shrine_idle_leg_c, -1];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_lilith_shrine_loop_head, spr_h_lilith_shrine_loop_hand, spr_h_lilith_hand, spr_h_lilith_shrine_loop_leg, -1];
+                             _spr_c_array = [-1, -1, spr_h_lilith_shrine_loop_hand, spr_h_lilith_hand_c, spr_h_lilith_shrine_loop_leg_c, -1];
+                             break;
+@@ -78,21 +747,21 @@
+             {
+                 switch (arg1)
+                 {
+-                    case UnknownEnum.Value_0:
++                    case 0:
+                         _head = spr_h_base_big_start_head;
+                         _breast = spr_h_base_big_start_breast;
+                         
+                         switch (arg0.leg)
+                         {
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _leg = spr_h_base_big_start_leg_1;
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _leg = spr_h_base_big_start_leg_2;
+                                 break;
+                             
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _head = spr_h_base_big_start_head_3;
+                                 _breast = spr_h_base_big_start_breast_3;
+                                 _leg = spr_h_base_big_start_leg_3;
+@@ -102,21 +771,21 @@
+                         _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, -1, -1];
+                         break;
+                     
+-                    case UnknownEnum.Value_1:
++                    case 1:
+                         _head = spr_h_base_big_idle_head;
+                         _breast = spr_h_base_big_idle_breast;
+                         
+                         switch (arg0.leg)
+                         {
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _leg = spr_h_base_big_idle_leg_1;
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _leg = spr_h_base_big_idle_leg_2;
+                                 break;
+                             
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _head = spr_h_base_big_idle_head_3;
+                                 _breast = spr_h_base_big_idle_breast_3;
+                                 _leg = spr_h_base_big_idle_leg_3;
+@@ -126,21 +795,21 @@
+                         _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, -1, -1];
+                         break;
+                     
+-                    case UnknownEnum.Value_2:
++                    case 2:
+                         _head = spr_h_base_big_loop_head;
+                         _breast = spr_h_base_big_loop_breast;
+                         
+                         switch (arg0.leg)
+                         {
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _leg = spr_h_base_big_loop_leg_1;
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _leg = spr_h_base_big_loop_leg_2;
+                                 break;
+                             
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _breast = spr_h_base_big_loop_breast_3;
+                                 _leg = spr_h_base_big_loop_leg_3;
+                                 _head = spr_h_base_big_loop_head_3;
+@@ -153,17 +822,17 @@
+                 
+                 switch (_class)
+                 {
+-                    case UnknownEnum.Value_0:
++                    case 0:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_peasant_big_start_leg_1;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_peasant_big_start_leg_2;
+                                         break;
+                                 }
+@@ -171,14 +840,14 @@
+                                 _spr_c_array = [spr_h_peasant_big_start_hair, spr_h_peasant_big_start_head, spr_h_peasant_big_start_breast, -1, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_peasant_big_idle_leg_1;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_peasant_big_idle_leg_2;
+                                         break;
+                                 }
+@@ -186,14 +855,14 @@
+                                 _spr_c_array = [spr_h_peasant_big_idle_hair, spr_h_peasant_big_idle_head, spr_h_peasant_big_idle_breast, -1, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_peasant_big_loop_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_peasant_big_loop_leg;
+                                         break;
+                                 }
+@@ -204,17 +873,17 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_1:
++                    case 1:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_cleric_big_start_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_cleric_big_start_leg;
+                                         break;
+                                 }
+@@ -222,14 +891,14 @@
+                                 _spr_c_array = [-1, spr_h_cleric_big_start_head, spr_h_cleric_big_start_breast, -1, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_cleric_big_idle_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_cleric_big_idle_leg;
+                                         break;
+                                 }
+@@ -237,14 +906,14 @@
+                                 _spr_c_array = [-1, spr_h_cleric_big_idle_head, spr_h_cleric_big_idle_breast, spr_h_cleric_hand, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_cleric_big_loop_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_cleric_big_loop_leg;
+                                         break;
+                                 }
+@@ -255,17 +924,17 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_2:
++                    case 2:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_knight_big_start_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_knight_big_start_leg;
+                                         break;
+                                 }
+@@ -273,14 +942,14 @@
+                                 _spr_c_array = [spr_h_knight_big_start_hair, spr_h_knight_big_start_head, spr_h_knight_big_start_breast, -1, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_knight_big_idle_leg_1;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_knight_big_idle_leg_2;
+                                         break;
+                                 }
+@@ -288,14 +957,14 @@
+                                 _spr_c_array = [spr_h_knight_big_idle_hair, spr_h_knight_big_idle_head, spr_h_knight_big_idle_breast, spr_h_knight_hand, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_knight_big_loop_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_knight_big_loop_leg;
+                                         break;
+                                 }
+@@ -306,17 +975,17 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_4:
++                    case 4:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_nun_big_start_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_nun_big_start_leg;
+                                         break;
+                                 }
+@@ -324,14 +993,14 @@
+                                 _spr_c_array = [-1, spr_h_nun_big_start_head, spr_h_nun_big_start_breast, -1, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_nun_big_idle_leg_1;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_nun_big_idle_leg_2;
+                                         break;
+                                 }
+@@ -339,14 +1008,14 @@
+                                 _spr_c_array = [-1, spr_h_nun_big_idle_head, spr_h_nun_big_idle_breast, -1, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_nun_big_loop_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_nun_big_loop_leg;
+                                         break;
+                                 }
+@@ -357,17 +1026,17 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_3:
++                    case 3:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_ranger_big_start_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_ranger_big_start_leg;
+                                         break;
+                                 }
+@@ -375,14 +1044,14 @@
+                                 _spr_c_array = [-1, spr_h_ranger_big_start_head, spr_h_ranger_big_start_breast, -1, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_ranger_big_idle_leg_1;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_ranger_big_idle_leg_2;
+                                         break;
+                                 }
+@@ -390,14 +1059,14 @@
+                                 _spr_c_array = [-1, spr_h_ranger_big_idle_head, spr_h_ranger_big_idle_breast, spr_h_ranger_hand, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_ranger_big_loop_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_ranger_big_loop_leg;
+                                         break;
+                                 }
+@@ -408,17 +1077,17 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_5:
++                    case 5:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_samurai_big_start_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_samurai_big_start_leg;
+                                         break;
+                                 }
+@@ -426,14 +1095,14 @@
+                                 _spr_c_array = [spr_h_samurai_big_start_hair, spr_h_samurai_big_start_head, spr_h_samurai_big_start_breast, -1, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_samurai_big_idle_leg_1;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_samurai_big_idle_leg_2;
+                                         break;
+                                 }
+@@ -441,14 +1110,14 @@
+                                 _spr_c_array = [spr_h_samurai_big_idle_hair, spr_h_samurai_big_idle_head, spr_h_samurai_big_idle_breast, spr_h_samurai_hand, _leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 switch (arg0.leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _leg = spr_h_samurai_big_loop_leg;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _leg = spr_h_samurai_big_loop_leg;
+                                         break;
+                                 }
+@@ -459,56 +1128,56 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_6:
++                    case 6:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _spr_c_array = [spr_h_shaman_big_start_hair, spr_h_shaman_big_start_head, spr_h_shaman_big_start_breast, -1, spr_h_shaman_big_start_leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _spr_c_array = [spr_h_shaman_big_idle_hair, spr_h_shaman_big_idle_head, spr_h_shaman_big_idle_breast, -1, spr_h_shaman_big_idle_leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _spr_c_array = [spr_h_shaman_big_loop_hair, spr_h_shaman_big_loop_head, spr_h_shaman_big_loop_breast, -1, spr_h_shaman_big_loop_leg, -1];
+                                 break;
+                         }
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_7:
++                    case 7:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _spr_c_array = [-1, spr_h_warrior_big_start_head, spr_h_warrior_big_start_breast, spr_h_warrior_hand, spr_h_warrior_big_start_leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _spr_c_array = [-1, spr_h_warrior_big_idle_head, spr_h_warrior_big_idle_breast, spr_h_warrior_hand, spr_h_warrior_big_idle_leg, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _spr_c_array = [-1, spr_h_warrior_big_loop_head, spr_h_warrior_big_loop_breast, spr_h_warrior_hand, spr_h_warrior_big_loop_leg, -1];
+                                 break;
+                         }
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_9:
++                    case 9:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _spr_array = [-1, spr_h_cow_big_start_head, spr_h_cow_big_start_breast, spr_h_cow_hand, spr_h_cow_big_start_leg, -1];
+                                 _spr_c_array = [-1, spr_h_cow_big_start_head, spr_h_cow_big_start_breast_c, spr_h_cow_hand_c, spr_h_cow_big_start_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _spr_array = [-1, spr_h_cow_big_idle_head, spr_h_cow_big_idle_breast, spr_h_cow_hand, spr_h_cow_big_idle_leg, -1];
+                                 _spr_c_array = [-1, spr_h_cow_big_idle_head, spr_h_cow_big_idle_breast_c, spr_h_cow_hand_c, spr_h_cow_big_idle_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _spr_array = [-1, spr_h_cow_big_loop_head, spr_h_cow_big_loop_breast, spr_h_cow_hand, spr_h_cow_big_loop_leg, -1];
+                                 _spr_c_array = [-1, spr_h_cow_big_loop_head, spr_h_cow_big_loop_breast_c, spr_h_cow_hand_c, spr_h_cow_big_loop_leg_c, -1];
+                                 break;
+@@ -516,20 +1185,20 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_10:
++                    case 10:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _spr_array = [-1, spr_h_nyx_big_start_head, spr_h_nyx_big_start_breast, spr_h_nyx_hand, spr_h_nyx_big_start_leg, -1];
+                                 _spr_c_array = [-1, spr_h_nyx_big_start_head, spr_h_nyx_big_start_breast_c, spr_h_nyx_hand_c, spr_h_nyx_big_start_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _spr_array = [-1, spr_h_nyx_big_idle_head, spr_h_nyx_big_idle_breast, spr_h_nyx_hand, spr_h_nyx_big_idle_leg, -1];
+                                 _spr_c_array = [-1, spr_h_nyx_big_idle_head, spr_h_nyx_big_idle_breast_c, spr_h_nyx_hand_c, spr_h_nyx_big_idle_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _spr_array = [-1, spr_h_nyx_big_loop_head, spr_h_nyx_big_loop_breast, spr_h_nyx_hand, spr_h_nyx_big_loop_leg, -1];
+                                 _spr_c_array = [-1, spr_h_nyx_big_loop_head, spr_h_nyx_big_loop_breast_c, spr_h_nyx_hand_c, spr_h_nyx_big_loop_leg_c, -1];
+                                 break;
+@@ -537,20 +1206,20 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_8:
++                    case 8:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _spr_array = [-1, spr_h_lilith_big_start_head, spr_h_lilith_big_start_breast, spr_h_lilith_hand, spr_h_lilith_big_start_leg, -1];
+                                 _spr_c_array = [-1, spr_h_lilith_big_start_head, spr_h_lilith_big_start_breast_c, spr_h_lilith_hand_c, spr_h_lilith_big_start_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _spr_array = [-1, spr_h_lilith_big_idle_head, spr_h_lilith_big_idle_breast, spr_h_lilith_hand, spr_h_lilith_big_idle_leg, -1];
+                                 _spr_c_array = [-1, spr_h_lilith_big_idle_head, spr_h_lilith_big_idle_breast_c, spr_h_lilith_hand_c, spr_h_lilith_big_idle_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _spr_array = [-1, spr_h_lilith_big_loop_head, spr_h_lilith_big_loop_breast, spr_h_lilith_hand, spr_h_lilith_big_loop_leg, -1];
+                                 _spr_c_array = [-1, spr_h_lilith_big_loop_head, spr_h_lilith_big_loop_breast_c, spr_h_lilith_hand_c, spr_h_lilith_big_loop_leg_c, -1];
+                                 break;
+@@ -558,20 +1227,20 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_13:
++                    case 13:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _spr_array = [-1, spr_h_cat_big_start_head, spr_h_cat_big_start_breast, spr_h_cat_hand, spr_h_cat_big_start_leg, -1];
+                                 _spr_c_array = [-1, spr_h_cat_big_start_head, spr_h_cat_big_start_breast_c, spr_h_cat_hand_c, spr_h_cat_big_start_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _spr_array = [-1, spr_h_cat_big_idle_head, spr_h_cat_big_idle_breast, spr_h_cat_hand, spr_h_cat_big_idle_leg, -1];
+                                 _spr_c_array = [-1, spr_h_cat_big_idle_head, spr_h_cat_big_idle_breast_c, spr_h_cat_hand_c, spr_h_cat_big_idle_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _spr_array = [-1, spr_h_cat_big_loop_head, spr_h_cat_big_loop_breast, spr_h_cat_hand, spr_h_cat_big_loop_leg, -1];
+                                 _spr_c_array = [-1, spr_h_cat_big_loop_head, spr_h_cat_big_loop_breast_c, spr_h_cat_hand_c, spr_h_cat_big_loop_leg_c, -1];
+                                 break;
+@@ -579,20 +1248,20 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_12:
++                    case 12:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_0:
++                            case 0:
+                                 _spr_array = [-1, spr_h_morrigan_big_start_head, spr_h_morrigan_big_start_breast, spr_h_morrigan_hand, spr_h_morrigan_big_start_leg, -1];
+                                 _spr_c_array = [-1, spr_h_morrigan_big_start_head, spr_h_morrigan_big_start_breast_c, spr_h_morrigan_hand_c, spr_h_morrigan_big_start_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _spr_array = [-1, spr_h_morrigan_big_idle_head, spr_h_morrigan_big_idle_breast, spr_h_morrigan_hand, spr_h_morrigan_big_idle_leg, -1];
+                                 _spr_c_array = [-1, spr_h_morrigan_big_idle_head, spr_h_morrigan_big_idle_breast_c, spr_h_morrigan_hand_c, spr_h_morrigan_big_idle_leg_c, -1];
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _spr_array = [-1, spr_h_morrigan_big_loop_head, spr_h_morrigan_big_loop_breast, spr_h_morrigan_hand, spr_h_morrigan_big_loop_leg, -1];
+                                 _spr_c_array = [-1, spr_h_morrigan_big_loop_head, spr_h_morrigan_big_loop_breast_c, spr_h_morrigan_hand_c, spr_h_morrigan_big_loop_leg_c, -1];
+                                 break;
+@@ -600,46 +1269,25 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_11:
++                    case 11:
+                         switch (arg1)
+                         {
+-                            case UnknownEnum.Value_1:
++                            case 1:
+                                 _spr_array = [spr_giant_idle_middle, spr_giant_idle_head, spr_giant_idle_breast, spr_giant_idle_hand, spr_giant_idle_leg_1, spr_giant_idle_leg_2];
+                                 _spr_c_array = [-1, -1, spr_giant_idle_breast_c, spr_giant_idle_hand_c, spr_giant_idle_leg_1_c, spr_giant_idle_leg_2_c];
+-                                _spr_array[UnknownEnum.Value_6] = spr_giant_idle_middle;
++                                _spr_array[6] = spr_giant_idle_middle;
+                                 break;
+                             
+-                            case UnknownEnum.Value_2:
++                            case 2:
+                                 _spr_array = [-1, spr_giant_loop_head, spr_giant_loop_breast, spr_giant_loop_hand, spr_giant_loop_leg_1, spr_giant_loop_leg_2];
+                                 _spr_c_array = [-1, -1, spr_giant_loop_breast_c, spr_giant_loop_hand_c, spr_giant_loop_leg_1_c, spr_giant_loop_leg_2_c];
+-                                _spr_array[UnknownEnum.Value_6] = spr_giant_loop_middle;
++                                _spr_array[6] = spr_giant_loop_middle;
+                                 break;
+                             
+-                            case UnknownEnum.Value_4:
++                            case 4:
+                                 _spr_array = [spr_giant_birth_middle, spr_giant_birth_head, spr_giant_birth_breast, spr_giant_birth_hand, spr_giant_birth_leg_1, spr_giant_birth_leg_2];
+                                 _spr_c_array = [-1, -1, spr_giant_birth_breast_c, spr_giant_birth_hand_c, spr_giant_birth_leg_1_c, spr_giant_birth_leg_2_c];
+-                                _spr_array[UnknownEnum.Value_6] = spr_giant_birth_middle;
+-                                break;
+-                        }
+-                        
+-                        break;
+-                    
+-                    case UnknownEnum.Value_14:
+-                        switch (arg1)
+-                        {
+-                            case UnknownEnum.Value_0:
+-                                _spr_array = [-1, spr_h_nyx_big_start_head, spr_h_nyx_big_start_breast, spr_h_nyx_hand, spr_h_nyx_big_start_leg, -1];
+-                                _spr_c_array = [-1, spr_h_nyx_big_start_head, spr_h_nyx_big_start_breast_c, spr_h_nyx_hand_c, spr_h_nyx_big_start_leg_c, -1];
+-                                break;
+-                            
+-                            case UnknownEnum.Value_1:
+-                                _spr_array = [-1, spr_h_nyx_big_idle_head, spr_h_nyx_big_idle_breast, spr_h_nyx_hand, spr_h_nyx_big_idle_leg, -1];
+-                                _spr_c_array = [-1, spr_h_nyx_big_idle_head, spr_h_nyx_big_idle_breast_c, spr_h_nyx_hand_c, spr_h_nyx_big_idle_leg_c, -1];
+-                                break;
+-                            
+-                            case UnknownEnum.Value_2:
+-                                _spr_array = [-1, spr_h_nyx_big_loop_head, spr_h_nyx_big_loop_breast, spr_h_nyx_hand, spr_h_nyx_big_loop_leg, -1];
+-                                _spr_c_array = [-1, spr_h_nyx_big_loop_head, spr_h_nyx_big_loop_breast_c, spr_h_nyx_hand_c, spr_h_nyx_big_loop_leg_c, -1];
++                                _spr_array[6] = spr_giant_birth_middle;
+                                 break;
+                         }
+                         
+@@ -649,25 +1297,25 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_0:
++        case 0:
+             switch (arg1)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     _head = spr_h_base_idle_head;
+                     _breast = spr_h_base_idle_breast;
+                     _leg_p = spr_h_base_idle_leg_part;
+                     
+                     switch (arg0.leg)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _leg = spr_h_base_idle_leg_1;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _leg = spr_h_base_idle_leg_2;
+                             break;
+                         
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             _head = spr_h_base_idle_head_3;
+                             _breast = spr_h_base_idle_breast_3;
+                             _leg = spr_h_base_idle_leg_3;
+@@ -678,22 +1326,22 @@
+                     _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, _leg_p, -1];
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     _head = spr_h_base_loop_head;
+                     _breast = spr_h_base_loop_breast;
+                     _leg_p = spr_h_base_loop_leg_part;
+                     
+                     switch (arg0.leg)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _leg = spr_h_base_loop_leg_1;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _leg = spr_h_base_loop_leg_2;
+                             break;
+                         
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             _head = spr_h_base_loop_head_3;
+                             _breast = spr_h_base_loop_breast_3;
+                             _leg = spr_h_base_loop_leg_3;
+@@ -707,17 +1355,17 @@
+             
+             switch (_class)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_peasant_idle_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_peasant_idle_leg_2;
+                                     break;
+                             }
+@@ -725,14 +1373,14 @@
+                             _spr_c_array = [spr_h_peasant_idle_hair, spr_h_peasant_idle_head, spr_h_peasant_idle_breast, -1, _leg, spr_h_peasant_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_peasant_loop_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_peasant_loop_leg_2;
+                                     break;
+                             }
+@@ -743,17 +1391,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_cleric_idle_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_cleric_idle_leg_2;
+                                     break;
+                             }
+@@ -761,14 +1409,14 @@
+                             _spr_c_array = [-1, spr_h_cleric_idle_head, spr_h_cleric_idle_breast, spr_h_cleric_hand, _leg, spr_h_cleric_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_cleric_loop_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_cleric_loop_leg_2;
+                                     break;
+                             }
+@@ -779,17 +1427,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_knight_idle_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_knight_idle_leg_2;
+                                     break;
+                             }
+@@ -797,14 +1445,14 @@
+                             _spr_c_array = [spr_h_knight_idle_hair, spr_h_knight_idle_head, spr_h_knight_idle_breast, spr_h_knight_hand, _leg, spr_h_knight_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_knight_loop_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_knight_loop_leg_2;
+                                     break;
+                             }
+@@ -815,17 +1463,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_4:
++                case 4:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_nun_idle_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_nun_idle_leg_2;
+                                     break;
+                             }
+@@ -833,14 +1481,14 @@
+                             _spr_c_array = [-1, spr_h_nun_idle_head, spr_h_nun_idle_breast, -1, _leg, spr_h_nun_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_nun_loop_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_nun_loop_leg_2;
+                                     break;
+                             }
+@@ -851,55 +1499,55 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_ranger_idle_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_ranger_idle_leg_2;
+                                     break;
+                             }
+                             
+                             _spr_c_array = [-1, spr_h_ranger_idle_head, spr_h_ranger_idle_breast, spr_h_ranger_hand, _leg, spr_h_ranger_idle_leg_part];
+-                            _spr_array[UnknownEnum.Value_6] = spr_h_ranger_idle_cape;
++                            _spr_array[6] = spr_h_ranger_idle_cape;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_ranger_loop_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_ranger_loop_leg_2;
+                                     break;
+                             }
+                             
+                             _spr_c_array = [-1, spr_h_ranger_loop_head, spr_h_ranger_loop_breast, spr_h_ranger_hand, _leg, spr_h_ranger_loop_leg_part];
+-                            _spr_array[UnknownEnum.Value_6] = spr_h_ranger_loop_cape;
++                            _spr_array[6] = spr_h_ranger_loop_cape;
+                             break;
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_samurai_idle_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_samurai_idle_leg_2;
+                                     break;
+                             }
+@@ -907,14 +1555,14 @@
+                             _spr_c_array = [spr_h_samurai_idle_hair, spr_h_samurai_idle_head, spr_h_samurai_idle_breast, spr_h_samurai_hand, _leg, spr_h_samurai_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_samurai_loop_leg_1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_samurai_loop_leg_2;
+                                     break;
+                             }
+@@ -925,43 +1573,43 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_c_array = [spr_h_mage_idle_hair, spr_h_mage_idle_head, spr_h_mage_idle_breast, -1, spr_h_mage_idle_leg, spr_h_mage_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_c_array = [spr_h_mage_loop_hair, spr_h_mage_loop_head, spr_h_mage_loop_breast, -1, spr_h_mage_loop_leg, spr_h_mage_loop_leg_part];
+                             break;
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_c_array = [-1, spr_h_warrior_idle_head, spr_h_warrior_idle_breast, spr_h_warrior_hand, spr_h_warrior_idle_leg, spr_h_warrior_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_c_array = [-1, spr_h_warrior_loop_head, spr_h_warrior_loop_breast, spr_h_warrior_hand, spr_h_warrior_loop_leg, spr_h_warrior_loop_leg_part];
+                             break;
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
++                case 9:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_base_idle_head_cow, spr_h_base_idle_breast_cow, spr_h_cow_hand, spr_h_base_idle_leg_cow, spr_h_base_idle_leg_part_cow, spr_h_base_idle_cape_cow];
+                             _spr_c_array = [-1, spr_h_base_idle_head_cow, spr_h_base_idle_breast_c_cow, spr_h_cow_hand_c, spr_h_base_idle_leg_c_cow, spr_h_base_idle_leg_part_c_cow];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_base_loop_head_cow, spr_h_base_loop_breast_cow, spr_h_cow_hand, spr_h_base_loop_leg_cow, spr_h_base_loop_leg_part_cow, spr_h_base_loop_cape_cow];
+                             _spr_c_array = [-1, spr_h_base_loop_head_cow, spr_h_base_loop_breast_c_cow, spr_h_cow_hand_c, spr_h_base_loop_leg_c_cow, spr_h_base_loop_leg_part_c_cow];
+                             break;
+@@ -969,15 +1617,15 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_base_idle_head_nyx, spr_h_base_idle_breast_nyx, spr_h_nyx_hand, spr_h_base_idle_leg_nyx, spr_h_base_idle_leg_part_nyx, -1];
+                             _spr_c_array = [-1, spr_h_base_idle_head_nyx, spr_h_base_idle_breast_c_nyx, spr_h_nyx_hand_c, spr_h_base_idle_leg_c_nyx, spr_h_base_idle_leg_part_c_nyx];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_base_loop_head_nyx, spr_h_base_loop_breast_nyx, spr_h_nyx_hand, spr_h_base_loop_leg_nyx, spr_h_base_loop_leg_part_nyx, -1];
+                             _spr_c_array = [-1, spr_h_base_loop_head_nyx, spr_h_base_loop_breast_c_nyx, spr_h_nyx_hand_c, spr_h_base_loop_leg_c_nyx, spr_h_base_loop_leg_part_c_nyx];
+                             break;
+@@ -985,15 +1633,15 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_13:
++                case 13:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_base_idle_head_cat, spr_h_base_idle_breast_cat, spr_h_cat_hand, spr_h_base_idle_leg_cat, spr_h_base_idle_leg_part_cat, -1];
+                             _spr_c_array = [-1, spr_h_base_idle_head_cat, spr_h_base_idle_breast_c_cat, spr_h_cat_hand_c, spr_h_base_idle_leg_c_cat, spr_h_base_idle_leg_part_c_cat];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_base_loop_head_cat, spr_h_base_loop_breast_cat, spr_h_cat_hand, spr_h_base_loop_leg_cat, spr_h_base_loop_leg_part_cat, -1];
+                             _spr_c_array = [-1, spr_h_base_loop_head_cat, spr_h_base_loop_breast_c_cat, spr_h_cat_hand_c, spr_h_base_loop_leg_c_cat, spr_h_base_loop_leg_part_c_cat];
+                             break;
+@@ -1001,15 +1649,15 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_base_idle_head_morrigan, spr_h_base_idle_breast_morrigan, spr_h_morrigan_hand, spr_h_base_idle_leg_morrigan, spr_h_base_idle_leg_part_morrigan, spr_h_base_idle_cape_morrigan];
+                             _spr_c_array = [-1, spr_h_base_idle_head_morrigan, spr_h_base_idle_breast_c_morrigan, spr_h_morrigan_hand_c, spr_h_base_idle_leg_c_morrigan, spr_h_base_idle_leg_part_c_morrigan];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_base_loop_head_morrigan, spr_h_base_loop_breast_morrigan, spr_h_morrigan_hand, spr_h_base_loop_leg_morrigan, spr_h_base_loop_leg_part_morrigan, spr_h_base_idle_cape_morrigan];
+                             _spr_c_array = [-1, spr_h_base_loop_head_morrigan, spr_h_base_loop_breast_c_morrigan, spr_h_morrigan_hand_c, spr_h_base_loop_leg_c_morrigan, spr_h_base_loop_leg_part_c_morrigan];
+                             break;
+@@ -1017,60 +1665,44 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_base_idle_head_lilith, spr_h_base_idle_breast_lilith, spr_h_lilith_hand, spr_h_base_idle_leg_lilith, spr_h_base_idle_leg_part_lilith, -1];
+                             _spr_c_array = [-1, spr_h_base_idle_head_lilith, spr_h_base_idle_breast_c_lilith, spr_h_lilith_hand_c, spr_h_base_idle_leg_c_lilith, spr_h_base_idle_leg_part_c_lilith];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_base_loop_head_lilith, spr_h_base_loop_breast_lilith, spr_h_lilith_hand, spr_h_base_loop_leg_lilith, spr_h_base_loop_leg_part_lilith, -1];
+                             _spr_c_array = [-1, spr_h_base_loop_head_lilith, spr_h_base_loop_breast_c_lilith, spr_h_lilith_hand_c, spr_h_base_loop_leg_c_lilith, spr_h_base_loop_leg_part_c_lilith];
+                             break;
+                     }
+                     
+                     break;
+-                
+-                case UnknownEnum.Value_14:
+-                    switch (arg1)
+-                    {
+-                        case UnknownEnum.Value_1:
+-                            _spr_array = [-1, spr_h_base_idle_head_nyx, spr_h_base_idle_breast_nyx, spr_h_nyx_hand, spr_h_base_idle_leg_nyx, spr_h_base_idle_leg_part_nyx, -1];
+-                            _spr_c_array = [-1, spr_h_base_idle_head_nyx, spr_h_base_idle_breast_c_nyx, spr_h_nyx_hand_c, spr_h_base_idle_leg_c_nyx, spr_h_base_idle_leg_part_c_nyx];
+-                            break;
+-                        
+-                        case UnknownEnum.Value_2:
+-                            _spr_array = [-1, spr_h_base_loop_head_nyx, spr_h_base_loop_breast_nyx, spr_h_nyx_hand, spr_h_base_loop_leg_nyx, spr_h_base_loop_leg_part_nyx, -1];
+-                            _spr_c_array = [-1, spr_h_base_loop_head_nyx, spr_h_base_loop_breast_c_nyx, spr_h_nyx_hand_c, spr_h_base_loop_leg_c_nyx, spr_h_base_loop_leg_part_c_nyx];
+-                            break;
+-                    }
+-                    
+-                    break;
+             }
+             
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             switch (arg1)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     _head = spr_h_tent_idle_head;
+                     _breast = spr_h_tent_idle_breast;
+                     _leg_p = spr_h_tent_idle_leg_part;
+                     
+                     switch (arg0.leg)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _leg = spr_h_tent_idle_leg_1;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _leg = spr_h_tent_idle_leg_2;
+                             break;
+                         
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             _head = spr_h_tent_idle_head_3;
+                             _breast = spr_h_tent_idle_breast_3;
+                             _leg = spr_h_tent_idle_leg_3;
+@@ -1081,22 +1713,22 @@
+                     _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, _leg_p, -1];
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     _head = spr_h_tent_loop_head;
+                     _breast = spr_h_tent_loop_breast;
+                     _leg_p = spr_h_tent_loop_leg_part;
+                     
+                     switch (arg0.leg)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _leg = spr_h_tent_loop_leg_1;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _leg = spr_h_tent_loop_leg_2;
+                             break;
+                         
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             _head = spr_h_tent_loop_head_3;
+                             _breast = spr_h_tent_loop_breast_3;
+                             _leg = spr_h_tent_loop_leg_3;
+@@ -1107,22 +1739,22 @@
+                     _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, _leg_p, -1];
+                     break;
+                 
+-                case UnknownEnum.Value_4:
++                case 4:
+                     _head = spr_h_tent_birth_head;
+                     _breast = spr_h_tent_birth_breast;
+                     _leg_p = spr_h_tent_birth_leg_part;
+                     
+                     switch (arg0.leg)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _leg = spr_h_tent_birth_leg_1;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _leg = spr_h_tent_birth_leg_2;
+                             break;
+                         
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             _head = spr_h_tent_birth_head_3;
+                             _breast = spr_h_tent_birth_breast_3;
+                             _leg = spr_h_tent_birth_leg_3;
+@@ -1136,17 +1768,17 @@
+             
+             switch (_class)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_peasant_tent_idle_leg;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_peasant_tent_idle_leg;
+                                     break;
+                             }
+@@ -1154,14 +1786,14 @@
+                             _spr_c_array = [spr_h_peasant_tent_idle_hair, spr_h_peasant_tent_idle_head, spr_h_peasant_tent_idle_breast, -1, _leg, spr_h_peasant_tent_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_peasant_tent_loop_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_peasant_tent_loop_leg_v2;
+                                     break;
+                             }
+@@ -1169,14 +1801,14 @@
+                             _spr_c_array = [spr_h_peasant_tent_loop_hair, spr_h_peasant_tent_loop_head, spr_h_peasant_tent_loop_breast, -1, _leg, spr_h_peasant_tent_loop_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_peasant_tent_birth_leg;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_peasant_tent_birth_leg;
+                                     break;
+                             }
+@@ -1187,17 +1819,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_cleric_tent_idle_leg;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_cleric_tent_idle_leg;
+                                     break;
+                             }
+@@ -1205,14 +1837,14 @@
+                             _spr_c_array = [-1, spr_h_cleric_tent_idle_head, spr_h_cleric_tent_idle_breast, spr_h_cleric_hand, _leg, spr_h_cleric_tent_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_cleric_tent_loop_leg;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_cleric_tent_loop_leg;
+                                     break;
+                             }
+@@ -1220,14 +1852,14 @@
+                             _spr_c_array = [-1, spr_h_cleric_tent_loop_head, spr_h_cleric_tent_loop_breast, spr_h_cleric_hand, _leg, spr_h_cleric_tent_loop_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_cleric_tent_birth_leg;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_cleric_tent_birth_leg;
+                                     break;
+                             }
+@@ -1238,17 +1870,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_knight_tent_idle_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_knight_tent_idle_leg_v2;
+                                     break;
+                             }
+@@ -1256,14 +1888,14 @@
+                             _spr_c_array = [spr_h_knight_tent_idle_hair, spr_h_knight_tent_idle_head, spr_h_knight_tent_idle_breast, spr_h_knight_hand, _leg, spr_h_knight_tent_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_knight_tent_loop_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_knight_tent_loop_leg_v2;
+                                     break;
+                             }
+@@ -1271,14 +1903,14 @@
+                             _spr_c_array = [spr_h_knight_tent_loop_hair, spr_h_knight_tent_loop_head, spr_h_knight_tent_loop_breast, spr_h_knight_hand, _leg, spr_h_knight_tent_loop_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_knight_tent_birth_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_knight_tent_birth_leg_v2;
+                                     break;
+                             }
+@@ -1289,17 +1921,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_4:
++                case 4:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_nun_tent_idle_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_nun_tent_idle_leg_v2;
+                                     break;
+                             }
+@@ -1307,14 +1939,14 @@
+                             _spr_c_array = [-1, spr_h_nun_tent_idle_head, spr_h_nun_tent_idle_breast, -1, _leg, spr_h_nun_tent_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_nun_tent_loop_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_nun_tent_loop_leg_v2;
+                                     break;
+                             }
+@@ -1322,14 +1954,14 @@
+                             _spr_c_array = [-1, spr_h_nun_tent_loop_head, spr_h_nun_tent_loop_breast, -1, _leg, spr_h_nun_tent_loop_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_nun_tent_birth_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_nun_tent_birth_leg_v2;
+                                     break;
+                             }
+@@ -1340,17 +1972,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_ranger_tent_idle_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_ranger_tent_idle_leg_v2;
+                                     break;
+                             }
+@@ -1358,14 +1990,14 @@
+                             _spr_c_array = [-1, spr_h_ranger_tent_idle_head, spr_h_ranger_tent_idle_breast, spr_h_ranger_hand, _leg, spr_h_ranger_tent_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_ranger_tent_loop_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_ranger_tent_loop_leg_v2;
+                                     break;
+                             }
+@@ -1373,14 +2005,14 @@
+                             _spr_c_array = [-1, spr_h_ranger_tent_loop_head, spr_h_ranger_tent_loop_breast, spr_h_ranger_hand, _leg, spr_h_ranger_tent_loop_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_ranger_tent_birth_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_ranger_tent_birth_leg_v2;
+                                     break;
+                             }
+@@ -1391,17 +2023,17 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_samurai_tent_idle_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_samurai_tent_idle_leg_v2;
+                                     break;
+                             }
+@@ -1409,14 +2041,14 @@
+                             _spr_c_array = [spr_h_samurai_tent_idle_hair, spr_h_samurai_tent_idle_head, spr_h_samurai_tent_idle_breast, spr_h_samurai_hand, _leg, spr_h_samurai_tent_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_samurai_tent_loop_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_samurai_tent_loop_leg_v2;
+                                     break;
+                             }
+@@ -1424,14 +2056,14 @@
+                             _spr_c_array = [spr_h_samurai_tent_loop_hair, spr_h_samurai_tent_loop_head, spr_h_samurai_tent_loop_breast, spr_h_samurai_hand, _leg, spr_h_samurai_tent_loop_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             switch (arg0.leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _leg = spr_h_samurai_tent_birth_leg_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _leg = spr_h_samurai_tent_birth_leg_v2;
+                                     break;
+                             }
+@@ -1442,56 +2074,56 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_c_array = [-1, spr_h_warrior_tent_idle_head, spr_h_warrior_tent_idle_breast, spr_h_warrior_hand, spr_h_warrior_tent_idle_leg, spr_h_warrior_tent_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_c_array = [-1, spr_h_warrior_tent_loop_head, spr_h_warrior_tent_loop_breast, spr_h_warrior_hand, spr_h_warrior_tent_loop_leg, spr_h_warrior_tent_loop_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             _spr_c_array = [-1, spr_h_warrior_tent_birth_head, spr_h_warrior_tent_birth_breast, spr_h_warrior_hand, spr_h_warrior_tent_birth_leg, spr_h_warrior_tent_birth_leg_part];
+                             break;
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_c_array = [spr_h_mage_tent_idle_hair, spr_h_mage_tent_idle_head, spr_h_mage_tent_idle_breast, -1, spr_h_mage_tent_idle_leg, spr_h_mage_tent_idle_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_c_array = [spr_h_mage_tent_loop_hair, spr_h_mage_tent_loop_head, spr_h_mage_tent_loop_breast, -1, spr_h_mage_tent_loop_leg, spr_h_mage_tent_loop_leg_part];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             _spr_c_array = [spr_h_mage_tent_birth_hair, spr_h_mage_tent_birth_head, spr_h_mage_tent_birth_breast, -1, spr_h_mage_tent_birth_leg, spr_h_mage_tent_birth_leg_part];
+                             break;
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
++                case 9:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_cow_tent_idle_head, spr_h_cow_tent_idle_breast, spr_h_cow_hand, spr_h_cow_tent_idle_leg, spr_h_cow_tent_idle_leg_part];
+                             _spr_c_array = [-1, spr_h_cow_tent_idle_head, spr_h_cow_tent_idle_breast_c, spr_h_cow_hand_c, spr_h_cow_tent_idle_leg_c, spr_h_cow_tent_idle_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_cow_tent_loop_head, spr_h_cow_tent_loop_breast, spr_h_cow_hand, spr_h_cow_tent_loop_leg, spr_h_cow_tent_loop_leg_part];
+                             _spr_c_array = [-1, spr_h_cow_tent_loop_head, spr_h_cow_tent_loop_breast_c, spr_h_cow_hand_c, spr_h_cow_tent_loop_leg_c, spr_h_cow_tent_loop_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             _spr_array = [-1, spr_h_cow_tent_birth_head, spr_h_cow_tent_birth_breast, spr_h_cow_hand, spr_h_cow_tent_birth_leg, spr_h_cow_tent_birth_leg_part];
+                             _spr_c_array = [-1, spr_h_cow_tent_birth_head, spr_h_cow_tent_birth_breast_c, spr_h_cow_hand_c, spr_h_cow_tent_birth_leg_c, spr_h_cow_tent_birth_leg_part_c];
+                             break;
+@@ -1499,20 +2131,20 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_nyx_tent_idle_head, spr_h_nyx_tent_idle_breast, spr_h_nyx_hand, spr_h_nyx_tent_idle_leg, spr_h_nyx_tent_idle_leg_part];
+                             _spr_c_array = [-1, spr_h_nyx_tent_idle_head, spr_h_nyx_tent_idle_breast_c, spr_h_nyx_hand_c, spr_h_nyx_tent_idle_leg_c, spr_h_nyx_tent_idle_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_nyx_tent_loop_head, spr_h_nyx_tent_loop_breast, spr_h_nyx_hand, spr_h_nyx_tent_loop_leg, spr_h_nyx_tent_loop_leg_part];
+                             _spr_c_array = [-1, spr_h_nyx_tent_loop_head, spr_h_nyx_tent_loop_breast_c, spr_h_nyx_hand_c, spr_h_nyx_tent_loop_leg_c, spr_h_nyx_tent_loop_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             _spr_array = [-1, spr_h_nyx_tent_birth_head, spr_h_nyx_tent_birth_breast, spr_h_nyx_hand, spr_h_nyx_tent_birth_leg, spr_h_nyx_tent_birth_leg_part];
+                             _spr_c_array = [-1, spr_h_nyx_tent_birth_head, spr_h_nyx_tent_birth_breast_c, spr_h_nyx_hand_c, spr_h_nyx_tent_birth_leg_c, spr_h_nyx_tent_birth_leg_part_c];
+                             break;
+@@ -1520,20 +2152,20 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_morrigan_tent_idle_head, spr_h_morrigan_tent_idle_breast, spr_h_morrigan_hand, spr_h_morrigan_tent_idle_leg, spr_h_morrigan_tent_idle_leg_part];
+                             _spr_c_array = [-1, spr_h_morrigan_tent_idle_head, spr_h_morrigan_tent_idle_breast_c, spr_h_morrigan_hand_c, spr_h_morrigan_tent_idle_leg_c, spr_h_morrigan_tent_idle_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_morrigan_tent_loop_head, spr_h_morrigan_tent_loop_breast, spr_h_morrigan_hand, spr_h_morrigan_tent_loop_leg, spr_h_morrigan_tent_loop_leg_part];
+                             _spr_c_array = [-1, spr_h_morrigan_tent_loop_head, spr_h_morrigan_tent_loop_breast_c, spr_h_morrigan_hand_c, spr_h_morrigan_tent_loop_leg_c, spr_h_morrigan_tent_loop_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             _spr_array = [-1, spr_h_morrigan_tent_birth_head, spr_h_morrigan_tent_birth_breast, spr_h_morrigan_hand, spr_h_morrigan_tent_birth_leg, spr_h_morrigan_tent_birth_leg_part];
+                             _spr_c_array = [-1, spr_h_morrigan_tent_birth_head, spr_h_morrigan_tent_birth_breast_c, spr_h_morrigan_hand_c, spr_h_morrigan_tent_birth_leg_c, spr_h_morrigan_tent_birth_leg_part_c];
+                             break;
+@@ -1541,20 +2173,20 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_13:
++                case 13:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_cat_tent_idle_head, spr_h_cat_tent_idle_breast, spr_h_cat_hand, spr_h_cat_tent_idle_leg, spr_h_cat_tent_idle_leg_part];
+                             _spr_c_array = [-1, spr_h_cat_tent_idle_head, spr_h_cat_tent_idle_breast_c, spr_h_cat_hand_c, spr_h_cat_tent_idle_leg_c, spr_h_cat_tent_idle_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_cat_tent_loop_head, spr_h_cat_tent_loop_breast, spr_h_cat_hand, spr_h_cat_tent_loop_leg, spr_h_cat_tent_loop_leg_part];
+                             _spr_c_array = [-1, spr_h_cat_tent_loop_head, spr_h_cat_tent_loop_breast_c, spr_h_cat_hand_c, spr_h_cat_tent_loop_leg_c, spr_h_cat_tent_loop_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             _spr_array = [-1, spr_h_cat_tent_birth_head, spr_h_cat_tent_birth_breast, spr_h_cat_hand, spr_h_cat_tent_birth_leg, spr_h_cat_tent_birth_leg_part];
+                             _spr_c_array = [-1, spr_h_cat_tent_birth_head, spr_h_cat_tent_birth_breast_c, spr_h_cat_hand_c, spr_h_cat_tent_birth_leg_c, spr_h_cat_tent_birth_leg_part_c];
+                             break;
+@@ -1562,47 +2194,26 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _spr_array = [-1, spr_h_lilith_tent_idle_head, spr_h_lilith_tent_idle_breast, spr_h_lilith_hand, spr_h_lilith_tent_idle_leg, spr_h_lilith_tent_idle_leg_part];
+                             _spr_c_array = [-1, spr_h_lilith_tent_idle_head, spr_h_lilith_tent_idle_breast_c, spr_h_lilith_hand_c, spr_h_lilith_tent_idle_leg_c, spr_h_lilith_tent_idle_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _spr_array = [-1, spr_h_lilith_tent_loop_head, spr_h_lilith_tent_loop_breast, spr_h_lilith_hand, spr_h_lilith_tent_loop_leg, spr_h_lilith_tent_loop_leg_part];
+                             _spr_c_array = [-1, spr_h_lilith_tent_loop_head, spr_h_lilith_tent_loop_breast_c, spr_h_lilith_hand_c, spr_h_lilith_tent_loop_leg_c, spr_h_lilith_tent_loop_leg_part_c];
+                             break;
+                         
+-                        case UnknownEnum.Value_4:
++                        case 4:
+                             _spr_array = [-1, spr_h_lilith_tent_birth_head, spr_h_lilith_tent_birth_breast, spr_h_lilith_hand, spr_h_lilith_tent_birth_leg, spr_h_lilith_tent_birth_leg_part];
+                             _spr_c_array = [-1, spr_h_lilith_tent_birth_head, spr_h_lilith_tent_birth_breast_c, spr_h_lilith_hand_c, spr_h_lilith_tent_birth_leg_c, spr_h_lilith_tent_birth_leg_part_c];
+                             break;
+                     }
+                     
+                     break;
+-                
+-                case UnknownEnum.Value_14:
+-                    switch (arg1)
+-                    {
+-                        case UnknownEnum.Value_1:
+-                            _spr_array = [-1, spr_h_nyx_tent_idle_head, spr_h_nyx_tent_idle_breast, spr_h_nyx_hand, spr_h_nyx_tent_idle_leg, spr_h_nyx_tent_idle_leg_part];
+-                            _spr_c_array = [-1, spr_h_nyx_tent_idle_head, spr_h_nyx_tent_idle_breast_c, spr_h_nyx_hand_c, spr_h_nyx_tent_idle_leg_c, spr_h_nyx_tent_idle_leg_part_c];
+-                            break;
+-                        
+-                        case UnknownEnum.Value_2:
+-                            _spr_array = [-1, spr_h_nyx_tent_loop_head, spr_h_nyx_tent_loop_breast, spr_h_nyx_hand, spr_h_nyx_tent_loop_leg, spr_h_nyx_tent_loop_leg_part];
+-                            _spr_c_array = [-1, spr_h_nyx_tent_loop_head, spr_h_nyx_tent_loop_breast_c, spr_h_nyx_hand_c, spr_h_nyx_tent_loop_leg_c, spr_h_nyx_tent_loop_leg_part_c];
+-                            break;
+-                        
+-                        case UnknownEnum.Value_4:
+-                            _spr_array = [-1, spr_h_nyx_tent_birth_head, spr_h_nyx_tent_birth_breast, spr_h_nyx_hand, spr_h_nyx_tent_birth_leg, spr_h_nyx_tent_birth_leg_part];
+-                            _spr_c_array = [-1, spr_h_nyx_tent_birth_head, spr_h_nyx_tent_birth_breast_c, spr_h_nyx_hand_c, spr_h_nyx_tent_birth_leg_c, spr_h_nyx_tent_birth_leg_part_c];
+-                            break;
+-                    }
+-                    
+-                    break;
+             }
+             
+             break;
+@@ -1616,10 +2227,12 @@
+ {
+     var _info = {};
+     _info.scr_unit = -1;
++    _info.class_name = "UNKNOWN";
+     _info.hair = -1;
+     _info.skin = irandom_range(0, 2);
+     _info.breast = -1;
+-    _info.leg = choose(UnknownEnum.Value_1, UnknownEnum.Value_2);
++    _info.leg = choose(1, 2);
++    _info.preg_c = irandom_range(4, 5);
+     
+     switch (arg1)
+     {
+@@ -1646,49 +2259,49 @@
+     
+     switch (arg0)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             _info.class_name = "PEASANT";
+             _info.hair = irandom_range(0, 2);
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             _info.class_name = "CLERIC";
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             _info.class_name = "KNIGHT";
+             _info.hair = irandom_range(0, 2);
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             _info.class_name = "RANGER";
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             _info.class_name = "NUN";
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 5:
+             _info.class_name = "SAMURAI";
+             _info.hair = irandom_range(0, 2);
+             break;
+         
+-        case UnknownEnum.Value_6:
++        case 6:
+             _info.class_name = "SHAMAN";
+-            _info.leg = UnknownEnum.Value_0;
++            _info.leg = 0;
+             _info.hair = irandom_range(0, 2);
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             _info.class_name = "WARRIOR";
+-            _info.leg = UnknownEnum.Value_0;
++            _info.leg = 0;
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             _info.class_name = "HATHOR";
+             _info.skin = -1;
+-            _info.scr_unit = UnknownEnum.Value_0;
+-            _info.leg = UnknownEnum.Value_2;
++            _info.scr_unit = 0;
++            _info.leg = 2;
+             
+             if (arg1 == 7)
+                 _info.preg_c = 10;
+@@ -1697,7 +2310,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_10:
++        case 10:
+             _info.class_name = "NYX";
+             _info.skin = -1;
+             
+@@ -1706,10 +2319,10 @@
+             else
+                 _info.preg_c = -1;
+             
+-            _info.leg = UnknownEnum.Value_2;
++            _info.leg = 2;
+             break;
+         
+-        case UnknownEnum.Value_11:
++        case 11:
+             _info.class_name = "SELENE";
+             _info.skin = -1;
+             
+@@ -1720,12 +2333,12 @@
+             else
+             {
+                 _info.preg_c = 10;
+-                _info.scr_unit = UnknownEnum.Value_1;
++                _info.scr_unit = 1;
+             }
+             
+             break;
+         
+-        case UnknownEnum.Value_12:
++        case 12:
+             _info.class_name = "MORRIGAN";
+             _info.skin = -1;
+             
+@@ -1734,10 +2347,10 @@
+             else
+                 _info.preg_c = 16;
+             
+-            _info.leg = UnknownEnum.Value_2;
++            _info.leg = 2;
+             break;
+         
+-        case UnknownEnum.Value_13:
++        case 13:
+             _info.class_name = "BASTET";
+             _info.skin = -1;
+             
+@@ -1746,10 +2359,10 @@
+             else
+                 _info.preg_c = 12;
+             
+-            _info.leg = UnknownEnum.Value_0;
++            _info.leg = 0;
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             _info.class_name = "LILITH";
+             _info.skin = -1;
+             
+@@ -1758,19 +2371,51 @@
+             else
+                 _info.preg_c = 666;
+             
+-            _info.leg = UnknownEnum.Value_2;
++            _info.leg = 2;
+             break;
++    }
++    
++    var _cr_key = ds_map_exists(global.class_registry, arg0) ? arg0 : (ds_map_exists(global.class_registry, real(arg0)) ? real(arg0) : undefined);
++    if (_cr_key != undefined)
++    {
++        var _gnx_rc = ds_map_find_value(global.class_registry, _cr_key);
++        
++        if (!variable_struct_exists(_info, "class_name") || _info.class_name == "UNKNOWN")
++            _info.class_name = variable_struct_exists(_gnx_rc, "name") ? _gnx_rc.name : "UNKNOWN";
++        
++        if (!variable_struct_exists(_gnx_rc, "has_hair"))
++        {
++            var _whf = file_text_open_append("gnx_debug.txt");
++            file_text_write_string(_whf, "[GNX-WARN] class=" + string(arg0) + " registry entry missing has_hair\n");
++            file_text_close(_whf);
++        }
+         
+-        case UnknownEnum.Value_14:
+-            var _mod_list = obj_p.mod_array;
+-            var _mod_num = irandom_range(0, array_length(_mod_list) - 1);
+-            var _ych = _mod_list[_mod_num];
+-            _info.class_name = _ych.class_name;
+-            _info.mod_num = _ych.mod_num;
++        if (variable_struct_exists(_gnx_rc, "is_special") && _gnx_rc.is_special)
+             _info.skin = -1;
+-            _info.breast = -1;
+-            _info.leg = UnknownEnum.Value_2;
+-            break;
++        
++        if (variable_struct_exists(_gnx_rc, "has_hair") && _gnx_rc.has_hair && _info.hair == -1)
++            _info.hair = irandom_range(0, 2);
++        
++        if (variable_struct_exists(_gnx_rc, "default_leg"))
++            _info.leg = _gnx_rc.default_leg;
++        
++        if (variable_struct_exists(_gnx_rc, "scr_unit"))
++            _info.scr_unit = _gnx_rc.scr_unit;
++        
++        if (variable_struct_exists(_gnx_rc, "preg_c_override") && _gnx_rc.preg_c_override != -999)
++            _info.preg_c = _gnx_rc.preg_c_override;
++    }
++    
++    if (global.gnx_has_sounds)
++    {
++        var _voice_data = scr_gnx_generate_voice(arg0, arg1 == 6 || arg1 == 7);
++        _info.moan_voice = _voice_data.moan_voice;
++        _info.moan_pitch = _voice_data.moan_pitch;
++    }
++    else
++    {
++        _info.moan_voice = -1;
++        _info.moan_pitch = -1;
+     }
+     
+     return _info;
+@@ -1788,86 +2433,124 @@
+     
+     switch (_leg)
+     {
+-        case UnknownEnum.Value_1:
++        case 1:
+             _base = spr_ogre_carry_base;
+             _hand = spr_ogre_carry_hand;
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             _base = spr_ogre_carry_base;
+             _hand = spr_ogre_carry_hand;
+             break;
+         
+-        case UnknownEnum.Value_0:
++        case 0:
+             _base = spr_ogre_carry_base_v3;
+             _hand = spr_ogre_carry_hand_v3;
+             break;
+     }
+     
++    if (ds_map_exists(global.class_registry, arg0.class) && arg0.class >= 14)
++    {
++        var _gnx_rc = ds_map_find_value(global.class_registry, arg0.class);
++        var _gnx_patrol = -1;
++        
++        if (variable_struct_exists(_gnx_rc, "mon_spr_overrides") && variable_struct_exists(_gnx_rc.mon_spr_overrides, "patrol"))
++            _gnx_patrol = _gnx_rc.mon_spr_overrides.patrol;
++        
++        if (_gnx_rc.is_special)
++        {
++            var _gnx_base = variable_struct_exists(_gnx_rc, "carry_head_spr") ? _gnx_rc.carry_head_spr : _base;
++            return 
++            {
++                base: _gnx_base,
++                head: -1,
++                hand: -1,
++                hair: -1,
++                skin: 0,
++                hair_c: _hair_c,
++                patrol_spr: _gnx_patrol
++            };
++        }
++        
++        var _gnx_cbase = gnx_get_carry_base(arg0.class, _leg, _base);
++        var _gnx_head = variable_struct_exists(_gnx_rc, "carry_head_spr") ? _gnx_rc.carry_head_spr : -1;
++        var _gnx_hair = variable_struct_exists(_gnx_rc, "carry_hair_spr") ? _gnx_rc.carry_hair_spr : -1;
++        return 
++        {
++            base: _gnx_cbase,
++            head: _gnx_head,
++            hand: _hand,
++            hair: _gnx_hair,
++            skin: _skin,
++            hair_c: _hair_c,
++            patrol_spr: _gnx_patrol
++        };
++    }
++    
+     switch (arg0.class)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             _head = spr_ogre_carry_head_peasant;
+             _hair = spr_ogre_carry_hair_peasant;
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             _head = spr_ogre_carry_head_nun;
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             _head = spr_ogre_carry_head_knight;
+             _hair = spr_ogre_carry_hair_knight;
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             _head = spr_ogre_carry_head_cleric;
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             _head = spr_ogre_carry_head_ranger;
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 5:
+             _head = spr_ogre_carry_head_samurai;
+             _hair = spr_ogre_carry_hair_samurai;
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             _head = spr_ogre_carry_head_warrior;
+             break;
+         
+-        case UnknownEnum.Value_6:
++        case 6:
+             _head = spr_ogre_carry_head_mage;
+             _hair = spr_ogre_carry_hair_mage;
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             _base = spr_ogre_carry_base_lilith;
+             _hand = -1;
+             _skin = 0;
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             _base = spr_ogre_carry_base_cow;
+             _hand = spr_ogre_carry_hand;
+             _skin = 0;
+             break;
+         
+-        case UnknownEnum.Value_10:
++        case 10:
+             _base = spr_ogre_carry_base_nyx;
+             _hand = -1;
+             _skin = 0;
+             break;
+         
+-        case UnknownEnum.Value_12:
++        case 12:
+             _base = spr_ogre_carry_base_morrigan;
+             _head = -1;
+             _hand = -1;
+             _skin = 0;
+             break;
+         
+-        case UnknownEnum.Value_13:
++        case 13:
+             _base = spr_ogre_carry_base_cat;
+             _head = -1;
+             _hand = -1;
+@@ -1875,6 +2558,7 @@
+             break;
+     }
+     
++    _base = gnx_get_carry_base(arg0.class, _leg, _base);
+     var _spr_data = 
+     {
+         base: _base,
+@@ -1882,7 +2566,8 @@
+         hand: _hand,
+         hair: _hair,
+         skin: _skin,
+-        hair_c: _hair_c
++        hair_c: _hair_c,
++        patrol_spr: -1
+     };
+     return _spr_data;
+ }
+@@ -1893,66 +2578,74 @@
+     var _fap = 0;
+     var _bap = 0;
+     
++    if (ds_map_exists(global.class_registry, arg0))
++    {
++        var _rc = ds_map_find_value(global.class_registry, arg0);
++        
++        if (variable_struct_exists(_rc, "fap_mul"))
++            return [_rc.fap_mul * arg1, _rc.bap_mul * arg1];
++    }
++    
+     switch (arg0)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             _fap = arg1;
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             _bap = arg1 * 2;
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             _fap = arg1 * 3;
+             _bap = arg1;
+             break;
+         
+-        case UnknownEnum.Value_6:
++        case 6:
+             _fap = arg1;
+             _bap = arg1 * 2;
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             _fap = arg1 * 5;
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             _fap = arg1;
+             _bap = arg1 * 4;
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             _fap = arg1 * 2;
+             _bap = arg1 * 5;
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 5:
+             _fap = arg1 * 6;
+             _bap = arg1 * 2;
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             _fap = 15;
+             _bap = 10;
+             break;
+         
+-        case UnknownEnum.Value_10:
++        case 10:
+             _fap = 20;
+             _bap = 20;
+             break;
+         
+-        case UnknownEnum.Value_11:
++        case 11:
+             _fap = 45;
+             _bap = 45;
+             break;
+         
+-        case UnknownEnum.Value_12:
++        case 12:
+             _fap = 75;
+             _bap = 75;
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             _fap = 0;
+             _bap = 0;
+             break;
+@@ -1960,25 +2653,3 @@
+     
+     return [_fap, _bap];
+ }
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_10,
+-    Value_11,
+-    Value_12,
+-    Value_13,
+-    Value_14,
+-    Value_36 = 36,
+-    Value_38 = 38,
+-    Value_39
+-}

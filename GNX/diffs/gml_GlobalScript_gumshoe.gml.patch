@@ -1,0 +1,118 @@
+--- /dev/null	2026-10-05 20:22:36.000000000 +0200
++++ gml/gml_GlobalScript_gumshoe.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -0,0 +1,115 @@
++function gumshoe(arg0, arg1, arg2 = false, arg3 = true, arg4 = undefined, arg5 = undefined)
++{
++    static _is_microsoft = os_type == os_windows || os_type == os_uwp || os_type == os_xboxone || os_type == os_xboxseriesxs || os_type == os_win8native || os_type == os_winphone;
++    static _path_separator = _is_microsoft ? "\\" : "/";
++    static _inverse_path_separator = _is_microsoft ? "/" : "\\";
++    static _match_all_mask = _is_microsoft ? "*.*" : "*";
++    
++    if (arg2 == false && arg4 != undefined)
++        throw "Gumshoe: structValueGenerator can only be specified when returning a struct";
++    
++    var _path_sep = _path_separator;
++    
++    if (arg5)
++    {
++        arg0 = string_replace_all(arg0, "\\", "/");
++        _path_sep = "/";
++    }
++    else
++    {
++        arg0 = string_replace_all(arg0, _inverse_path_separator, _path_separator);
++    }
++    
++    if (arg0 != "" && string_char_at(arg0, string_length(arg0)) != _path_sep)
++        arg0 += _path_sep;
++    
++    var _pos = string_pos(".", arg1);
++    
++    if (_pos > 0)
++        arg1 = string_delete(arg1, 1, _pos);
++    
++    arg1 = "." + arg1;
++    
++    if (!_is_microsoft && arg3)
++    {
++        arg0 = string_lower(arg0);
++        arg1 = string_lower(arg1);
++    }
++    
++    if (arg2)
++    {
++        global.__gumshoe_count = 0;
++        return __gumshoe_struct(arg0, arg1, _match_all_mask, _path_sep, arg4);
++    }
++    else
++    {
++        return __gumshoe_array(arg0, arg1, [], _match_all_mask, _path_sep);
++    }
++}
++
++function __gumshoe_array(arg0, arg1, arg2, arg3, arg4)
++{
++    var _directories = [];
++    var _file = undefined;
++    
++    while (true)
++    {
++        _file = (_file == undefined) ? file_find_first(arg0 + arg3, 16) : file_find_next();
++        
++        if (_file == "")
++            break;
++        
++        if (directory_exists(arg0 + _file))
++            _directories[array_length(_directories)] = arg0 + _file + arg4;
++        else if (arg1 == ".*" || filename_ext(_file) == arg1)
++            arg2[array_length(arg2)] = arg0 + _file;
++    }
++    
++    file_find_close();
++    var _i = 0;
++    
++    repeat (array_length(_directories))
++    {
++        __gumshoe_array(_directories[_i], arg1, arg2, arg3, arg4);
++        _i++;
++    }
++    
++    return arg2;
++}
++
++function __gumshoe_struct(arg0, arg1, arg2, arg3, arg4)
++{
++    var _directories = [];
++    var _result = {};
++    var _file = undefined;
++    
++    while (true)
++    {
++        _file = (_file == undefined) ? file_find_first(arg0 + arg2, 16) : file_find_next();
++        
++        if (_file == "")
++            break;
++        
++        if (directory_exists(arg0 + _file))
++        {
++            _directories[array_length(_directories)] = _file;
++        }
++        else if (arg1 == ".*" || filename_ext(_file) == arg1)
++        {
++            var value = arg4 ? arg4(arg0, _file, arg1, global.__gumshoe_count) : global.__gumshoe_count;
++            variable_struct_set(_result, _file, value);
++            global.__gumshoe_count++;
++        }
++    }
++    
++    file_find_close();
++    var _i = 0;
++    
++    repeat (array_length(_directories))
++    {
++        variable_struct_set(_result, _directories[_i], __gumshoe_struct(arg0 + _directories[_i] + arg3, arg1, arg2, arg3, arg4));
++        _i++;
++    }
++    
++    return _result;
++}

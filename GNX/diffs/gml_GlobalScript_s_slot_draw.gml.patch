@@ -1,0 +1,3324 @@
+--- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-09-02 08:45:16.434590200 +0200
++++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-05 18:44:37.631200000 +0200
+@@ -2,27 +2,31 @@
+ {
+     switch (slot_data.slot_type)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             scr_draw_slot_h();
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             scr_draw_slot_h();
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             scr_draw_slot_h();
+             break;
+         
+-        case UnknownEnum.Value_5:
++        case 6:
++            scr_draw_slot_h();
++            break;
++        
++        case 5:
+             scr_draw_slot_between();
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             scr_draw_slot_entrance();
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             scr_draw_slot_between();
+             break;
+     }
+@@ -31,31 +35,31 @@
+ function scr_draw_slot_h()
+ {
+     if (spr_base != -1)
+-        draw_sprite(spr_base, slot_data.index, x, y);
++        gnx_draw_sprite(spr_base, slot_data.index, x, y);
+     
+     if (slot_data.anim_struct != -1)
+         script_execute(scr_slot_draw_special);
+     
+     if (global.mask_collision)
+-        draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, 0.5);
++        gnx_draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, 0.5);
+ }
+ 
+ function scr_draw_slot_between()
+ {
+-    draw_sprite(spr_base, slot_data.index, x - 1, y);
++    gnx_draw_sprite(spr_base, slot_data.index, x - 1, y);
+     
+     if (global.mask_collision)
+-        draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, 0.5);
++        gnx_draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, 0.5);
+ }
+ 
+ function scr_draw_slot_entrance()
+ {
+     var _side = (!slot_data.mod_index[0] * 2) - 1;
+     var _x = x + (slot_data.mod_index[0] * 45);
+-    draw_sprite_ext(spr_base, slot_data.index, _x, y, _side, 1, image_angle, image_blend, 1);
++    gnx_draw_sprite_ext(spr_base, slot_data.index, _x, y, _side, 1, image_angle, image_blend, 1);
+     
+     if (global.mask_collision)
+-        draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, 0.5);
++        gnx_draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, 0.5);
+ }
+ 
+ function scr_draw_highlight(arg0)
+@@ -72,11 +76,11 @@
+     
+     if (unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+         _touch = slot_data.spr_touch;
+@@ -88,77 +92,77 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             var _legc_pos;
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     var _handc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     _legc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     var _draw = false;
+                     var _handc_pos;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] == -2)
++                    if (spr_slot[i][2] == -2)
+                     {
+                         _handc_pos = 0;
+                         _draw = true;
+@@ -166,7 +170,7 @@
+                     
+                     if (_draw || (_index != -1 && _handc_pos != -1))
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         
+                         if (_hand_frame != -1)
+@@ -184,68 +188,68 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                            draw_sprite(_touch, _final_index, x, y);
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                            gnx_draw_sprite(_touch, _final_index, x, y);
+                         
+                         if (_enter != -1)
+-                            draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, _final_index, x, y);
+                     }
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
+-                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][UnknownEnum.Value_2] == -2))
++                case 9:
++                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (_index == 0)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     if (slot_data.slot_dirt > 0)
+                     {
+                         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-                        draw_sprite(_spr, _slot_dirt, x, y);
++                        gnx_draw_sprite(_spr, _slot_dirt, x, y);
+                     }
+                     
+                     break;
+@@ -254,21 +258,39 @@
+     }
+     
+     if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
+-        draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++    {
++        var _gnx_spy_idx = max(0, slot_data.anal);
++        
++        if (_gnx_spy_idx >= array_length(slot_data.sp_y))
++        {
++            var _gnx_spy_f = file_text_open_append("gnx_debug.txt");
++            file_text_write_string(_gnx_spy_f, "[GNX-SPY-OOB] h=" + string(slot_data.h_type) + " anal=" + string(slot_data.anal) + " len=" + string(array_length(slot_data.sp_y)) + "\n");
++            file_text_close(_gnx_spy_f);
++            _gnx_spy_idx = 0;
++        }
++        
++        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[_gnx_spy_idx] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++    }
+ }
+ 
+ function scr_draw_slot_parts_wall()
+ {
+-    draw_sprite(spr_slot_wall, slot_data.index, x, y);
++    var _gnx_wall_spr = spr_slot_wall;
++    var _gnx_cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    if (_gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_spr_wall") && _gnx_cell.gnx_spr_wall != -1)
++        _gnx_wall_spr = _gnx_cell.gnx_spr_wall;
++    
++    gnx_draw_sprite(_gnx_wall_spr, slot_data.index, x, y);
+     var _final_index, _hair_index, _touch, _enter;
+     
+     if (unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+         _touch = slot_data.spr_touch;
+@@ -280,77 +302,77 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             var _legc_pos;
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     var _handc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     _legc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     var _draw = false;
+                     var _handc_pos;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] == -2)
++                    if (spr_slot[i][2] == -2)
+                     {
+                         _handc_pos = 0;
+                         _draw = true;
+@@ -358,7 +380,7 @@
+                     
+                     if (_draw || (_index != -1 && _handc_pos != -1))
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         
+                         if (_hand_frame != -1)
+@@ -376,68 +398,68 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                            draw_sprite(_touch, _final_index, x, y);
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                            gnx_draw_sprite(_touch, _final_index, x, y);
+                         
+                         if (_enter != -1)
+-                            draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, _final_index, x, y);
+                     }
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
+-                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][UnknownEnum.Value_2] == -2))
++                case 9:
++                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (_index == 0)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     if (slot_data.slot_dirt > 0)
+                     {
+                         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-                        draw_sprite(_spr, _slot_dirt, x, y);
++                        gnx_draw_sprite(_spr, _slot_dirt, x, y);
+                     }
+                     
+                     break;
+@@ -446,51 +468,59 @@
+     }
+     
+     if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
+-        draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+ }
+ 
+ function scr_draw_slot_cow()
+ {
+     var _flip = slot_data.mod_index[7];
++    // POPRAWKA (GNX): mruganie zalezne od klasy postaci. != znaczy "rozne od"; gnx_get_mso zwraca mon_spr_overrides klasy z moda
++    var _gnx_blink_spr = blink_spr;
++
++    if (unit_data != -1 && unit_data.class != 9)
++    {
++        var _gnx_mso_b = gnx_get_mso(unit_data.class);
++        _gnx_blink_spr = (_gnx_mso_b != undefined && variable_struct_exists(_gnx_mso_b, "dairy_blink")) ? variable_struct_get(_gnx_mso_b, "dairy_blink") : -1;
++    }
+     var _scale = ((_flip * 2) - 1) * -1;
+     var _final_index = slot_data.anim_struct.index;
+     
+     if (slot_data.slot_dirt > 0)
+     {
+         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-        draw_sprite(spr_slot[0][UnknownEnum.Value_1], _slot_dirt, x, y);
++        gnx_draw_sprite(spr_slot[0][1], _slot_dirt, x, y);
+     }
+     
+     var _milk_index = slot_data.anim_struct.milk_index;
+     
+     if (_milk_index == -1)
+-        draw_sprite_ext(spr_h_goblin_dairy_pump, 0, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++        gnx_draw_sprite_ext(spr_h_goblin_dairy_pump, 0, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+     else
+-        draw_sprite_ext(spr_h_goblin_dairy_pump, max(1, _milk_index + 1), x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++        gnx_draw_sprite_ext(spr_h_goblin_dairy_pump, max(1, _milk_index + 1), x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+     
+     var _num = array_length(spr_slot);
+     
+     for (var i = 0; i < _num; i++)
+     {
+-        var _type = spr_slot[i][UnknownEnum.Value_0];
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _type = spr_slot[i][0];
++        var _spr = spr_slot[i][1];
+         var _index = slot_data.mod_index[i];
+         
+         switch (_type)
+         {
+-            case UnknownEnum.Value_1:
++            case 1:
+                 if (_index != 2)
+                 {
+                     var _mod_sign = _index;
+                     var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                    draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                    gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                 }
+                 
+                 break;
+             
+-            case UnknownEnum.Value_5:
++            case 5:
+                 if (_index != -1)
+-                    draw_sprite_ext(_spr, _index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                    gnx_draw_sprite_ext(_spr, _index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                 
+                 break;
+         }
+@@ -499,65 +529,67 @@
+         {
+             var _touch = slot_data.spr_touch;
+             var _blink_index = slot_data.anim_struct.blink_index;
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _c_spr = spr_slot[i][3];
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_7:
++                case 7:
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+-                        draw_sprite_ext(_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_milk_index != -1)
+                     {
+                         var _a = max(1, _milk_index + (unit_data.milk * 5) + 1 + unit_data.milk);
+-                        draw_sprite_ext(_spr, _a, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, _a, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     }
+                     else
+                     {
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     
+-                    if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                        draw_sprite_ext(_touch, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                    if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                        gnx_draw_sprite_ext(_touch, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     
+                     break;
+             }
+             
+-            if (_blink_index != -1)
+-                draw_sprite_ext(blink_spr, 0, x + (image_xscale * _flip), (y + 1) - sign(slot_data.anim_struct.index), _scale, 1, image_angle, image_blend, image_alpha);
++            if (_blink_index != -1 && _gnx_blink_spr != -1)
++                gnx_draw_sprite_ext(_gnx_blink_spr, 0, x + (image_xscale * _flip), (y + 1) - sign(slot_data.anim_struct.index), _scale, 1, image_angle, image_blend, image_alpha);
+         }
+     }
+ }
+ 
+ function scr_draw_slot_giant()
+ {
+-    draw_sprite(spr_slot_giant_pillar, 0, x, y);
+-    
++    gnx_draw_sprite(spr_slot_giant_pillar, 0, x, y);
++    // POPRAWKA (GNX): mon_spr_overrides klasy w celi (undefined dla wanilowych klas i pustej celi)
++    var _gnx_mso_g = (unit_data != -1) ? gnx_get_mso(unit_data.class) : undefined;
++
+     if (slot_data.slot_dirt > 0)
+     {
+         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-        draw_sprite(spr_slot[0][UnknownEnum.Value_1], _slot_dirt, x, y);
++        gnx_draw_sprite(spr_slot[0][1], _slot_dirt, x, y);
+     }
+     
+-    draw_sprite(spr_slot[2][UnknownEnum.Value_1], slot_data.mod_index[2], x, y);
++    gnx_draw_sprite(spr_slot[2][1], slot_data.mod_index[2], x, y);
+     
+     if (unit_data != -1)
+     {
+@@ -568,30 +600,30 @@
+         switch (slot_data.mod_index[3])
+         {
+             case -1:
+-                draw_sprite(spr_slot[5][UnknownEnum.Value_1], _final_index, x, y);
+-                draw_sprite_ext(spr_slot[5][UnknownEnum.Value_1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                gnx_draw_sprite(spr_slot[5][1], _final_index, x, y);
++                gnx_draw_sprite_ext(spr_slot[5][1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 
+                 if (slot_data.mod_index[5] == 0)
+                 {
+-                    draw_sprite(spr_slot[5][UnknownEnum.Value_3], _final_index, x, y);
+-                    draw_sprite_ext(spr_slot[5][UnknownEnum.Value_3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                    gnx_draw_sprite(spr_slot[5][3], _final_index, x, y);
++                    gnx_draw_sprite_ext(spr_slot[5][3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 }
+                 
+                 break;
+             
+             case 0:
+-                draw_sprite(spr_slot[5][UnknownEnum.Value_1], _final_index, x, y);
++                gnx_draw_sprite(spr_slot[5][1], _final_index, x, y);
+                 
+                 if (slot_data.mod_index[5] == 0)
+-                    draw_sprite(spr_slot[5][UnknownEnum.Value_3], _final_index, x, y);
++                    gnx_draw_sprite(spr_slot[5][3], _final_index, x, y);
+                 
+                 break;
+             
+             case 1:
+-                draw_sprite_ext(spr_slot[5][UnknownEnum.Value_1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                gnx_draw_sprite_ext(spr_slot[5][1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 
+                 if (slot_data.mod_index[5] == 0)
+-                    draw_sprite_ext(spr_slot[5][UnknownEnum.Value_3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                    gnx_draw_sprite_ext(spr_slot[5][3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 
+                 break;
+             
+@@ -599,16 +631,16 @@
+                 break;
+         }
+         
+-        draw_sprite(spr_slot[6][UnknownEnum.Value_1], _final_index, x, y);
+-        draw_sprite(spr_slot[7][UnknownEnum.Value_1], _final_index, x, y);
++        gnx_draw_sprite(spr_slot[6][1], _final_index, x, y);
++        gnx_draw_sprite(spr_slot[7][1], _final_index, x, y);
+         
+         if (_enter != -1)
+-            draw_sprite(_enter, _final_index, x, y);
++            gnx_draw_sprite(_enter, _final_index, x, y);
+         
+         if (slot_data.mod_index[7] == 0)
+-            draw_sprite(spr_slot[7][UnknownEnum.Value_3], _final_index, x, y);
++            gnx_draw_sprite(spr_slot[7][3], _final_index, x, y);
+         
+-        if (slot_data.mon_placement[0] != -1 && slot_data.mon_placement[0].mon_data.mon_state == UnknownEnum.Value_1 && slot_data.mon_placement[0].mon_spr.body_b != -1)
++        if (slot_data.mon_placement[0] != -1 && slot_data.mon_placement[0].mon_data.mon_state == 1 && slot_data.mon_placement[0].mon_spr.body_b != -1)
+         {
+             var _mon_spr_head_b = -1;
+             var _mon_type = slot_data.mon_placement[0].mon_data.mon_type;
+@@ -617,12 +649,12 @@
+             {
+                 switch (_mon_type)
+                 {
+-                    case UnknownEnum.Value_0:
++                    case 0:
+                         _mon_spr_head_b = spr_h_goblin_body_start_alpha_giant;
+                         var _mon_spr_head_l = spr_h_goblin_body_start_line_giant;
+                         break;
+                     
+-                    case UnknownEnum.Value_1:
++                    case 1:
+                         _mon_spr_head_b = spr_h_hobgoblin_body_start_alpha_giant;
+                         var _mon_spr_head_l = spr_h_hobgoblin_body_start_line_giant;
+                         break;
+@@ -634,14 +666,14 @@
+                 
+                 switch (_mon_type)
+                 {
+-                    case UnknownEnum.Value_0:
+-                        _mon_spr_head_b = spr_h_goblin_head_alpha_giant;
+-                        _mon_spr_head_l = spr_h_goblin_head_line_giant;
++                    case 0:
++                        _mon_spr_head_b = gnx_mso_pick(_gnx_mso_g, "goblin_giant_head_alpha", spr_h_goblin_head_alpha_giant);
++                        _mon_spr_head_l = gnx_mso_pick(_gnx_mso_g, "goblin_giant_head_line", spr_h_goblin_head_line_giant);
+                         break;
+-                    
+-                    case UnknownEnum.Value_1:
+-                        _mon_spr_head_b = spr_h_hobgoblin_head_alpha_giant;
+-                        _mon_spr_head_l = spr_h_hobgoblin_head_line_giant;
++
++                    case 1:
++                        _mon_spr_head_b = gnx_mso_pick(_gnx_mso_g, "hobgoblin_giant_head_alpha", spr_h_hobgoblin_head_alpha_giant);
++                        _mon_spr_head_l = gnx_mso_pick(_gnx_mso_g, "hobgoblin_giant_head_line", spr_h_hobgoblin_head_line_giant);
+                         break;
+                 }
+                 
+@@ -651,23 +683,23 @@
+                 {
+                     switch (global.val.alpha_type)
+                     {
+-                        case UnknownEnum.Value_0:
+-                            draw_sprite_ext(_mon_spr_head_b, _final_index, x, y, 1, 1, 0, c_white, global.val.mon_alpha);
+-                            draw_sprite_ext(_mon_spr_head_l, _final_index, x, y, 1, 1, 0, c_white, global.val.mon_alpha);
++                        case 0:
++                            gnx_draw_sprite_ext(_mon_spr_head_b, _final_index, x, y, 1, 1, 0, 16777215, global.val.mon_alpha);
++                            gnx_draw_sprite_ext(_mon_spr_head_l, _final_index, x, y, 1, 1, 0, 16777215, global.val.mon_alpha);
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             gpu_set_fog(true, _mon_alpha_c, 0, 0);
+-                            draw_sprite_ext(_mon_spr_head_b, _final_index, x, y, 1, 1, 0, c_white, global.val.mon_alpha);
+-                            draw_sprite_ext(_mon_spr_head_l, _final_index, x, y, 1, 1, 0, c_white, global.val.mon_alpha);
++                            gnx_draw_sprite_ext(_mon_spr_head_b, _final_index, x, y, 1, 1, 0, 16777215, global.val.mon_alpha);
++                            gnx_draw_sprite_ext(_mon_spr_head_l, _final_index, x, y, 1, 1, 0, 16777215, global.val.mon_alpha);
+                             gpu_set_fog(false, c_white, 0, 0);
+                             break;
+                         
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             gpu_set_fog(true, _mon_alpha_c, 0, 0);
+-                            draw_sprite_ext(_mon_spr_head_b, _final_index, x, y, 1, 1, 0, c_white, global.val.mon_alpha);
++                            gnx_draw_sprite_ext(_mon_spr_head_b, _final_index, x, y, 1, 1, 0, 16777215, global.val.mon_alpha);
+                             gpu_set_fog(false, c_white, 0, 0);
+-                            draw_sprite_ext(_mon_spr_head_l, _final_index, x, y, 1, 1, 0, c_white, 1);
++                            gnx_draw_sprite_ext(_mon_spr_head_l, _final_index, x, y, 1, 1, 0, 16777215, 1);
+                             break;
+                     }
+                 }
+@@ -677,76 +709,82 @@
+         switch (slot_data.mod_index[4])
+         {
+             case -1:
+-                draw_sprite(spr_slot[8][UnknownEnum.Value_1], _final_index, x, y);
+-                draw_sprite_ext(spr_slot[8][UnknownEnum.Value_1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                gnx_draw_sprite(spr_slot[8][1], _final_index, x, y);
++                gnx_draw_sprite_ext(spr_slot[8][1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 
+                 if (slot_data.mod_index[8] == 0)
+                 {
+-                    draw_sprite(spr_slot[8][UnknownEnum.Value_3], _final_index, x, y);
+-                    draw_sprite_ext(spr_slot[8][UnknownEnum.Value_3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                    gnx_draw_sprite(spr_slot[8][3], _final_index, x, y);
++                    gnx_draw_sprite_ext(spr_slot[8][3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 }
+                 
+                 break;
+             
+             case 0:
+-                draw_sprite(spr_slot[8][UnknownEnum.Value_1], _final_index, x, y);
+-                draw_sprite_ext(spr_slot[9][UnknownEnum.Value_1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                gnx_draw_sprite(spr_slot[8][1], _final_index, x, y);
++                gnx_draw_sprite_ext(spr_slot[9][1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 
+                 if (slot_data.mod_index[8] == 0)
+                 {
+-                    draw_sprite(spr_slot[8][UnknownEnum.Value_3], _final_index, x, y);
+-                    draw_sprite_ext(spr_slot[9][UnknownEnum.Value_3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                    gnx_draw_sprite(spr_slot[8][3], _final_index, x, y);
++                    gnx_draw_sprite_ext(spr_slot[9][3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 }
+                 
+                 break;
+             
+             case 1:
+-                draw_sprite(spr_slot[9][UnknownEnum.Value_1], _final_index, x, y);
+-                draw_sprite_ext(spr_slot[8][UnknownEnum.Value_1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                gnx_draw_sprite(spr_slot[9][1], _final_index, x, y);
++                gnx_draw_sprite_ext(spr_slot[8][1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 
+                 if (slot_data.mod_index[8] == 0)
+                 {
+-                    draw_sprite(spr_slot[9][UnknownEnum.Value_3], _final_index, x, y);
+-                    draw_sprite_ext(spr_slot[8][UnknownEnum.Value_3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                    gnx_draw_sprite(spr_slot[9][3], _final_index, x, y);
++                    gnx_draw_sprite_ext(spr_slot[8][3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 }
+                 
+                 break;
+             
+             case 2:
+-                draw_sprite(spr_slot[9][UnknownEnum.Value_1], _final_index, x, y);
+-                draw_sprite_ext(spr_slot[9][UnknownEnum.Value_1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                gnx_draw_sprite(spr_slot[9][1], _final_index, x, y);
++                gnx_draw_sprite_ext(spr_slot[9][1], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 
+                 if (slot_data.mod_index[8] == 0)
+                 {
+-                    draw_sprite(spr_slot[9][UnknownEnum.Value_3], _final_index, x, y);
+-                    draw_sprite_ext(spr_slot[9][UnknownEnum.Value_3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
++                    gnx_draw_sprite(spr_slot[9][3], _final_index, x, y);
++                    gnx_draw_sprite_ext(spr_slot[9][3], _final_index, x + 77, y, -1, 1, image_angle, image_blend, 1);
+                 }
+                 
+                 break;
+         }
+         
+-        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-            draw_sprite(_touch, _final_index, x, y);
++        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++            gnx_draw_sprite(_touch, _final_index, x, y);
+         
+-        draw_sprite(spr_slot[10][UnknownEnum.Value_1], _final_index, x, y);
++        gnx_draw_sprite(spr_slot[10][1], _final_index, x, y);
+     }
+     
+     if (slot_data.mod_index[11] != 2)
+     {
+         var _mod_sign = slot_data.mod_index[11];
+         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-        draw_sprite_ext(spr_slot[11][UnknownEnum.Value_1], 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++        gnx_draw_sprite_ext(spr_slot[11][1], 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+     }
+     
+     if (slot_data.anim_struct.sp_state != -1)
+-        draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+     
+     if (slot_data.h_step >= 6)
+-        draw_sprite(spr_slot_giant_birth, 0, floor(x + (image_xscale * 0.5)), y);
++        gnx_draw_sprite(spr_slot_giant_birth, 0, floor(x + (image_xscale * 0.5)), y);
+     else if (!slot_data.mod_index[1])
+-        draw_sprite(spr_slot_giant_birth, 0, floor(x + (image_xscale * 0.5)), y);
++        gnx_draw_sprite(spr_slot_giant_birth, 0, floor(x + (image_xscale * 0.5)), y);
+     else if (unit_data != -1 && !slot_data.mod_index[7])
+-        draw_sprite(spr_giant_idle_cloth, slot_data.mod_index[4] + 1, floor(x), y);
++    {
++        // POPRAWKA (GNX): material gigantki tylko dla gigantki (11); inna klasa - mon_spr_overrides.giant_cloth albo nic
++        var _gnx_cloth = (unit_data.class == 11) ? spr_giant_idle_cloth : gnx_mso_pick(_gnx_mso_g, "giant_cloth", -1);
++
++        if (_gnx_cloth != -1)
++            gnx_draw_sprite(_gnx_cloth, slot_data.mod_index[4] + 1, floor(x), y);
++    }
+ }
+ 
+ function scr_draw_slot_drink()
+@@ -755,11 +793,11 @@
+     
+     if (unit_data != -1)
+     {
+-        var _skin = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _skin = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         _row_index = ((_h_type * _skin) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = slot_data.anim_struct.index + _row_index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         _touch = slot_data.spr_touch;
+     }
+@@ -769,62 +807,62 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     var _handc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     var _draw = false;
+                     var _handc_pos;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] == -2)
++                    if (spr_slot[i][2] == -2)
+                     {
+                         _handc_pos = 0;
+                         _draw = true;
+@@ -832,7 +870,7 @@
+                     
+                     if (_draw || (_index != -1 && _handc_pos != -1))
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         
+                         if (_hand_frame != -1)
+@@ -850,51 +888,61 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     var _spr_loop = spr_h_goblin_drink_base;
+                     
+                     switch (unit_data.class)
+                     {
+-                        case UnknownEnum.Value_9:
++                        case 9:
+                             _spr_loop = spr_h_goblin_drink_cow;
+                             break;
+                         
+-                        case UnknownEnum.Value_10:
++                        case 10:
+                             _spr_loop = spr_h_goblin_drink_nyx;
+                             break;
+                         
+-                        case UnknownEnum.Value_8:
++                        case 8:
+                             _spr_loop = spr_h_goblin_drink_lilith;
+                             break;
+                         
+-                        case UnknownEnum.Value_13:
++                        case 13:
+                             _spr_loop = spr_h_goblin_drink_cat;
+                             break;
+                         
+-                        case UnknownEnum.Value_12:
++                        case 12:
+                             _spr_loop = spr_h_goblin_drink_morrigan;
+                             break;
+                     }
+                     
++                    var _gnx_mso = gnx_get_mso(unit_data.class);
++                    
++                    if (_gnx_mso != undefined)
++                    {
++                        var _v = variable_struct_get(_gnx_mso, "goblin_drink_draw");
++                        
++                        if (_v != undefined)
++                            _spr_loop = _v;
++                    }
++                    
+                     if (slot_data.anim_struct.frame_c == 2)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     else
+                     {
+@@ -934,18 +982,18 @@
+                         
+                         var _c_w = 45;
+                         var _c_scale = -1;
+-                        draw_sprite(_lb_spr, _lb_index, x, y);
+-                        draw_sprite_ext(_rb_spr, _rb_index, x + _w, y, _x_scale, 1, image_angle, image_blend, image_alpha);
+-                        draw_sprite(_c_spr, _c_lb_index, x, y);
+-                        draw_sprite_ext(_c_spr, _c_rb_index, x + _c_w, y, _c_scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite(_lb_spr, _lb_index, x, y);
++                        gnx_draw_sprite_ext(_rb_spr, _rb_index, x + _w, y, _x_scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite(_c_spr, _c_lb_index, x, y);
++                        gnx_draw_sprite_ext(_c_spr, _c_rb_index, x + _c_w, y, _c_scale, 1, image_angle, image_blend, image_alpha);
+                         
+-                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
+                         {
+                             if (_lb_spr != _spr)
+-                                draw_sprite(_touch, _lb_index, x, y);
++                                gnx_draw_sprite(_touch, _lb_index, x, y);
+                             
+                             if (_rb_spr != _spr)
+-                                draw_sprite_ext(_touch, _rb_index, x + 45, y, -1, 1, image_angle, image_blend, image_alpha);
++                                gnx_draw_sprite_ext(_touch, _rb_index, x + 45, y, -1, 1, image_angle, image_blend, image_alpha);
+                         }
+                     }
+                     
+@@ -962,77 +1010,77 @@
+     
+     if (slot_data.visual && unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+     }
+     
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (slot_data.visual && unit_data != -1)
+                     {
+                         if (_index != -1 && !_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (slot_data.visual && unit_data != -1 && _index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (slot_data.visual && unit_data != -1 && _index != -1)
+                     {
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+@@ -1040,7 +1088,7 @@
+         }
+     }
+     
+-    draw_sprite(spr_slot_carry_front, 0, x, y);
++    gnx_draw_sprite(spr_slot_carry_front, 0, x, y);
+ }
+ 
+ function scr_draw_slot_patrol()
+@@ -1050,77 +1098,77 @@
+     
+     if (slot_data.visual && unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+     }
+     
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (slot_data.visual && unit_data != -1)
+                     {
+                         if (_index != -1 && !_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (slot_data.visual && unit_data != -1 && _index == 0 && _c_spr != -1)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (slot_data.visual && unit_data != -1 && _index != -1)
+                     {
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     if (slot_data.visual && unit_data != -1)
+                     {
+                         var _handc_pos = 0;
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         
+                         if (_hand_frame != -1)
+@@ -1138,8 +1186,8 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+@@ -1148,7 +1196,7 @@
+         }
+     }
+     
+-    draw_sprite(spr_slot_carry_front, 0, x, y);
++    gnx_draw_sprite(spr_slot_carry_front, 0, x, y);
+ }
+ 
+ function scr_draw_slot_tent()
+@@ -1157,97 +1205,97 @@
+     
+     if (unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+     }
+     
+     if (spr_base != -1)
+-        draw_sprite(spr_base, 0, x, y);
++        gnx_draw_sprite(spr_base, 0, x, y);
+     
+     if (slot_front != -1)
+-        draw_sprite(slot_front, 0, x, y);
++        gnx_draw_sprite(slot_front, 0, x, y);
+     
+     var _num = array_length(spr_slot);
+     
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             var _legc_pos;
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     var _handc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     _legc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     var _draw = false;
+                     var _handc_pos;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] == -2)
++                    if (spr_slot[i][2] == -2)
+                     {
+                         _handc_pos = 0;
+                         _draw = true;
+@@ -1255,8 +1303,19 @@
+                     
+                     if (_draw || (_index != -1 && _handc_pos != -1))
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
+-                        var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
++                        var _hf_idx = slot_data.anim_struct.spr_type;
++                        var _hf_max = array_length(slot_data.hand_frame) - 1;
++                        
++                        if (_hf_idx > _hf_max)
++                        {
++                            var _dbgf3 = file_text_open_append("gnx_debug.txt");
++                            file_text_write_string(_dbgf3, "[GNX-DEBUG] scr_draw_slot_tent hand_frame OOB spr_type=" + string(_hf_idx) + " max=" + string(_hf_max) + " h_type=" + string(slot_data.h_type) + "\n");
++                            file_text_close(_dbgf3);
++                            _hf_idx = _hf_max;
++                        }
++                        
++                        var _hand_frame = slot_data.hand_frame[_hf_idx];
+                         
+                         if (_hand_frame != -1)
+                         {
+@@ -1273,52 +1332,52 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
+-                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][UnknownEnum.Value_2] == -2))
++                case 9:
++                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (_index == 0)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     break;
+             }
+@@ -1326,19 +1385,19 @@
+     }
+     
+     if (slot_data.anim_struct.sp_state != -1)
+-        draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+ }
+ 
+ function scr_draw_slot_milk()
+ {
+     scr_draw_slot_parts();
+     
+-    if (slot_data.mon_placement[0] != -1)
++    if (slot_data.mon_placement[0] != -1 && array_length(h_unit_list) > 0)
+     {
+         var _index = h_unit_list[0].mon_data.index;
+-        draw_sprite(spr_h_goblin_milk_loop_alpha, _index, x, y);
+-        draw_sprite(spr_h_goblin_milk_loop_line, _index, x, y);
+-        draw_sprite(spr_bowl, 0, x + 22, y);
++        gnx_draw_sprite(spr_h_goblin_milk_loop_alpha, _index, x, y);
++        gnx_draw_sprite(spr_h_goblin_milk_loop_line, _index, x, y);
++        gnx_draw_sprite(spr_bowl, 0, x + 22, y);
+     }
+ }
+ 
+@@ -1351,29 +1410,29 @@
+     if (slot_data.slot_dirt > 0)
+     {
+         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-        draw_sprite(spr_dirt_big, _slot_dirt, x, y);
++        gnx_draw_sprite(spr_dirt_big, _slot_dirt, x, y);
+     }
+     
+     var _final_index, _hair_index, _breast_spr, _touch;
+     
+     if (unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _base_frame_c = slot_data.anim_struct.frame_c;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * _base_frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+         _touch = -1;
+         var _enter = slot_data.spr_enter;
+-        _breast_spr = spr_slot[2][UnknownEnum.Value_1];
++        _breast_spr = spr_slot[2][1];
+         
+-        if (unit_data.leg == UnknownEnum.Value_0)
++        if (unit_data.leg == 0)
+             _x_shift = -2 * ((_flip * 2) - 1);
+         
+-        if (slot_data.mon_placement[0] != -1 && slot_data.mon_placement[0].mon_data.mon_type == UnknownEnum.Value_0)
++        if (slot_data.mon_placement[0] != -1 && slot_data.mon_placement[0].mon_data.mon_type == 0)
+             _touch = slot_data.spr_touch;
+         
+         if (slot_data.mon_placement[1] != -1)
+@@ -1383,7 +1442,7 @@
+             var _mon_body_b = spr_h_goblin_gb_1_loop_alpha;
+             var _mon_body_l = spr_h_goblin_gb_1_loop_line;
+             
+-            if (unit_data.leg == UnknownEnum.Value_0)
++            if (unit_data.leg == 0)
+             {
+                 _breast_spr = spr_h_gb_1_big_loop_breast_v3_d2;
+                 _mon_body_b = spr_h_goblin_gb_1_v3_loop_alpha;
+@@ -1392,35 +1451,70 @@
+             
+             switch (unit_data.class)
+             {
+-                case UnknownEnum.Value_9:
++                case 9:
+                     _breast_spr = spr_h_gb_1_big_loop_breast_cow;
+                     _mon_body_b = spr_h_goblin_gb_1_cow_loop_alpha;
+                     _mon_body_l = spr_h_goblin_gb_1_cow_loop_line;
+                     break;
+                 
+-                case UnknownEnum.Value_13:
++                case 13:
+                     _breast_spr = spr_h_gb_1_big_loop_breast_cat;
+                     _mon_body_b = spr_h_goblin_gb_1_v3_loop_alpha;
+                     _mon_body_l = spr_h_goblin_gb_1_v3_loop_line;
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     _breast_spr = spr_h_gb_1_big_loop_breast_morrigan;
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     _breast_spr = spr_h_gb_1_big_loop_breast_nyx;
+                     break;
+                 
+-                case UnknownEnum.Value_8:
+-                    _breast_spr = spr_h_gb_1_big_loop_breast_lilith;
+-                    _mon_body_b = spr_h_goblin_gb_1_lilith_loop_alpha;
+-                    _mon_body_l = spr_h_goblin_gb_1_lilith_loop_line;
++                case 8:
++                    var _gb1rc8 = ds_map_find_value(global.class_registry, 8);
++                    
++                    if (_gb1rc8 != undefined && variable_struct_exists(_gb1rc8, "gb1_breast_d2"))
++                    {
++                        _breast_spr = _gb1rc8.gb1_breast_d2;
++                    }
++                    else
++                    {
++                        _breast_spr = spr_h_gb_1_big_loop_breast_lilith;
++                        _mon_body_b = spr_h_goblin_gb_1_lilith_loop_alpha;
++                        _mon_body_l = spr_h_goblin_gb_1_lilith_loop_line;
++                    }
++                    
++                    break;
++                
++                default:
++                    var _gb1rc = ds_map_find_value(global.class_registry, unit_data.class);
++                    
++                    if (_gb1rc != undefined && variable_struct_exists(_gb1rc, "gb1_breast_d2"))
++                        _breast_spr = _gb1rc.gb1_breast_d2;
++                    else
++                        _breast_spr = spr_slot[2][1];
++                    
+                     break;
+             }
+             
+-            draw_sprite_ext(_mon_body_b, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, c_white, 1);
+-            draw_sprite_ext(_mon_body_l, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, c_white, 1);
++            var _gnx_mso = gnx_get_mso(unit_data.class);
++            
++            if (_gnx_mso != undefined)
++            {
++                var _v = variable_struct_get(_gnx_mso, "goblin_gb1_draw_body_b");
++                
++                if (_v != undefined)
++                    _mon_body_b = _v;
++                
++                _v = variable_struct_get(_gnx_mso, "goblin_gb1_draw_body_l");
++                
++                if (_v != undefined)
++                    _mon_body_l = _v;
++            }
++            
++            gnx_draw_sprite_ext(_mon_body_b, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, 16777215, 1);
++            gnx_draw_sprite_ext(_mon_body_l, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, 16777215, 1);
+         }
+     }
+     
+@@ -1429,66 +1523,66 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite_ext(_spr, _index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, _index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite_ext(_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                         
+-                        draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite_ext(_hair_spr, _hair_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_hair_spr, _hair_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite_ext(_breast_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_breast_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite_ext(_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                         
+-                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                            draw_sprite_ext(_touch, _final_index, x + (image_xscale * _flip) + _x_shift, y, _scale, 1, image_angle, image_blend, image_alpha);
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                            gnx_draw_sprite_ext(_touch, _final_index, x + (image_xscale * _flip) + _x_shift, y, _scale, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_c_spr, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+@@ -1503,11 +1597,11 @@
+     
+     if (unit_data != -1)
+     {
+-        _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+         _touch = slot_data.spr_touch;
+@@ -1519,77 +1613,77 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             var _legc_pos;
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     var _handc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     _legc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     var _draw = false;
+                     var _handc_pos;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] == -2)
++                    if (spr_slot[i][2] == -2)
+                     {
+                         _handc_pos = 0;
+                         _draw = true;
+@@ -1597,7 +1691,7 @@
+                     
+                     if (_draw || (_index != -1 && _handc_pos != -1))
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         
+                         if (_hand_frame != -1)
+@@ -1615,74 +1709,74 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                            draw_sprite(_touch, _final_index, x, y);
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                            gnx_draw_sprite(_touch, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                         
+                         if (_enter != -1)
+                         {
+                             for (var u = 0; u < array_length(slot_data.mon_placement); u++)
+                             {
+                                 if (slot_data.mon_placement[u] != -1)
+-                                    draw_sprite(_enter, (((u * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index, x, y);
++                                    gnx_draw_sprite(_enter, (((u * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index, x, y);
+                             }
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
+-                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][UnknownEnum.Value_2] == -2))
++                case 9:
++                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (_index == 0)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     if (slot_data.slot_dirt > 0)
+                     {
+                         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-                        draw_sprite(_spr, _slot_dirt, x, y);
++                        gnx_draw_sprite(_spr, _slot_dirt, x, y);
+                     }
+                     
+                     break;
+@@ -1698,11 +1792,11 @@
+             
+             switch (slot_data.anim_struct.char_state)
+             {
+-                case UnknownEnum.Value_0:
+-                    draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[_pos] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++                case 0:
++                    gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[_pos] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     var _sp_index = 0;
+                     
+                     if (floor(slot_data.anim_struct.index) == 2)
+@@ -1710,7 +1804,7 @@
+                     else
+                         _sp_index = 0;
+                     
+-                    draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[_pos] + (_sp_index * slot_data.sp_anim_y));
++                    gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[_pos] + (_sp_index * slot_data.sp_anim_y));
+                     break;
+             }
+         }
+@@ -1719,15 +1813,16 @@
+ 
+ function scr_draw_slot_l_shrine()
+ {
++    var _gnx_shrine_mso = (unit_data != -1) ? gnx_get_mso(unit_data.class) : undefined;
+     var _final_index, _touch, _enter;
+     
+     if (unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        var _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        var _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+         _touch = slot_data.spr_touch;
+@@ -1739,54 +1834,78 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
++        
++        if (_gnx_shrine_mso != undefined)
++        {
++            switch (spr_slot[i][0])
++            {
++                case 0:
++                    if (variable_struct_exists(_gnx_shrine_mso, "shrine_bg"))
++                        _spr = _gnx_shrine_mso.shrine_bg;
++                    
++                    break;
++                
++                case 12:
++                    if (variable_struct_exists(_gnx_shrine_mso, "shrine_dirt"))
++                        _spr = _gnx_shrine_mso.shrine_dirt;
++                    
++                    break;
++                
++                case 1:
++                    if (variable_struct_exists(_gnx_shrine_mso, "shrine_sign"))
++                        _spr = _gnx_shrine_mso.shrine_sign;
++                    
++                    break;
++            }
++        }
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     if (_index != -1)
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         var _handc_pos = 0;
+                         
+@@ -1805,74 +1924,74 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        if (slot_data.mon_placement[0] != -1 && slot_data.h_step > 1)
++                        if (slot_data.mon_placement[0] != -1 && slot_data.h_step > 1 && unit_data.class == 8)
+                         {
+-                            if (slot_data.mon_placement[0].mon_data.mon_type == UnknownEnum.Value_0)
+-                                draw_sprite(spr_h_lilith_shrine_loop_breast_gob, _final_index, x, y);
++                            if (slot_data.mon_placement[0].mon_data.mon_type == 0)
++                                gnx_draw_sprite(spr_h_lilith_shrine_loop_breast_gob, _final_index, x, y);
+                             else
+-                                draw_sprite(spr_h_lilith_shrine_loop_breast_norm, _final_index, x, y);
++                                gnx_draw_sprite(spr_h_lilith_shrine_loop_breast_norm, _final_index, x, y);
+                         }
+                     }
+                     
+                     if (_index == 0 && _c_spr != -1)
+                     {
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                         
+-                        if (slot_data.mon_placement[0] != -1 && slot_data.h_step > 1)
++                        if (slot_data.mon_placement[0] != -1 && slot_data.h_step > 1 && unit_data.class == 8)
+                         {
+-                            if (slot_data.mon_placement[0].mon_data.mon_type == UnknownEnum.Value_0)
+-                                draw_sprite(spr_h_lilith_shrine_loop_breast_c_gob, _final_index, x, y);
++                            if (slot_data.mon_placement[0].mon_data.mon_type == 0)
++                                gnx_draw_sprite(spr_h_lilith_shrine_loop_breast_c_gob, _final_index, x, y);
+                             else
+-                                draw_sprite(spr_h_lilith_shrine_loop_breast_norm_c, _final_index, x, y);
++                                gnx_draw_sprite(spr_h_lilith_shrine_loop_breast_norm_c, _final_index, x, y);
+                         }
+                     }
+                     
+-                    if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                        draw_sprite(_touch, _final_index, x, y);
++                    if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                        gnx_draw_sprite(_touch, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_enter != -1)
+-                            draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, _final_index, x, y);
+                     }
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
+-                    draw_sprite(_spr, _final_index, x, y);
++                case 11:
++                    gnx_draw_sprite(_spr, _final_index, x, y);
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     if (slot_data.slot_dirt > 0)
+                     {
+                         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-                        draw_sprite(_spr, _slot_dirt, x, y);
++                        gnx_draw_sprite(_spr, _slot_dirt, x, y);
+                     }
+                     
+                     break;
+@@ -1883,12 +2002,12 @@
+     if (slot_data.anim_struct.sp_state != -1)
+     {
+         if (slot_data.mon_placement[0] != -1 && slot_data.h_step == 0)
+-            draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y * -1));
++            gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y * -1));
+         else
+-            draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++            gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+     }
+     
+-    draw_sprite(spr_slot_l_candle, candle_index, x + 14, y);
++    gnx_draw_sprite(spr_slot_l_candle, candle_index, x + 14, y);
+ }
+ 
+ function scr_draw_ogre_behind()
+@@ -1896,28 +2015,28 @@
+     if (slot_data.slot_dirt > 0)
+     {
+         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-        draw_sprite(spr_slot[0][UnknownEnum.Value_1], _slot_dirt, x, y);
++        gnx_draw_sprite(spr_slot[0][1], _slot_dirt, x, y);
+     }
+     
+     var _num = array_length(spr_slot);
+     
+     for (var i = 0; i < _num; i++)
+     {
+-        var _type = spr_slot[i][UnknownEnum.Value_0];
++        var _type = spr_slot[i][0];
+         var _index = slot_data.mod_index[i];
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         var _flip, _scale;
+         
+         switch (_type)
+         {
+-            case UnknownEnum.Value_4:
++            case 4:
+                 _flip = slot_data.mod_index[i];
+                 _scale = ((_flip * 2) - 1) * -1;
+                 break;
+             
+-            case UnknownEnum.Value_0:
++            case 0:
+                 if (_index != -1)
+-                    draw_sprite_ext(_spr, _index, x + (77 * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                    gnx_draw_sprite_ext(_spr, _index, x + (77 * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                 
+                 break;
+         }
+@@ -1931,7 +2050,7 @@
+         
+         for (var i = 0; i < array_length(h_unit_list); i++)
+         {
+-            if (h_unit_list[i].mon_data.mon_type == UnknownEnum.Value_3)
++            if (h_unit_list[i].mon_data.mon_type == 3)
+                 _unit = h_unit_list[i];
+         }
+         
+@@ -1943,22 +2062,22 @@
+             _final_index = _row_index + slot_data.anim_struct.index;
+             
+             if (_spr != -1)
+-                draw_sprite_ext(_spr, _final_index, x, y, 1, 1, 0, c_white, 1);
++                gnx_draw_sprite_ext(_spr, _final_index, x, y, 1, 1, 0, 16777215, 1);
+         }
+         
+         if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
+-            draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++            gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+     }
+     
+     var _hair_index, _touch, _enter;
+     
+     if (unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+         _touch = slot_data.spr_touch;
+@@ -1970,71 +2089,71 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             var _legc_pos;
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     var _handc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     _legc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     var _draw = false;
+                     var _handc_pos;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] == -2)
++                    if (spr_slot[i][2] == -2)
+                     {
+                         _handc_pos = 0;
+                         _draw = true;
+@@ -2042,7 +2161,7 @@
+                     
+                     if (_draw || (_index != -1 && _handc_pos != -1))
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         
+                         if (_hand_frame != -1)
+@@ -2060,60 +2179,60 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                            draw_sprite(_touch, _final_index, x, y);
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                            gnx_draw_sprite(_touch, _final_index, x, y);
+                         
+                         if (_enter != -1)
+-                            draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, _final_index, x, y);
+                     }
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
+-                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][UnknownEnum.Value_2] == -2))
++                case 9:
++                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (_index == 0)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     break;
+             }
+@@ -2121,7 +2240,7 @@
+     }
+     
+     if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
+-        draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+ }
+ 
+ function scr_draw_ogre_front()
+@@ -2129,28 +2248,28 @@
+     if (slot_data.slot_dirt > 0)
+     {
+         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-        draw_sprite(spr_slot[0][UnknownEnum.Value_1], _slot_dirt, x, y);
++        gnx_draw_sprite(spr_slot[0][1], _slot_dirt, x, y);
+     }
+     
+     var _num = array_length(spr_slot);
+     
+     for (var i = 0; i < _num; i++)
+     {
+-        var _type = spr_slot[i][UnknownEnum.Value_0];
++        var _type = spr_slot[i][0];
+         var _index = slot_data.mod_index[i];
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         var _flip, _scale;
+         
+         switch (_type)
+         {
+-            case UnknownEnum.Value_4:
++            case 4:
+                 _flip = slot_data.mod_index[i];
+                 _scale = ((_flip * 2) - 1) * -1;
+                 break;
+             
+-            case UnknownEnum.Value_0:
++            case 0:
+                 if (_index != -1)
+-                    draw_sprite_ext(_spr, _index, x + (77 * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                    gnx_draw_sprite_ext(_spr, _index, x + (77 * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
+                 
+                 break;
+         }
+@@ -2160,11 +2279,11 @@
+     
+     if (unit_data != -1)
+     {
+-        var _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        var _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+         _touch = slot_data.spr_touch;
+@@ -2176,71 +2295,71 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             var _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             var _legc_pos;
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_1:
++                case 1:
+                     if (_index != 2)
+                     {
+                         var _mod_sign = _index;
+                         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-                        draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     var _handc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     _legc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     var _draw = false;
+                     var _handc_pos;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] == -2)
++                    if (spr_slot[i][2] == -2)
+                     {
+                         _handc_pos = 0;
+                         _draw = true;
+@@ -2248,7 +2367,7 @@
+                     
+                     if (_draw || (_index != -1 && _handc_pos != -1))
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         
+                         if (_hand_frame != -1)
+@@ -2266,60 +2385,60 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                            draw_sprite(_touch, _final_index, x, y);
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                            gnx_draw_sprite(_touch, _final_index, x, y);
+                         
+                         if (_enter != -1)
+-                            draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, _final_index, x, y);
+                     }
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
+-                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][UnknownEnum.Value_2] == -2))
++                case 9:
++                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (_index == 0)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     break;
+             }
+@@ -2327,7 +2446,7 @@
+     }
+     
+     if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
+-        draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+ }
+ 
+ function scr_draw_slot_gb_3()
+@@ -2340,7 +2459,7 @@
+         var _final_index = _row_index + slot_data.anim_struct.index;
+         
+         if (_spr != -1)
+-            draw_sprite_ext(_spr, _final_index, x, y, 1, 1, 0, c_white, 1);
++            gnx_draw_sprite_ext(_spr, _final_index, x, y, 1, 1, 0, 16777215, 1);
+     }
+     
+     scr_draw_slot_parts();
+@@ -2349,14 +2468,14 @@
+ function scr_draw_slot_clone()
+ {
+     if (spr_base != -1)
+-        draw_sprite(spr_base, slot_data.index, x, y);
++        gnx_draw_sprite(spr_base, slot_data.index, x, y);
+     
+     if (slot_data.anim_struct != -1)
+     {
+-        draw_sprite(spr_slot_clone, 0, x, y);
++        gnx_draw_sprite(spr_slot_clone, 0, x, y);
+         
+         if (slot_data.clone_wait > 0)
+-            draw_sprite(spr_slot_clone_loop, ((slot_data.clone_wait / 5) % 4) * -1, x + 40, y - 39);
++            gnx_draw_sprite(spr_slot_clone_loop, ((slot_data.clone_wait / 5) % 4) * -1, x + 40, y - 39);
+         
+         var _index = slot_data.mod_index[1];
+         
+@@ -2364,12 +2483,12 @@
+         {
+             var _mod_sign = _index;
+             var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-            draw_sprite_ext(spr_slot_clone_sign, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++            gnx_draw_sprite_ext(spr_slot_clone_sign, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+         }
+     }
+     
+     if (global.mask_collision)
+-        draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, 0.5);
++        gnx_draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, 0.5);
+ }
+ 
+ function scr_draw_slot_chain()
+@@ -2378,18 +2497,26 @@
+     
+     if (unit_data != -1)
+     {
+-        _test = max(1, UnknownEnum.Value_3 * sign(unit_data.skin + 1));
++        _test = max(1, 3 * sign(unit_data.skin + 1));
+         var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
+         var _row_index = ((_h_type * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c;
+         _final_index = _row_index + slot_data.anim_struct.index;
+-        _hair_index = (((_h_type * UnknownEnum.Value_3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
+         var _handc_pos = -1;
+         var _legc_pos = -1;
+         _touch = slot_data.spr_touch;
+         _enter = slot_data.spr_enter;
+         
+         if (slot_data.mon_placement[1] != -1)
+-            draw_sprite(spr_h_ogre_body_loop_morrigan_extra, _final_index, x, y);
++        {
++            // POPRAWKA: klasa z moda moze podmienic warstwe drugiego ogra kluczem ogre_chain_extra w mon_spr_overrides
++            // (zeby jej nie bylo, podaj pusty/przezroczysty sprite - loader pomija wartosc -1); bez klucza zostaje Morrigan
++            var _gnx_mso_x = gnx_get_mso(unit_data.class);
++            var _gnx_extra = (_gnx_mso_x != undefined && variable_struct_exists(_gnx_mso_x, "ogre_chain_extra")) ? _gnx_mso_x.ogre_chain_extra : spr_h_ogre_body_loop_morrigan_extra;
++
++            if (!(is_numeric(_gnx_extra) && _gnx_extra == -1))
++                gnx_draw_sprite(_gnx_extra, _final_index, x, y);
++        }
+     }
+     
+     var _num = array_length(spr_slot);
+@@ -2397,67 +2524,67 @@
+     for (var i = 0; i < _num; i++)
+     {
+         var _replace = false;
+-        var _spr = spr_slot[i][UnknownEnum.Value_1];
++        var _spr = spr_slot[i][1];
+         
+         if (_spr != -1)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
+-            var _c_spr = spr_slot[i][UnknownEnum.Value_3];
++            var _type = spr_slot[i][0];
++            var _c_spr = spr_slot[i][3];
+             _index = slot_data.mod_index[i];
+             
+             if (_c_spr != -1 && _index == 0)
+-                _replace = spr_slot[i][UnknownEnum.Value_4];
++                _replace = spr_slot[i][4];
+             
+             var _legc_pos;
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     var _handc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     if (_index != -1)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     _legc_pos = _index;
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     if (_index == 0)
+-                        draw_sprite(_spr, _index, x, y);
++                        gnx_draw_sprite(_spr, _index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     if (_index != -1)
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        draw_sprite(_c_spr, _final_index, x, y);
+-                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        var _hair_spr = spr_slot[i][5];
+                         
+                         if (_hair_spr != -1)
+-                            draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     var _draw = false;
+                     var _handc_pos;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] == -2)
++                    if (spr_slot[i][2] == -2)
+                     {
+                         _handc_pos = 0;
+                         _draw = true;
+@@ -2465,7 +2592,7 @@
+                     
+                     if (_draw || (_index != -1 && _handc_pos != -1))
+                     {
+-                        var _spr_hand_index = max(0, unit_data.skin) * (sprite_get_number(_spr) / UnknownEnum.Value_3);
++                        var _spr_hand_index = max(0, unit_data.skin) * (gnx_sprite_get_number(_spr) / 3);
+                         var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
+                         
+                         if (_hand_frame != -1)
+@@ -2483,74 +2610,74 @@
+                         
+                         if (!_replace)
+                         {
+-                            draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                         
+                         if (_c_spr != -1 && _index == 0)
+                         {
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
+-                            draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     if (_index != -1 && !_replace)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     if (_index == 0 && _c_spr != -1)
+-                        draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_index != -1 && !_replace)
+                     {
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+-                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
+-                            draw_sprite(_touch, _final_index, x, y);
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                            gnx_draw_sprite(_touch, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                         
+                         if (_enter != -1)
+                         {
+                             for (var u = 0; u < array_length(slot_data.mon_placement); u++)
+                             {
+                                 if (slot_data.mon_placement[u] != -1)
+-                                    draw_sprite(_enter, (((u * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index, x, y);
++                                    gnx_draw_sprite(_enter, (((u * _test) + max(0, unit_data.skin)) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index, x, y);
+                             }
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
+-                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][UnknownEnum.Value_2] == -2))
++                case 9:
++                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
+                     {
+                         if (!_replace)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (_index == 0)
+-                        draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, _final_index, x, y);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     if (slot_data.slot_dirt > 0)
+                     {
+                         var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
+-                        draw_sprite(_spr, _slot_dirt, x, y);
++                        gnx_draw_sprite(_spr, _slot_dirt, x, y);
+                     }
+                     
+                     break;
+@@ -2566,11 +2693,11 @@
+             
+             switch (slot_data.anim_struct.char_state)
+             {
+-                case UnknownEnum.Value_0:
+-                    draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x[_pos] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[_pos]);
++                case 0:
++                    gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x[_pos] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[_pos]);
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     var _sp_y = 0;
+                     var _sp_x = 0;
+                     
+@@ -2590,20 +2717,23 @@
+                             break;
+                     }
+                     
+-                    draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x[_pos] + (_sp_x * slot_data.sp_anim_x), y + slot_data.sp_y[_pos] + (_sp_y * slot_data.sp_anim_y));
++                    gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x[_pos] + (_sp_x * slot_data.sp_anim_x), y + slot_data.sp_y[_pos] + (_sp_y * slot_data.sp_anim_y));
+                     break;
+             }
+         }
+     }
+     
++    var _gnx_mso = is_struct(unit_data) ? gnx_get_mso(unit_data.class) : undefined;
++    var _gnx_ogre = (_gnx_mso != undefined) ? variable_struct_get(_gnx_mso, "ogre_chain_body") : undefined;
++    
+     for (var i = 0; i < slot_data.max_mon_num; i++)
+     {
+         if (slot_data.mon_placement[i] != -1)
+         {
+-            var _spr = spr_h_ogre_body_loop_morrigan;
++            var _spr = (_gnx_ogre != undefined) ? _gnx_ogre : spr_h_ogre_body_loop_morrigan;
+             var _row_index = i * slot_data.anim_struct.frame_c;
+             _final_index = _row_index + slot_data.anim_struct.index;
+-            draw_sprite_ext(_spr, _final_index, x, y, 1, 1, 0, c_white, 1);
++            gnx_draw_sprite_ext(_spr, _final_index, x, y, 1, 1, 0, 16777215, 1);
+         }
+     }
+     
+@@ -2613,24 +2743,225 @@
+     {
+         var _mod_sign = _index;
+         var _scale_sign = ((_mod_sign * 2) - 1) * -1;
+-        draw_sprite_ext(spr_slot_chain_sign, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++        gnx_draw_sprite_ext(spr_slot_chain_sign, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
+     }
+ }
+ 
+-enum UnknownEnum
++function scr_draw_slot_gnx()
+ {
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_10,
+-    Value_11,
+-    Value_12,
+-    Value_13
++    var _gnx_wall_spr = -1;
++    var _gnx_cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    if (_gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_spr_wall") && _gnx_cell.gnx_spr_wall != -1)
++        _gnx_wall_spr = _gnx_cell.gnx_spr_wall;
++    
++    if (_gnx_wall_spr != -1)
++        gnx_draw_sprite(_gnx_wall_spr, slot_data.index, x, y);
++    
++    var _final_index, _hair_index, _draw_skin, _touch, _enter;
++    
++    if (unit_data != -1)
++    {
++        _draw_skin = unit_data.skin;
++        
++        if (_gnx_cell != undefined)
++        {
++            var _hspr = _gnx_cell.human_spr;
++            
++            if (is_struct(_hspr) && variable_struct_exists(_hspr, "mode") && _hspr.mode == "fixed")
++                _draw_skin = -1;
++        }
++        
++        var _skins = max(1, 3 * sign(_draw_skin + 1));
++        var _h_type = slot_data.h_type - slot_data.spr_row_pos - 1;
++        var _row_index = ((_h_type * _skins) + max(0, _draw_skin)) * slot_data.anim_struct.frame_c;
++        _final_index = _row_index + slot_data.anim_struct.index;
++        _hair_index = (((_h_type * 3) + unit_data.hair) * slot_data.anim_struct.frame_c) + slot_data.anim_struct.index;
++        var _handc_pos = -1;
++        var _legc_pos = -1;
++        _touch = slot_data.spr_touch;
++        _enter = slot_data.spr_enter;
++    }
++    
++    var _anim_i = floor(slot_data.anim_struct.index);
++    var _num = array_length(spr_slot);
++    
++    for (var i = 0; i < _num; i++)
++    {
++        var _replace = false;
++        var _spr = spr_slot[i][1];
++        var _c_spr = spr_slot[i][3];
++        
++        if (_spr != -1 || _c_spr != -1)
++        {
++            var _type = spr_slot[i][0];
++            var _index = slot_data.mod_index[i];
++            
++            if (_c_spr != -1 && _index == 0)
++                _replace = spr_slot[i][4];
++            
++            var _legc_pos;
++            
++            switch (_type)
++            {
++                case 1:
++                    if (_spr != -1 && _index != 2)
++                    {
++                        var _mod_sign = _index;
++                        var _scale_sign = ((_mod_sign * 2) - 1) * -1;
++                        gnx_draw_sprite_ext(_spr, 0, x + (image_xscale * _mod_sign), y + slot_data.sign_y, _scale_sign, 1, image_angle, image_blend, image_alpha);
++                    }
++                    
++                    break;
++                
++                case 0:
++                    if (_spr != -1 && _index != -1)
++                    {
++                        var _f0 = (gnx_sprite_get_number(_spr) > 1) ? (_anim_i % gnx_sprite_get_number(_spr)) : _index;
++                        gnx_draw_sprite(_spr, _f0, x, y);
++                    }
++                    
++                    break;
++                
++                case 2:
++                    if (_spr != -1 && _index != -1)
++                        gnx_draw_sprite(_spr, _index, x, y);
++                    
++                    var _handc_pos = _index;
++                    break;
++                
++                case 3:
++                    if (_spr != -1 && _index != -1)
++                        gnx_draw_sprite(_spr, _index, x, y);
++                    
++                    _legc_pos = _index;
++                    break;
++                
++                case 5:
++                    if (_spr != -1 && _index != -1)
++                        gnx_draw_sprite(_spr, _index, x, y);
++                    
++                    break;
++                
++                case 10:
++                    if (_index != -1)
++                    {
++                        if (!_replace && _spr != -1)
++                            gnx_draw_sprite(_spr, _final_index, x, y);
++                        
++                        if (_c_spr != -1)
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        
++                        var _hair_spr = spr_slot[i][5];
++                        
++                        if (_hair_spr != -1)
++                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
++                    }
++                    
++                    break;
++                
++                case 7:
++                    if (_spr != -1)
++                    {
++                        var _draw = false;
++                        var _handc_pos;
++                        
++                        if (spr_slot[i][2] == -2)
++                        {
++                            _handc_pos = 0;
++                            _draw = true;
++                        }
++                        
++                        if (_draw || (_index != -1 && _handc_pos != -1))
++                        {
++                            var _spr_hand_index = max(0, _draw_skin) * (gnx_sprite_get_number(_spr) / 3);
++                            var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
++                            
++                            if (_hand_frame != -1)
++                            {
++                                var _hand_num = array_length(_hand_frame);
++                                
++                                for (var iii = 0; iii < _hand_num; iii++)
++                                {
++                                    if (floor(slot_data.anim_struct.index) == _hand_frame[iii])
++                                        _spr_hand_index++;
++                                }
++                            }
++                            
++                            var _end_x = x + image_xscale;
++                            
++                            if (!_replace)
++                            {
++                                gnx_draw_sprite_ext(_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                                gnx_draw_sprite_ext(_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            }
++                            
++                            if (_c_spr != -1 && _index == 0)
++                            {
++                                gnx_draw_sprite_ext(_c_spr, _spr_hand_index, x + slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos], 1, slot_data.hand_angle[_handc_pos], image_blend, image_alpha);
++                                gnx_draw_sprite_ext(_c_spr, _spr_hand_index, _end_x - slot_data.hand_x[_handc_pos], y + slot_data.hand_y[_handc_pos], slot_data.hand_xscale[_handc_pos] * -1, 1, slot_data.hand_angle[_handc_pos] + (180 * sign(slot_data.hand_angle[_handc_pos])), image_blend, image_alpha);
++                            }
++                        }
++                    }
++                    
++                    break;
++                
++                case 6:
++                    if (_index != -1 && !_replace && _spr != -1)
++                        gnx_draw_sprite(_spr, _final_index, x, y);
++                    
++                    if (_index == 0 && _c_spr != -1)
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                    
++                    break;
++                
++                case 8:
++                    if (_index != -1 && !_replace && _spr != -1)
++                    {
++                        gnx_draw_sprite(_spr, _final_index, x, y);
++                        
++                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
++                            gnx_draw_sprite(_touch, _final_index, x, y);
++                        
++                        if (_enter != -1)
++                            gnx_draw_sprite(_enter, _final_index, x, y);
++                    }
++                    
++                    if (_index == 0 && _c_spr != -1)
++                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                    
++                    break;
++                
++                case 9:
++                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
++                    {
++                        if (!_replace && _spr != -1)
++                            gnx_draw_sprite(_spr, _final_index, x, y);
++                        
++                        if (_index == 0 && _c_spr != -1)
++                            gnx_draw_sprite(_c_spr, _final_index, x, y);
++                    }
++                    
++                    break;
++                
++                case 11:
++                    if (_spr != -1 && _index == 0)
++                        gnx_draw_sprite(_spr, _final_index, x, y);
++                    
++                    break;
++                
++                case 12:
++                    if (_spr != -1 && slot_data.slot_dirt > 0)
++                    {
++                        var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
++                        gnx_draw_sprite(_spr, _slot_dirt, x, y);
++                    }
++                    
++                    break;
++            }
++        }
++    }
++    
++    if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
++        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
+ }

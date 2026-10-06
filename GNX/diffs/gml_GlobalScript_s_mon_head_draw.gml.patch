@@ -1,0 +1,126 @@
+--- gml_138/gml_GlobalScript_s_mon_head_draw.gml	2026-09-02 08:45:16.164546500 +0200
++++ gml/gml_GlobalScript_s_mon_head_draw.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -16,7 +16,7 @@
+         draw_set_color(c_white);
+         var _x_shift, _y_shift;
+         
+-        if (interact_type == UnknownEnum.Value_21)
++        if (interact_type == 21)
+         {
+             if (draw_stat)
+             {
+@@ -50,50 +50,26 @@
+                 
+                 _x = x + 46;
+                 var _num = _mon_array.stat[_class] + _mon_array.lvl[_class];
++                var _ap_label = "AP";
+                 
+                 switch (global.val.language)
+                 {
+-                    case UnknownEnum.Value_0:
+-                        draw_text(_x + _cancel_shake, y - 9, "AP");
++                    case 7:
++                        _ap_label = "CA";
+                         break;
+                     
+-                    case UnknownEnum.Value_9:
+-                        draw_text(_x + _cancel_shake, y - 9, "AP");
++                    case 4:
++                    case 5:
++                    case 6:
++                        _ap_label = "PA";
+                         break;
+                     
+-                    case UnknownEnum.Value_2:
+-                        draw_text(_x + _cancel_shake, y - 9, "AP");
+-                        break;
+-                    
+-                    case UnknownEnum.Value_1:
+-                        draw_text(_x + _cancel_shake, y - 9, "AP");
+-                        break;
+-                    
+-                    case UnknownEnum.Value_3:
+-                        draw_text(_x + _cancel_shake, y - 9, "AP");
+-                        break;
+-                    
+-                    case UnknownEnum.Value_7:
+-                        draw_text(_x + _cancel_shake, y - 9, "CA");
+-                        break;
+-                    
+-                    case UnknownEnum.Value_4:
+-                        draw_text(_x + _cancel_shake, y - 9, "PA");
+-                        break;
+-                    
+-                    case UnknownEnum.Value_6:
+-                        draw_text(_x + _cancel_shake, y - 9, "PA");
+-                        break;
+-                    
+-                    case UnknownEnum.Value_8:
+-                        draw_text(_x + _cancel_shake, y - 9, "AK");
+-                        break;
+-                    
+-                    case UnknownEnum.Value_5:
+-                        draw_text(_x + _cancel_shake, y - 9, "PA");
++                    case 8:
++                        _ap_label = "AK";
+                         break;
+                 }
+                 
++                draw_text(_x + _cancel_shake, y - 9, _ap_label);
+                 draw_text(_x + _cancel_shake + 11, y - 9, _num);
+                 _x = x + 75 + _cancel_shake;
+                 _y = y - 2;
+@@ -127,11 +103,33 @@
+                     {
+                         if (_ar[i] != -1)
+                         {
+-                            draw_sprite(spr_head_grey, _ar[i], (x - ((_h_num - 1) * 11)) + ((_h_num - 1) * _i_num * 22), y - _height);
++                            var _icon_x = (x - ((_h_num - 1) * 11)) + ((_h_num - 1) * _i_num * 22);
++                            draw_sprite(spr_head_grey, _ar[i], _icon_x, y - _height);
+                             _i_num++;
+                         }
+                     }
+                     
++                    var _gnx_list = global.gnx_br_unlock[_type][_class];
++                    var _gnx_num = array_length(_gnx_list);
++                    
++                    if (_gnx_num > 0)
++                    {
++                        var _gnx_idx = (current_time div 2000) % _gnx_num;
++                        var _gnx_class = _gnx_list[_gnx_idx];
++                        
++                        if (ds_map_exists(global.class_registry, _gnx_class))
++                        {
++                            var _gnx_icon = ds_map_find_value(global.class_registry, _gnx_class).icon_spr;
++                            
++                            if (_gnx_icon != -1)
++                            {
++                                var _gnx_y = y - _height - 22;
++                                draw_sprite(spr_raid_head_window, 0, x, _gnx_y);
++                                draw_sprite_ext(_gnx_icon, 0, x, _gnx_y, 1, 1, 0, c_gray, 1);
++                            }
++                        }
++                    }
++                    
+                     hover = false;
+                 }
+             }
+@@ -183,18 +181,3 @@
+         draw_sprite_ext(sprite_index, _class + (_type * 4), x, y, 1, 1, image_angle, image_blend, image_alpha);
+     }
+ }
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_21 = 21
+-}

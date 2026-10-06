@@ -1,0 +1,124 @@
+--- gml_138/gml_GlobalScript_s_mon_state.gml	2026-09-02 08:45:16.163547800 +0200
++++ gml/gml_GlobalScript_s_mon_state.gml	2026-10-04 17:12:20.000000000 +0200
+@@ -169,6 +169,14 @@
+ 
+ function scr_mon_state_carry_start()
+ {
++    if (mon_data.slot_id == -1 || !instance_exists(mon_data.slot_id))
++    {
++        mon_data.slot_id = -1;
++        mon_data.mon_state = UnknownEnum.Value_5;
++        mon_data.ff = true;
++        exit;
++    }
++    
+     if (mon_data.ff)
+     {
+         mon_data.ff = false;
+@@ -191,23 +199,27 @@
+     
+     if (mon_data.placement_num == 0)
+     {
+-        if (mon_data.slot_id.slot_data.anim_struct != -1 && mon_data.carry_start_id.slot_data.anim_struct != -1 && mon_data.carry_start_id.unit_data != -1 && mon_data.carry_end_id.slot_data.anim_struct != -1 && mon_data.carry_end_id.unit_data == -1)
++        // POPRAWKA: cela startowa/docelowa mogla zostac rozebrana w trakcie (wczesniej crash przy odczycie .slot_data)
++        var _gnx_cs_ok = gnx_is_live_inst(mon_data.carry_start_id);
++        var _gnx_ce_ok = gnx_is_live_inst(mon_data.carry_end_id);
++
++        if (_gnx_cs_ok && _gnx_ce_ok && mon_data.slot_id.slot_data.anim_struct != -1 && mon_data.carry_start_id.slot_data.anim_struct != -1 && mon_data.carry_start_id.unit_data != -1 && mon_data.carry_end_id.slot_data.anim_struct != -1 && mon_data.carry_end_id.unit_data == -1)
+         {
+         }
+         else
+         {
+-            if (mon_data.carry_start_id != -1)
++            if (_gnx_cs_ok)
+             {
+                 mon_data.carry_start_id.slot_data.load = false;
+                 mon_data.carry_start_id.slot_data.carry = false;
+             }
+             
+-            if (mon_data.carry_end_id != -1)
++            if (_gnx_ce_ok)
+             {
+                 mon_data.carry_end_id.slot_data.load = false;
+                 mon_data.carry_end_id.slot_data.carry = false;
+             }
+-            
++
+             with (mon_data.slot_id)
+                 scr_unit_removal(false, true, true, false, -1);
+         }
+@@ -216,6 +228,14 @@
+ 
+ function scr_mon_state_carry()
+ {
++    if (mon_data.slot_id == -1 || !instance_exists(mon_data.slot_id))
++    {
++        mon_data.slot_id = -1;
++        mon_data.mon_state = UnknownEnum.Value_5;
++        mon_data.ff = true;
++        exit;
++    }
++    
+     if (mon_data.ff)
+     {
+         mon_data.ff = false;
+@@ -252,7 +272,16 @@
+     if (mon_data.carry_start_id != -1)
+     {
+         if (mon_data.slot_id.slot_data.anim_struct != -1 && mon_data.carry_start_id != -1 && mon_data.carry_end_id != -1 && mon_data.carry_start_id.slot_data.anim_struct != -1 && mon_data.carry_start_id.unit_data != -1 && mon_data.carry_end_id.slot_data.anim_struct != -1 && mon_data.carry_end_id.unit_data == -1)
++        {
+             _slot_id = mon_data.carry_start_id;
++        }
++        else if (global.gnx_debug_verbose)
++        {
++            var _f = file_text_open_append("gnx_debug.txt");
++            file_text_write_string(_f, "[CARRY-DBG] validation fail: slot_anim=" + string(mon_data.slot_id.slot_data.anim_struct != -1) + " start=" + string(mon_data.carry_start_id) + " end=" + string(mon_data.carry_end_id) + " start_anim=" + string((mon_data.carry_start_id != -1) ? (mon_data.carry_start_id.slot_data.anim_struct != -1) : "nil") + " start_unit=" + string((mon_data.carry_start_id != -1) ? (mon_data.carry_start_id.unit_data != -1) : "nil") + " end_anim=" + string((mon_data.carry_end_id != -1) ? (mon_data.carry_end_id.slot_data.anim_struct != -1) : "nil") + " end_unit=" + string((mon_data.carry_end_id != -1) ? string(mon_data.carry_end_id.unit_data) : "nil"));
++            file_text_writeln(_f);
++            file_text_close(_f);
++        }
+     }
+     else if (mon_data.carry_end_id != -1)
+     {
+@@ -407,6 +436,14 @@
+ 
+ function scr_mon_state_carry_idle()
+ {
++    if (mon_data.slot_id == -1 || !instance_exists(mon_data.slot_id))
++    {
++        mon_data.slot_id = -1;
++        mon_data.mon_state = UnknownEnum.Value_5;
++        mon_data.ff = true;
++        exit;
++    }
++    
+     if (mon_data.ff)
+     {
+         mon_data.ff = false;
+@@ -417,13 +454,25 @@
+     if (array_length(mon_data.slot_id.h_unit_list) > 1)
+     {
+         var _follow_id = mon_data.slot_id.slot_data.mon_placement[0];
+-        x = _follow_id.x;
+-        image_xscale = _follow_id.image_xscale;
++        
++        if (_follow_id != -1 && instance_exists(_follow_id))
++        {
++            x = _follow_id.x;
++            image_xscale = _follow_id.image_xscale;
++        }
+     }
+ }
+ 
+ function scr_mon_state_patrol()
+ {
++    if (mon_data.slot_id == -1 || !instance_exists(mon_data.slot_id))
++    {
++        mon_data.slot_id = -1;
++        mon_data.mon_state = UnknownEnum.Value_5;
++        mon_data.ff = true;
++        exit;
++    }
++    
+     if (mon_data.ff)
+     {
+         mon_data.ff = false;

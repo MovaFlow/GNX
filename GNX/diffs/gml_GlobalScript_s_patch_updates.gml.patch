@@ -1,0 +1,851 @@
+--- gml_138/gml_GlobalScript_s_patch_updates.gml	2026-09-02 08:45:16.165546100 +0200
++++ gml/gml_GlobalScript_s_patch_updates.gml	2026-09-30 16:25:08.829460500 +0200
+@@ -2,7 +2,7 @@
+ {
+     var _var = arg0.global_list.val.version;
+     
+-    while (_var < 1.38)
++    while (_var < 1.33)
+     {
+         switch (_var)
+         {
+@@ -18,10 +18,10 @@
+                     
+                     for (var ii = 0; ii < _prop_num; ii++)
+                     {
+-                        if (_data.slot_data.prop[ii].prop_type > UnknownEnum.Value_13)
++                        if (_data.slot_data.prop[ii].prop_type > 13)
+                         {
+-                            if (_data.slot_data.prop[ii].prop_type == UnknownEnum.Value_15)
+-                                arg0.slot_list[i].slot_data.prop[ii].prop_type = UnknownEnum.Value_37;
++                            if (_data.slot_data.prop[ii].prop_type == 15)
++                                arg0.slot_list[i].slot_data.prop[ii].prop_type = 37;
+                             else
+                                 arg0.slot_list[i].slot_data.prop[ii].prop_type += 23;
+                         }
+@@ -33,8 +33,8 @@
+             case 1.08:
+                 for (var i = 0; i < array_length(arg0.slot_list); i++)
+                 {
+-                    if (arg0.slot_list[i].slot_data.slot_type == UnknownEnum.Value_0 || arg0.slot_list[i].slot_data.slot_type == UnknownEnum.Value_1)
+-                        arg0.slot_list[i].slot_data.base_type = UnknownEnum.Value_0;
++                    if (arg0.slot_list[i].slot_data.slot_type == 0 || arg0.slot_list[i].slot_data.slot_type == 1)
++                        arg0.slot_list[i].slot_data.base_type = 0;
+                 }
+                 
+                 break;
+@@ -48,21 +48,257 @@
+         _var += 0.01;
+     }
+     
++    var _gnx_sn = array_length(arg0.slot_list);
++    var _gnx_orphaned = ds_map_create();
++    
++    for (var _gnx_i = 0; _gnx_i < _gnx_sn; _gnx_i++)
++    {
++        var _gnx_entry = arg0.slot_list[_gnx_i];
++        var _gnx_sd = _gnx_entry.slot_data;
++        
++        if (!variable_struct_exists(_gnx_sd, "h_type"))
++            continue;
++        
++        var _gnx_am = variable_struct_exists(_gnx_sd, "anim_struct") ? _gnx_sd.anim_struct : -1;
++        
++        if (_gnx_am == -1)
++            continue;
++        
++        if (ds_map_exists(global.cell_registry, _gnx_sd.h_type))
++            continue;
++        
++        var _gnx_old_h = _gnx_sd.h_type;
++        var _gnx_fb;
++        
++        switch (_gnx_sd.slot_type)
++        {
++            case 1:
++                _gnx_fb = 19;
++                break;
++            
++            case 2:
++                _gnx_fb = 31;
++                break;
++            
++            default:
++                _gnx_fb = 1;
++                break;
++        }
++        
++        _gnx_sd.anim_struct = -1;
++        _gnx_sd.h_type = _gnx_fb;
++        _gnx_sd.gnx_rebuild = _gnx_fb;
++        _gnx_sd.gnx_had_unit = is_struct(_gnx_entry.unit_data);
++        _gnx_sd.prop = [];
++        arg0.slot_list[_gnx_i].unit_data = -1;
++        ds_map_add(_gnx_orphaned, _gnx_i, true);
++        var _gnx_lf = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_gnx_lf, "[GNX-SANITIZE] orphaned cell h=" + string(_gnx_old_h) + " -> rebuild as h=" + string(_gnx_fb) + "\n");
++        file_text_close(_gnx_lf);
++    }
++    
++    if (ds_map_size(_gnx_orphaned) > 0)
++    {
++        var _gnx_ml = arg0.mon_list;
++        var _gnx_mn = array_length(_gnx_ml);
++        var _gnx_clean = [];
++        
++        for (var _gnx_i = 0; _gnx_i < _gnx_mn; _gnx_i++)
++        {
++            var _gnx_mon = _gnx_ml[_gnx_i];
++            
++            if (_gnx_mon.slot_pos != -1 && ds_map_exists(_gnx_orphaned, _gnx_mon.slot_pos))
++            {
++                var _gnx_lf = file_text_open_append("gnx_debug.txt");
++                file_text_write_string(_gnx_lf, "[GNX-SANITIZE] goblin dropped (slot=" + string(_gnx_mon.slot_pos) + ")\n");
++                file_text_close(_gnx_lf);
++            }
++            else
++            {
++                array_push(_gnx_clean, _gnx_mon);
++            }
++        }
++        
++        arg0.mon_list = _gnx_clean;
++    }
++    
++    ds_map_destroy(_gnx_orphaned);
++    
++    for (var _gnx_i = 0; _gnx_i < _gnx_sn; _gnx_i++)
++    {
++        var _gnx_ud = arg0.slot_list[_gnx_i].unit_data;
++        
++        if (!is_struct(_gnx_ud))
++            continue;
++        
++        var _gnx_ct = variable_struct_exists(_gnx_ud, "class") ? _gnx_ud.class : -1;
++        
++        if (_gnx_ct < 14 || ds_map_exists(global.class_registry, _gnx_ct))
++            continue;
++        
++        var _gnx_lf = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_gnx_lf, "[GNX-SANITIZE] orphaned unit class=" + string(_gnx_ct) + " -> fresh peasant (slot=" + string(_gnx_i) + ")\n");
++        file_text_close(_gnx_lf);
++        arg0.slot_list[_gnx_i].unit_data = scr_create_unit_base(0, 1);
++    }
++    
++    var _gnx_ul = arg0.global_list.unit_list;
++    var _gnx_un = array_length(_gnx_ul);
++    
++    for (var _gnx_i = 0; _gnx_i < _gnx_un; _gnx_i++)
++    {
++        var _gnx_ud = _gnx_ul[_gnx_i];
++        
++        if (!is_struct(_gnx_ud))
++            continue;
++        
++        var _gnx_ct = variable_struct_exists(_gnx_ud, "class") ? _gnx_ud.class : -1;
++        
++        if (_gnx_ct < 14 || ds_map_exists(global.class_registry, _gnx_ct))
++            continue;
++        
++        _gnx_ul[_gnx_i] = scr_create_unit_base(0, 1);
++    }
++    
++    var _gnx_si_arr = arg0.global_list.val.stage_info;
++    
++    if (is_array(_gnx_si_arr))
++    {
++        for (var _gnx_sg = 0; _gnx_sg < array_length(_gnx_si_arr); _gnx_sg++)
++        {
++            var _gnx_sg_data = _gnx_si_arr[_gnx_sg];
++            
++            if (_gnx_sg_data == -1 || !is_struct(_gnx_sg_data))
++                continue;
++            
++            if (!variable_struct_exists(_gnx_sg_data, "info"))
++                continue;
++            
++            var _gnx_sg_info = _gnx_sg_data.info;
++            
++            if (!is_array(_gnx_sg_info))
++                continue;
++            
++            for (var _gnx_sg_lvl = 0; _gnx_sg_lvl < array_length(_gnx_sg_info); _gnx_sg_lvl++)
++            {
++                var _gnx_enc = _gnx_sg_info[_gnx_sg_lvl];
++                
++                if (_gnx_enc == -1 || !is_struct(_gnx_enc))
++                    continue;
++                
++                if (!variable_struct_exists(_gnx_enc, "unit_list"))
++                    continue;
++                
++                var _gnx_enc_ul = _gnx_enc.unit_list;
++                
++                if (!is_array(_gnx_enc_ul))
++                    continue;
++                
++                for (var _gnx_eu = 0; _gnx_eu < array_length(_gnx_enc_ul); _gnx_eu++)
++                {
++                    var _gnx_eu_data = _gnx_enc_ul[_gnx_eu];
++                    
++                    if (!is_struct(_gnx_eu_data))
++                        continue;
++                    
++                    var _gnx_eu_class = variable_struct_exists(_gnx_eu_data, "class") ? _gnx_eu_data.class : -1;
++                    
++                    if (_gnx_eu_class < 14 || ds_map_exists(global.class_registry, _gnx_eu_class))
++                        continue;
++                    
++                    _gnx_enc_ul[_gnx_eu] = scr_create_unit_base(0, 0);
++                    var _gnx_lf = file_text_open_append("gnx_debug.txt");
++                    file_text_write_string(_gnx_lf, "[GNX-SANITIZE] raid encounter class=" + string(_gnx_eu_class) + " -> vanilla goblin (stage=" + string(_gnx_sg) + " lvl=" + string(_gnx_sg_lvl) + ")\n");
++                    file_text_close(_gnx_lf);
++                }
++            }
++        }
++    }
++    
++    var _gnx_row_arrs = [arg0.global_list.front_row, arg0.global_list.back_row, arg0.global_list.front_row_save, arg0.global_list.back_row_save];
++    var _gnx_row_labels = ["front_row", "back_row", "front_row_save", "back_row_save"];
++    
++    for (var _gnx_ri = 0; _gnx_ri < 4; _gnx_ri++)
++    {
++        var _gnx_row = _gnx_row_arrs[_gnx_ri];
++        
++        if (!is_array(_gnx_row))
++            continue;
++        
++        var _gnx_row_clean = [];
++        
++        for (var _gnx_re = 0; _gnx_re < array_length(_gnx_row); _gnx_re++)
++        {
++            var _gnx_rentry = _gnx_row[_gnx_re];
++            var _gnx_keep = true;
++            
++            if (is_struct(_gnx_rentry) && variable_struct_exists(_gnx_rentry, "unit_data") && is_struct(_gnx_rentry.unit_data))
++            {
++                var _gnx_rc = variable_struct_exists(_gnx_rentry.unit_data, "class") ? _gnx_rentry.unit_data.class : -1;
++                
++                if (_gnx_rc >= 14 && !ds_map_exists(global.class_registry, _gnx_rc))
++                {
++                    _gnx_keep = false;
++                    var _gnx_lf = file_text_open_append("gnx_debug.txt");
++                    file_text_write_string(_gnx_lf, "[GNX-SANITIZE] raid row class=" + string(_gnx_rc) + " dropped from " + _gnx_row_labels[_gnx_ri] + "\n");
++                    file_text_close(_gnx_lf);
++                }
++            }
++            
++            if (_gnx_keep)
++                array_push(_gnx_row_clean, _gnx_rentry);
++        }
++        
++        if (_gnx_ri == 0)
++            arg0.global_list.front_row = _gnx_row_clean;
++        else if (_gnx_ri == 1)
++            arg0.global_list.back_row = _gnx_row_clean;
++        else if (_gnx_ri == 2)
++            arg0.global_list.front_row_save = _gnx_row_clean;
++        else
++            arg0.global_list.back_row_save = _gnx_row_clean;
++    }
++    
++    for (var _gnx_si = 0; _gnx_si < array_length(arg0.slot_list); _gnx_si++)
++    {
++        var _gnx_sd = arg0.slot_list[_gnx_si].slot_data;
++        
++        if (!variable_struct_exists(_gnx_sd, "prop") || !is_array(_gnx_sd.prop))
++            continue;
++        
++        var _gnx_pi = array_length(_gnx_sd.prop) - 1;
++        
++        while (_gnx_pi >= 0)
++        {
++            var _gnx_pt = _gnx_sd.prop[_gnx_pi].prop_type;
++            
++            if (_gnx_pt >= 100 && !ds_map_exists(global.prop_registry, _gnx_pt))
++            {
++                var _gnx_lf = file_text_open_append("gnx_debug.txt");
++                file_text_write_string(_gnx_lf, "[GNX-SANITIZE] orphaned prop type=" + string(_gnx_pt) + " removed (slot=" + string(_gnx_si) + ")\n");
++                file_text_close(_gnx_lf);
++                array_delete(_gnx_sd.prop, _gnx_pi, 1);
++            }
++            
++            _gnx_pi--;
++        }
++    }
++    
+     return arg0;
+ }
+ 
+ function scr_patch_update_post(arg0)
+ {
+-    while (global.val.version < 1.38)
++    while (global.val.version < 1.33)
+     {
+         switch (global.val.version)
+         {
+             case 0.43:
+                 if (!variable_struct_exists(global.val, "alpha_type"))
+                 {
+-                    global.val.alpha_type = UnknownEnum.Value_0;
++                    global.val.alpha_type = 0;
+                     global.val.mon_alpha = 1;
+-                    global.val.crate_alpha_type = UnknownEnum.Value_0;
++                    global.val.crate_alpha_type = 0;
+                     global.val.crate_alpha = 1;
+                 }
+                 
+@@ -73,7 +309,7 @@
+                 
+                 with (obj_slot)
+                 {
+-                    if (slot_data.anim_struct != -1 && slot_data.h_type == UnknownEnum.Value_4)
++                    if (slot_data.anim_struct != -1 && slot_data.h_type == 4)
+                     {
+                         var _a = slot_data.mod_index[3];
+                         slot_data.mod_index[3] = 0;
+@@ -86,7 +322,7 @@
+                 
+                 for (var i = 0; i < _num; i++)
+                 {
+-                    if (ds_list_find_value(global.inv_list, i).item_type == UnknownEnum.Value_2)
++                    if (ds_list_find_value(global.inv_list, i).item_type == 2)
+                     {
+                         _exists++;
+                         
+@@ -104,7 +340,7 @@
+                 
+                 for (var i = 0; i < _num; i++)
+                 {
+-                    if (global.val.shop_item[0][i][0] == UnknownEnum.Value_2)
++                    if (global.val.shop_item[0][i][0] == 2)
+                     {
+                         _exists++;
+                         
+@@ -116,7 +352,7 @@
+                             
+                             for (var ii = 0; ii < array_length(obj_np.obj_raid.raid_data.shop_item); ii++)
+                             {
+-                                if (obj_np.obj_raid.raid_data.shop_item[ii].item_type == UnknownEnum.Value_2)
++                                if (obj_np.obj_raid.raid_data.shop_item[ii].item_type == 2)
+                                     obj_np.obj_raid.raid_data.shop_item[ii] = -1;
+                             }
+                         }
+@@ -133,7 +369,7 @@
+                 
+                 for (var i = 0; i < array_length(global.unlock.utility); i++)
+                 {
+-                    if (global.unlock.utility[i] == UnknownEnum.Value_10)
++                    if (global.unlock.utility[i] == 10)
+                     {
+                         _exists = true;
+                         i = array_length(global.unlock.utility);
+@@ -142,27 +378,27 @@
+                 
+                 if (_exists)
+                 {
+-                    array_push(global.val.guide_unlock.cell, UnknownEnum.Value_10);
+-                    ds_list_add(global.new_guide_list, UnknownEnum.Value_10);
++                    array_push(global.val.guide_unlock.cell, 10);
++                    ds_list_add(global.new_guide_list, 10);
+                 }
+                 
+                 with (obj_prop)
+                 {
+-                    if (prop_data.prop_type != UnknownEnum.Value_40 && prop_data.prop_type != UnknownEnum.Value_39 && prop_data.prop_type != UnknownEnum.Value_37)
++                    if (prop_data.prop_type != 40 && prop_data.prop_type != 39 && prop_data.prop_type != 37)
+                         prop_data.ispeed = 0;
+                 }
+                 
+                 for (var i = 0; i < array_length(global.unlock.edit_top); i++)
+                 {
+-                    if (global.unlock.edit_top[i] == UnknownEnum.Value_15)
+-                        global.unlock.edit_top[i] = UnknownEnum.Value_37;
++                    if (global.unlock.edit_top[i] == 15)
++                        global.unlock.edit_top[i] = 37;
+                 }
+                 
+                 break;
+             
+             case 1.05:
+-                if (global.val.stage_info[UnknownEnum.Value_4] != -1 && global.val.stage_info[UnknownEnum.Value_4].max_lvl != 0)
+-                    global.val.stage_info[UnknownEnum.Value_4].info[1] = scr_stage_encounter_data(UnknownEnum.Value_4, 1, false);
++                if (global.val.stage_info[4] != -1 && global.val.stage_info[4].max_lvl != 0)
++                    global.val.stage_info[4].info[1] = scr_stage_encounter_data(4, 1, false);
+                 
+                 break;
+             
+@@ -182,15 +418,15 @@
+                 global.val.ogre.expe = [0, 0, 0, 0];
+                 global.val.ogre.skill_lvl = [0, 0, 0, 0];
+                 global.val.ogre.skill_exp = [0, 0, 0, 0];
+-                global.val.mon_num[UnknownEnum.Value_1] = -1;
+-                global.val.mon_num[UnknownEnum.Value_2] = -1;
+-                global.val.mon_num[UnknownEnum.Value_3] = -1;
++                global.val.mon_num[1] = -1;
++                global.val.mon_num[2] = -1;
++                global.val.mon_num[3] = -1;
+                 
+                 if (instance_exists(obj_prop))
+                 {
+                     with (obj_prop)
+                     {
+-                        if (slot_id.slot_data.slot_type == UnknownEnum.Value_5 && (sprite_index == spr_between_prop || sprite_index == spr_fire_lamp))
++                        if (slot_id.slot_data.slot_type == 5 && (sprite_index == spr_between_prop || sprite_index == spr_fire_lamp))
+                         {
+                             depth = -751;
+                             
+@@ -245,7 +481,7 @@
+                 
+                 with (obj_slot)
+                 {
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_8 && unit_data.lvl == 5)
++                    if (unit_data != -1 && unit_data.class == 8 && unit_data.lvl == 5)
+                     {
+                         if (_l_num != 0)
+                             scr_occupy_slot(id, -1, false, -1);
+@@ -253,7 +489,7 @@
+                         _l_num++;
+                     }
+                     
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_12 && unit_data.lvl == 5)
++                    if (unit_data != -1 && unit_data.class == 12 && unit_data.lvl == 5)
+                     {
+                         if (_m_num != 0)
+                             scr_occupy_slot(id, -1, false, -1);
+@@ -266,7 +502,7 @@
+                 {
+                     var _id = ds_list_find_value(global.unit_list, i);
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_8 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 8 && _id.lvl == 5)
+                     {
+                         if (_l_num != 0)
+                             ds_list_set(global.unit_list, i, -1);
+@@ -274,7 +510,7 @@
+                         _l_num++;
+                     }
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_12 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 12 && _id.lvl == 5)
+                     {
+                         if (_m_num != 0)
+                             ds_list_set(global.unit_list, i, -1);
+@@ -287,7 +523,7 @@
+                 {
+                     var _id = global.val.cage[i];
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_8 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 8 && _id.lvl == 5)
+                     {
+                         if (_l_num != 0)
+                             global.val.cage[i] = -1;
+@@ -295,7 +531,7 @@
+                         _l_num++;
+                     }
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_12 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 12 && _id.lvl == 5)
+                     {
+                         if (_m_num != 0)
+                             global.val.cage[i] = -1;
+@@ -308,7 +544,7 @@
+                 {
+                     with (obj_button)
+                     {
+-                        if (interact_type == UnknownEnum.Value_20 && drag_type == UnknownEnum.Value_2 && follow)
++                        if (interact_type == 20 && drag_type == 2 && follow)
+                             instance_destroy();
+                     }
+                     
+@@ -316,7 +552,7 @@
+                     
+                     with (obj_button)
+                     {
+-                        if (interact_type == UnknownEnum.Value_32 && button_num == UnknownEnum.Value_3)
++                        if (interact_type == 32 && button_num == 3)
+                         {
+                             image_index = (button_num * 2) + 1;
+                             switch_type = true;
+@@ -354,7 +590,7 @@
+                 
+                 with (obj_slot)
+                 {
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_9 && unit_data.lvl == 5)
++                    if (unit_data != -1 && unit_data.class == 9 && unit_data.lvl == 5)
+                     {
+                         if (_h_num != 0)
+                             scr_occupy_slot(id, -1, false, -1);
+@@ -362,7 +598,7 @@
+                         _h_num++;
+                     }
+                     
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_10 && unit_data.lvl == 5)
++                    if (unit_data != -1 && unit_data.class == 10 && unit_data.lvl == 5)
+                     {
+                         if (_n_num != 0)
+                             scr_occupy_slot(id, -1, false, -1);
+@@ -370,7 +606,7 @@
+                         _n_num++;
+                     }
+                     
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_11 && unit_data.lvl == 5)
++                    if (unit_data != -1 && unit_data.class == 11 && unit_data.lvl == 5)
+                     {
+                         if (_s_num != 0)
+                             scr_occupy_slot(id, -1, false, -1);
+@@ -378,7 +614,7 @@
+                         _s_num++;
+                     }
+                     
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_13 && unit_data.lvl == 5)
++                    if (unit_data != -1 && unit_data.class == 13 && unit_data.lvl == 5)
+                     {
+                         if (_b_num != 0)
+                             scr_occupy_slot(id, -1, false, -1);
+@@ -386,7 +622,7 @@
+                         _b_num++;
+                     }
+                     
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_12 && unit_data.lvl == 5)
++                    if (unit_data != -1 && unit_data.class == 12 && unit_data.lvl == 5)
+                     {
+                         if (_m_num != 0)
+                             scr_occupy_slot(id, -1, false, -1);
+@@ -394,7 +630,7 @@
+                         _m_num++;
+                     }
+                     
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_8 && unit_data.lvl == 5)
++                    if (unit_data != -1 && unit_data.class == 8 && unit_data.lvl == 5)
+                     {
+                         if (_l_num != 0)
+                             scr_occupy_slot(id, -1, false, -1);
+@@ -407,7 +643,7 @@
+                 {
+                     var _id = ds_list_find_value(global.unit_list, i);
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_9 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 9 && _id.lvl == 5)
+                     {
+                         if (_h_num != 0)
+                             ds_list_set(global.unit_list, i, -1);
+@@ -415,7 +651,7 @@
+                         _h_num++;
+                     }
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_10 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 10 && _id.lvl == 5)
+                     {
+                         if (_n_num != 0)
+                             ds_list_set(global.unit_list, i, -1);
+@@ -423,7 +659,7 @@
+                         _n_num++;
+                     }
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_11 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 11 && _id.lvl == 5)
+                     {
+                         if (_s_num != 0)
+                             ds_list_set(global.unit_list, i, -1);
+@@ -431,7 +667,7 @@
+                         _s_num++;
+                     }
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_12 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 12 && _id.lvl == 5)
+                     {
+                         if (_m_num != 0)
+                             ds_list_set(global.unit_list, i, -1);
+@@ -439,7 +675,7 @@
+                         _m_num++;
+                     }
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_13 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 13 && _id.lvl == 5)
+                     {
+                         if (_b_num != 0)
+                             ds_list_set(global.unit_list, i, -1);
+@@ -447,7 +683,7 @@
+                         _b_num++;
+                     }
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_8 && _id.lvl == 5)
++                    if (_id != -1 && _id.class == 8 && _id.lvl == 5)
+                     {
+                         if (_l_num != 0)
+                             ds_list_set(global.unit_list, i, -1);
+@@ -461,13 +697,13 @@
+             case 1.13:
+                 with (obj_slot)
+                 {
+-                    if (unit_data != -1 && unit_data.class >= UnknownEnum.Value_8 && unit_data.class < UnknownEnum.Value_14 && unit_data.lvl == 6 && unit_data.preg_c_max == 10)
++                    if (unit_data != -1 && unit_data.class >= 8 && unit_data.lvl == 6 && unit_data.preg_c_max == 10)
+                     {
+                         var _new = unit_data.class;
+                         var _unit_id = scr_create_unit_base(_new, 7);
+                         unit_data = _unit_id;
+                         
+-                        if (slot_data.h_type == UnknownEnum.Value_37)
++                        if (slot_data.h_type == 37)
+                             bar_glow_rep = -1;
+                     }
+                 }
+@@ -476,7 +712,7 @@
+                 {
+                     var _id = ds_list_find_value(global.unit_list, i);
+                     
+-                    if (_id != -1 && _id.class >= UnknownEnum.Value_8 && _id.class < UnknownEnum.Value_14 && _id.lvl == 6 && _id.preg_c_max == 10)
++                    if (_id != -1 && _id.class >= 8 && _id.lvl == 6 && _id.preg_c_max == 10)
+                     {
+                         var _new = scr_create_unit_base(_id.class, 7);
+                         ds_list_replace(global.unit_list, i, _new);
+@@ -487,7 +723,7 @@
+                 {
+                     var _id = global.val.cage[i];
+                     
+-                    if (_id != -1 && _id.class >= UnknownEnum.Value_8 && _id.class < UnknownEnum.Value_14 && _id.lvl == 6 && _id.preg_c_max == 10)
++                    if (_id != -1 && _id.class >= 8 && _id.lvl == 6 && _id.preg_c_max == 10)
+                     {
+                         var _new = scr_create_unit_base(_id.class, 7);
+                         global.val.cage[i] = _new;
+@@ -498,7 +734,7 @@
+                 {
+                     with (obj_button)
+                     {
+-                        if (interact_type == UnknownEnum.Value_20 && drag_type == UnknownEnum.Value_2 && follow)
++                        if (interact_type == 20 && drag_type == 2 && follow)
+                             instance_destroy();
+                     }
+                     
+@@ -506,7 +742,7 @@
+                     
+                     with (obj_button)
+                     {
+-                        if (interact_type == UnknownEnum.Value_32 && button_num == UnknownEnum.Value_3)
++                        if (interact_type == 32 && button_num == 3)
+                         {
+                             image_index = (button_num * 2) + 1;
+                             switch_type = true;
+@@ -522,10 +758,10 @@
+                 
+                 with (obj_slot)
+                 {
+-                    if (unit_data != -1 && unit_data.class == UnknownEnum.Value_9 && unit_data.lvl == 7)
+-                        unit_data.leg = UnknownEnum.Value_2;
++                    if (unit_data != -1 && unit_data.class == 9 && unit_data.lvl == 7)
++                        unit_data.leg = 2;
+                     
+-                    if (slot_data.slot_type == UnknownEnum.Value_1 && slot_data.h_type == UnknownEnum.Value_37)
++                    if (slot_data.slot_type == 1 && slot_data.h_type == 37)
+                         array_insert(slot_data.mod_index, 1, 0);
+                 }
+                 
+@@ -533,9 +769,9 @@
+                 {
+                     var _id = ds_list_find_value(global.unit_list, i);
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_9 && _id.lvl == 7)
++                    if (_id != -1 && _id.class == 9 && _id.lvl == 7)
+                     {
+-                        _id.leg = UnknownEnum.Value_2;
++                        _id.leg = 2;
+                         ds_list_set(global.unit_list, i, _id);
+                     }
+                 }
+@@ -544,9 +780,9 @@
+                 {
+                     var _id = global.val.cage[i];
+                     
+-                    if (_id != -1 && _id.class == UnknownEnum.Value_9 && _id.lvl == 7)
++                    if (_id != -1 && _id.class == 9 && _id.lvl == 7)
+                     {
+-                        _id.leg = UnknownEnum.Value_2;
++                        _id.leg = 2;
+                         global.val.cage[i] = _id;
+                     }
+                 }
+@@ -556,13 +792,13 @@
+             case 1.15:
+                 with (obj_slot)
+                 {
+-                    if (slot_data.slot_type == UnknownEnum.Value_1 && slot_data.h_type == UnknownEnum.Value_37)
++                    if (slot_data.slot_type == 1 && slot_data.h_type == 37)
+                     {
+                         var _num = 0;
+                         
+                         for (var i = 0; i < array_length(slot_data.prop); i++)
+                         {
+-                            if (slot_data.prop[i].prop_type == UnknownEnum.Value_40 && _num > 0)
++                            if (slot_data.prop[i].prop_type == 40 && _num > 0)
+                             {
+                                 with (slot_data.prop[i].prop_id)
+                                     instance_destroy();
+@@ -583,7 +819,7 @@
+             case 1.16:
+                 with (obj_slot)
+                 {
+-                    if (slot_data.slot_type == UnknownEnum.Value_3)
++                    if (slot_data.slot_type == 3)
+                     {
+                         array_push(slot_data.mod_index, false);
+                         array_push(slot_data.mod_index, false);
+@@ -597,7 +833,7 @@
+             case 1.23:
+                 with (obj_slot)
+                 {
+-                    if (slot_data.slot_type == UnknownEnum.Value_0 && slot_data.h_type == UnknownEnum.Value_11)
++                    if (slot_data.slot_type == 0 && slot_data.h_type == 11)
+                     {
+                         var _unit_id = unit_data;
+                         scr_occupy_slot(id, -1, false, -1);
+@@ -614,23 +850,23 @@
+                 if (!variable_struct_exists(global.val, "old_t_lvl"))
+                     global.val.old_t_lvl = 0;
+                 
+-                if (global.val.stage_info[UnknownEnum.Value_4] != -1)
++                if (global.val.stage_info[4] != -1)
+                 {
+-                    global.val.old_t_lvl = global.val.stage_info[UnknownEnum.Value_4].max_lvl;
++                    global.val.old_t_lvl = global.val.stage_info[4].max_lvl;
+                     global.val.t_lvl = global.val.old_t_lvl;
+                     global.val.ct_lvl = min(global.val.t_lvl, 25);
+-                    global.val.stage_info[UnknownEnum.Value_4] = -1;
+-                    global.val.stage_lvl_sel[UnknownEnum.Value_4] = 0;
+-                    scr_set_stage_data(UnknownEnum.Value_4, 0, false);
++                    global.val.stage_info[4] = -1;
++                    global.val.stage_lvl_sel[4] = 0;
++                    scr_set_stage_data(4, 0, false);
+                     
+                     if (global.val.t_lvl > 24)
+                     {
+-                        global.val.stage_info[UnknownEnum.Value_4].max_lvl = 1;
+-                        global.val.stage_lvl_sel[UnknownEnum.Value_4] = min(global.val.stage_lvl_sel[UnknownEnum.Value_4] + 1, 2);
+-                        scr_set_stage_data(UnknownEnum.Value_4, 1, false);
++                        global.val.stage_info[4].max_lvl = 1;
++                        global.val.stage_lvl_sel[4] = min(global.val.stage_lvl_sel[4] + 1, 2);
++                        scr_set_stage_data(4, 1, false);
+                     }
+                     
+-                    scr_add_event(UnknownEnum.Value_50, false);
++                    scr_add_event(50, false);
+                 }
+                 
+                 break;
+@@ -638,7 +874,7 @@
+             case 1.29:
+                 with (obj_slot)
+                 {
+-                    if (slot_data.slot_type == UnknownEnum.Value_1 && slot_data.h_type == UnknownEnum.Value_41)
++                    if (slot_data.slot_type == 1 && slot_data.h_type == 41)
+                         array_push(slot_data.mod_index, 0);
+                 }
+                 
+@@ -723,6 +959,21 @@
+         global.val.version += 0.01;
+     }
+     
++    with (obj_slot)
++    {
++        if (variable_struct_exists(slot_data, "gnx_rebuild"))
++        {
++            scr_set_slot_h_data(id, slot_data.gnx_rebuild);
++            
++            if (slot_data.gnx_had_unit)
++                scr_occupy_slot(id, scr_create_unit_base(0, 1), false, 0);
++        }
++    }
++    
++    scr_gnx_apply_unlocks();
++    scr_gnx_apply_prop_unlocks();
++    scr_gnx_migrate_prop_unlocks();
++    scr_gnx_watchdog();
+     return arg0;
+ }
+ 
+@@ -736,7 +987,7 @@
+         
+         for (var i = 0; i < _num; i++)
+         {
+-            if (global.val.shop_item[0][i][0] == UnknownEnum.Value_2)
++            if (global.val.shop_item[0][i][0] == 2)
+             {
+                 _exists = true;
+                 i = _num;
+@@ -749,7 +1000,7 @@
+             
+             for (var i = 0; i < _num; i++)
+             {
+-                if (ds_list_find_value(global.inv_list, i).item_type == UnknownEnum.Value_2)
++                if (ds_list_find_value(global.inv_list, i).item_type == 2)
+                 {
+                     _exists = true;
+                     i = _num;
+@@ -758,10 +1009,10 @@
+         }
+         
+         if (_exists)
+-            scr_add_event(UnknownEnum.Value_22, false);
++            scr_add_event(22, false);
+         
+-        if (global.val.stage_info[UnknownEnum.Value_1] != -1)
+-            scr_add_event(UnknownEnum.Value_23, false);
++        if (global.val.stage_info[1] != -1)
++            scr_add_event(23, false);
+         
+         var _a = global.val.shop_item[0];
+         scr_set_shop_list();
+@@ -794,17 +1045,17 @@
+         global.val.stage_item[0][0] = _st_1_1;
+         global.val.stage_item[0][1] = _st_1_2;
+         global.val.stage_item[1][0] = _st_2_1;
+-        scr_add_event(UnknownEnum.Value_49, false);
++        scr_add_event(49, false);
+         
+         with (obj_button)
+         {
+-            if (interact_type == UnknownEnum.Value_33)
++            if (interact_type == 33)
+             {
+                 for (var i = 0; i < ds_list_size(global.noti_list); i++)
+                 {
+                     var _noti = ds_list_find_value(global.noti_list, i);
+                     
+-                    if (_noti.noti_type == UnknownEnum.Value_49)
++                    if (_noti.noti_type == 49)
+                     {
+                         scr_create_textbox(_noti, -1, obj_np);
+                         instance_destroy();
+@@ -815,32 +1066,3 @@
+         }
+     }
+ }
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_8 = 8,
+-    Value_9,
+-    Value_10,
+-    Value_11,
+-    Value_12,
+-    Value_13,
+-    Value_14,
+-    Value_15,
+-    Value_20 = 20,
+-    Value_22 = 22,
+-    Value_23,
+-    Value_32 = 32,
+-    Value_33,
+-    Value_37 = 37,
+-    Value_39 = 39,
+-    Value_40,
+-    Value_41,
+-    Value_49 = 49,
+-    Value_50
+-}

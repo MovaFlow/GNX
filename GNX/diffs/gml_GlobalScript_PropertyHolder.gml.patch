@@ -1,0 +1,85 @@
+--- /dev/null	2026-10-05 20:22:36.000000000 +0200
++++ gml/gml_GlobalScript_PropertyHolder.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -0,0 +1,82 @@
++function PropertyHolder() : IConfigurable() constructor
++{
++    static addProperty = function(arg0, arg1 = undefined, arg2 = undefined, arg3 = undefined, arg4 = undefined, arg5 = undefined)
++    {
++        if (variable_struct_exists(properties, arg0))
++        {
++            log_warning("addProperty : redeclaration of property '{0}'", arg0);
++            removeProperty(arg0);
++        }
++        
++        variable_struct_set(properties, arg0, new Property(self, arg0, arg1, arg2, arg3, arg4, arg5));
++        return arg1;
++    };
++    
++    static removeProperty = function(arg0)
++    {
++        if (!variable_struct_exists(properties, arg0))
++        {
++            log_warning("removeProperty :: trying to remove unexisting property '{0}'", arg0);
++            exit;
++        }
++        
++        var _property = variable_struct_get(properties, arg0);
++        _property.release();
++        variable_struct_remove(properties, arg0);
++    };
++    
++    static set = function(arg0, arg1)
++    {
++        if (!variable_struct_exists(properties, arg0))
++            throw log_error("set :: trying to set '{0}', property doesn't exist.", arg0);
++        
++        variable_struct_get(properties, arg0).set(arg1);
++    };
++    
++    static get = function(arg0)
++    {
++        if (!variable_struct_exists(properties, arg0))
++            throw log_error("get :: trying to get '{0}', property doesn't exist.", arg0);
++        
++        return variable_struct_get(properties, arg0).get();
++    };
++    
++    static showProperties = function(arg0 = false)
++    {
++        var _header = string("# '{0}' Property List ####################", instanceof(self));
++        show_debug_message(_header);
++        var _names = variable_struct_get_names(properties);
++        var _i = 0;
++        
++        repeat (variable_struct_names_count(properties))
++        {
++            var _name = _names[_i++];
++            var _property = variable_struct_get(properties, _name);
++            
++            if (!arg0 && _property.private)
++                continue;
++            
++            show_debug_message(variable_struct_get(properties, _name));
++        }
++        
++        var _footer = string_repeat("#", string_length(_header));
++        show_debug_message(_footer);
++    };
++    
++    static config = function(arg0)
++    {
++        if (!is_struct(arg0))
++            exit;
++        
++        var _names = variable_struct_get_names(arg0);
++        var _i = 0;
++        
++        repeat (variable_struct_names_count(arg0))
++        {
++            var _name = _names[_i++];
++            set(_name, variable_struct_get(arg0, _name));
++        }
++    };
++    
++    properties = {};
++}

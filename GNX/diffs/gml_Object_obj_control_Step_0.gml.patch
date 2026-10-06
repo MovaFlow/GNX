@@ -1,0 +1,110 @@
+--- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-05 10:01:02.000000000 +0200
+@@ -1 +1,107 @@
++if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
++{
++    global.gnx_trigger_load = false;
++    global.click_lock = true;
++    
++    if (instance_exists(obj_p) && audio_is_playing(obj_p.game_bgm))
++        audio_stop_sound(obj_p.game_bgm);
++    
++    with (obj_slot)
++        instance_destroy();
++    
++    with (obj_mon)
++        instance_destroy();
++    
++    with (obj_button)
++        instance_destroy();
++    
++    with (obj_window)
++        instance_destroy();
++    
++    if (instance_exists(obj_empty))
++    {
++        with (obj_empty)
++            instance_destroy();
++    }
++    
++    if (instance_exists(obj_pop_up))
++    {
++        with (obj_pop_up)
++            instance_destroy();
++    }
++    
++    global.gnx_in_travel = true;
++    scr_create_initials();
++    global.gnx_in_travel = false;
++    
++    if (global.gnx_carry_day != -1)
++    {
++        global.val.day = global.gnx_carry_day;
++        global.val.day_timer = global.gnx_carry_timer;
++        global.gnx_carry_day = -1;
++        global.gnx_carry_timer = -1;
++    }
++    
++    if (global.gnx_carry_gold > 0)
++    {
++        global.val.money += global.gnx_carry_gold;
++        global.gnx_carry_gold = -1;
++    }
++    
++    if (global.gnx_carry_food > 0)
++    {
++        global.val.food += global.gnx_carry_food;
++        global.gnx_carry_food = -1;
++    }
++    
++    if (global.gnx_carry_goblins > 0)
++    {
++        scr_mon_num_edit(0, 0, global.gnx_carry_goblins, true);
++        global.val.nest_num[0] = scr_all_mon_num_cal();
++        global.gnx_carry_goblins = -1;
++    }
++    
++    if (global.gnx_travel_data == -1 && variable_struct_exists(global.gnx_map_start_decl, global.gnx_active_map))
++        global.gnx_pending_map_start = global.gnx_active_map;
++    
++    if (variable_global_exists("gnx_travel_data") && global.gnx_travel_data != -1)
++        global.load_file = 0;
++    
++    obj_np.load_state = 6;
++    exit;
++}
++
+ scr_mouse_control();
++
++if (global.gnx_multimap_enabled && global.gnx_pending_map_start != "" && instance_exists(obj_slot))
++{
++    var _msm = global.gnx_pending_map_start;
++    global.gnx_pending_map_start = "";
++    scr_gnx_apply_map_start(_msm);
++}
++
++if (global.gnx_perf_enabled)
++{
++    global.gnx_perf_frame++;
++    
++    if (global.gnx_perf_frame >= 120)
++    {
++        var _sd = global.gnx_perf_slots_drawn;
++        var _st = instance_number(obj_slot) * 120;
++        var _md = global.gnx_perf_mons_drawn;
++        var _mt = instance_number(obj_mon) * 120;
++        var _pct = (_st > 0) ? string(round(((_st - _sd) / _st) * 100)) : "0";
++        var _f = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_f, "[GNX-PERF] slots=" + string(_sd) + "/" + string(_st) + " culled=" + _pct + "% mons=" + string(_md) + "/" + string(_mt) + " fps=" + string(fps) + " fps_real=" + string(fps_real) + " inst=" + string(instance_count) + " slot=" + string(instance_number(obj_slot)) + " mon=" + string(instance_number(obj_mon)) + " btn=" + string(instance_number(obj_button)) + " empty=" + string(instance_number(obj_empty)));
++        file_text_writeln(_f);
++        file_text_close(_f);
++        global.gnx_perf_slots_drawn = 0;
++        global.gnx_perf_mons_drawn = 0;
++        global.gnx_perf_frame = 0;
++    }
++}
++
++scr_gnx_check_quest_completion("frame");
++scr_gnx_check_keybinds();
++scr_gnx_apply_continuous_effects();
++scr_gnx_goblin_ambient_step();

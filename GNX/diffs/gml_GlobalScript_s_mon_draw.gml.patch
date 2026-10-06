@@ -1,0 +1,341 @@
+--- gml_138/gml_GlobalScript_s_mon_draw.gml	2026-09-02 08:45:16.397589900 +0200
++++ gml/gml_GlobalScript_s_mon_draw.gml	2026-10-02 17:01:18.808603100 +0200
+@@ -1,13 +1,30 @@
+ function scr_draw_mon_slot(arg0)
+ {
++    if (!is_struct(mon_data.spr_data) || !variable_struct_exists(mon_data.spr_data, "h_type")) { draw_self(); return; }
++    if (global.gnx_trace_entities)
++    {
++        var _sdt = mon_data.spr_data;
++        var _rt = (_sdt.h_type == 18 || _sdt.h_type == 19 || _sdt.h_type == 38) ? mon_data.placement_num : (_sdt.h_type - _sdt.spr_row_pos - 1);
++        var _mi = ((_rt * _sdt.base_frame_c) + mon_data.index) - _sdt.start_frame;
++        var _nf = (mon_spr.body_b != -1 && sprite_exists(mon_spr.body_b)) ? sprite_get_number(mon_spr.body_b) : -1;
++        var _xflip = variable_struct_exists(_sdt, "slot_width") ? abs(sign(image_xscale - 1) * _sdt.slot_width) : 0;
++        scr_gnx_trace("DRAW", id, "h_type=" + string(_sdt.h_type) + " body_b=" + string(mon_spr.body_b) + " idx=" + string(_mi) + " nframes=" + string(_nf) + " base_fc=" + string(_sdt.base_frame_c) + " mon_idx=" + string(mon_data.index) + " start_f=" + string(_sdt.start_frame) + " row=" + string(_rt) + " x=" + string(x) + " y=" + string(y) + " xflip=" + string(_xflip) + " xscale=" + string(image_xscale) + " mon_alpha=" + string(global.val.mon_alpha) + " alpha_type=" + string(global.val.alpha_type) + " is_sprref=" + string(is_struct(mon_spr.body_b)));
++    }
++
++
+     var _mon_spr = mon_spr;
+     var _spr_data = mon_data.spr_data;
+-    
++    if (!is_struct(_spr_data)) return;
++    if (mon_data.slot_id == -1 || !instance_exists(mon_data.slot_id)) return;
++    if (!variable_struct_exists(_spr_data, "slot_width")) return;
++
+     if (_mon_spr.body_b != -1)
+     {
+         var _row_type = 0;
+         
+-        if (_spr_data.h_type == UnknownEnum.Value_18 || _spr_data.h_type == UnknownEnum.Value_19 || _spr_data.h_type == UnknownEnum.Value_38)
++        if (_spr_data.h_type == 18 || _spr_data.h_type == 19 || _spr_data.h_type == 38)
++            _row_type = mon_data.placement_num;
++        else if (ds_map_exists(global.cell_registry, _spr_data.h_type) && variable_struct_exists(ds_map_find_value(global.cell_registry, _spr_data.h_type), "gnx_mon_positions"))
+             _row_type = mon_data.placement_num;
+         else
+             _row_type = _spr_data.h_type - _spr_data.spr_row_pos - 1;
+@@ -17,7 +34,7 @@
+         var _mon_index = (_row_type * _base_frame_c) + mon_data.index;
+         _mon_index -= _spr_data.start_frame;
+         
+-        if (mon_data.mon_type != UnknownEnum.Value_3 || mon_data.slot_id.slot_data.h_type == UnknownEnum.Value_39 || mon_data.slot_id.slot_data.h_type == UnknownEnum.Value_37)
++        if (mon_data.mon_type != 3 || mon_data.slot_id.slot_data.h_type == 39 || mon_data.slot_id.slot_data.h_type == 37)
+         {
+             var _mon_alpha_c = global.mon_alpha_c[mon_data.mon_type];
+             var _x = x;
+@@ -26,66 +43,92 @@
+             var _x_hand_flip = abs(sign(_spr_data.hand_xscale - 1) * _spr_data.slot_width);
+             
+             if (_mon_spr.pen != -1)
+-                draw_sprite_ext(_mon_spr.pen, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, 1);
++                gnx_draw_sprite_ext(_mon_spr.pen, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, 1);
+             
+             switch (global.val.alpha_type)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     if (_mon_spr.head_b != -1)
+                     {
+-                        draw_sprite_ext(_mon_spr.head_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
+-                        draw_sprite_ext(_mon_spr.head_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.head_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
++                        
++                        if (_mon_spr.head_l != -1)
++                            gnx_draw_sprite_ext(_mon_spr.head_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
+                     }
+                     
+                     if (_mon_spr.hand_b != -1)
+                     {
+-                        draw_sprite_ext(_mon_spr.hand_b, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, c_white, global.val.mon_alpha);
+-                        draw_sprite_ext(_mon_spr.hand_l, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, c_white, global.val.mon_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.hand_b, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, 16777215, global.val.mon_alpha);
++                        
++                        if (_mon_spr.hand_l != -1)
++                            gnx_draw_sprite_ext(_mon_spr.hand_l, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, 16777215, global.val.mon_alpha);
+                     }
+                     
+-                    draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
+-                    draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
++                    if (global.gnx_trace_entities && _spr_data.h_type == 3)
++                    {
++                        var _fi = floor(_mon_index);
++                        var _se = sprite_exists(_mon_spr.body_b);
++                        var _nf2 = _se ? sprite_get_number(_mon_spr.body_b) : -1;
++                        var _sw = _se ? sprite_get_width(_mon_spr.body_b) : 0;
++                        var _sh = _se ? sprite_get_height(_mon_spr.body_b) : 0;
++                        scr_gnx_trace("RENDER", id, "body_b=" + string(_mon_spr.body_b) + " frame=" + string(_fi) + " exists=" + string(_se) + " nframes=" + string(_nf2) + " w=" + string(_sw) + " h=" + string(_sh) + " dx=" + string(_x + _x_flip) + " dy=" + string(_y) + " head=" + string(_mon_spr.head_b) + " hand=" + string(_mon_spr.hand_b) + " pen=" + string(_mon_spr.pen));
++                    }
++                    
++                    gnx_draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
++                    
++                    if (_mon_spr.body_l != -1)
++                        gnx_draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
++                    
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     gpu_set_fog(true, _mon_alpha_c, 0, 0);
+                     
+                     if (_mon_spr.head_b != -1)
+                     {
+-                        draw_sprite_ext(_mon_spr.head_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
+-                        draw_sprite_ext(_mon_spr.head_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.head_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
++                        
++                        if (_mon_spr.head_l != -1)
++                            gnx_draw_sprite_ext(_mon_spr.head_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
+                     }
+                     
+                     if (_mon_spr.hand_b != -1)
+                     {
+-                        draw_sprite_ext(_mon_spr.hand_b, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, c_white, global.val.mon_alpha);
+-                        draw_sprite_ext(_mon_spr.hand_l, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, c_white, global.val.mon_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.hand_b, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, 16777215, global.val.mon_alpha);
++                        
++                        if (_mon_spr.hand_l != -1)
++                            gnx_draw_sprite_ext(_mon_spr.hand_l, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, 16777215, global.val.mon_alpha);
+                     }
+                     
+-                    draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
+-                    draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
++                    gnx_draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
++                    
++                    if (_mon_spr.body_l != -1)
++                        gnx_draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
++                    
+                     gpu_set_fog(false, c_white, 0, 0);
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     gpu_set_fog(true, _mon_alpha_c, 0, 0);
+                     
+                     if (_mon_spr.head_b != -1)
+-                        draw_sprite_ext(_mon_spr.head_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.head_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
+                     
+                     if (_mon_spr.hand_b != -1)
+-                        draw_sprite_ext(_mon_spr.hand_b, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, c_white, global.val.mon_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.hand_b, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, 16777215, global.val.mon_alpha);
+                     
+-                    draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
++                    gnx_draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
+                     gpu_set_fog(false, c_white, 0, 0);
+                     
+-                    if (_mon_spr.head_b != -1)
+-                        draw_sprite_ext(_mon_spr.head_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, 1);
++                    if (_mon_spr.head_b != -1 && _mon_spr.head_l != -1)
++                        gnx_draw_sprite_ext(_mon_spr.head_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, 1);
+                     
+-                    if (_mon_spr.hand_b != -1)
+-                        draw_sprite_ext(_mon_spr.hand_l, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, c_white, 1);
++                    if (_mon_spr.hand_b != -1 && _mon_spr.hand_l != -1)
++                        gnx_draw_sprite_ext(_mon_spr.hand_l, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, 16777215, 1);
++                    
++                    if (_mon_spr.body_l != -1)
++                        gnx_draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, 1);
+                     
+-                    draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, 1);
+                     break;
+             }
+             
+@@ -96,30 +139,30 @@
+                 
+                 switch (global.val.crate_alpha_type)
+                 {
+-                    case UnknownEnum.Value_0:
+-                        draw_sprite_ext(_mon_spr.prop, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, c_white, global.val.crate_alpha);
+-                        draw_sprite_ext(_mon_spr.prop_l, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, c_white, global.val.crate_alpha);
++                    case 0:
++                        gnx_draw_sprite_ext(_mon_spr.prop, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, 16777215, global.val.crate_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.prop_l, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, 16777215, global.val.crate_alpha);
+                         break;
+                     
+-                    case UnknownEnum.Value_2:
++                    case 2:
+                         gpu_set_fog(true, _mon_alpha_c, 0, 0);
+-                        draw_sprite_ext(_mon_spr.prop, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, c_white, global.val.crate_alpha);
+-                        draw_sprite_ext(_mon_spr.prop_l, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, c_white, global.val.crate_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.prop, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, 16777215, global.val.crate_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.prop_l, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, 16777215, global.val.crate_alpha);
+                         gpu_set_fog(false, c_white, 0, 0);
+                         break;
+                     
+-                    case UnknownEnum.Value_1:
++                    case 1:
+                         gpu_set_fog(true, _mon_alpha_c, 0, 0);
+-                        draw_sprite_ext(_mon_spr.prop, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, c_white, global.val.crate_alpha);
++                        gnx_draw_sprite_ext(_mon_spr.prop, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, 16777215, global.val.crate_alpha);
+                         gpu_set_fog(false, c_white, 0, 0);
+-                        draw_sprite_ext(_mon_spr.prop_l, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, c_white, 1);
++                        gnx_draw_sprite_ext(_mon_spr.prop_l, mon_data.index, _x + sign(_x_flip), _y, image_xscale, 1, 0, 16777215, 1);
+                         break;
+                 }
+             }
+         }
+         else
+         {
+-            draw_sprite_ext(_mon_spr.body_b, _mon_index, x, y, image_xscale, 1, 0, c_white, 1);
++            gnx_draw_sprite_ext(_mon_spr.body_b, _mon_index, x, y, image_xscale, 1, 0, 16777215, 1);
+         }
+         
+         if (arg0 && mon_data.slot_id.hover)
+@@ -157,6 +200,8 @@
+     draw_sprite_ext(spr_hobgoblin_log, 0, x, (y - 48) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
+     draw_sprite_ext(spr_carry, image_index, x + 45, y, image_xscale, image_yscale, image_angle, image_blend, 1);
+     
++    if (mon_data.slot_id == -1 || !instance_exists(mon_data.slot_id)) return;
++
+     if (mon_data.carry_start_id == -1 && mon_data.carry_end_id != -1)
+     {
+         var _spr_slot = mon_data.slot_id.spr_slot;
+@@ -171,49 +216,49 @@
+         for (var i = 0; i < _num; i++)
+         {
+             var _replace = false;
+-            var _spr = _spr_slot[i][UnknownEnum.Value_1];
++            var _spr = _spr_slot[i][1];
+             
+             if (_spr != -1)
+             {
+-                var _type = _spr_slot[i][UnknownEnum.Value_0];
+-                var _c_spr = _spr_slot[i][UnknownEnum.Value_3];
++                var _type = _spr_slot[i][0];
++                var _c_spr = _spr_slot[i][3];
+                 var _index = _slot_data.mod_index[i];
+                 
+                 if (_c_spr != -1 && _index == 0)
+-                    _replace = _spr_slot[i][UnknownEnum.Value_4];
++                    _replace = _spr_slot[i][4];
+                 
+                 switch (_type)
+                 {
+-                    case UnknownEnum.Value_10:
++                    case 10:
+                         if (_index != -1)
+                         {
+-                            draw_sprite_ext(_c_spr, _final_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
+-                            var _hair_spr = _spr_slot[i][UnknownEnum.Value_5];
++                            gnx_draw_sprite_ext(_c_spr, _final_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
++                            var _hair_spr = _spr_slot[i][5];
+                             
+                             if (_hair_spr != -1)
+-                                draw_sprite_ext(_hair_spr, _hair_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
++                                gnx_draw_sprite_ext(_hair_spr, _hair_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
+                         }
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_6:
++                    case 6:
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite_ext(_c_spr, _final_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
++                            gnx_draw_sprite_ext(_c_spr, _final_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_8:
++                    case 8:
+                         if (_index != -1 && !_replace)
+-                            draw_sprite_ext(_spr, _final_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
++                            gnx_draw_sprite_ext(_spr, _final_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
+                         
+                         if (_index == 0 && _c_spr != -1)
+-                            draw_sprite_ext(_c_spr, _final_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
++                            gnx_draw_sprite_ext(_c_spr, _final_index, _x, (y - 1) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_11:
++                    case 11:
+                         if (_index == 0)
+-                            draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, _final_index, x, y);
+                         
+                         break;
+                 }
+@@ -226,14 +271,20 @@
+ 
+ function scr_tent_draw()
+ {
+-    var _row_type = mon_data.h_type - UnknownEnum.Value_26 - 1;
++    if (!variable_struct_exists(mon_data, "h_type")) { draw_self(); return; }
++    var _row_type = mon_data.h_type - 26 - 1;
+     image_index = (_row_type * 5) + mon_data.index;
+     draw_sprite(spr_type, image_index, x, y);
+ }
+ 
+ function scr_draw_orgre_patrol(arg0)
+ {
+-    draw_sprite_ext(spr_patrol, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
++    var _patrol_spr = spr_patrol;
++    
++    if (spr_unit != -1 && variable_struct_exists(spr_unit, "patrol_spr") && spr_unit.patrol_spr != -1)
++        _patrol_spr = spr_unit.patrol_spr;
++    
++    gnx_draw_sprite_ext(_patrol_spr, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
+     
+     if (spr_unit != -1)
+     {
+@@ -241,35 +292,17 @@
+         var _hair = spr_unit.hair;
+         var _hair_c = spr_unit.hair_c;
+         var _spr_c = 8;
+-        draw_sprite_ext(spr_unit.base, image_index + (_spr_c * _skin), x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
++        
++        if (spr_unit.base != -1)
++            gnx_draw_sprite_ext(spr_unit.base, image_index + (_spr_c * _skin), x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
+         
+         if (spr_unit.head != -1)
+-            draw_sprite_ext(spr_unit.head, image_index + (_spr_c * _skin), x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
++            gnx_draw_sprite_ext(spr_unit.head, image_index + (_spr_c * _skin), x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
+         
+         if (spr_unit.hair != -1)
+-            draw_sprite_ext(spr_unit.hair, image_index + (_spr_c * _hair_c), x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
++            gnx_draw_sprite_ext(spr_unit.hair, image_index + (_spr_c * _hair_c), x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
+         
+         if (spr_unit.hand != -1)
+-            draw_sprite_ext(spr_unit.hand, image_index + (_spr_c * _skin), x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
++            gnx_draw_sprite_ext(spr_unit.hand, image_index + (_spr_c * _skin), x, y, image_xscale, image_yscale, image_angle, image_blend, 1);
+     }
+ }
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_8 = 8,
+-    Value_10 = 10,
+-    Value_11,
+-    Value_18 = 18,
+-    Value_19,
+-    Value_26 = 26,
+-    Value_37 = 37,
+-    Value_38,
+-    Value_39
+-}
