@@ -4,6 +4,12 @@
 
 **Game version:** 1.39
 
+### New Features
+
+- **`only_listed_cells` class constraint**: classes declaring `"only_listed_cells": true` in `classes.json` can only enter cells whose `required_class` includes them. Enforced across all slot availability checks, carry range checks, and type checks.
+- **`clothing_giant` tier**: new clothing sprite set for GIANT cells (h_type 37), alongside the existing `clothing_standard`, `clothing_big`, and `clothing_tent` tiers. Declare `clothing_giant` in `classes.json` with the same phase/sprite structure as the other tiers.
+- **Folder sprite loading**: `gnx_resolve_sprite` now supports `"mode": "folder"` to load numbered PNGs from a subdirectory as animation frames, sorted numerically. Also adds `"origin_from"` to copy origin from a vanilla sprite, and `"from_game"` to reference sprites already in data.win.
+
 ### Bug Fixes
 
 - Fixed transfer cells not working after loading a save. Carry state (`char_state`, `h_step`) and carry/load flags are now reset on load so the cell re-dispatches transfers from scratch.
