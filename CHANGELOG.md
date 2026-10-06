@@ -8,6 +8,7 @@
 
 - **`only_listed_cells` class constraint**: classes declaring `"only_listed_cells": true` in `classes.json` can only enter cells whose `required_class` includes them. Enforced across all slot availability checks, carry range checks, and type checks.
 - **`clothing_giant` tier**: new clothing sprite set for GIANT cells (h_type 37), alongside the existing `clothing_standard`, `clothing_big`, and `clothing_tent` tiers. Declare `clothing_giant` in `classes.json` with the same phase/sprite structure as the other tiers.
+- **Dairy and giant cell sprite overrides**: modded classes can now override sprites on dairy cells (`dairy_blink` key in `mon_spr_overrides`) and giant cells (body, pen, touch, enter, head sprites for goblin, hobgoblin, and ogre). Giant cell clothing is also overridable via `giant_cloth`.
 - **Folder sprite loading**: `gnx_resolve_sprite` now supports `"mode": "folder"` to load numbered PNGs from a subdirectory as animation frames, sorted numerically. Also adds `"origin_from"` to copy origin from a vanilla sprite, and `"from_game"` to reference sprites already in data.win.
 
 ### Bug Fixes
