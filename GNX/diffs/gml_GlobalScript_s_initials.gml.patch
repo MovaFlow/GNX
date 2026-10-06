@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-05 19:09:36.240134800 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-06 16:14:01.298629200 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -59,7 +59,15 @@
      global.val.guide_unlock = 
      {
          num: 0,
-@@ -132,19 +148,20 @@
+@@ -118,6 +134,7 @@
+     
+     scr_set_encounter_reward();
+     scr_set_shop_list();
++    global._gnx_stash_load_file = variable_global_exists("load_file") ? global.load_file : -1;
+     global.load_file = -1;
+     global.mask_collision = false;
+     global.dirt_fix = 0;
+@@ -132,19 +149,20 @@
      global.w_spd = 1;
      global.zoom_target = 0;
      global.muffle = 1;
@@ -93,7 +101,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,6 +184,3202 @@
+@@ -167,6 +185,3202 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -3211,7 +3219,7 @@
 +    global.gnx_scrollbar_dragging = false;
 +    global.gnx_scrollbar_drag_offset = 0;
 +    global.gnx_scrollbar_rect = -1;
-+    global.gnx_cull_step_off = false;
++    global.gnx_cull_step_off = true;
 +    global.gnx_econ_on = false;
 +    global.gnx_econ = -1;
 +    global.gnx_keybinds = [];
@@ -3296,7 +3304,7 @@
      draw_set_font(fnt_base_font_eng);
      display_set_gui_size(480, 270);
      window_set_cursor(cr_none);
-@@ -175,6 +3388,10690 @@
+@@ -175,6 +3389,10714 @@
          room_goto(rm_logo);
  }
  
@@ -3644,8 +3652,32 @@
 +    {
 +        global.gnx_active_map = "vanilla";
 +        global.gnx_inactive_maps = {};
++
++        if (global._gnx_stash_load_file >= 0 && global._gnx_stash_load_file <= 3)
++        {
++            var _peek_names = ["save_file_a.json", "save_file_1.json", "save_file_2.json", "save_file_3.json"];
++            var _peek_file = _peek_names[global._gnx_stash_load_file];
++
++            if (file_exists(_peek_file))
++            {
++                var _pbuf = buffer_load(_peek_file);
++                var _ptxt = buffer_read(_pbuf, buffer_text);
++                buffer_delete(_pbuf);
++                var _pdata = json_parse(_ptxt);
++
++                if (is_struct(_pdata) && variable_struct_exists(_pdata, "gnx_active_map"))
++                {
++                    global.gnx_active_map = _pdata.gnx_active_map;
++                    var _plog = file_text_open_append(GNX_LOG);
++                    file_text_write_string(_plog, "[GNX-MAP] peek: load_file=" + string(global._gnx_stash_load_file) + " active_map='" + _pdata.gnx_active_map + "'\n");
++                    file_text_close(_plog);
++                }
++            }
++        }
++
++        global._gnx_stash_load_file = -1;
 +    }
-+    
++
 +    if (!variable_global_exists("gnx_travel_data") || global.gnx_travel_data == -1)
 +        global.gnx_travel_data = -1;
 +    
@@ -13987,7 +14019,7 @@
  enum UnknownEnum
  {
      Value_0,
-@@ -183,42 +14080,166 @@
+@@ -183,42 +14105,166 @@
      Value_3,
      Value_4,
      Value_5,
