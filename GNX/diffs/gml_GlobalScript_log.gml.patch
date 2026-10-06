@@ -1,0 +1,142 @@
+--- /dev/null	2026-10-05 20:22:36.000000000 +0200
++++ gml/gml_GlobalScript_log.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -0,0 +1,139 @@
++function json(arg0)
++{
++    return json_stringify(arg0, true);
++}
++
++show_debug_overlay(false);
++
++function __pprint()
++{
++    var _str = "PRINTER :: " + string(string_replace(string_replace(static_get(__pprint).__file, "gml_Object_", ""), "gml_GlobalScript_", "")) + "/" + string(string_replace(string_replace(static_get(__pprint).__func, "gml_Object_", ""), "gml_Script_", "")) + ":" + string(static_get(__pprint).__line) + ":\n";
++    var _i = 0;
++    
++    repeat (argument_count)
++    {
++        _str += (json_stringify(__reStruct(argument[_i]), true) + "\n");
++        _i++;
++    }
++    
++    show_debug_message(_str);
++}
++
++function __pprint_pre(arg0, arg1, arg2)
++{
++    static_get(__pprint).__file = arg0;
++    static_get(__pprint).__func = arg1;
++    static_get(__pprint).__line = arg2;
++    return 1;
++}
++
++function __reStruct(arg0)
++{
++    static __recursion_memory = [];
++    static __depth = 0;
++    
++    if (__depth == 0)
++        array_resize(__recursion_memory, 0);
++    
++    __depth++;
++    
++    if (is_method(arg0))
++    {
++        var _self = method_get_self(arg0);
++        var _outputStruct = __reStruct(_self);
++        __depth--;
++        return _outputStruct;
++    }
++    
++    if (is_array(arg0))
++    {
++        var _inputArray = [];
++        var _i = 0;
++        
++        repeat (array_length(arg0))
++        {
++            var _expr = arg0[_i];
++            _inputArray[_i] = __reStruct(_expr);
++            _i++;
++        }
++        
++        __depth--;
++        return _inputArray;
++    }
++    
++    if (is_struct(arg0))
++    {
++        if (array_get_index(__recursion_memory, arg0) == -1)
++        {
++            array_push(__recursion_memory, arg0);
++        }
++        else
++        {
++            __depth--;
++            return "<Recursive Reference>";
++        }
++        
++        var _outputStruct = {};
++        var _names = variable_struct_get_names(arg0);
++        var _length = array_length(_names);
++        
++        if (_length < 300)
++        {
++            var _i = 0;
++            
++            repeat (_length)
++            {
++                var _name = _names[_i];
++                
++                if (_name == "errorMessage" || _name == "rootNode" || _name == "parentNode")
++                {
++                    _i++;
++                }
++                else
++                {
++                    var _new_name = _name;
++                    
++                    if (string_starts_with(_name, "@@"))
++                        _new_name = string_replace(_name, "@@", "_@@");
++                    
++                    variable_struct_set(_outputStruct, _new_name, __reStruct(variable_struct_get(arg0, _name)));
++                    _i++;
++                }
++            }
++        }
++        else
++        {
++            _outputStruct = "<Struct Is too Large to Print>";
++        }
++        
++        __depth--;
++        return _outputStruct;
++    }
++    
++    if (is_handle(arg0) && script_exists(arg0))
++    {
++        __depth--;
++        return script_get_name(arg0);
++    }
++    
++    __depth--;
++    return arg0;
++}
++
++function __log()
++{
++    var _str = "LOGGER :: " + string(string_replace(string_replace(static_get(__log).__file, "gml_Object_", ""), "gml_GlobalScript_", "")) + "/" + string(string_replace(string_replace(static_get(__log).__func, "gml_Object_", ""), "gml_Script_", "")) + ":" + string(static_get(__log).__line) + ":";
++    
++    for (var i = 0; i < argument_count; i++)
++        _str += ("\n\t" + string(argument[i]));
++    
++    show_debug_message(_str);
++}
++
++function __log_pre(arg0, arg1, arg2)
++{
++    static_get(__log).__file = arg0;
++    static_get(__log).__func = arg1;
++    static_get(__log).__line = arg2;
++    return 1;
++}

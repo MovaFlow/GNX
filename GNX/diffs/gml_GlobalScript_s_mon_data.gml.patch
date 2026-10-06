@@ -1,0 +1,2873 @@
+--- gml_138/gml_GlobalScript_s_mon_data.gml	2026-09-02 08:45:16.386592300 +0200
++++ gml/gml_GlobalScript_s_mon_data.gml	2026-10-05 18:43:42.198375100 +0200
+@@ -1,20 +1,20 @@
+ function scr_set_mon_range()
+ {
+     var _range = [];
+-    _range[UnknownEnum.Value_0] = [[0, 1], [1], [0], [1]];
+-    _range[UnknownEnum.Value_1] = [[0, 1], [1], [0], [1]];
+-    _range[UnknownEnum.Value_2] = [[0], [0], [1], [1]];
+-    _range[UnknownEnum.Value_3] = [[1], [0], [0], [1]];
++    _range[0] = [[0, 1], [1], [0], [1]];
++    _range[1] = [[0, 1], [1], [0], [1]];
++    _range[2] = [[0], [0], [1], [1]];
++    _range[3] = [[1], [0], [0], [1]];
+     global.mon_range = _range;
+ }
+ 
+ function scr_set_mon_skill()
+ {
+     var _skill = [];
+-    _skill[UnknownEnum.Value_0] = [UnknownEnum.Value_0, UnknownEnum.Value_1, UnknownEnum.Value_2, UnknownEnum.Value_3];
+-    _skill[UnknownEnum.Value_1] = [UnknownEnum.Value_4, UnknownEnum.Value_5, UnknownEnum.Value_6, UnknownEnum.Value_7];
+-    _skill[UnknownEnum.Value_2] = [UnknownEnum.Value_8, UnknownEnum.Value_9, UnknownEnum.Value_10, UnknownEnum.Value_11];
+-    _skill[UnknownEnum.Value_3] = [UnknownEnum.Value_12, UnknownEnum.Value_13, UnknownEnum.Value_14, UnknownEnum.Value_15];
++    _skill[0] = [0, 1, 2, 3];
++    _skill[1] = [4, 5, 6, 7];
++    _skill[2] = [8, 9, 10, 11];
++    _skill[3] = [12, 13, 14, 15];
+     global.mon_skill = _skill;
+ }
+ 
+@@ -33,35 +33,35 @@
+             
+             switch (_skill)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     _val += (0.08 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     _val += (0.03 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_4:
++                case 4:
+                     _val += (0.05 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_6:
++                case 6:
+                     _val += (0.03 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     _val += (0.5 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_9:
++                case 9:
+                     _val += (0.08 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_13:
++                case 13:
+                     _val += _lvl;
+                     break;
+                 
+-                case UnknownEnum.Value_14:
++                case 14:
+                     _val += (3 * _lvl);
+                     break;
+             }
+@@ -80,43 +80,43 @@
+             
+             switch (_skill)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     _val += (0.1 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     _val = 0.04 * _lvl;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     _val += (0.04 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_4:
++                case 4:
+                     _val += (0.05 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_5:
++                case 5:
+                     _val += (0.03 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     _val += (0.03 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_10:
++                case 10:
+                     _val += (0.02 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     _val += (0.03 * _lvl);
+                     break;
+                 
+-                case UnknownEnum.Value_12:
++                case 12:
+                     _val += _lvl;
+                     break;
+                 
+-                case UnknownEnum.Value_15:
++                case 15:
+                     _val += (0.02 * _lvl);
+                     break;
+             }
+@@ -131,23 +131,48 @@
+ function scr_set_mon_spr_data(arg0, arg1)
+ {
+     var _slot_type = arg0.slot_data.h_type;
++    
++    if (!is_struct(arg0.unit_data))
++        exit;
++    
+     var _leg = arg0.unit_data.leg;
+     var _class = arg0.unit_data.class;
+     var _mon_type = mon_data.mon_type;
++    var _rclass_captive = ds_map_find_value(global.class_registry, _class);
++    var _is_special_captive = _rclass_captive != undefined && _rclass_captive.is_special;
++    var _gnx_shrine_touch_mso = gnx_get_mso(_class);
++    
++    if (!is_struct(mon_data.spr_data))
++    {
++        mon_data.spr_data = 
++        {
++            prop: -1,
++            spr_type: -1
++        };
++    }
++    
+     var _spr_data = mon_data.spr_data;
+     var _anal = arg0.slot_data.anal;
+     var _touch = -1;
+     var _enter = -1;
+     var _x_shift = 0;
+     var _y_shift = 0;
+-    _spr_data.base_frame_c = arg0.slot_data.anim_struct.frame_c;
++    _spr_data.base_frame_c = is_struct(arg0.slot_data.anim_struct) ? arg0.slot_data.anim_struct.frame_c : 0;
+     _spr_data.mon_frame_c = _spr_data.base_frame_c;
+     _spr_data.h_type = _slot_type;
+     _spr_data.spr_row_pos = arg0.slot_data.spr_row_pos;
+     var _mood_x = floor(22.5);
+     var _mood_y = 0;
+     var _mon_draw = scr_draw_mon_slot;
++    scr_gnx_trace("SPR", id, "h_type=" + string(_slot_type) + " class=" + string(_class) + " mon_type=" + string(_mon_type) + " arg1=" + string(arg1));
+     var _set = false;
++    var _gnx_ms = undefined;
++    var _gnx_body_l = -1;
++    var _gnx_head_l = -1;
++    var _gnx_hand_l = -1;
++    var _gnx_mso_hit = false;
++    var _gnx_line_body_key = undefined;
++    var _gnx_line_hand_key = undefined;
+     var _mon_spr = 
+     {
+         head_b: -1,
+@@ -161,48 +186,373 @@
+     image_xscale = 1;
+     depth = -700;
+     
++    if (!_set && (_class >= 14 || _slot_type >= 100))
++    {
++        var _gcell_g = ds_map_find_value(global.cell_registry, _slot_type);
++        
++        if (_gcell_g != undefined)
++        {
++            var _ms_key = "mon_spr";
++            
++            if (_mon_type == 1)
++                _ms_key = "mon_spr_hob";
++            else if (_mon_type == 3)
++                _ms_key = "mon_spr_ogr";
++            
++            var _ms_key_p = _ms_key + "_p" + string(mon_data.placement_num);
++            
++            if (variable_struct_exists(_gcell_g, _ms_key_p))
++                _ms_key = _ms_key_p;
++            
++            var _gnx_ms2 = variable_struct_exists(_gcell_g, _ms_key) ? variable_struct_get(_gcell_g, _ms_key) : undefined;
++            
++            if ((_gnx_ms2 == undefined || _gnx_ms2 == -1) && _ms_key != "mon_spr")
++                _gnx_ms2 = variable_struct_exists(_gcell_g, "mon_spr") ? _gcell_g.mon_spr : undefined;
++            
++            var _allowed_g = (!variable_struct_exists(_gcell_g, "mon_types") || _gcell_g.mon_types == undefined) ? true : array_contains(_gcell_g.mon_types, _mon_type);
++            
++            if (_allowed_g && _gnx_ms2 != undefined && _gnx_ms2 != -1)
++            {
++                _gnx_ms = _gnx_ms2;
++                var _mt_c = (_mon_type == 1) ? "h" : ((_mon_type == 3) ? "o" : "g");
++                var _ph_c = (arg1 == 0) ? "s" : ((arg1 == 3) ? "ej" : "lo");
++                gnx_cov_hit("d." + _mt_c + "." + _ph_c);
++                gnx_first_hit(_slot_type, _mt_c, _ph_c, _class);
++                var _p1_skip = variable_struct_exists(_gcell_g, "placement1_body_skip") && _gcell_g.placement1_body_skip && mon_data.placement_num == 1;
++                
++                if (!_p1_skip)
++                {
++                    var _pfx, _pfx_fb;
++                    
++                    if (arg1 == 0)
++                    {
++                        _pfx = "s";
++                        _pfx_fb = "s";
++                    }
++                    else if (arg1 == 3)
++                    {
++                        _pfx = "ej";
++                        _pfx_fb = "lo";
++                    }
++                    else
++                    {
++                        _pfx = "lo";
++                        _pfx_fb = "lo";
++                    }
++                    
++                    var _cls_sfx = "";
++                    
++                    switch (_class)
++                    {
++                        case 9:
++                            _cls_sfx = "_cow";
++                            break;
++                        
++                        case 8:
++                            _cls_sfx = "_lilith";
++                            break;
++                        
++                        case 10:
++                            _cls_sfx = "_nyx";
++                            break;
++                        
++                        case 12:
++                            _cls_sfx = "_morrigan";
++                            break;
++                        
++                        case 13:
++                            _cls_sfx = "_cat";
++                            break;
++                    }
++                    
++                    var _leg_sfx;
++                    
++                    if (_leg == 2)
++                        _leg_sfx = "_leg2";
++                    else if (_leg == 0)
++                        _leg_sfx = "_leg0";
++                    else
++                        _leg_sfx = "_leg1";
++                    
++                    var _bp = "miss";
++                    var _bb = variable_struct_get(_gnx_ms, _pfx + "_body_b" + _cls_sfx);
++                    
++                    if ((_bb == undefined || _bb == -1) && _pfx != _pfx_fb)
++                        _bb = variable_struct_get(_gnx_ms, _pfx_fb + "_body_b" + _cls_sfx);
++                    
++                    if (_bb != undefined && _bb != -1)
++                        _bp = "cls";
++                    
++                    if (_bb == undefined || _bb == -1)
++                        _bb = variable_struct_get(_gnx_ms, _pfx + "_body_b" + _leg_sfx);
++                    
++                    if ((_bb == undefined || _bb == -1) && _pfx != _pfx_fb)
++                        _bb = variable_struct_get(_gnx_ms, _pfx_fb + "_body_b" + _leg_sfx);
++                    
++                    if (_bb != undefined && _bb != -1 && _bp == "miss")
++                        _bp = "leg";
++                    
++                    if (_bb == undefined || _bb == -1)
++                        _bb = variable_struct_get(_gnx_ms, _pfx + "_body_b_any");
++                    
++                    if ((_bb == undefined || _bb == -1) && _pfx != _pfx_fb)
++                        _bb = variable_struct_get(_gnx_ms, _pfx_fb + "_body_b_any");
++                    
++                    if (_bb != undefined && _bb != -1 && _bp == "miss")
++                        _bp = "any";
++                    
++                    if (_bb != undefined && _bb != -1)
++                        _mon_spr.body_b = _bb;
++                    
++                    gnx_cov_hit("body." + _bp);
++                    var _bl = variable_struct_get(_gnx_ms, _pfx + "_body_l" + _cls_sfx);
++                    
++                    if ((_bl == undefined || _bl == -1) && _pfx != _pfx_fb)
++                        _bl = variable_struct_get(_gnx_ms, _pfx_fb + "_body_l" + _cls_sfx);
++                    
++                    if (_bl == undefined || _bl == -1)
++                        _bl = variable_struct_get(_gnx_ms, _pfx + "_body_l" + _leg_sfx);
++                    
++                    if ((_bl == undefined || _bl == -1) && _pfx != _pfx_fb)
++                        _bl = variable_struct_get(_gnx_ms, _pfx_fb + "_body_l" + _leg_sfx);
++                    
++                    if (_bl == undefined || _bl == -1)
++                        _bl = variable_struct_get(_gnx_ms, _pfx + "_body_l_any");
++                    
++                    if ((_bl == undefined || _bl == -1) && _pfx != _pfx_fb)
++                        _bl = variable_struct_get(_gnx_ms, _pfx_fb + "_body_l_any");
++                    
++                    _gnx_body_l = (_bl != undefined && _bl != -1) ? _bl : -1;
++                    
++                    if (arg1 != 0)
++                    {
++                        var _hb0 = variable_struct_get(_gnx_ms, _pfx + "_head_b_0");
++                        
++                        if ((_hb0 == undefined || _hb0 == -1) && _pfx != _pfx_fb)
++                            _hb0 = variable_struct_get(_gnx_ms, _pfx_fb + "_head_b_0");
++                        
++                        var _hb1 = variable_struct_get(_gnx_ms, _pfx + "_head_b_1");
++                        
++                        if ((_hb1 == undefined || _hb1 == -1) && _pfx != _pfx_fb)
++                            _hb1 = variable_struct_get(_gnx_ms, _pfx_fb + "_head_b_1");
++                        
++                        if (_hb0 != undefined && _hb0 != -1)
++                        {
++                            var _hidx = irandom(1);
++                            _mon_spr.head_b = (_hidx == 0) ? _hb0 : ((_hb1 != undefined && _hb1 != -1) ? _hb1 : _hb0);
++                            var _hl0 = variable_struct_get(_gnx_ms, _pfx + "_head_l_0");
++                            
++                            if (_hl0 == undefined && _pfx != _pfx_fb)
++                                _hl0 = variable_struct_get(_gnx_ms, _pfx_fb + "_head_l_0");
++                            
++                            var _hl1 = variable_struct_get(_gnx_ms, _pfx + "_head_l_1");
++                            
++                            if (_hl1 == undefined && _pfx != _pfx_fb)
++                                _hl1 = variable_struct_get(_gnx_ms, _pfx_fb + "_head_l_1");
++                            
++                            _gnx_head_l = (_hidx == 0) ? ((_hl0 != undefined) ? _hl0 : -1) : ((_hl1 != undefined) ? _hl1 : -1);
++                        }
++                    }
++                    
++                    var _hp = "miss";
++                    var _hb_h = variable_struct_get(_gnx_ms, _pfx + "_hand_b" + _cls_sfx);
++                    
++                    if ((_hb_h == undefined || _hb_h == -1) && _pfx != _pfx_fb)
++                        _hb_h = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_b" + _cls_sfx);
++                    
++                    if (_hb_h != undefined && _hb_h != -1)
++                        _hp = "cls";
++                    
++                    if (_hb_h == undefined || _hb_h == -1)
++                        _hb_h = variable_struct_get(_gnx_ms, _pfx + "_hand_b" + _leg_sfx);
++                    
++                    if ((_hb_h == undefined || _hb_h == -1) && _pfx != _pfx_fb)
++                        _hb_h = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_b" + _leg_sfx);
++                    
++                    if (_hb_h != undefined && _hb_h != -1 && _hp == "miss")
++                        _hp = "leg";
++                    
++                    if (_hb_h == undefined || _hb_h == -1)
++                        _hb_h = variable_struct_get(_gnx_ms, _pfx + "_hand_b_any");
++                    
++                    if ((_hb_h == undefined || _hb_h == -1) && _pfx != _pfx_fb)
++                        _hb_h = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_b_any");
++                    
++                    if (_hb_h != undefined && _hb_h != -1 && _hp == "miss")
++                        _hp = "any";
++                    
++                    if (_hb_h == undefined || _hb_h == -1)
++                        _hb_h = variable_struct_get(_gnx_ms, _pfx + "_hand_b");
++                    
++                    if ((_hb_h == undefined || _hb_h == -1) && _pfx != _pfx_fb)
++                        _hb_h = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_b");
++                    
++                    if (_hb_h != undefined && _hb_h != -1 && _hp == "miss")
++                        _hp = "plain";
++                    
++                    var _h_none = variable_struct_get(_gnx_ms, _pfx + "_hand_b_none");
++                    
++                    if (_h_none == undefined && _pfx != _pfx_fb)
++                        _h_none = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_b_none");
++                    
++                    if (_h_none == true)
++                    {
++                        _mon_spr.hand_b = -1;
++                        _hp = "none";
++                    }
++                    else if (_hb_h != undefined && _hb_h != -1)
++                    {
++                        _mon_spr.hand_b = _hb_h;
++                    }
++                    
++                    gnx_cov_hit("hand." + _hp);
++                    var _hl_h = variable_struct_get(_gnx_ms, _pfx + "_hand_l" + _cls_sfx);
++                    
++                    if ((_hl_h == undefined || _hl_h == -1) && _pfx != _pfx_fb)
++                        _hl_h = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_l" + _cls_sfx);
++                    
++                    if (_hl_h == undefined || _hl_h == -1)
++                        _hl_h = variable_struct_get(_gnx_ms, _pfx + "_hand_l" + _leg_sfx);
++                    
++                    if ((_hl_h == undefined || _hl_h == -1) && _pfx != _pfx_fb)
++                        _hl_h = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_l" + _leg_sfx);
++                    
++                    if (_hl_h == undefined || _hl_h == -1)
++                        _hl_h = variable_struct_get(_gnx_ms, _pfx + "_hand_l_any");
++                    
++                    if ((_hl_h == undefined || _hl_h == -1) && _pfx != _pfx_fb)
++                        _hl_h = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_l_any");
++                    
++                    if (_hl_h == undefined || _hl_h == -1)
++                        _hl_h = variable_struct_get(_gnx_ms, _pfx + "_hand_l");
++                    
++                    if ((_hl_h == undefined || _hl_h == -1) && _pfx != _pfx_fb)
++                        _hl_h = variable_struct_get(_gnx_ms, _pfx_fb + "_hand_l");
++                    
++                    _gnx_hand_l = (_hl_h != undefined && _hl_h != -1) ? _hl_h : -1;
++                    var _pn = variable_struct_get(_gnx_ms, _pfx + "_pen");
++                    
++                    if ((_pn == undefined || _pn == -1) && _pfx != _pfx_fb)
++                        _pn = variable_struct_get(_gnx_ms, _pfx_fb + "_pen");
++                    
++                    if (_pn != undefined && _pn != -1)
++                        _mon_spr.pen = _pn;
++                    
++                    var _tc = variable_struct_get(_gnx_ms, _pfx + "_touch" + _cls_sfx);
++                    
++                    if ((_tc == undefined || _tc == -1) && _pfx != _pfx_fb)
++                        _tc = variable_struct_get(_gnx_ms, _pfx_fb + "_touch" + _cls_sfx);
++                    
++                    if (_tc == undefined || _tc == -1)
++                        _tc = variable_struct_get(_gnx_ms, _pfx + "_touch" + _leg_sfx);
++                    
++                    if ((_tc == undefined || _tc == -1) && _pfx != _pfx_fb)
++                        _tc = variable_struct_get(_gnx_ms, _pfx_fb + "_touch" + _leg_sfx);
++                    
++                    if (_tc == undefined || _tc == -1)
++                        _tc = variable_struct_get(_gnx_ms, _pfx + "_touch_def");
++                    
++                    if ((_tc == undefined || _tc == -1) && _pfx != _pfx_fb)
++                        _tc = variable_struct_get(_gnx_ms, _pfx_fb + "_touch_def");
++                    
++                    if (_tc != undefined && _tc != -1)
++                        _touch = _tc;
++                    
++                    if (arg1 != 0)
++                    {
++                        var _en = variable_struct_get(_gnx_ms, _pfx + "_enter" + _cls_sfx);
++                        
++                        if ((_en == undefined || _en == -1) && _pfx != _pfx_fb)
++                            _en = variable_struct_get(_gnx_ms, _pfx_fb + "_enter" + _cls_sfx);
++                        
++                        if (_en == undefined || _en == -1)
++                            _en = variable_struct_get(_gnx_ms, _pfx + "_enter_def");
++                        
++                        if ((_en == undefined || _en == -1) && _pfx != _pfx_fb)
++                            _en = variable_struct_get(_gnx_ms, _pfx_fb + "_enter_def");
++                        
++                        if (_en != undefined && _en != -1)
++                            _enter = _en;
++                    }
++                    
++                    if (arg1 == 0)
++                    {
++                        var _hxr = variable_struct_get(_gnx_ms, "s_hand_xscale_random");
++                        
++                        if (_hxr == true)
++                            _spr_data.hand_xscale = choose(1, -1);
++                    }
++                    else if (arg1 == 2)
++                    {
++                        var _hxrl = variable_struct_get(_gnx_ms, "lo_hand_xscale_random");
++                        
++                        if (_hxrl == true)
++                            _spr_data.hand_xscale = choose(1, -1);
++                        else
++                            _spr_data.hand_xscale = 1;
++                    }
++                    else
++                    {
++                        _spr_data.hand_xscale = 1;
++                    }
++                }
++                
++                _set = _p1_skip || _mon_spr.body_b != -1;
++                gnx_cov_hit(_p1_skip ? "set.p1skip" : (_set ? "set.ok" : "set.miss"));
++            }
++        }
++    }
++    
+     switch (_mon_type)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             switch (_slot_type)
+             {
+-                case UnknownEnum.Value_1:
+-                    if (!_anal && _spr_data.prop == -1)
+-                        _spr_data.prop = choose(UnknownEnum.Value_0, UnknownEnum.Value_2);
++                case 1:
++                case 2:
++                    var _skip_prop = _anal && !_set;
+                     
+-                    break;
+-                
+-                case UnknownEnum.Value_2:
+-                    if (!_anal && _spr_data.prop == -1)
+-                        _spr_data.prop = choose(UnknownEnum.Value_0, UnknownEnum.Value_2);
++                    if (!_skip_prop && _spr_data.prop == -1)
++                        _spr_data.prop = choose(0, 2);
++                    else if (_skip_prop && _spr_data.prop != -1)
++                        _spr_data.prop = -1;
+                     
++                    if (global.gnx_debug_verbose)
++                    {
++                        var _pf = file_text_open_append("gnx_debug.txt");
++                        file_text_write_string(_pf, "[PROP] h=" + string(_slot_type) + " anal=" + string(_anal) + " gnx=" + string(_set) + " prop=" + string(_spr_data.prop) + " phase=" + string(arg1) + " mon=" + string(id));
++                        file_text_writeln(_pf);
++                        file_text_close(_pf);
++                    }
++                    
++                    break;
+                     break;
+                 
+-                case UnknownEnum.Value_7:
++                case 7:
+                     if (_spr_data.prop == -1)
+-                        _spr_data.prop = choose(UnknownEnum.Value_0, UnknownEnum.Value_2);
++                        _spr_data.prop = choose(0, 2);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
++                case 8:
+                     if (_spr_data.prop == -1)
+-                        _spr_data.prop = choose(UnknownEnum.Value_0, UnknownEnum.Value_2);
++                        _spr_data.prop = choose(0, 2);
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_3:
+-                    _spr_data.prop = UnknownEnum.Value_42;
++                case 3:
++                    _spr_data.prop = 42;
+                     _mood_y += 6;
+                     break;
+                 
+-                case UnknownEnum.Value_4:
++                case 4:
+                     _spr_data.base_frame_c = 8;
+-                    _spr_data.prop = UnknownEnum.Value_43;
++                    _spr_data.prop = 43;
+                     _mon_spr.body_b = spr_h_goblin_milk_loop_alpha;
+                     _set = true;
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (mon_data.placement_num == 1)
+                         image_xscale = -1;
+                     
+@@ -212,105 +562,167 @@
+                     
+                     switch (_class)
+                     {
+-                        case UnknownEnum.Value_9:
++                        case 9:
+                             _touch = spr_h_goblin_drink_loop_touch;
+                             break;
+                         
+-                        case UnknownEnum.Value_10:
++                        case 10:
+                             _touch = spr_h_goblin_drink_loop_touch_nyx;
+                             break;
+                         
+-                        case UnknownEnum.Value_8:
++                        case 8:
+                             _touch = spr_h_goblin_drink_loop_touch_lilith;
+                             break;
+                         
+-                        case UnknownEnum.Value_12:
++                        case 12:
+                             _touch = spr_h_goblin_drink_loop_touch_morrigan;
+                             break;
+                         
+-                        case UnknownEnum.Value_13:
++                        case 13:
+                             _touch = spr_h_goblin_drink_loop_touch_cat;
+                             break;
+                     }
+                     
++                    var _gnx_mso = gnx_get_mso(_class);
++                    
++                    if (_gnx_mso != undefined)
++                    {
++                        var _v = variable_struct_get(_gnx_mso, "goblin_drink_touch");
++                        
++                        if (_v != undefined)
++                        {
++                            _touch = _v;
++                            _gnx_mso_hit = true;
++                        }
++                    }
++                    
+                     _set = true;
+                     depth = -760;
+                     break;
+                 
+-                case UnknownEnum.Value_6:
+-                    _spr_data.prop = UnknownEnum.Value_42;
++                case 6:
++                    _spr_data.prop = 42;
+                     _mood_y += 6;
+                     break;
+                 
+-                case UnknownEnum.Value_9:
++                case 9:
+                     _mood_y += 31;
+                     break;
+                 
+-                case UnknownEnum.Value_13:
++                case 13:
+                     _mood_y += 17;
+                     break;
+                 
+-                case UnknownEnum.Value_14:
++                case 14:
+                     _mood_y += 20;
+                     break;
+                 
+-                case UnknownEnum.Value_36:
++                case 36:
+                     _set = true;
+                     image_xscale = ((mon_data.slot_id.slot_data.mod_index[7] * 2) - 1) * -1;
+                     _mon_spr.body_b = spr_h_goblin_dairy_loop_alpha;
+-                    
++
++                    // POPRAWKA (GNX): zmodowana postac moze podac wlasne cialo goblina w DAIRY (linia: goblin_dairy_body_line)
++                    if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "goblin_dairy_body_alpha"))
++                    {
++                        _mon_spr.body_b = variable_struct_get(_gnx_shrine_touch_mso, "goblin_dairy_body_alpha");
++                        _gnx_line_body_key = "goblin_dairy_body_line";
++                    }
++
+                     if (image_xscale == 1)
+                         _mood_x = 48;
+                     else
+                         _mood_x = 29;
+-                    
++
+                     _mood_y = -6;
+-                    
++
+                     if (visible)
++                    {
+                         _touch = spr_h_goblin_dairy_loop_touch;
+-                    
++
++                        if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "goblin_dairy_touch"))
++                            _touch = variable_struct_get(_gnx_shrine_touch_mso, "goblin_dairy_touch");
++                    }
++
+                     break;
+                 
+-                case UnknownEnum.Value_37:
+-                    if (arg1 == UnknownEnum.Value_0)
+-                    {
+-                        _mon_spr.body_b = spr_h_goblin_body_start_alpha_giant;
+-                        _mon_spr.pen = spr_h_goblin_body_start_pen_giant;
++                case 37:
++                    // POPRAWKA (GNX): gnx_mso_pick = sprite z mon_spr_overrides klasy, a bez niego wanilowy
++                    if (arg1 == 0)
++                    {
++                        _mon_spr.body_b = gnx_mso_pick(_gnx_shrine_touch_mso, "goblin_giant_start_body_alpha", spr_h_goblin_body_start_alpha_giant);
++                        _mon_spr.pen = gnx_mso_pick(_gnx_shrine_touch_mso, "goblin_giant_start_pen", spr_h_goblin_body_start_pen_giant);
++                        _gnx_line_body_key = "goblin_giant_start_body_line";
+                     }
+                     else
+                     {
+-                        _mon_spr.body_b = spr_h_goblin_body_alpha_giant;
+-                        _mon_spr.pen = spr_h_goblin_pen_giant;
+-                        _touch = spr_h_goblin_touch_giant;
+-                        _enter = spr_h_goblin_enter_giant;
++                        _mon_spr.body_b = gnx_mso_pick(_gnx_shrine_touch_mso, "goblin_giant_body_alpha", spr_h_goblin_body_alpha_giant);
++                        _mon_spr.pen = gnx_mso_pick(_gnx_shrine_touch_mso, "goblin_giant_pen", spr_h_goblin_pen_giant);
++                        _touch = gnx_mso_pick(_gnx_shrine_touch_mso, "goblin_giant_touch", spr_h_goblin_touch_giant);
++                        _enter = gnx_mso_pick(_gnx_shrine_touch_mso, "goblin_giant_enter", spr_h_goblin_enter_giant);
++                        _gnx_line_body_key = "goblin_giant_body_line";
+                     }
+-                    
++
+                     _set = true;
+-                    _spr_data.prop = UnknownEnum.Value_41;
++                    _spr_data.prop = 41;
+                     _mood_x = floor(38.5);
+                     _mood_y = 10;
+                     break;
+-                
+-                case UnknownEnum.Value_39:
++
++                case 39:
++                    _mon_spr.body_b = -1;
++                    _mon_spr.head_b = -1;
++                    _mon_spr.hand_b = -1;
++                    _mon_spr.pen = -1;
++                    _touch = -1;
++                    _enter = -1;
++                    _gnx_body_l = -1;
++                    _gnx_head_l = -1;
++                    _gnx_hand_l = -1;
++                    
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_0:
+-                            _mon_spr.body_b = spr_h_goblin_shrine_start_body_alpha;
+-                            _mon_spr.hand_b = spr_h_goblin_shrine_start_hand_alpha;
+-                            _mon_spr.pen = spr_h_goblin_shrine_start_pen;
++                        case 0:
++                            _gnx_line_body_key = "goblin_shrine_start_body_line";
++                            _gnx_line_hand_key = "goblin_shrine_start_hand_line";
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "goblin_shrine_start_body_alpha"))
++                                _mon_spr.body_b = variable_struct_get(_gnx_shrine_touch_mso, "goblin_shrine_start_body_alpha");
++                            else
++                                _mon_spr.body_b = spr_h_goblin_shrine_start_body_alpha;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "goblin_shrine_start_hand_alpha"))
++                                _mon_spr.hand_b = variable_struct_get(_gnx_shrine_touch_mso, "goblin_shrine_start_hand_alpha");
++                            else
++                                _mon_spr.hand_b = spr_h_goblin_shrine_start_hand_alpha;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "goblin_shrine_start_pen"))
++                                _mon_spr.pen = variable_struct_get(_gnx_shrine_touch_mso, "goblin_shrine_start_pen");
++                            else
++                                _mon_spr.pen = spr_h_goblin_shrine_start_pen;
++                            
+                             _spr_data.hand_xscale = choose(1, -1);
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
+-                            _mon_spr.body_b = spr_h_goblin_shrine_alpha;
+-                            _touch = spr_h_goblin_shrine_touch;
+-                            _enter = spr_h_goblin_shrine_enter;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_3:
+-                            _mon_spr.body_b = spr_h_goblin_shrine_alpha;
+-                            _touch = spr_h_goblin_shrine_touch;
+-                            _enter = spr_h_goblin_shrine_enter;
++                        case 2:
++                        case 3:
++                            _gnx_line_body_key = "goblin_shrine_body_line";
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "goblin_shrine_body_alpha"))
++                                _mon_spr.body_b = variable_struct_get(_gnx_shrine_touch_mso, "goblin_shrine_body_alpha");
++                            else
++                                _mon_spr.body_b = spr_h_goblin_shrine_alpha;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "goblin_shrine_touch"))
++                                _touch = variable_struct_get(_gnx_shrine_touch_mso, "goblin_shrine_touch");
++                            else if (!_is_special_captive)
++                                _touch = spr_h_goblin_shrine_touch;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "goblin_shrine_enter"))
++                                _enter = variable_struct_get(_gnx_shrine_touch_mso, "goblin_shrine_enter");
++                            else if (!_is_special_captive)
++                                _enter = spr_h_goblin_shrine_enter;
++                            
+                             break;
+                     }
+                     
+@@ -319,71 +731,101 @@
+                     _mood_y = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_18:
++                case 18:
+                     if (mon_data.placement_num != 1)
+                     {
+-                        switch (_leg)
++                        if (!_set)
+                         {
+-                            case UnknownEnum.Value_1:
+-                                _mon_spr.body_b = spr_h_goblin_gb_1_loop_alpha;
+-                                break;
+-                            
+-                            case UnknownEnum.Value_2:
+-                                _mon_spr.body_b = spr_h_goblin_gb_1_loop_alpha;
+-                                break;
+-                            
+-                            case UnknownEnum.Value_0:
+-                                _mon_spr.body_b = spr_h_goblin_gb_1_v3_loop_alpha;
++                            switch (_leg)
++                            {
++                                case 1:
++                                    _mon_spr.body_b = spr_h_goblin_gb_1_loop_alpha;
++                                    break;
+                                 
+-                                if (mon_data.placement_num == 0)
+-                                    _x_shift = 2;
++                                case 2:
++                                    _mon_spr.body_b = spr_h_goblin_gb_1_loop_alpha;
++                                    break;
+                                 
+-                                break;
++                                case 0:
++                                    _mon_spr.body_b = spr_h_goblin_gb_1_v3_loop_alpha;
++                                    
++                                    if (mon_data.placement_num == 0)
++                                        _x_shift = 2;
++                                    
++                                    break;
++                            }
+                         }
+                         
+                         if (mon_data.placement_num == 0)
+                         {
+-                            _spr_data.prop = UnknownEnum.Value_44;
++                            _spr_data.prop = 44;
+                             _touch = spr_h_ogre_touch_loop;
+                         }
+                         else
+                         {
+-                            _spr_data.prop = UnknownEnum.Value_45;
++                            _spr_data.prop = 45;
+                         }
+                         
+-                        switch (_class)
++                        if (!_set)
+                         {
+-                            case UnknownEnum.Value_9:
+-                                _mon_spr.body_b = spr_h_goblin_gb_1_cow_loop_alpha;
+-                                break;
++                            switch (_class)
++                            {
++                                case 9:
++                                    _mon_spr.body_b = spr_h_goblin_gb_1_cow_loop_alpha;
++                                    break;
++                                
++                                case 8:
++                                    _mon_spr.body_b = spr_h_goblin_gb_1_lilith_loop_alpha;
++                                    break;
++                            }
+                             
+-                            case UnknownEnum.Value_8:
+-                                _mon_spr.body_b = spr_h_goblin_gb_1_lilith_loop_alpha;
+-                                break;
++                            var _gnx_mso = gnx_get_mso(_class);
++                            
++                            if (_gnx_mso != undefined)
++                            {
++                                var _v = variable_struct_get(_gnx_mso, "goblin_gb1_body");
++                                
++                                if (_v != undefined)
++                                {
++                                    _mon_spr.body_b = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                            }
+                         }
+                     }
+                     
+                     switch (_class)
+                     {
+-                        case UnknownEnum.Value_9:
++                        case 9:
+                             _touch = spr_h_ogre_touch_loop_cow;
+                             break;
+                         
+-                        case UnknownEnum.Value_10:
++                        case 10:
+                             _touch = spr_h_ogre_touch_loop_nyx;
+                             break;
+                         
+-                        case UnknownEnum.Value_12:
++                        case 12:
+                             _touch = spr_h_ogre_touch_loop_morrigan;
+                             break;
+                         
+-                        case UnknownEnum.Value_13:
++                        case 13:
+                             _touch = spr_h_ogre_touch_loop_cat;
+                             break;
+                         
+-                        case UnknownEnum.Value_8:
++                        case 8:
+                             _touch = spr_h_ogre_touch_loop_lilith;
+                             break;
++                        
++                        default:
++                            if (ds_map_exists(global.class_registry, _class) && _class >= 14)
++                            {
++                                var _gnx_rc_ot = ds_map_find_value(global.class_registry, _class);
++                                
++                                if (variable_struct_exists(_gnx_rc_ot, "mon_spr_overrides") && variable_struct_exists(_gnx_rc_ot.mon_spr_overrides, "ogre_touch"))
++                                    _touch = _gnx_rc_ot.mon_spr_overrides.ogre_touch;
++                            }
++                            
++                            break;
+                     }
+                     
+                     _spr_data.mon_frame_c = 5;
+@@ -420,50 +862,74 @@
+                     _set = true;
+                     break;
+                 
+-                case UnknownEnum.Value_19:
+-                    switch (_leg)
++                case 19:
++                    if (!_set)
+                     {
+-                        case UnknownEnum.Value_1:
+-                            _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_2:
+-                            _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_0:
+-                            _mon_spr.body_b = spr_h_goblin_gb_2_v3_loop_alpha;
+-                            break;
+-                    }
+-                    
+-                    _enter = spr_h_goblin_gb_2_loop_enter;
+-                    
+-                    switch (_class)
+-                    {
+-                        case UnknownEnum.Value_9:
+-                            _mon_spr.body_b = spr_h_goblin_gb_2_cow_loop_alpha;
+-                            _enter = spr_h_goblin_gb_2_loop_enter_cow;
+-                            break;
++                        switch (_leg)
++                        {
++                            case 1:
++                                _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
++                                break;
++                            
++                            case 2:
++                                _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
++                                break;
++                            
++                            case 0:
++                                _mon_spr.body_b = spr_h_goblin_gb_2_v3_loop_alpha;
++                                break;
++                        }
+                         
+-                        case UnknownEnum.Value_10:
+-                            _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
+-                            _enter = spr_h_goblin_gb_2_loop_enter_nyx;
+-                            break;
++                        _enter = spr_h_goblin_gb_2_loop_enter;
+                         
+-                        case UnknownEnum.Value_12:
+-                            _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
+-                            _enter = spr_h_goblin_gb_2_loop_enter_morrigan;
+-                            break;
++                        switch (_class)
++                        {
++                            case 9:
++                                _mon_spr.body_b = spr_h_goblin_gb_2_cow_loop_alpha;
++                                _enter = spr_h_goblin_gb_2_loop_enter_cow;
++                                break;
++                            
++                            case 10:
++                                _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
++                                _enter = spr_h_goblin_gb_2_loop_enter_nyx;
++                                break;
++                            
++                            case 12:
++                                _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
++                                _enter = spr_h_goblin_gb_2_loop_enter_morrigan;
++                                break;
++                            
++                            case 13:
++                                _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
++                                _enter = spr_h_goblin_gb_2_loop_enter_cat;
++                                break;
++                            
++                            case 8:
++                                _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
++                                _enter = spr_h_goblin_gb_2_loop_enter_lilith;
++                                break;
++                        }
+                         
+-                        case UnknownEnum.Value_13:
+-                            _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
+-                            _enter = spr_h_goblin_gb_2_loop_enter_cat;
+-                            break;
++                        var _gnx_mso = gnx_get_mso(_class);
+                         
+-                        case UnknownEnum.Value_8:
+-                            _mon_spr.body_b = spr_h_goblin_gb_2_loop_alpha;
+-                            _enter = spr_h_goblin_gb_2_loop_enter_lilith;
+-                            break;
++                        if (_gnx_mso != undefined)
++                        {
++                            var _v = variable_struct_get(_gnx_mso, "goblin_gb2_body");
++                            
++                            if (_v != undefined)
++                            {
++                                _mon_spr.body_b = _v;
++                                _gnx_mso_hit = true;
++                            }
++                            
++                            _v = variable_struct_get(_gnx_mso, "goblin_gb2_enter");
++                            
++                            if (_v != undefined)
++                            {
++                                _enter = _v;
++                                _gnx_mso_hit = true;
++                            }
++                        }
+                     }
+                     
+                     _mood_x = floor(38.5);
+@@ -474,39 +940,64 @@
+                     _set = true;
+                     break;
+                 
+-                case UnknownEnum.Value_23:
++                case 23:
+                     _mood_x = 38.5;
+                     _mood_y += -1;
+-                    _mon_spr.body_b = spr_h_goblin_gb_3_loop_body_alpha;
+-                    _mon_spr.hand_b = spr_h_goblin_gb_3_loop_hand_alpha;
+-                    _enter = spr_h_goblin_gb_3_loop_enter;
+                     
+-                    switch (_class)
++                    if (!_set)
+                     {
+-                        case UnknownEnum.Value_9:
+-                            _mon_spr.hand_b = spr_h_goblin_gb_3_cow_loop_hand_alpha;
+-                            _enter = spr_h_goblin_gb_3_cow_loop_enter;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_8:
+-                            _mon_spr.hand_b = spr_h_goblin_gb_3_lilith_loop_hand_alpha;
+-                            _enter = spr_h_goblin_gb_3_lilith_loop_enter;
+-                            break;
++                        _mon_spr.body_b = spr_h_goblin_gb_3_loop_body_alpha;
++                        _mon_spr.hand_b = spr_h_goblin_gb_3_loop_hand_alpha;
++                        _enter = spr_h_goblin_gb_3_loop_enter;
+                         
+-                        case UnknownEnum.Value_10:
+-                            _enter = spr_h_goblin_gb_3_nyx_loop_enter;
+-                            break;
++                        switch (_class)
++                        {
++                            case 9:
++                                _mon_spr.hand_b = spr_h_goblin_gb_3_cow_loop_hand_alpha;
++                                _enter = spr_h_goblin_gb_3_cow_loop_enter;
++                                break;
++                            
++                            case 8:
++                                _mon_spr.hand_b = spr_h_goblin_gb_3_lilith_loop_hand_alpha;
++                                _enter = spr_h_goblin_gb_3_lilith_loop_enter;
++                                break;
++                            
++                            case 10:
++                                _enter = spr_h_goblin_gb_3_nyx_loop_enter;
++                                break;
++                            
++                            case 13:
++                                _enter = spr_h_goblin_gb_3_cat_loop_enter;
++                                break;
++                            
++                            case 12:
++                                _enter = spr_h_goblin_gb_3_morrigan_loop_enter;
++                                break;
++                        }
+                         
+-                        case UnknownEnum.Value_13:
+-                            _enter = spr_h_goblin_gb_3_cat_loop_enter;
+-                            break;
++                        var _gnx_mso = gnx_get_mso(_class);
+                         
+-                        case UnknownEnum.Value_12:
+-                            _enter = spr_h_goblin_gb_3_morrigan_loop_enter;
+-                            break;
++                        if (_gnx_mso != undefined)
++                        {
++                            var _v = variable_struct_get(_gnx_mso, "goblin_gb3_hand");
++                            
++                            if (_v != undefined)
++                            {
++                                _mon_spr.hand_b = _v;
++                                _gnx_mso_hit = true;
++                            }
++                            
++                            _v = variable_struct_get(_gnx_mso, "goblin_gb3_enter");
++                            
++                            if (_v != undefined)
++                            {
++                                _enter = _v;
++                                _gnx_mso_hit = true;
++                            }
++                        }
+                     }
+                     
+-                    _spr_data.prop = UnknownEnum.Value_46;
++                    _spr_data.prop = 46;
+                     _spr_data.mon_frame_c = 5;
+                     _spr_data.base_frame_c = 5;
+                     _spr_data.start_frame = 0;
+@@ -514,24 +1005,24 @@
+                     break;
+             }
+             
+-            if (!_set)
++            if (!_set || (_anal && _class < 14))
+             {
+-                if (!_anal)
++                if (!_anal || (_slot_type != 1 && _slot_type != 2 && _slot_type != 7 && _slot_type != 8))
+                 {
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             switch (_leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _mon_spr.body_b = spr_h_goblin_body_start_v1_alpha;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _mon_spr.body_b = spr_h_goblin_body_start_v2_alpha;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_0:
++                                case 0:
+                                     _mon_spr.body_b = spr_h_goblin_body_start_v1_alpha;
+                                     break;
+                             }
+@@ -544,49 +1035,63 @@
+                             
+                             switch (_class)
+                             {
+-                                case UnknownEnum.Value_9:
++                                case 9:
+                                     _mon_spr.body_b = spr_h_goblin_body_start_v2_alpha;
+                                     _mon_spr.body_b = spr_h_goblin_body_start_cow_alpha;
+                                     _touch = spr_h_goblin_touch_start_cow;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_10:
++                                case 10:
+                                     _touch = spr_h_goblin_touch_start_nyx;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_13:
++                                case 13:
+                                     _touch = spr_h_goblin_touch_start_cat;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_12:
++                                case 12:
+                                     _touch = spr_h_goblin_touch_start_morrigan;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_8:
++                                case 8:
+                                     _touch = spr_h_goblin_touch_start_lilith;
+                                     break;
+                             }
+                             
++                            var _gnx_mso = gnx_get_mso(_class);
++                            
++                            if (_gnx_mso != undefined)
++                            {
++                                var _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_start");
++                                
++                                if (_v != undefined)
++                                {
++                                    _touch = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                            }
++                            
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 1:
++                        case 2:
+                             _mon_spr.head_b = choose(spr_h_goblin_head_loop_d1_alpha, spr_h_goblin_head_loop_d2_alpha);
+                             
+                             switch (_leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
+                                     _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
+                                     _touch = spr_h_goblin_touch_loop_v1;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _mon_spr.body_b = spr_h_goblin_body_loop_v2_alpha;
+                                     _mon_spr.hand_b = spr_h_goblin_hand_loop_v2_alpha;
+                                     _touch = spr_h_goblin_touch_loop_v2;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_0:
++                                case 0:
+                                     _mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
+                                     _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
+                                     _touch = spr_h_goblin_touch_loop_v1;
+@@ -599,57 +1104,78 @@
+                             
+                             switch (_class)
+                             {
+-                                case UnknownEnum.Value_9:
++                                case 9:
+                                     _mon_spr.body_b = spr_h_goblin_body_loop_cow_alpha;
+                                     _mon_spr.hand_b = spr_h_goblin_hand_loop_cow_alpha;
+                                     _touch = spr_h_goblin_touch_loop_cow;
+                                     _enter = spr_h_goblin_enter_loop_cow;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_10:
++                                case 10:
+                                     _touch = spr_h_goblin_touch_loop_nyx;
+                                     _enter = spr_h_goblin_enter_loop_nyx;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_12:
++                                case 12:
+                                     _touch = spr_h_goblin_touch_loop_morrigan;
+                                     _enter = spr_h_goblin_enter_loop_morrigan;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_13:
++                                case 13:
+                                     _touch = spr_h_goblin_touch_loop_cat;
+                                     _enter = spr_h_goblin_enter_loop_cat;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_8:
++                                case 8:
+                                     _touch = spr_h_goblin_touch_loop_lilith;
+                                     _enter = spr_h_goblin_enter_loop_lilith;
+                                     break;
+                             }
+                             
++                            var _gnx_mso = gnx_get_mso(_class);
++                            
++                            if (_gnx_mso != undefined)
++                            {
++                                var _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_loop");
++                                
++                                if (_v != undefined)
++                                {
++                                    _touch = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                                
++                                _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_loop");
++                                
++                                if (_v != undefined)
++                                {
++                                    _enter = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                            }
++                            
+                             break;
+                         
+-                        case UnknownEnum.Value_3:
+-                            if (_slot_type == UnknownEnum.Value_1 && _slot_type == UnknownEnum.Value_2 && _slot_type == UnknownEnum.Value_7 && _slot_type == UnknownEnum.Value_8 && _slot_type == UnknownEnum.Value_3)
++                        case 3:
++                            if (_slot_type == 1 || _slot_type == 2 || _slot_type == 7 || _slot_type == 8 || _slot_type == 3)
+                             {
+                                 switch (_leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _mon_spr.hand_b = spr_h_goblin_hand_loop_v2_alpha;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_0:
++                                    case 0:
+                                         _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
+                                         break;
+                                 }
+                                 
+                                 _mon_spr.body_b = spr_h_goblin_body_ej_alpha;
+                                 
+-                                if (_slot_type == UnknownEnum.Value_3)
++                                if (_slot_type == 3)
+                                     _mon_spr.hand_b = -1;
+                                 
+                                 _mon_spr.head_b = -1;
+@@ -660,10 +1186,10 @@
+                                 
+                                 switch (_class)
+                                 {
+-                                    case UnknownEnum.Value_9:
++                                    case 9:
+                                         _mon_spr.body_b = spr_h_goblin_body_ej_cow_alpha;
+                                         
+-                                        if (_slot_type == UnknownEnum.Value_3)
++                                        if (_slot_type == 3)
+                                             _mon_spr.hand_b = -1;
+                                         else
+                                             _mon_spr.hand_b = spr_h_goblin_hand_loop_cow_alpha;
+@@ -672,26 +1198,53 @@
+                                         _enter = spr_h_goblin_enter_loop_cow;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_10:
++                                    case 10:
+                                         _touch = spr_h_goblin_touch_ej_nyx;
+                                         _enter = spr_h_goblin_enter_loop_nyx;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_12:
++                                    case 12:
+                                         _touch = spr_h_goblin_touch_ej_morrigan;
+                                         _enter = spr_h_goblin_enter_loop_morrigan;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_13:
++                                    case 13:
+                                         _touch = spr_h_goblin_touch_ej_cat;
+                                         _enter = spr_h_goblin_enter_loop_cat;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_8:
++                                    case 8:
+                                         _touch = spr_h_goblin_touch_ej_lilith;
+                                         _enter = spr_h_goblin_enter_loop_lilith;
+                                         break;
+                                 }
++                                
++                                var _gnx_mso = gnx_get_mso(_class);
++                                
++                                if (_gnx_mso != undefined)
++                                {
++                                    var _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _touch = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                    
++                                    _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _enter = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                }
+                             }
+                             else
+                             {
+@@ -699,19 +1252,19 @@
+                                 
+                                 switch (_leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
+                                         _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
+                                         _touch = spr_h_goblin_touch_loop_v1;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _mon_spr.body_b = spr_h_goblin_body_loop_v2_alpha;
+                                         _mon_spr.hand_b = spr_h_goblin_hand_loop_v2_alpha;
+                                         _touch = spr_h_goblin_touch_loop_v2;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_0:
++                                    case 0:
+                                         _mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
+                                         _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
+                                         _touch = spr_h_goblin_touch_loop_v1;
+@@ -724,33 +1277,60 @@
+                                 
+                                 switch (_class)
+                                 {
+-                                    case UnknownEnum.Value_9:
++                                    case 9:
+                                         _mon_spr.body_b = spr_h_goblin_body_loop_cow_alpha;
+                                         _mon_spr.hand_b = spr_h_goblin_hand_loop_cow_alpha;
+                                         _touch = spr_h_goblin_touch_loop_cow;
+                                         _enter = spr_h_goblin_enter_loop_cow;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_10:
++                                    case 10:
+                                         _touch = spr_h_goblin_touch_loop_nyx;
+                                         _enter = spr_h_goblin_enter_loop_nyx;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_12:
++                                    case 12:
+                                         _touch = spr_h_goblin_touch_loop_morrigan;
+                                         _enter = spr_h_goblin_enter_loop_morrigan;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_13:
++                                    case 13:
+                                         _touch = spr_h_goblin_touch_loop_cat;
+                                         _enter = spr_h_goblin_enter_loop_cat;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_8:
++                                    case 8:
+                                         _touch = spr_h_goblin_touch_loop_lilith;
+                                         _enter = spr_h_goblin_enter_loop_lilith;
+                                         break;
+                                 }
++                                
++                                var _gnx_mso = gnx_get_mso(_class);
++                                
++                                if (_gnx_mso != undefined)
++                                {
++                                    var _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _touch = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                    
++                                    _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _enter = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                }
+                             }
+                             
+                             break;
+@@ -760,20 +1340,20 @@
+                 {
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             switch (_leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _touch = spr_h_goblin_touch_start_anal_v1;
+                                     _mon_spr.body_b = spr_h_goblin_body_start_alpha_anal;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _touch = spr_h_goblin_touch_start_anal_v2;
+                                     _mon_spr.body_b = spr_h_goblin_body_start_alpha_anal;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_0:
++                                case 0:
+                                     _touch = spr_h_goblin_touch_start_anal_v1;
+                                     _mon_spr.body_b = spr_h_goblin_body_start_alpha_anal;
+                                     break;
+@@ -786,32 +1366,45 @@
+                             
+                             switch (_class)
+                             {
+-                                case UnknownEnum.Value_9:
++                                case 9:
+                                     _mon_spr.body_b = spr_h_goblin_body_start_alpha_anal_cow;
+                                     _touch = spr_h_goblin_touch_start_anal_cow;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_10:
++                                case 10:
+                                     _touch = spr_h_goblin_touch_start_anal_nyx;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_13:
++                                case 13:
+                                     _touch = spr_h_goblin_touch_start_anal_cat;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_12:
++                                case 12:
+                                     _touch = spr_h_goblin_touch_start_anal_morrigan;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_8:
++                                case 8:
+                                     _mon_spr.body_b = spr_h_goblin_body_start_alpha_anal_lilith;
+                                     _touch = spr_h_goblin_touch_start_anal_lilith;
+                                     break;
+                             }
+                             
++                            var _gnx_mso = gnx_get_mso(_class);
++                            
++                            if (_gnx_mso != undefined)
++                            {
++                                var _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_anal_start");
++                                
++                                if (_v != undefined)
++                                {
++                                    _touch = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                            }
++                            
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _mon_spr.head_b = spr_h_goblin_head_loop_alpha_anal;
+                             _mon_spr.hand_b = spr_h_goblin_hand_loop_alpha_anal;
+                             _mon_spr.body_b = spr_h_goblin_body_loop_alpha_anal;
+@@ -822,38 +1415,59 @@
+                             
+                             switch (_class)
+                             {
+-                                case UnknownEnum.Value_9:
++                                case 9:
+                                     _mon_spr.body_b = spr_h_goblin_body_loop_alpha_anal_cow;
+                                     _touch = spr_h_goblin_touch_loop_anal_cow;
+                                     _enter = spr_h_goblin_enter_loop_anal_cow;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_10:
++                                case 10:
+                                     _touch = spr_h_goblin_touch_loop_anal_nyx;
+                                     _enter = spr_h_goblin_enter_loop_anal_nyx;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_12:
++                                case 12:
+                                     _touch = spr_h_goblin_touch_loop_anal_morrigan;
+                                     _enter = spr_h_goblin_enter_loop_anal_morrigan;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_13:
++                                case 13:
+                                     _touch = spr_h_goblin_touch_loop_anal_cat;
+                                     _enter = spr_h_goblin_enter_loop_anal_cat;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_8:
++                                case 8:
+                                     _mon_spr.body_b = spr_h_goblin_body_loop_alpha_anal_lilith;
+                                     _touch = spr_h_goblin_touch_loop_anal_lilith;
+                                     _enter = spr_h_goblin_enter_loop_anal_lilith;
+                                     break;
+                             }
+                             
++                            var _gnx_mso = gnx_get_mso(_class);
++                            
++                            if (_gnx_mso != undefined)
++                            {
++                                var _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_anal_loop");
++                                
++                                if (_v != undefined)
++                                {
++                                    _touch = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                                
++                                _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_anal_loop");
++                                
++                                if (_v != undefined)
++                                {
++                                    _enter = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                            }
++                            
+                             break;
+                         
+-                        case UnknownEnum.Value_3:
+-                            if (_slot_type == UnknownEnum.Value_1 || _slot_type == UnknownEnum.Value_2)
++                        case 3:
++                            if (_slot_type == 1 || _slot_type == 2)
+                             {
+                                 _mon_spr.body_b = spr_h_goblin_body_ej_alpha_anal;
+                                 _mon_spr.hand_b = -1;
+@@ -865,33 +1479,60 @@
+                                 
+                                 switch (_class)
+                                 {
+-                                    case UnknownEnum.Value_9:
++                                    case 9:
+                                         _mon_spr.body_b = spr_h_goblin_body_ej_alpha_anal_cow;
+                                         _touch = spr_h_goblin_touch_loop_anal_cow;
+                                         _enter = spr_h_goblin_enter_loop_anal_cow;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_10:
++                                    case 10:
+                                         _touch = spr_h_goblin_touch_loop_anal_nyx;
+                                         _enter = spr_h_goblin_enter_loop_anal_nyx;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_12:
++                                    case 12:
+                                         _touch = spr_h_goblin_touch_loop_anal_morrigan;
+                                         _enter = spr_h_goblin_enter_loop_anal_morrigan;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_13:
++                                    case 13:
+                                         _touch = spr_h_goblin_touch_loop_anal_cat;
+                                         _enter = spr_h_goblin_enter_loop_anal_cat;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_8:
++                                    case 8:
+                                         _mon_spr.body_b = spr_h_goblin_body_ej_alpha_anal_lilith;
+                                         _touch = spr_h_goblin_touch_loop_anal_lilith;
+                                         _enter = spr_h_goblin_enter_loop_anal_lilith;
+                                         break;
+                                 }
++                                
++                                var _gnx_mso = gnx_get_mso(_class);
++                                
++                                if (_gnx_mso != undefined)
++                                {
++                                    var _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_anal_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_anal_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _touch = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                    
++                                    _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_anal_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_anal_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _enter = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                }
+                             }
+                             else
+                             {
+@@ -905,33 +1546,60 @@
+                                 
+                                 switch (_class)
+                                 {
+-                                    case UnknownEnum.Value_9:
++                                    case 9:
+                                         _mon_spr.body_b = spr_h_goblin_body_loop_alpha_anal_cow;
+                                         _touch = spr_h_goblin_touch_loop_anal_cow;
+                                         _enter = spr_h_goblin_enter_loop_anal_cow;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_10:
++                                    case 10:
+                                         _touch = spr_h_goblin_touch_loop_anal_nyx;
+                                         _enter = spr_h_goblin_enter_loop_anal_nyx;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_13:
++                                    case 13:
+                                         _touch = spr_h_goblin_touch_loop_anal_cat;
+                                         _enter = spr_h_goblin_enter_loop_anal_cat;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_12:
++                                    case 12:
+                                         _touch = spr_h_goblin_touch_loop_anal_morrigan;
+                                         _enter = spr_h_goblin_enter_loop_anal_morrigan;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_8:
++                                    case 8:
+                                         _mon_spr.body_b = spr_h_goblin_body_loop_alpha_anal_lilith;
+                                         _touch = spr_h_goblin_touch_loop_anal_lilith;
+                                         _enter = spr_h_goblin_enter_loop_anal_lilith;
+                                         break;
+                                 }
++                                
++                                var _gnx_mso = gnx_get_mso(_class);
++                                
++                                if (_gnx_mso != undefined)
++                                {
++                                    var _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_anal_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "goblin_wall_touch_anal_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _touch = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                    
++                                    _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_anal_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "goblin_wall_enter_anal_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _enter = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                }
+                             }
+                             
+                             break;
+@@ -941,35 +1609,35 @@
+             
+             switch (_spr_data.prop)
+             {
+-                case UnknownEnum.Value_42:
++                case 42:
+                     _mon_spr.prop = spr_low_crate;
+                     break;
+                 
+-                case UnknownEnum.Value_0:
++                case 0:
+                     _mon_spr.prop = spr_crate;
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     _mon_spr.prop = spr_fence;
+                     break;
+                 
+-                case UnknownEnum.Value_41:
++                case 41:
+                     _mon_spr.prop = spr_plank;
+                     break;
+                 
+-                case UnknownEnum.Value_44:
++                case 44:
+                     _mon_spr.prop = spr_small_step_1;
+                     break;
+                 
+-                case UnknownEnum.Value_45:
++                case 45:
+                     _mon_spr.prop = spr_small_step_2;
+                     break;
+                 
+-                case UnknownEnum.Value_46:
++                case 46:
+                     _mon_spr.prop = spr_small_step_3;
+                     break;
+                 
+-                case UnknownEnum.Value_43:
++                case 43:
+                     _mon_spr.prop = spr_bowl;
+                     break;
+             }
+@@ -977,63 +1645,95 @@
+             _mood_y -= 18;
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             switch (_slot_type)
+             {
+-                case UnknownEnum.Value_36:
++                case 36:
+                     image_xscale = ((mon_data.slot_id.slot_data.mod_index[7] * 2) - 1) * -1;
+                     _mon_spr.body_b = spr_h_hobgoblin_dairy_loop_alpha;
+                     _touch = spr_h_hobgoblin_dairy_loop_touch;
+                     _set = true;
+-                    
++
++                    // POPRAWKA (GNX): zmodowana postac moze podac wlasne cialo i dotyk hobgoblina w DAIRY
++                    if (_gnx_shrine_touch_mso != undefined)
++                    {
++                        if (variable_struct_exists(_gnx_shrine_touch_mso, "hobgoblin_dairy_body_alpha"))
++                        {
++                            _mon_spr.body_b = variable_struct_get(_gnx_shrine_touch_mso, "hobgoblin_dairy_body_alpha");
++                            _gnx_line_body_key = "hobgoblin_dairy_body_line";
++                        }
++
++                        if (variable_struct_exists(_gnx_shrine_touch_mso, "hobgoblin_dairy_touch"))
++                            _touch = variable_struct_get(_gnx_shrine_touch_mso, "hobgoblin_dairy_touch");
++                    }
++
+                     if (image_xscale == 1)
+                         _mood_x = 60;
+                     else
+                         _mood_x = 17;
+-                    
++
+                     _mood_y = -4;
+                     break;
+-                
+-                case UnknownEnum.Value_37:
+-                    if (arg1 == UnknownEnum.Value_0)
+-                    {
+-                        _mon_spr.body_b = spr_h_hobgoblin_body_start_alpha_giant;
+-                        _mon_spr.pen = spr_h_hobgoblin_body_start_pen_giant;
++
++                case 37:
++                    // POPRAWKA (GNX): sprite'y hobgoblina z mon_spr_overrides klasy, a bez nich wanilowe
++                    if (arg1 == 0)
++                    {
++                        _mon_spr.body_b = gnx_mso_pick(_gnx_shrine_touch_mso, "hobgoblin_giant_start_body_alpha", spr_h_hobgoblin_body_start_alpha_giant);
++                        _mon_spr.pen = gnx_mso_pick(_gnx_shrine_touch_mso, "hobgoblin_giant_start_pen", spr_h_hobgoblin_body_start_pen_giant);
++                        _gnx_line_body_key = "hobgoblin_giant_start_body_line";
+                     }
+                     else
+                     {
+-                        _mon_spr.body_b = spr_h_hobgoblin_body_alpha_giant;
+-                        _mon_spr.pen = spr_h_hobgoblin_pen_giant;
+-                        _touch = spr_h_hobgoblin_touch_giant;
+-                        _enter = spr_h_hobgoblin_enter_giant;
++                        _mon_spr.body_b = gnx_mso_pick(_gnx_shrine_touch_mso, "hobgoblin_giant_body_alpha", spr_h_hobgoblin_body_alpha_giant);
++                        _mon_spr.pen = gnx_mso_pick(_gnx_shrine_touch_mso, "hobgoblin_giant_pen", spr_h_hobgoblin_pen_giant);
++                        _touch = gnx_mso_pick(_gnx_shrine_touch_mso, "hobgoblin_giant_touch", spr_h_hobgoblin_touch_giant);
++                        _enter = gnx_mso_pick(_gnx_shrine_touch_mso, "hobgoblin_giant_enter", spr_h_hobgoblin_enter_giant);
++                        _gnx_line_body_key = "hobgoblin_giant_body_line";
+                     }
+-                    
++
+                     _set = true;
+                     _mood_x = floor(38.5);
+                     _mood_y = 8;
+                     break;
+                 
+-                case UnknownEnum.Value_18:
+-                    switch (_leg)
++                case 18:
++                    if (!_set)
+                     {
+-                        case UnknownEnum.Value_1:
+-                            _mon_spr.body_b = spr_h_hobgoblin_gb_1_loop_alpha;
+-                            break;
++                        switch (_leg)
++                        {
++                            case 1:
++                                _mon_spr.body_b = spr_h_hobgoblin_gb_1_loop_alpha;
++                                break;
++                            
++                            case 2:
++                                _mon_spr.body_b = spr_h_hobgoblin_gb_1_loop_alpha;
++                                break;
++                            
++                            case 0:
++                                _mon_spr.body_b = spr_h_hobgoblin_gb_1_v3_loop_alpha;
++                                break;
++                        }
+                         
+-                        case UnknownEnum.Value_2:
+-                            _mon_spr.body_b = spr_h_hobgoblin_gb_1_loop_alpha;
+-                            break;
++                        switch (_class)
++                        {
++                            case 8:
++                                _mon_spr.body_b = spr_h_hobgoblin_gb_1_lilith_loop_alpha;
++                                break;
++                        }
+                         
+-                        case UnknownEnum.Value_0:
+-                            _mon_spr.body_b = spr_h_hobgoblin_gb_1_v3_loop_alpha;
+-                            break;
+-                    }
+-                    
+-                    switch (_class)
+-                    {
+-                        case UnknownEnum.Value_8:
+-                            _mon_spr.body_b = spr_h_hobgoblin_gb_1_lilith_loop_alpha;
+-                            break;
++                        var _gnx_mso = gnx_get_mso(_class);
++                        
++                        if (_gnx_mso != undefined)
++                        {
++                            var _v = variable_struct_get(_gnx_mso, "hobgoblin_gb1_body");
++                            
++                            if (_v != undefined)
++                            {
++                                _mon_spr.body_b = _v;
++                                _gnx_mso_hit = true;
++                            }
++                        }
+                     }
+                     
+                     _spr_data.mon_frame_c = 5;
+@@ -1050,34 +1750,58 @@
+                     _set = true;
+                     break;
+                 
+-                case UnknownEnum.Value_23:
+-                    _mon_spr.body_b = spr_h_hobgoblin_gb_3_loop_body_alpha;
+-                    _mon_spr.hand_b = spr_h_hobgoblin_gb_3_loop_hand_alpha;
+-                    _enter = spr_h_hobgoblin_gb_3_loop_enter;
+-                    
+-                    switch (_class)
++                case 23:
++                    if (!_set)
+                     {
+-                        case UnknownEnum.Value_9:
+-                            _mon_spr.hand_b = spr_h_hobgoblin_gb_3_cow_loop_hand_alpha;
+-                            _enter = spr_h_hobgoblin_gb_3_cow_loop_enter;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_8:
+-                            _mon_spr.hand_b = spr_h_hobgoblin_gb_3_lilith_loop_hand_alpha;
+-                            _enter = spr_h_hobgoblin_gb_3_lilith_loop_enter;
+-                            break;
++                        _mon_spr.body_b = spr_h_hobgoblin_gb_3_loop_body_alpha;
++                        _mon_spr.hand_b = spr_h_hobgoblin_gb_3_loop_hand_alpha;
++                        _enter = spr_h_hobgoblin_gb_3_loop_enter;
+                         
+-                        case UnknownEnum.Value_13:
+-                            _enter = spr_h_hobgoblin_gb_3_cat_loop_enter;
+-                            break;
++                        switch (_class)
++                        {
++                            case 9:
++                                _mon_spr.hand_b = spr_h_hobgoblin_gb_3_cow_loop_hand_alpha;
++                                _enter = spr_h_hobgoblin_gb_3_cow_loop_enter;
++                                break;
++                            
++                            case 8:
++                                _mon_spr.hand_b = spr_h_hobgoblin_gb_3_lilith_loop_hand_alpha;
++                                _enter = spr_h_hobgoblin_gb_3_lilith_loop_enter;
++                                break;
++                            
++                            case 13:
++                                _enter = spr_h_hobgoblin_gb_3_cat_loop_enter;
++                                break;
++                            
++                            case 10:
++                                _enter = spr_h_hobgoblin_gb_3_nyx_loop_enter;
++                                break;
++                            
++                            case 12:
++                                _enter = spr_h_hobgoblin_gb_3_morrigan_loop_enter;
++                                break;
++                        }
+                         
+-                        case UnknownEnum.Value_10:
+-                            _enter = spr_h_hobgoblin_gb_3_nyx_loop_enter;
+-                            break;
++                        var _gnx_mso = gnx_get_mso(_class);
+                         
+-                        case UnknownEnum.Value_12:
+-                            _enter = spr_h_hobgoblin_gb_3_morrigan_loop_enter;
+-                            break;
++                        if (_gnx_mso != undefined)
++                        {
++                            var _v = variable_struct_get(_gnx_mso, "hobgoblin_gb3_hand");
++                            
++                            if (_v != undefined)
++                            {
++                                _mon_spr.hand_b = _v;
++                                _gnx_mso_hit = true;
++                            }
++                            
++                            _v = variable_struct_get(_gnx_mso, "hobgoblin_gb3_enter");
++                            
++                            if (_v != undefined)
++                            {
++                                _enter = _v;
++                                _gnx_mso_hit = true;
++                            }
++                        }
+                     }
+                     
+                     _spr_data.mon_frame_c = 5;
+@@ -1089,26 +1813,60 @@
+                     _set = true;
+                     break;
+                 
+-                case UnknownEnum.Value_39:
++                case 39:
++                    _mon_spr.body_b = -1;
++                    _mon_spr.head_b = -1;
++                    _mon_spr.hand_b = -1;
++                    _mon_spr.pen = -1;
++                    _touch = -1;
++                    _enter = -1;
++                    _gnx_body_l = -1;
++                    _gnx_head_l = -1;
++                    _gnx_hand_l = -1;
++                    
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_0:
+-                            _mon_spr.body_b = spr_hobgoblin_shrine_start_body_alpha;
+-                            _mon_spr.hand_b = spr_hobgoblin_shrine_start_hand_alpha;
+-                            _mon_spr.pen = spr_hobgoblin_shrine_start_pen;
++                        case 0:
++                            _gnx_line_body_key = "hobgoblin_shrine_start_body_line";
++                            _gnx_line_hand_key = "hobgoblin_shrine_start_hand_line";
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "hobgoblin_shrine_start_body_alpha"))
++                                _mon_spr.body_b = variable_struct_get(_gnx_shrine_touch_mso, "hobgoblin_shrine_start_body_alpha");
++                            else
++                                _mon_spr.body_b = spr_hobgoblin_shrine_start_body_alpha;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "hobgoblin_shrine_start_hand_alpha"))
++                                _mon_spr.hand_b = variable_struct_get(_gnx_shrine_touch_mso, "hobgoblin_shrine_start_hand_alpha");
++                            else
++                                _mon_spr.hand_b = spr_hobgoblin_shrine_start_hand_alpha;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "hobgoblin_shrine_start_pen"))
++                                _mon_spr.pen = variable_struct_get(_gnx_shrine_touch_mso, "hobgoblin_shrine_start_pen");
++                            else
++                                _mon_spr.pen = spr_hobgoblin_shrine_start_pen;
++                            
+                             _spr_data.hand_xscale = choose(1, -1);
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
+-                            _mon_spr.body_b = spr_h_hobgoblin_shrine_alpha;
+-                            _touch = spr_h_hobgoblin_shrine_touch;
+-                            _enter = spr_h_hobgoblin_shrine_enter;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_3:
+-                            _mon_spr.body_b = spr_h_hobgoblin_shrine_alpha;
+-                            _touch = spr_h_hobgoblin_shrine_touch;
+-                            _enter = spr_h_hobgoblin_shrine_enter;
++                        case 2:
++                        case 3:
++                            _gnx_line_body_key = "hobgoblin_shrine_body_line";
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "hobgoblin_shrine_body_alpha"))
++                                _mon_spr.body_b = variable_struct_get(_gnx_shrine_touch_mso, "hobgoblin_shrine_body_alpha");
++                            else
++                                _mon_spr.body_b = spr_h_hobgoblin_shrine_alpha;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "hobgoblin_shrine_touch"))
++                                _touch = variable_struct_get(_gnx_shrine_touch_mso, "hobgoblin_shrine_touch");
++                            else if (!_is_special_captive)
++                                _touch = spr_h_hobgoblin_shrine_touch;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "hobgoblin_shrine_enter"))
++                                _enter = variable_struct_get(_gnx_shrine_touch_mso, "hobgoblin_shrine_enter");
++                            else if (!_is_special_captive)
++                                _enter = spr_h_hobgoblin_shrine_enter;
++                            
+                             break;
+                     }
+                     
+@@ -1117,41 +1875,41 @@
+                     _mood_y = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_9:
++                case 9:
+                     _mood_y += 31;
+                     break;
+                 
+-                case UnknownEnum.Value_13:
++                case 13:
+                     _mood_y += 23;
+                     break;
+                 
+-                case UnknownEnum.Value_14:
++                case 14:
+                     _mood_y += 20;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     _mood_y += 5;
+                     break;
+             }
+             
+             if (!_set)
+             {
+-                if (!_anal)
++                if (!_anal || (_slot_type != 1 && _slot_type != 2 && _slot_type != 7 && _slot_type != 8))
+                 {
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             switch (_leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_start_v1_alpha;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_start_v2_alpha;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_0:
++                                case 0:
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_start_v3_alpha;
+                                     break;
+                             }
+@@ -1163,32 +1921,53 @@
+                             
+                             switch (_class)
+                             {
+-                                case UnknownEnum.Value_9:
++                                case 9:
+                                     _mon_spr.hand_b = spr_h_hobgoblin_hand_start_cow_alpha;
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_start_cow_alpha;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_13:
++                                case 13:
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_start_v3_alpha;
+                                     break;
+                             }
+                             
++                            var _gnx_mso = gnx_get_mso(_class);
++                            
++                            if (_gnx_mso != undefined)
++                            {
++                                var _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_body_start");
++                                
++                                if (_v != undefined)
++                                {
++                                    _mon_spr.body_b = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                                
++                                _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_hand_start");
++                                
++                                if (_v != undefined)
++                                {
++                                    _mon_spr.hand_b = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                            }
++                            
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             switch (_leg)
+                             {
+-                                case UnknownEnum.Value_1:
++                                case 1:
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_loop_v1_alpha;
+                                     _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
+                                     break;
+                                 
+-                                case UnknownEnum.Value_2:
++                                case 2:
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_loop_v2_alpha;
+                                     _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v2_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
+                                     break;
+                                 
+-                                case UnknownEnum.Value_0:
++                                case 0:
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_loop_v3_alpha;
+                                     _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
+                                     break;
+@@ -1196,7 +1975,7 @@
+                             
+                             _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha;
+                             
+-                            if (_slot_type == UnknownEnum.Value_15)
++                            if (_slot_type == 15)
+                                 _spr_data.hand_xscale = choose(1, -1);
+                             else
+                                 _spr_data.hand_xscale = 1;
+@@ -1207,52 +1986,73 @@
+                             
+                             switch (_class)
+                             {
+-                                case UnknownEnum.Value_9:
++                                case 9:
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_loop_cow_alpha;
+                                     _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_v1_d1_alpha;
+                                     _touch = spr_h_hobgoblin_touch_loop_cow;
+                                     _enter = spr_h_hobgoblin_enter_loop_cow;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_10:
++                                case 10:
+                                     _touch = spr_h_hobgoblin_touch_loop_nyx;
+                                     _enter = spr_h_hobgoblin_enter_loop_nyx;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_13:
++                                case 13:
+                                     _touch = spr_h_hobgoblin_touch_loop_cat;
+                                     _enter = spr_h_hobgoblin_enter_loop_cat;
+                                     _mon_spr.body_b = spr_h_hobgoblin_body_loop_v3_alpha;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_12:
++                                case 12:
+                                     _touch = spr_h_hobgoblin_touch_loop_morrigan;
+                                     _enter = spr_h_hobgoblin_enter_loop_morrigan;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_8:
++                                case 8:
+                                     _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_v1_d1_alpha;
+                                     _touch = spr_h_hobgoblin_enter_loop_lilith;
+                                     _enter = spr_h_hobgoblin_enter_loop_lilith;
+                                     break;
+                             }
+                             
++                            var _gnx_mso = gnx_get_mso(_class);
++                            
++                            if (_gnx_mso != undefined)
++                            {
++                                var _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_touch_loop");
++                                
++                                if (_v != undefined)
++                                {
++                                    _touch = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                                
++                                _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_enter_loop");
++                                
++                                if (_v != undefined)
++                                {
++                                    _enter = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                            }
++                            
+                             break;
+                         
+-                        case UnknownEnum.Value_3:
+-                            if (_slot_type == UnknownEnum.Value_1 || _slot_type == UnknownEnum.Value_2 || _slot_type == UnknownEnum.Value_7 || _slot_type == UnknownEnum.Value_8 || _slot_type == UnknownEnum.Value_15)
++                        case 3:
++                            if (_slot_type == 1 || _slot_type == 2 || _slot_type == 7 || _slot_type == 8 || _slot_type == 15)
+                             {
+                                 switch (_leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_v2_alpha;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_0:
++                                    case 0:
+                                         _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
+                                         break;
+                                 }
+@@ -1260,7 +2060,7 @@
+                                 _mon_spr.head_b = -1;
+                                 _mon_spr.body_b = spr_h_hobgoblin_body_ej_alpha;
+                                 
+-                                if (_slot_type == UnknownEnum.Value_15)
++                                if (_slot_type == 15)
+                                     _mon_spr.hand_b = spr_h_hobgoblin_hand_ej_alpha;
+                                 else
+                                     _spr_data.hand_xscale = 1;
+@@ -1271,49 +2071,76 @@
+                                 
+                                 switch (_class)
+                                 {
+-                                    case UnknownEnum.Value_9:
++                                    case 9:
+                                         _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_v1_d1_alpha;
+                                         _touch = spr_h_hobgoblin_touch_loop_cow;
+                                         _enter = spr_h_hobgoblin_enter_loop_cow;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_8:
++                                    case 8:
+                                         _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_v1_d1_alpha;
+                                         _touch = spr_h_hobgoblin_touch_loop_lilith;
+                                         _enter = spr_h_hobgoblin_enter_loop_lilith;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_10:
++                                    case 10:
+                                         _touch = spr_h_hobgoblin_touch_loop_nyx;
+                                         _enter = spr_h_hobgoblin_enter_loop_nyx;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_13:
++                                    case 13:
+                                         _touch = spr_h_hobgoblin_touch_loop_cat;
+                                         _enter = spr_h_hobgoblin_enter_loop_cat;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_12:
++                                    case 12:
+                                         _touch = spr_h_hobgoblin_touch_loop_morrigan;
+                                         _enter = spr_h_hobgoblin_enter_loop_morrigan;
+                                         break;
+                                 }
++                                
++                                var _gnx_mso = gnx_get_mso(_class);
++                                
++                                if (_gnx_mso != undefined)
++                                {
++                                    var _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_touch_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_touch_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _touch = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                    
++                                    _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_enter_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_enter_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _enter = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                }
+                             }
+                             else
+                             {
+                                 switch (_leg)
+                                 {
+-                                    case UnknownEnum.Value_1:
++                                    case 1:
+                                         _mon_spr.body_b = spr_h_hobgoblin_body_loop_v1_alpha;
+                                         _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_2:
++                                    case 2:
+                                         _mon_spr.body_b = spr_h_hobgoblin_body_loop_v2_alpha;
+                                         _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_v2_alpha;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_0:
++                                    case 0:
+                                         _mon_spr.body_b = spr_h_hobgoblin_body_loop_v1_alpha;
+                                         _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
+                                         break;
+@@ -1327,34 +2154,61 @@
+                                 
+                                 switch (_class)
+                                 {
+-                                    case UnknownEnum.Value_9:
++                                    case 9:
+                                         _mon_spr.body_b = spr_h_hobgoblin_body_loop_cow_alpha;
+                                         _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_v1_d1_alpha;
+                                         _touch = spr_h_hobgoblin_touch_loop_cow;
+                                         _enter = spr_h_hobgoblin_enter_loop_cow;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_8:
++                                    case 8:
+                                         _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_v1_d1_alpha;
+                                         _touch = spr_h_hobgoblin_touch_loop_lilith;
+                                         _enter = spr_h_hobgoblin_enter_loop_lilith;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_10:
++                                    case 10:
+                                         _touch = spr_h_hobgoblin_touch_loop_nyx;
+                                         _enter = spr_h_hobgoblin_enter_loop_nyx;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_13:
++                                    case 13:
+                                         _touch = spr_h_hobgoblin_touch_loop_cat;
+                                         _enter = spr_h_hobgoblin_enter_loop_cat;
+                                         break;
+                                     
+-                                    case UnknownEnum.Value_12:
++                                    case 12:
+                                         _touch = spr_h_hobgoblin_touch_loop_morrigan;
+                                         _enter = spr_h_hobgoblin_enter_loop_morrigan;
+                                         break;
+                                 }
++                                
++                                var _gnx_mso = gnx_get_mso(_class);
++                                
++                                if (_gnx_mso != undefined)
++                                {
++                                    var _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_touch_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_touch_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _touch = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                    
++                                    _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_enter_ej");
++                                    
++                                    if (_v == undefined)
++                                        _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_enter_loop");
++                                    
++                                    if (_v != undefined)
++                                    {
++                                        _enter = _v;
++                                        _gnx_mso_hit = true;
++                                    }
++                                }
+                             }
+                             
+                             break;
+@@ -1364,7 +2218,7 @@
+                 {
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             _mon_spr.body_b = spr_h_hobgoblin_body_start_alpha_anal;
+                             _spr_data.hand_xscale = 1;
+                             _mon_spr.head_b = -1;
+@@ -1372,7 +2226,7 @@
+                             _mon_spr.pen = spr_h_hobgoblin_pen_start_anal;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha_anal;
+                             _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_alpha_anal;
+                             _mon_spr.body_b = spr_h_hobgoblin_body_loop_alpha_anal;
+@@ -1383,35 +2237,56 @@
+                             
+                             switch (_class)
+                             {
+-                                case UnknownEnum.Value_9:
++                                case 9:
+                                     _touch = spr_h_hobgoblin_touch_loop_anal_cow;
+                                     _enter = spr_h_hobgoblin_enter_loop_anal_cow;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_8:
++                                case 8:
+                                     _touch = spr_h_hobgoblin_touch_loop_lilith;
+                                     _enter = spr_h_hobgoblin_enter_loop_anal_lilith;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_10:
++                                case 10:
+                                     _touch = spr_h_hobgoblin_touch_loop_anal_nyx;
+                                     _enter = spr_h_hobgoblin_enter_loop_anal_nyx;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_13:
++                                case 13:
+                                     _touch = spr_h_hobgoblin_touch_loop_anal_cat;
+                                     _enter = spr_h_hobgoblin_enter_loop_anal_cat;
+                                     break;
+                                 
+-                                case UnknownEnum.Value_12:
++                                case 12:
+                                     _touch = spr_h_hobgoblin_touch_loop_anal_morrigan;
+                                     _enter = spr_h_hobgoblin_enter_loop_anal_morrigan;
+                                     break;
+                             }
+                             
++                            var _gnx_mso = gnx_get_mso(_class);
++                            
++                            if (_gnx_mso != undefined)
++                            {
++                                var _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_touch_anal_loop");
++                                
++                                if (_v != undefined)
++                                {
++                                    _touch = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                                
++                                _v = variable_struct_get(_gnx_mso, "hobgoblin_wall_enter_anal_loop");
++                                
++                                if (_v != undefined)
++                                {
++                                    _enter = _v;
++                                    _gnx_mso_hit = true;
++                                }
++                            }
++                            
+                             break;
+                         
+-                        case UnknownEnum.Value_3:
++                        case 3:
+                             _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha_anal;
+                             _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_alpha_anal;
+                             _mon_spr.body_b = spr_h_hobgoblin_body_loop_alpha_anal;
+@@ -1426,52 +2301,81 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_3:
++        case 3:
+             _mood_x = floor(38.5);
+             _mood_y = 0;
+             
+             switch (_slot_type)
+             {
+-                case UnknownEnum.Value_37:
+-                    if (arg1 == UnknownEnum.Value_0)
+-                    {
+-                        _mon_spr.body_b = spr_h_ogre_giant_start_alpha;
+-                        _mon_spr.pen = spr_h_ogre_giant_start_pen;
++                case 37:
++                    // POPRAWKA (GNX): sprite'y ogra z mon_spr_overrides klasy, a bez nich wanilowe
++                    if (arg1 == 0)
++                    {
++                        _mon_spr.body_b = gnx_mso_pick(_gnx_shrine_touch_mso, "ogre_giant_start_alpha", spr_h_ogre_giant_start_alpha);
++                        _mon_spr.pen = gnx_mso_pick(_gnx_shrine_touch_mso, "ogre_giant_start_pen", spr_h_ogre_giant_start_pen);
++                        _gnx_line_body_key = "ogre_giant_start_line";
+                     }
+                     else
+                     {
+-                        _mon_spr.body_b = spr_h_ogre_giant_loop_alpha;
+-                        _mon_spr.pen = spr_h_ogre_giant_loop_pen;
+-                        _touch = spr_h_ogre_giant_loop_touch;
++                        _mon_spr.body_b = gnx_mso_pick(_gnx_shrine_touch_mso, "ogre_giant_loop_alpha", spr_h_ogre_giant_loop_alpha);
++                        _mon_spr.pen = gnx_mso_pick(_gnx_shrine_touch_mso, "ogre_giant_loop_pen", spr_h_ogre_giant_loop_pen);
++                        _touch = gnx_mso_pick(_gnx_shrine_touch_mso, "ogre_giant_loop_touch", spr_h_ogre_giant_loop_touch);
++                        _gnx_line_body_key = "ogre_giant_loop_line";
+                     }
+-                    
++
+                     _set = true;
+                     _mood_x = floor(38.5);
+                     _mood_y = 8;
+                     break;
+-                
+-                case UnknownEnum.Value_38:
++
++                case 38:
+                     _set = true;
+                     _mon_spr.body_b = spr_h_ogre_body_loop_morrigan;
+                     break;
+                 
+-                case UnknownEnum.Value_39:
++                case 39:
++                    _mon_spr.body_b = -1;
++                    _mon_spr.head_b = -1;
++                    _mon_spr.hand_b = -1;
++                    _mon_spr.pen = -1;
++                    _touch = -1;
++                    _enter = -1;
++                    _gnx_body_l = -1;
++                    _gnx_head_l = -1;
++                    _gnx_hand_l = -1;
++                    
+                     switch (arg1)
+                     {
+-                        case UnknownEnum.Value_0:
+-                            _mon_spr.body_b = spr_h_ogre_shrine_start_alpha;
+-                            _mon_spr.pen = spr_h_ogre_shrine_start_enter;
++                        case 0:
++                            _gnx_line_body_key = "ogre_shrine_start_line";
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "ogre_shrine_start_alpha"))
++                                _mon_spr.body_b = variable_struct_get(_gnx_shrine_touch_mso, "ogre_shrine_start_alpha");
++                            else
++                                _mon_spr.body_b = spr_h_ogre_shrine_start_alpha;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "ogre_shrine_start_pen"))
++                                _mon_spr.pen = variable_struct_get(_gnx_shrine_touch_mso, "ogre_shrine_start_pen");
++                            else
++                                _mon_spr.pen = spr_h_ogre_shrine_start_enter;
++                            
+                             _spr_data.hand_xscale = choose(1, -1);
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
+-                            _mon_spr.body_b = spr_h_ogre_shrine_loop_alpha;
+-                            _enter = spr_h_ogre_shrine_loop_enter;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_3:
+-                            _mon_spr.body_b = spr_h_ogre_shrine_loop_alpha;
+-                            _enter = spr_h_ogre_shrine_loop_enter;
++                        case 2:
++                        case 3:
++                            _gnx_line_body_key = "ogre_shrine_loop_line";
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "ogre_shrine_loop_alpha"))
++                                _mon_spr.body_b = variable_struct_get(_gnx_shrine_touch_mso, "ogre_shrine_loop_alpha");
++                            else
++                                _mon_spr.body_b = spr_h_ogre_shrine_loop_alpha;
++                            
++                            if (_gnx_shrine_touch_mso != undefined && variable_struct_exists(_gnx_shrine_touch_mso, "ogre_shrine_loop_enter"))
++                                _enter = variable_struct_get(_gnx_shrine_touch_mso, "ogre_shrine_loop_enter");
++                            else if (!_is_special_captive)
++                                _enter = spr_h_ogre_shrine_loop_enter;
++                            
+                             break;
+                     }
+                     
+@@ -1480,68 +2384,94 @@
+                     _mood_y = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_20:
++                case 20:
+                     _mood_y = 40;
+                     break;
+                 
+-                case UnknownEnum.Value_23:
++                case 23:
+                     _mood_y = 20;
+                     break;
+             }
+             
+             if (!_set)
+             {
+-                if (arg1 == UnknownEnum.Value_0)
++                if (arg1 == 0)
+                 {
+                     switch (_leg)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _mon_spr.body_b = spr_h_ogre_body_start;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _mon_spr.body_b = spr_h_ogre_body_start;
+                             break;
+                         
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             _mon_spr.body_b = spr_h_ogre_body_start_v3;
+                             break;
+                     }
+                     
+                     switch (_class)
+                     {
+-                        case UnknownEnum.Value_9:
++                        case 9:
+                             _mon_spr.body_b = spr_h_ogre_body_start_cow;
+                             break;
+                     }
++                    
++                    var _gnx_mso = gnx_get_mso(_class);
++                    
++                    if (_gnx_mso != undefined)
++                    {
++                        var _v = variable_struct_get(_gnx_mso, "ogre_wall_body_start");
++                        
++                        if (_v != undefined)
++                        {
++                            _mon_spr.body_b = _v;
++                            _gnx_mso_hit = true;
++                        }
++                    }
+                 }
+                 else
+                 {
+                     switch (_leg)
+                     {
+-                        case UnknownEnum.Value_1:
++                        case 1:
+                             _mon_spr.body_b = spr_h_ogre_body_loop;
+                             break;
+                         
+-                        case UnknownEnum.Value_2:
++                        case 2:
+                             _mon_spr.body_b = spr_h_ogre_body_loop;
+                             break;
+                         
+-                        case UnknownEnum.Value_0:
++                        case 0:
+                             _mon_spr.body_b = spr_h_ogre_body_loop_v3;
+                             break;
+                     }
+                     
+                     switch (_class)
+                     {
+-                        case UnknownEnum.Value_9:
++                        case 9:
+                             _mon_spr.body_b = spr_h_ogre_body_loop_cow;
+                             break;
+                         
+-                        case UnknownEnum.Value_8:
++                        case 8:
+                             _mon_spr.body_b = spr_h_ogre_body_loop_lilith;
+                             break;
+                     }
++                    
++                    var _gnx_mso = gnx_get_mso(_class);
++                    
++                    if (_gnx_mso != undefined)
++                    {
++                        var _v = variable_struct_get(_gnx_mso, "ogre_wall_body_loop");
++                        
++                        if (_v != undefined)
++                        {
++                            _mon_spr.body_b = _v;
++                            _gnx_mso_hit = true;
++                        }
++                    }
+                 }
+                 
+                 _mon_spr.hand_b = -1;
+@@ -1553,11 +2483,39 @@
+             break;
+     }
+     
++    if (global.gnx_debug_verbose && _gnx_mso_hit)
++    {
++        var _pf = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_pf, "[GNX-MSO] c=" + string(_class) + " mt=" + string(_mon_type) + " h=" + string(_slot_type) + " p=" + string(arg1) + "\n");
++        file_text_close(_pf);
++    }
++    
+     _spr_data.skin_type = max(0, arg0.unit_data.skin);
+     _mon_spr.head_l = scr_set_mon_bl_data(_mon_spr.head_b);
+     _mon_spr.body_l = scr_set_mon_bl_data(_mon_spr.body_b);
+     _mon_spr.hand_l = scr_set_mon_bl_data(_mon_spr.hand_b);
+     
++    if (_gnx_shrine_touch_mso != undefined)
++    {
++        if (_gnx_line_body_key != undefined && variable_struct_exists(_gnx_shrine_touch_mso, _gnx_line_body_key))
++            _mon_spr.body_l = variable_struct_get(_gnx_shrine_touch_mso, _gnx_line_body_key);
++        
++        if (_gnx_line_hand_key != undefined && variable_struct_exists(_gnx_shrine_touch_mso, _gnx_line_hand_key))
++            _mon_spr.hand_l = variable_struct_get(_gnx_shrine_touch_mso, _gnx_line_hand_key);
++    }
++    
++    if (is_struct(_gnx_ms))
++    {
++        if (_gnx_head_l != -1)
++            _mon_spr.head_l = _gnx_head_l;
++        
++        if (_gnx_body_l != -1)
++            _mon_spr.body_l = _gnx_body_l;
++        
++        if (_gnx_hand_l != -1)
++            _mon_spr.hand_l = _gnx_hand_l;
++    }
++    
+     if (_mon_spr.prop != -1)
+     {
+         switch (_mon_spr.prop)
+@@ -1602,20 +2560,42 @@
+     if (_enter != -1)
+         arg0.slot_data.spr_enter = _enter;
+     
++    if (!variable_struct_exists(_spr_data, "start_frame"))
++        _spr_data.start_frame = 0;
++    
+     mon_spr = _mon_spr;
+     mon_data.spr_data = _spr_data;
+     mon_data.spr_data.spr_type = arg1;
+     mon_data.mood_slot_shift_x = _mood_x;
+     mon_data.mood_slot_shift_y = _mood_y;
+     scr_mon_draw = _mon_draw;
++    
++    if (_slot_type >= 100 && ds_map_exists(global.cell_registry, _slot_type))
++    {
++        var _gcell_pos = ds_map_find_value(global.cell_registry, _slot_type);
++        
++        if (variable_struct_exists(_gcell_pos, "gnx_mon_positions"))
++        {
++            var _positions = _gcell_pos.gnx_mon_positions;
++            var _pn = mon_data.placement_num;
++            
++            if (_pn < array_length(_positions))
++            {
++                _x_shift += _positions[_pn].x;
++                _y_shift += _positions[_pn].y;
++            }
++        }
++    }
++    
+     mon_data.x_shift = _x_shift;
+     mon_data.y_shift = _y_shift;
+     x = mon_data.slot_id.x + mon_data.x_shift;
+     y = mon_data.slot_id.y + mon_data.y_shift;
+     mon_data.follow = true;
++    scr_gnx_trace("SPR_END", id, "x=" + string(x) + " y=" + string(y) + " slot_x=" + string(mon_data.slot_id.x) + " slot_y=" + string(mon_data.slot_id.y) + " xshift=" + string(_x_shift) + " yshift=" + string(_y_shift) + " draw=" + string(scr_mon_draw) + " vis=" + string(visible) + " body_b=" + string(_mon_spr.body_b) + " head_b=" + string(_mon_spr.head_b) + " hand_b=" + string(_mon_spr.hand_b) + " set=" + string(_set) + " anal=" + string(_anal));
+ }
+ 
+-function scr_set_mon_bl_data(arg0)
++function scr_set_mon_bl_data_legacy(arg0)
+ {
+     var _line = -1;
+     
+@@ -1961,36 +2941,21 @@
+     return _line;
+ }
+ 
+-enum UnknownEnum
++function scr_set_mon_bl_data(arg0)
+ {
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_10,
+-    Value_11,
+-    Value_12,
+-    Value_13,
+-    Value_14,
+-    Value_15,
+-    Value_18 = 18,
+-    Value_19,
+-    Value_20,
+-    Value_23 = 23,
+-    Value_36 = 36,
+-    Value_37,
+-    Value_38,
+-    Value_39,
+-    Value_41 = 41,
+-    Value_42,
+-    Value_43,
+-    Value_44,
+-    Value_45,
+-    Value_46
++    if (arg0 == -1)
++        return -1;
++    
++    if (ds_map_exists(global.bl_lookup, arg0))
++        return ds_map_find_value(global.bl_lookup, arg0);
++    
++    var _name = sprite_get_name(arg0);
++    var _line_name = string_replace(_name, "_alpha", "_line");
++    var _line = asset_get_index(_line_name);
++    
++    if (_line < 0)
++        _line = -1;
++    
++    ds_map_add(global.bl_lookup, arg0, _line);
++    return _line;
+ }

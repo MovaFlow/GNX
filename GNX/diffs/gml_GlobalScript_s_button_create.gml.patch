@@ -1,0 +1,67 @@
+--- gml_138/gml_GlobalScript_s_button_create.gml	2026-09-02 08:45:16.422591300 +0200
++++ gml/gml_GlobalScript_s_button_create.gml	2026-10-04 17:12:20.000000000 +0200
+@@ -97,6 +97,13 @@
+                         instance_destroy();
+                     
+                     break;
++                
++                case 4:
++                    // POPRAWKA: XL ma 150 px + deska 11 px - bez wolnego miejsca na pietrze nie pokazuj przycisku
++                    if (sign(array_length(global.unlock.xl_breed)) <= 0 || (global.slot_x[source_id.source_id.slot_data.slot_floor] + 162) > room_width)
++                        instance_destroy();
++                    
++                    break;
+             }
+             
+             break;
+@@ -133,6 +140,10 @@
+             button_num = global.unlock.t_utility[button_num];
+             break;
+         
++        case 93:
++            button_num = global.unlock.xl_breed[button_num];
++            break;
++        
+         case UnknownEnum.Value_6:
+             var _slot_id = source_id.source_id;
+             
+@@ -599,6 +610,21 @@
+             
+             break;
+         
++        case 93:
++            for (var i = 0; i < _num; i++)
++            {
++                var _val = ds_list_find_value(global.new_button_list, i);
++                
++                if (_val.slot_type != -1 && _val.slot_type == button_num)
++                {
++                    _spr_new_result = _spr_new;
++                    _pos = i;
++                    i = _num;
++                }
++            }
++            
++            break;
++        
+         case UnknownEnum.Value_2:
+             var _unlock_array = -1;
+             
+@@ -797,7 +823,7 @@
+ {
+     var _dest = true;
+     
+-    if (source_id.source_id.slot_data.slot_type == UnknownEnum.Value_0 || source_id.source_id.slot_data.slot_type == UnknownEnum.Value_1)
++    if (source_id.source_id.slot_data.slot_type == UnknownEnum.Value_0 || source_id.source_id.slot_data.slot_type == UnknownEnum.Value_1 || source_id.source_id.slot_data.slot_type == 6)
+     {
+         for (var i = 0; i < array_length(global.unlock.edit_between); i++)
+         {
+@@ -815,7 +841,7 @@
+         }
+     }
+     
+-    if ((source_id.source_id.slot_data.slot_type != UnknownEnum.Value_0 && source_id.source_id.slot_data.slot_type != UnknownEnum.Value_1 && source_id.source_id.slot_data.slot_type != UnknownEnum.Value_2) || _dest || source_id.source_id.slot_data.base_type == -1)
++    if ((source_id.source_id.slot_data.slot_type != UnknownEnum.Value_0 && source_id.source_id.slot_data.slot_type != UnknownEnum.Value_1 && source_id.source_id.slot_data.slot_type != UnknownEnum.Value_2 && source_id.source_id.slot_data.slot_type != 6) || _dest || source_id.source_id.slot_data.base_type == -1)
+         instance_destroy();
+     
+     spr_sel = spr_button_small_sel;

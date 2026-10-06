@@ -1,0 +1,47 @@
+--- gml_138/gml_Object_obj_window_Draw_64.gml	2026-09-02 08:45:16.162547100 +0200
++++ gml/gml_Object_obj_window_Draw_64.gml	2026-10-05 10:01:02.000000000 +0200
+@@ -5,3 +5,44 @@
+     else
+         draw_self();
+ }
++
++if (global.gnx_perf_hud)
++{
++    var _prev_color = draw_get_color();
++    var _prev_alpha = draw_get_alpha();
++    var _prev_font = draw_get_font();
++    var _prev_halign = draw_get_halign();
++    var _prev_valign = draw_get_valign();
++    var _vram = 0;
++    var _rt = array_length(global.gnx_runtime_sprites);
++    
++    for (var _vi = 0; _vi < _rt; _vi++)
++    {
++        var _s = global.gnx_runtime_sprites[_vi];
++        
++        if (sprite_exists(_s))
++            _vram += (sprite_get_width(_s) * sprite_get_height(_s) * 4);
++    }
++    
++    var _vram_mb = string_format(_vram / 1048576, 1, 1);
++    var _sc = 0.5;
++    var _txt = "GNX PERF\nFPS: " + string(fps) + " / " + string_format(fps_real, 1, 1) + "\nVRAM: " + _vram_mb + " MB  (" + string(_rt) + " sprites)" + "\nCache: " + string(ds_map_size(global.gnx_sprite_cache)) + " spr  " + string(ds_map_size(global.gnx_sound_cache)) + " snd" + "\nAtlas: " + string(ds_map_size(global.gnx_mod_atlases)) + "  Inst: " + string(instance_count);
++    draw_set_font(-1);
++    var _tw = string_width(_txt) * _sc;
++    var _gw = display_get_gui_width();
++    var _hx = _gw - _tw - 6;
++    var _hy = 34;
++    draw_set_halign(fa_left);
++    draw_set_valign(fa_top);
++    draw_set_alpha(0.6);
++    draw_set_color(c_black);
++    draw_text_transformed(_hx + 1, _hy + 1, _txt, _sc, _sc, 0);
++    draw_set_alpha(0.8);
++    draw_set_color(c_lime);
++    draw_text_transformed(_hx, _hy, _txt, _sc, _sc, 0);
++    draw_set_color(_prev_color);
++    draw_set_alpha(_prev_alpha);
++    draw_set_font(_prev_font);
++    draw_set_halign(_prev_halign);
++    draw_set_valign(_prev_valign);
++}

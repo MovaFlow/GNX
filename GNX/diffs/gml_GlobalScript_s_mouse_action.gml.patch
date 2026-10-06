@@ -1,0 +1,73 @@
+--- gml_138/gml_GlobalScript_s_mouse_action.gml	2026-09-02 08:45:16.155545700 +0200
++++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-05 10:32:23.160092300 +0200
+@@ -1,6 +1,7 @@
+ function scr_mouse_control()
+ {
+-    if (!global.click_lock && !global.trans_lock)
++    // POPRAWKA: klik w pasek przewijania nie trafia juz w cele pod nim (chyba ze cos trzymamy - wtedy normalnie)
++    if (!global.click_lock && !global.trans_lock && !(hold_id == -1 && gnx_scrollbar_blocks_click()))
+         scr_mouse_click();
+     
+     var _wheel = mouse_wheel_down() - mouse_wheel_up();
+@@ -115,7 +116,8 @@
+             }
+         }
+         
+-        if (mouse_check_button(global.val.camera_click))
++        // POPRAWKA: przeciaganie paska przewijania nie przesuwa jednoczesnie kamery (po zamianie przyciskow myszy)
++        if (mouse_check_button(global.val.camera_click) && !global.gnx_scrollbar_dragging)
+         {
+             var _last_x, _last_y;
+             
+@@ -934,6 +936,21 @@
+                                         
+                                         scr_sfx_play(UnknownEnum.Value_18);
+                                         break;
++                                    
++                                    case 6:
++                                        if (slot_data.anim_struct == -1)
++                                        {
++                                            scr_create_window_button_list(_inst, _x, _y, 1, UnknownEnum.Value_0, 94, scr_create_xl_slot_category_button, true);
++                                        }
++                                        else
++                                        {
++                                            _x = floor(clamp(mouse_x, 22, room_width - 22));
++                                            _y = mouse_y - 4;
++                                            scr_create_window_slot_mod(_inst, _x, _y, false);
++                                        }
++                                        
++                                        scr_sfx_play(UnknownEnum.Value_18);
++                                        break;
+                                 }
+                             }
+                         }
+@@ -1565,20 +1582,23 @@
+                                         {
+                                             if (mon_data.mon_type == UnknownEnum.Value_1 && mon_data.task == UnknownEnum.Value_3 && variable_struct_exists(mon_data, "carry_start_id") && mon_data.carry_start_id == other.id)
+                                             {
+-                                                if (mon_data.carry_start_id != -1)
++                                                if (mon_data.carry_start_id != -1 && instance_exists(mon_data.carry_start_id))
+                                                 {
+                                                     mon_data.carry_start_id.slot_data.load = false;
+                                                     mon_data.carry_start_id.slot_data.carry = false;
+                                                 }
+-                                                
+-                                                if (mon_data.carry_end_id != -1)
++
++                                                if (mon_data.carry_end_id != -1 && instance_exists(mon_data.carry_end_id))
+                                                 {
+                                                     mon_data.carry_end_id.slot_data.load = false;
+                                                     mon_data.carry_end_id.slot_data.carry = false;
+                                                 }
+-                                                
+-                                                with (mon_data.slot_id)
+-                                                    scr_unit_removal(false, true, true, false, -1);
++
++                                                if (instance_exists(mon_data.slot_id))
++                                                {
++                                                    with (mon_data.slot_id)
++                                                        scr_unit_removal(false, true, true, false, -1);
++                                                }
+                                             }
+                                         }
+                                     }

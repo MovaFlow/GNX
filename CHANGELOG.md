@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.4.7
+
+**Game version:** 1.39
+
+### Bug Fixes
+
+- Fixed transfer cells not working after loading a save. Carry state (`char_state`, `h_step`) and carry/load flags are now reset on load so the cell re-dispatches transfers from scratch.
+- Fixed "only 1 hobgoblin" bug on transfer cells after load. Saved `h_step=1` skipped the load phase that spawns the second hobgoblin.
+- Added `instance_exists()` guards on all 5 sites that dereference `carry_start_id` / `carry_end_id` without checking the instance is alive (s_mouse_action, s_slot_function x2, s_mon_remove, s_mon_draw).
+- Fixed two vanilla copy-paste bugs in `scr_occupy_slot` case 17: the `carry_end_id` cleanup block wrote to `carry_start_id.slot_data.carry` instead of `carry_end_id`, leaving the end cell's carry flag stuck.
+- Added carry/load flag sweep on save load. Clears orphaned flags on cells that no hobgoblin actually references.
+- Added `gnx_slot_purge_dead_refs()` to clean dead monster refs from cell placement and unit lists. Runs on cell wake-up from off-screen sleep, unit removal, and monster arrival.
+- Fixed `scr_slot_carry_idle` milk class check: any class with `scr_unit == 0` now qualifies, not just hardcoded class 9.
+- Relaxed T16 test so classes providing `clothing_giant` instead of `clothing_standard` pass mod class validation.
+
 ## v1.4.6
 
 **Game version:** 1.39

@@ -1,0 +1,75 @@
+--- gml_138/gml_Object_obj_mon_Draw_0.gml	2026-09-02 08:45:16.155545700 +0200
++++ gml/gml_Object_obj_mon_Draw_0.gml	2026-10-05 10:01:02.000000000 +0200
+@@ -1,28 +1,52 @@
+-var _z_num = obj_camera.zoom_num;
++var _cam = view_camera[0];
++var _vy = camera_get_view_y(_cam);
++var _vh = camera_get_view_height(_cam);
+ 
+-if (x >= (obj_camera.x - 150) && x <= (obj_camera.x + (480 * _z_num) + 150) && y >= (obj_camera.y - 150) && y <= (obj_camera.y + (270 * _z_num) + 150))
++if (y < (_vy - 200) || y > (_vy + _vh + 200))
++    exit;
++
++if (global.gnx_perf_enabled)
++    global.gnx_perf_mons_drawn++;
++
++if (scr_mon_draw != -1)
++    script_execute(scr_mon_draw, true);
++else
++    draw_self();
++
++if (mon_data.mood_type != -1)
+ {
+-    if (scr_mon_draw != -1)
+-        script_execute(scr_mon_draw, true);
++    var _x = 0;
++    
++    if (mon_data.mon_state == 1)
++        _x = x + mon_data.mood_slot_shift_x;
+     else
+-        draw_self();
++        _x = x + (mon_data.mood_shift_x * image_xscale);
+     
+-    if (mon_data.mood_type != -1)
+-    {
+-        var _x = 0;
+-        
+-        if (mon_data.mon_state == UnknownEnum.Value_1)
+-            _x = x + mon_data.mood_slot_shift_x;
+-        else
+-            _x = x + (mon_data.mood_shift_x * image_xscale);
+-        
+-        var _y = y + mon_data.mood_shift_y + mon_data.mood_slot_shift_y;
+-        draw_sprite(spr_mood_bubble, 0, _x, _y);
+-        draw_sprite(spr_unit_mood, mon_data.mood_type, _x, _y);
+-    }
++    var _y = y + mon_data.mood_shift_y + mon_data.mood_slot_shift_y;
++    draw_sprite(spr_mood_bubble, 0, _x, _y);
++    draw_sprite(spr_unit_mood, mon_data.mood_type, _x, _y);
+ }
+ 
+-enum UnknownEnum
++if (global.gnx_trace_entities)
+ {
+-    Value_1 = 1
++    draw_set_font(-1);
++    draw_set_halign(fa_center);
++    draw_set_color((scr_mon_draw == -1) ? c_red : c_lime);
++    draw_set_alpha(0.9);
++    var _db_ht = "?";
++    var _db_bb = "?";
++    
++    if (variable_struct_exists(self, "mon_data") && is_struct(mon_data))
++    {
++        if (variable_struct_exists(mon_data, "spr_data") && is_struct(mon_data.spr_data) && variable_struct_exists(mon_data.spr_data, "h_type"))
++            _db_ht = string(mon_data.spr_data.h_type);
++        
++        if (variable_struct_exists(self, "mon_spr") && is_struct(mon_spr) && variable_struct_exists(mon_spr, "body_b"))
++            _db_bb = string(mon_spr.body_b);
++    }
++    
++    draw_text(x, y - 24, string(id) + " h" + _db_ht + "\nbody=" + _db_bb);
++    draw_set_alpha(1);
++    draw_set_halign(fa_left);
++    draw_set_color(c_white);
+ }

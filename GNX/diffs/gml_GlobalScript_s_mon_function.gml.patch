@@ -1,0 +1,78 @@
+--- gml_138/gml_GlobalScript_s_mon_function.gml	2026-09-02 08:45:16.546618600 +0200
++++ gml/gml_GlobalScript_s_mon_function.gml	2026-10-04 17:12:20.000000000 +0200
+@@ -292,17 +292,29 @@
+     var _slot_width = -1;
+     var _carry = false;
+     var _set_spr = false;
++    var _ct_ht = variable_struct_exists(arg2.slot_id.slot_data, "h_type") ? arg2.slot_id.slot_data.h_type : -1;
++    scr_gnx_trace("CONTACT", id, "slot=" + string(arg2.slot_id) + " slot_type=" + string(_slot_type) + " h_type=" + string(_ct_ht) + " mon_type=" + string(_mon_type));
+     mon_data.mood_type = -1;
+     mon_data.mood_timer = 0;
+     var _id = id;
+     var _place = mon_data.placement_num;
+-    
++
++    // POPRAWKA: listy celi mogly zostac z numerami potworow, ktorych juz nie ma (np. cela poza ekranem nie sprzata listy)
++    if (_slot_type != UnknownEnum.Value_3)
++    {
++        with (arg2.slot_id)
++            gnx_slot_purge_dead_refs();
++    }
++
+     switch (_slot_type)
+     {
+         case UnknownEnum.Value_3:
+             global.val.nest_num[_mon_type + 1]--;
+             break;
+         
++        // POPRAWKA: cela XL (slot_type 6) dziala jak mala cela, tylko jest szersza.
++        // Bez tego potwor po dojsciu do XL trafial do "instance_destroy()" na dole funkcji.
++        case 6:
+         case UnknownEnum.Value_0:
+             mon_data.mon_state = UnknownEnum.Value_1;
+             mon_data.ff = true;
+@@ -312,9 +324,9 @@
+             {
+                 if (slot_data.anal != -1)
+                 {
+-                    if (unit_data.preg_c < 1 && irandom_range(1, 100) <= 60)
++                    if (unit_data.preg_c < 1 && irandom_range(1, 100) <= global.gnx_anal_chance)
+                         slot_data.anal = true;
+-                    else if (irandom_range(1, 100) <= 15)
++                    else if (irandom_range(1, 100) <= global.gnx_anal_chance_preg)
+                         slot_data.anal = true;
+                     else
+                         slot_data.anal = false;
+@@ -339,7 +351,7 @@
+                 }
+             }
+             
+-            _slot_width = 45;
++            _slot_width = (_slot_type == 6) ? 150 : 45;
+             break;
+         
+         case UnknownEnum.Value_1:
+@@ -393,6 +405,14 @@
+                         break;
+                     
+                     case UnknownEnum.Value_17:
++                        // POPRAWKA: miejsce w CAGE moglo zostac po potworze, ktorego juz nie ma (np. wyszedl z gniazda).
++                        // Bez tego ponizej czytane jest .mon_data nieistniejacej instancji -> crash.
++                        for (var i = 0; i < array_length(slot_data.mon_placement); i++)
++                        {
++                            if (slot_data.mon_placement[i] != -1 && !instance_exists(slot_data.mon_placement[i]))
++                                slot_data.mon_placement[i] = -1;
++                        }
++
+                         var _set_move = true;
+                         
+                         for (var i = 0; i < slot_data.max_mon_num; i++)
+@@ -553,6 +573,8 @@
+         }
+     }
+     
++    scr_gnx_trace("CONTACT_END", id, "set_spr=" + string(_set_spr) + " slot=" + string(mon_data.slot_id));
++    
+     if (_set_spr)
+         scr_set_mon_spr_data(mon_data.slot_id, -1);
+ }

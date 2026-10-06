@@ -1,0 +1,70 @@
+--- gml_138/gml_GlobalScript_scr_create_menu_button.gml	2026-09-02 08:45:16.120550900 +0200
++++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -42,6 +42,7 @@
+                     m_timer: _time[1],
+                     ver: _load_data.global_list.val.version
+                 };
++                _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
+                 buffer_delete(_buff);
+             }
+             
+@@ -67,6 +68,7 @@
+                     m_timer: _time[1],
+                     ver: _load_data.global_list.val.version
+                 };
++                _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
+                 buffer_delete(_buff);
+             }
+             
+@@ -92,6 +94,7 @@
+                     m_timer: _time[1],
+                     ver: _load_data.global_list.val.version
+                 };
++                _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
+                 buffer_delete(_buff);
+             }
+             
+@@ -117,6 +120,7 @@
+                     m_timer: _time[1],
+                     ver: _load_data.global_list.val.version
+                 };
++                _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
+                 buffer_delete(_buff);
+             }
+             
+@@ -129,6 +133,20 @@
+         _data = -1;
+     }
+     
++    if (_data != -1 && variable_struct_exists(_data, "gnx_map") && _data.gnx_map != "" && _data.gnx_map != "vanilla")
++    {
++        _data.gnx_map_label = _data.gnx_map;
++        
++        for (var _ti = 0; _ti < array_length(global.gnx_travel_locations); _ti++)
++        {
++            if (global.gnx_travel_locations[_ti].target == _data.gnx_map)
++            {
++                _data.gnx_map_label = global.gnx_travel_locations[_ti].label;
++                break;
++            }
++        }
++    }
++    
+     load_data = _data;
+     button_num = arg0;
+     text_save = make_color_rgb(173, 99, 56);
+@@ -492,6 +510,14 @@
+         draw_text(x - 46, y - 17, _title);
+         draw_set_color(text_save);
+         draw_text(x - 45, y - 18, _title);
++        
++        if (variable_struct_exists(load_data, "gnx_map_label"))
++        {
++            var _ml_x = (x - 45) + string_width(_title + " ");
++            draw_set_color(make_color_rgb(130, 160, 195));
++            draw_text(_ml_x, y - 18, load_data.gnx_map_label);
++        }
++        
+         draw_set_color(c_white);
+         draw_set_halign(fa_center);
+         var _lang_pos = scr_change_lang();

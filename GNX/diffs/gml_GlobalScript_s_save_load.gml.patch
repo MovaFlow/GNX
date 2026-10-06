@@ -1,0 +1,777 @@
+--- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-05 18:15:28.512179600 +0200
+@@ -110,6 +110,7 @@
+         _save_data.raid_data = raid_data;
+     }
+     
++    scr_gnx_save_quest_state();
+     var _global = {};
+     _global.val = global.val;
+     _global.unlock = global.unlock;
+@@ -161,14 +162,24 @@
+     _num = ds_list_size(global.quest_list);
+     
+     for (var i = 0; i < _num; i++)
+-        _list[i] = ds_list_find_value(global.quest_list, i);
++    {
++        var _qe = ds_list_find_value(global.quest_list, i);
++        
++        if (!variable_struct_exists(_qe, "gnx_event_id"))
++            array_push(_list, _qe);
++    }
+     
+     _global.quest_list = _list;
+     _list = [];
+     _num = ds_list_size(global.noti_list);
+     
+     for (var i = 0; i < _num; i++)
+-        _list[i] = ds_list_find_value(global.noti_list, i);
++    {
++        var _ne = ds_list_find_value(global.noti_list, i);
++        
++        if (!variable_struct_exists(_ne, "gnx_event_id"))
++            array_push(_list, _ne);
++    }
+     
+     _global.noti_list = _list;
+     _list = [];
+@@ -218,6 +229,15 @@
+             break;
+     }
+     
++    if (global.gnx_multimap_enabled)
++    {
++        if (variable_global_exists("gnx_active_map"))
++            _save_data.gnx_active_map = global.gnx_active_map;
++        
++        if (variable_global_exists("gnx_inactive_maps"))
++            _save_data.gnx_maps = global.gnx_inactive_maps;
++    }
++    
+     if (file_exists(_save_type))
+         file_delete(_save_type);
+     
+@@ -248,42 +268,64 @@
+ {
+     var _load = false;
+     var _load_type = -1;
++    var _gnx_travel = variable_global_exists("gnx_travel_data") && global.gnx_travel_data != -1;
+     
+-    switch (global.load_file)
++    if (!_gnx_travel)
+     {
+-        case 0:
+-            if (file_exists("save_file_a.json"))
+-                _load_type = "save_file_a.json";
+-            
+-            break;
+-        
+-        case 1:
+-            if (file_exists("save_file_1.json"))
+-                _load_type = "save_file_1.json";
++        switch (global.load_file)
++        {
++            case 0:
++                if (file_exists("save_file_a.json"))
++                    _load_type = "save_file_a.json";
++                
++                break;
+             
+-            break;
+-        
+-        case 2:
+-            if (file_exists("save_file_2.json"))
+-                _load_type = "save_file_2.json";
++            case 1:
++                if (file_exists("save_file_1.json"))
++                    _load_type = "save_file_1.json";
++                
++                break;
+             
+-            break;
+-        
+-        case 3:
+-            if (file_exists("save_file_3.json"))
+-                _load_type = "save_file_3.json";
++            case 2:
++                if (file_exists("save_file_2.json"))
++                    _load_type = "save_file_2.json";
++                
++                break;
+             
+-            break;
++            case 3:
++                if (file_exists("save_file_3.json"))
++                    _load_type = "save_file_3.json";
++                
++                break;
++        }
+     }
+     
+-    if (_load_type != -1)
++    if (_gnx_travel || _load_type != -1)
+     {
+         _load = true;
+-        var _buff = buffer_load(_load_type);
+-        var _json = buffer_read(_buff, buffer_text);
+-        var _load_data = json_parse(_json);
+-        buffer_delete(_buff);
+-        _load_data = scr_patch_update_pre(_load_data);
++        
++        if (_gnx_travel)
++        {
++            _load_data = global.gnx_travel_data;
++            global.gnx_travel_data = -1;
++            
++            if (is_string(_load_data) && _load_data == "fresh")
++            {
++                var _flog = file_text_open_append("gnx_debug.txt");
++                file_text_write_string(_flog, "[GNX-MAP] fresh map: returning false for new-game path, active=" + global.gnx_active_map + "\n");
++                file_text_close(_flog);
++                return false;
++            }
++        }
++        else
++        {
++            var _buff = buffer_load(_load_type);
++            var _json = buffer_read(_buff, buffer_text);
++            _load_data = json_parse(_json);
++            buffer_delete(_buff);
++        }
++        
++        var _load_data = scr_patch_update_pre(_load_data);
+         var _slot_list = _load_data.slot_list;
+         var _start_x = -1;
+         
+@@ -302,9 +344,12 @@
+             
+             with (_slot_id)
+             {
++                var _gnx_fresh_hand_frame = -1;
++                
+                 if (_data.slot_data.anim_struct != -1)
+                 {
+                     scr_set_slot_h_data(id, _data.slot_data.h_type);
++                    _gnx_fresh_hand_frame = slot_data.hand_frame;
+                     
+                     if (_data.unit_data != -1)
+                     {
+@@ -365,6 +410,29 @@
+                     spr_base = _spr;
+                 }
+                 
++                // POPRAWKA: cela XL tracila styl sciany (filar/skala/cegla) po wczytaniu
++                if (_data.slot_data.slot_type == 6)
++                {
++                    var _spr = spr_xl_slot_back;
++
++                    switch (_data.slot_data.base_type)
++                    {
++                        case 1:
++                            _spr = spr_xl_slot_back_pillar;
++                            break;
++
++                        case 2:
++                            _spr = spr_xl_slot_back_rock;
++                            break;
++
++                        case 3:
++                            _spr = spr_xl_slot_back_brick;
++                            break;
++                    }
++
++                    spr_base = _spr;
++                }
++
+                 if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
+                     spr_base = spr_tent_back_full;
+                 
+@@ -432,6 +500,44 @@
+                 }
+                 
+                 slot_data = _data.slot_data;
++
++                if (is_array(_gnx_fresh_hand_frame))
++                    slot_data.hand_frame = _gnx_fresh_hand_frame;
++
++                if (variable_struct_exists(slot_data, "h_type") && slot_data.h_type == 17 && slot_data.anim_struct != -1)
++                {
++                    slot_data.anim_struct.char_state = 0;
++                    slot_data.h_step = 0;
++                    slot_data.visual = true;
++                    slot_data.carry = false;
++                    slot_data.load = false;
++                }
++                
++                // POPRAWKA: cela z moda mogla dostac inna liczbe warstw od czasu zapisu.
++                // mod_index musi miec tyle pozycji co spr_slot, inaczej rysowanie siega poza tablice.
++                // Tylko nowe cele z modow (maja mod_name): stare zapisy cel wanilowych poprawia pozniej scr_patch_update_post.
++                // Najpierw sprawdzamy anim_struct i h_type - filary, deski, drzwi i puste miejsca nie maja h_type.
++                var _gnx_rc_mi = undefined;
++                
++                if (_data.slot_data.anim_struct != -1 && variable_struct_exists(slot_data, "h_type"))
++                    _gnx_rc_mi = ds_map_find_value(global.cell_registry, slot_data.h_type);
++                
++                if (_gnx_rc_mi != undefined && variable_struct_exists(_gnx_rc_mi, "mod_name") && is_array(spr_slot) && (!is_array(slot_data.mod_index) || array_length(slot_data.mod_index) != array_length(spr_slot)))
++                {
++                    slot_data.mod_index = [];
++                    
++                    for (var _mi = 0; _mi < array_length(spr_slot); _mi++)
++                    {
++                        var _gnx_lt = spr_slot[_mi][0];
++                        
++                        if (_gnx_lt == 2 || _gnx_lt == 3)
++                            slot_data.mod_index[_mi] = -1;
++                        else if (_gnx_lt == 5 && unit_data != -1)
++                            slot_data.mod_index[_mi] = 1; // warstwa typu 5: 1 = cela zajeta (tak samo ustawia scr_occupy_slot)
++                        else
++                            slot_data.mod_index[_mi] = 0;
++                    }
++                }
+             }
+         }
+         
+@@ -482,22 +588,14 @@
+                 
+                 var _spr_data = _data.mon_data.spr_data;
+                 
+-                if (_spr_data != -1)
+-                {
+-                    switch (_spr_data.mon_step)
+-                    {
+-                        case UnknownEnum.Value_0:
+-                            scr_set_mon_spr_data(mon_data.slot_id, _spr_data.spr_type);
+-                            break;
+-                    }
+-                }
++                if (_spr_data != -1 && is_struct(_spr_data) && variable_struct_exists(_spr_data, "spr_type"))
++                    scr_set_mon_spr_data(mon_data.slot_id, _spr_data.spr_type);
+                 
+                 if (mon_data.task == UnknownEnum.Value_3)
+                 {
+                     switch (_data.mon_data.mon_state)
+                     {
+                         case UnknownEnum.Value_0:
+-                            var _spr = spr_idle;
+                             break;
+                         
+                         case UnknownEnum.Value_8:
+@@ -554,6 +652,10 @@
+                     case UnknownEnum.Value_10:
+                         sprite_index = spr_patrol;
+                         spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
++                        
++                        if (spr_unit.patrol_spr != -1)
++                            sprite_index = spr_unit.patrol_spr;
++                        
+                         scr_mon_draw = scr_draw_orgre_patrol;
+                         scr_mon_begin_step = scr_ogre_spd_b;
+                         break;
+@@ -568,6 +670,48 @@
+         var _global = _load_data.global_list;
+         global.val = _global.val;
+         global.unlock = _global.unlock;
++        
++        if (!variable_struct_exists(global.unlock, "xl_breed"))
++            global.unlock.xl_breed = [];
++        
++        if (_gnx_travel && global.gnx_carry_day != -1)
++        {
++            global.val.day = global.gnx_carry_day;
++            global.val.day_timer = global.gnx_carry_timer;
++            global.gnx_carry_day = -1;
++            global.gnx_carry_timer = -1;
++        }
++        
++        if (_gnx_travel)
++        {
++            if (global.gnx_carry_gold > 0)
++            {
++                global.val.money += global.gnx_carry_gold;
++                global.gnx_carry_gold = -1;
++            }
++            
++            if (global.gnx_carry_food > 0)
++            {
++                global.val.food += global.gnx_carry_food;
++                global.gnx_carry_food = -1;
++            }
++            
++            if (global.gnx_carry_goblins > 0)
++            {
++                scr_mon_num_edit(0, 0, global.gnx_carry_goblins, true);
++                global.val.nest_num[0] = scr_all_mon_num_cal();
++                global.gnx_carry_goblins = -1;
++            }
++        }
++        
++        if (!variable_struct_exists(global.val, "language"))
++            global.val.language = 0;
++        
++        if (variable_struct_exists(global.val, "fullscreen"))
++            window_set_fullscreen(global.val.fullscreen);
++        else
++            global.val.fullscreen = false;
++        
+         ds_list_clear(global.unit_list);
+         _num = array_length(_global.unit_list);
+         
+@@ -606,11 +750,21 @@
+         
+         ds_list_clear(global.quest_list);
+         _num = array_length(_global.quest_list);
++        var _vq_idx = 0;
+         
+         for (var i = 0; i < _num; i++)
+         {
++            if (is_string(_global.quest_list[i].quest_type))
++                continue;
++            
+             scr_add_event(_global.quest_list[i].quest_type, true);
+-            ds_list_find_value(global.quest_list, i).quest_clear = _global.quest_list[i].quest_clear;
++            var _val = ds_list_find_value(global.quest_list, _vq_idx);
++            
++            if (is_undefined(_val))
++                break;
++            
++            _val.quest_clear = _global.quest_list[i].quest_clear;
++            _vq_idx++;
+         }
+         
+         for (var i = 0; i < ds_list_size(global.quest_list); i++)
+@@ -634,7 +788,12 @@
+         _num = array_length(_global.noti_list);
+         
+         for (var i = 0; i < _num; i++)
++        {
++            if (is_string(_global.noti_list[i].noti_type))
++                continue;
++            
+             scr_add_event(_global.noti_list[i].noti_type, true);
++        }
+         
+         ds_list_clear(global.new_guide_list);
+         _num = array_length(_global.new_guide_list);
+@@ -656,6 +815,292 @@
+         
+         _load_data = scr_patch_update_post(_load_data);
+         scr_demo_to_full();
++        
++        if (variable_struct_exists(global.val, "gnx_mod_data"))
++        {
++            global.gnx_mod_state = {};
++            var _mod_keys = variable_struct_get_names(global.val.gnx_mod_data);
++            
++            for (var i = 0; i < array_length(_mod_keys); i++)
++                variable_struct_set(global.gnx_mod_state, _mod_keys[i], variable_struct_get(global.val.gnx_mod_data, _mod_keys[i]));
++        }
++        else
++        {
++            global.val.gnx_mod_data = {};
++            global.gnx_mod_state = {};
++        }
++        
++        if (variable_global_exists("gnx_save_state_defaults"))
++        {
++            var _def_keys = variable_struct_get_names(global.gnx_save_state_defaults);
++            
++            for (var _di = 0; _di < array_length(_def_keys); _di++)
++            {
++                var _mk = _def_keys[_di];
++                var _def = variable_struct_get(global.gnx_save_state_defaults, _mk);
++                var _existing = variable_struct_exists(global.val.gnx_mod_data, _mk) ? variable_struct_get(global.val.gnx_mod_data, _mk) : undefined;
++                
++                if (_existing == undefined)
++                {
++                    var _state = {};
++                    _state._version = _def.version;
++                    var _fkeys = variable_struct_get_names(_def.fields);
++                    
++                    for (var _fi = 0; _fi < array_length(_fkeys); _fi++)
++                        variable_struct_set(_state, _fkeys[_fi], variable_struct_get(_def.fields, _fkeys[_fi]));
++                    
++                    variable_struct_set(global.val.gnx_mod_data, _mk, _state);
++                    variable_struct_set(global.gnx_mod_state, _mk, _state);
++                }
++                else
++                {
++                    var _fkeys = variable_struct_get_names(_def.fields);
++                    
++                    for (var _fi = 0; _fi < array_length(_fkeys); _fi++)
++                    {
++                        var _fk = _fkeys[_fi];
++                        
++                        if (!variable_struct_exists(_existing, _fk))
++                            variable_struct_set(_existing, _fk, variable_struct_get(_def.fields, _fk));
++                    }
++                }
++            }
++        }
++        
++        scr_gnx_restore_quest_state();
++        
++        if (global.gnx_has_sounds)
++        {
++            for (var _ui = 0; _ui < ds_list_size(global.unit_list); _ui++)
++            {
++                var _u = ds_list_find_value(global.unit_list, _ui);
++                
++                if (is_struct(_u))
++                    scr_gnx_check_voice(_u);
++            }
++        }
++        
++        try
++        {
++            if (!variable_struct_exists(global.val, "moan_vol"))
++                global.val.moan_vol = 0.5;
++            
++            if (!variable_struct_exists(global.val, "moan_frq"))
++                global.val.moan_frq = 15;
++            
++            if (!variable_struct_exists(global.val, "orgasm_frq"))
++                global.val.orgasm_frq = 5;
++            
++            if (!variable_struct_exists(global.val, "plap_vol"))
++                global.val.plap_vol = 0.5;
++            
++            if (!variable_struct_exists(global.val, "ej_vol"))
++                global.val.ej_vol = 0.5;
++            
++            if (!variable_struct_exists(global.val, "bj_vol"))
++                global.val.bj_vol = 0.5;
++            
++            if (!variable_struct_exists(global.val, "gnx_ambience_mode"))
++                global.val.gnx_ambience_mode = 0;
++            else if (!scr_gnx_goblin_mode_allowed(global.val.gnx_ambience_mode))
++                global.val.gnx_ambience_mode = 0;
++            
++            if (!variable_struct_exists(global.val, "gnx_ambient_vol"))
++                global.val.gnx_ambient_vol = 1;
++        }
++        catch (_e)
++        {
++            global.val.moan_vol = 0.5;
++            global.val.moan_frq = 15;
++            global.val.orgasm_frq = 5;
++            global.val.plap_vol = 0.5;
++            global.val.ej_vol = 0.5;
++            global.val.bj_vol = 0.5;
++            global.val.gnx_ambience_mode = 0;
++            global.val.gnx_ambient_vol = 1;
++        }
++        
++        scr_gnx_migrate_unlocks();
++        
++        if (!_gnx_travel)
++        {
++            if (variable_struct_exists(_load_data, "gnx_active_map"))
++                global.gnx_active_map = _load_data.gnx_active_map;
++            else
++                global.gnx_active_map = "vanilla";
++            
++            if (variable_struct_exists(_load_data, "gnx_maps"))
++                global.gnx_inactive_maps = _load_data.gnx_maps;
++            else
++                global.gnx_inactive_maps = {};
++            
++            scr_gnx_load_deferred_map_mods();
++        }
++    }
++    
++    var _sweep_f = -1;
++    var _sweep_n = 0;
++    
++    with (obj_mon)
++    {
++        if (!variable_struct_exists(self, "mon_data") || !is_struct(mon_data))
++            continue;
++        
++        if (mon_data.slot_id == -1)
++            continue;
++        
++        // POPRAWKA: cela musi istniec i naprawde byc cela (stary numer z zapisu moze wskazywac inny obiekt)
++        var _exists = gnx_is_live_inst(mon_data.slot_id) && mon_data.slot_id.object_index == obj_slot;
++        var _ok = _exists && is_struct(mon_data.slot_id.unit_data) && variable_struct_exists(mon_data.slot_id, "slot_data") && mon_data.slot_id.slot_data.anim_struct != -1;
++
++        // POPRAWKA: odpinamy i naprawiamy tylko potwory siedzace w celi (stan 1) - tak samo jak watchdog w 1.4.6.
++        // Idace (6), czekajace (0) i noszace w CAGE (7/8/9) normalnie wskazuja cele bez jenca. Wczesniej SWEEP je odpinal,
++        // potwor wychodzil z gniazda, a CAGE dalej trzymala jego numer -> crash w scr_mon_contact.
++        if (mon_data.mon_state == 1)
++        {
++            if (!_ok)
++            {
++                if (_sweep_f == -1)
++                    _sweep_f = file_text_open_append("gnx_debug.txt");
++
++                file_text_write_string(_sweep_f, "[GNX] SWEEP detach mon=" + string(id) + " slot=" + string(mon_data.slot_id));
++                file_text_writeln(_sweep_f);
++                gnx_mon_release_from_slot();
++                _sweep_n++;
++            }
++            else if (scr_mon_draw == -1)
++            {
++                scr_set_mon_spr_data(mon_data.slot_id, -1);
++
++                if (_sweep_f == -1)
++                    _sweep_f = file_text_open_append("gnx_debug.txt");
++
++                file_text_write_string(_sweep_f, "[GNX] SWEEP repair mon=" + string(id) + " slot=" + string(mon_data.slot_id) + " state=" + string(mon_data.mon_state));
++                file_text_writeln(_sweep_f);
++            }
++        }
++        else if (!_exists)
++        {
++            // cela zniknela: kod stanow (walk/carry/patrol) sam pojdzie do drzwi, wystarczy wyczyscic martwy numer
++            mon_data.slot_id = -1;
++        }
++        else if (mon_data.mon_state == 6 && mon_data.slot_id.slot_data.slot_type != 3 && (mon_data.slot_id.slot_data.anim_struct == -1 || ((mon_data.slot_id.slot_data.slot_type == 0 || mon_data.slot_id.slot_data.slot_type == 6) && !is_struct(mon_data.slot_id.unit_data))))
++        {
++            // POPRAWKA: idzie do celi bez typu albo do malej/XL bez postaci - przy dojsciu kontakt czytalby nieistniejace dane.
++            // CAGE (duza cela bez postaci) tu nie wpada, wiec hobgobliny noszace zostaja na miejscu.
++            if (_sweep_f == -1)
++                _sweep_f = file_text_open_append("gnx_debug.txt");
++
++            file_text_write_string(_sweep_f, "[GNX] SWEEP detach walker mon=" + string(id) + " slot=" + string(mon_data.slot_id));
++            file_text_writeln(_sweep_f);
++            gnx_mon_release_from_slot();
++            _sweep_n++;
++        }
++        
++        if (_ok && (mon_data.mon_state == 5 || mon_data.mon_state == 6) && point_distance(x, y, mon_data.slot_id.x, mon_data.slot_id.y) < 10)
++        {
++            x = mon_data.slot_id.x + (mon_data.slot_id.image_xscale * 0.5);
++            y = mon_data.slot_id.y;
++            mon_data.mon_state = 1;
++            mon_data.ff = false;
++        }
++    }
++    
++    var _sweep_refs = 0;
++
++    with (obj_slot)
++    {
++        if (!variable_instance_exists(id, "slot_data") || !is_struct(slot_data))
++            continue;
++
++        if (variable_struct_exists(slot_data, "mon_placement") && is_array(slot_data.mon_placement))
++        {
++            for (var _pi = 0; _pi < array_length(slot_data.mon_placement); _pi++)
++            {
++                var _pm = slot_data.mon_placement[_pi];
++
++                // -1 = puste miejsce, zostawiamy
++                if (is_numeric(_pm) && _pm == -1)
++                    continue;
++
++                if (!gnx_mon_ref_ok(_pm, id))
++                {
++                    slot_data.mon_placement[_pi] = -1;
++                    gnx_slot_reset_place_timer(_pi);
++                    _sweep_refs++;
++                }
++            }
++        }
++
++        if (is_array(h_unit_list))
++        {
++            // od konca, bo array_delete przesuwa kolejne elementy.
++            // Usuwamy tylko martwe wpisy - cele z mackami trzymaja tu obj_tent, nie potwora.
++            for (var _hi = array_length(h_unit_list) - 1; _hi >= 0; _hi--)
++            {
++                if (!gnx_is_live_inst(h_unit_list[_hi]))
++                {
++                    array_delete(h_unit_list, _hi, 1);
++                    _sweep_refs++;
++                }
++            }
++        }
++    }
++
++    if (_sweep_refs > 0)
++    {
++        if (_sweep_f == -1)
++            _sweep_f = file_text_open_append("gnx_debug.txt");
++
++        file_text_write_string(_sweep_f, "[GNX] SWEEP cleared " + string(_sweep_refs) + " dead monster refs in cells");
++        file_text_writeln(_sweep_f);
++    }
++
++    var _carry_active = ds_map_create();
++
++    with (obj_mon)
++    {
++        if (variable_struct_exists(self, "mon_data") && is_struct(mon_data))
++        {
++            if (variable_struct_exists(mon_data, "carry_start_id") && mon_data.carry_start_id != -1 && instance_exists(mon_data.carry_start_id))
++                ds_map_add(_carry_active, mon_data.carry_start_id, true);
++
++            if (variable_struct_exists(mon_data, "carry_end_id") && mon_data.carry_end_id != -1 && instance_exists(mon_data.carry_end_id))
++                ds_map_add(_carry_active, mon_data.carry_end_id, true);
++        }
++    }
++
++    var _carry_reset = 0;
++
++    with (obj_slot)
++    {
++        if (variable_struct_exists(self, "slot_data") && is_struct(slot_data) && variable_struct_exists(slot_data, "carry") && (slot_data.carry || slot_data.load))
++        {
++            if (!ds_map_exists(_carry_active, id))
++            {
++                slot_data.carry = false;
++                slot_data.load = false;
++                _carry_reset++;
++            }
++        }
++    }
++
++    ds_map_destroy(_carry_active);
++
++    if (_carry_reset > 0)
++    {
++        if (_sweep_f == -1)
++            _sweep_f = file_text_open_append("gnx_debug.txt");
++
++        file_text_write_string(_sweep_f, "[GNX] SWEEP reset stale carry/load flags on " + string(_carry_reset) + " slots");
++        file_text_writeln(_sweep_f);
++    }
++
++    if (_sweep_f != -1)
++    {
++        file_text_write_string(_sweep_f, "[GNX] SWEEP complete: " + string(_sweep_n) + " detached");
++        file_text_writeln(_sweep_f);
++        file_text_close(_sweep_f);
+     }
+     
+     return _load;
+@@ -682,6 +1127,9 @@
+         case 3:
+             _load_type = "save_file_3.json";
+             break;
++        
++        default:
++            exit;
+     }
+     
+     file_delete(_load_type);
+@@ -733,3 +1181,119 @@
+     Value_40 = 40,
+     Value_52 = 52
+ }
++
++// Sprawdza, czy arg0 to istniejaca instancja (a nie -1, indeks obiektu albo uszkodzony wpis z zapisu). Zwraca true/false.
++function gnx_is_live_inst(arg0)
++{
++    // tekst / struktura / tablica = uszkodzony wpis z zapisu
++    if (is_string(arg0) || is_struct(arg0) || is_array(arg0) || is_undefined(arg0))
++        return false;
++    
++    // ID instancji zaczynaja sie od 100000. Mniejsze liczby to -1 (puste) albo indeksy obiektow,
++    // a instance_exists(-1) to instance_exists(self) - zawsze true, wiec trzeba je odsiac wczesniej.
++    if (is_numeric(arg0) && arg0 < 100000)
++        return false;
++    
++    return instance_exists(arg0);
++}
++
++// Sprawdza, czy wpis z mon_placement celi (arg1) to zywy potwor, ktory naprawde nalezy do tej celi.
++// arg0 = wpis z listy, arg1 = cela (obj_slot). Zwraca true/false.
++function gnx_mon_ref_ok(arg0, arg1)
++{
++    if (!gnx_is_live_inst(arg0))
++        return false;
++    
++    if (arg0.object_index != obj_mon || !variable_instance_exists(arg0, "mon_data") || !is_struct(arg0.mon_data))
++        return false;
++    
++    return arg0.mon_data.slot_id == arg1;
++}
++
++// Odpina potwora (wywolywac jako self = obj_mon) od jego celi: usuwa go z list celi i wysyla do najblizszych drzwi,
++// tak jak robi to wanilowe usuwanie z celi. Zamiast niewidocznego "ducha" w stanie 1 i martwego wpisu w celi.
++function gnx_mon_release_from_slot()
++{
++    var _me = id;
++    var _sid = mon_data.slot_id;
++
++    if (gnx_is_live_inst(_sid) && _sid.object_index == obj_slot)
++    {
++        with (_sid)
++        {
++            if (variable_struct_exists(slot_data, "mon_placement") && is_array(slot_data.mon_placement))
++            {
++                for (var _pi = 0; _pi < array_length(slot_data.mon_placement); _pi++)
++                {
++                    if (slot_data.mon_placement[_pi] == _me)
++                    {
++                        slot_data.mon_placement[_pi] = -1;
++                        gnx_slot_reset_place_timer(_pi);
++                    }
++                }
++            }
++
++            if (is_array(h_unit_list))
++            {
++                for (var _hi = array_length(h_unit_list) - 1; _hi >= 0; _hi--)
++                {
++                    if (h_unit_list[_hi] == _me)
++                        array_delete(h_unit_list, _hi, 1);
++                }
++            }
++        }
++    }
++
++    // to samo, co ustawia wanilowe scr_remove_mon przy wyjsciu z celi
++    visible = true;
++    scr_mon_draw = -1;
++    mon_data.spr_data = -1;
++    mon_data.mood_slot_shift_x = 0;
++    mon_data.mood_slot_shift_y = 0;
++    mon_data.placement_num = -1;
++    mon_data.follow = false;
++    mon_data.removed_set = 1;
++    mon_data.slot_id = scr_find_nearest_door(x, y, mon_data.mon_floor);
++    mon_data.mon_state = 6;
++    mon_data.ff = true;
++}
++
++// Usuwa z list celi (self = obj_slot) wpisy po potworach, ktorych juz nie ma. Wywolywac jako with (cela).
++function gnx_slot_purge_dead_refs()
++{
++    if (variable_instance_exists(id, "slot_data") && is_struct(slot_data) && variable_struct_exists(slot_data, "mon_placement") && is_array(slot_data.mon_placement))
++    {
++        for (var _pi = 0; _pi < array_length(slot_data.mon_placement); _pi++)
++        {
++            var _pm = slot_data.mon_placement[_pi];
++
++            // -1 = puste miejsce
++            if (is_numeric(_pm) && _pm == -1)
++                continue;
++
++            // potwor musi istniec i nalezec do tej celi (odpiety/odeslany gdzie indziej tez zwalnia miejsce)
++            if (!gnx_mon_ref_ok(_pm, id))
++            {
++                slot_data.mon_placement[_pi] = -1;
++                gnx_slot_reset_place_timer(_pi);
++            }
++        }
++    }
++
++    if (variable_instance_exists(id, "h_unit_list") && is_array(h_unit_list))
++    {
++        // od konca, bo array_delete przesuwa kolejne elementy
++        for (var _hi = array_length(h_unit_list) - 1; _hi >= 0; _hi--)
++        {
++            if (!gnx_is_live_inst(h_unit_list[_hi]))
++                array_delete(h_unit_list, _hi, 1);
++        }
++    }
++}
++
++// Zeruje licznik zwolnionego miejsca w celi (self = obj_slot), tak jak wanilowe scr_remove_mon. arg0 = numer miejsca.
++function gnx_slot_reset_place_timer(arg0)
++{
++    if (variable_struct_exists(slot_data, "mon_timer") && is_array(slot_data.mon_timer) && arg0 < array_length(slot_data.mon_timer))
++        slot_data.mon_timer[arg0] = 0;
++}

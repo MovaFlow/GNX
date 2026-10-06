@@ -1,0 +1,113 @@
+--- gml_138/gml_GlobalScript_s_unit_head_draw.gml	2026-09-02 08:45:16.118546900 +0200
++++ gml/gml_GlobalScript_s_unit_head_draw.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -4,7 +4,7 @@
+     
+     switch (drag_type)
+     {
+-        case UnknownEnum.Value_2:
++        case 2:
+             if (!follow)
+             {
+                 scr_draw_head_tiny_icon();
+@@ -56,15 +56,15 @@
+                         else
+                         {
+                             if (floor(unit_data.preg_c) == 0)
+-                                draw_sprite(spr_icon, UnknownEnum.Value_3, x - 15, y + 18);
++                                draw_sprite(spr_icon, 3, x - 15, y + 18);
+                             else if (unit_data.preg != -1)
+-                                draw_sprite(spr_icon, UnknownEnum.Value_0, x - 15, y + 18);
++                                draw_sprite(spr_icon, 0, x - 15, y + 18);
+                             
+                             if (unit_data.milk)
+-                                draw_sprite(spr_icon, UnknownEnum.Value_1, x + 15, y + 18);
++                                draw_sprite(spr_icon, 1, x + 15, y + 18);
+                         }
+                         
+-                        if (source_id.slot_data.h_type == UnknownEnum.Value_25 && source_id.slot_data.clone_wait != 0)
++                        if (source_id.slot_data.h_type == 25 && source_id.slot_data.clone_wait != 0)
+                         {
+                             var _num = 14400 - source_id.slot_data.clone_wait;
+                             scr_draw_bar_v(x + 12, y - 5, _num, 14400, 65535, 12);
+@@ -79,7 +79,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             scr_draw_head_tiny_icon();
+             
+             if (hover)
+@@ -126,19 +126,39 @@
+     var _skin = arg2.skin;
+     var _hair = arg2.hair;
+     var _lvl = arg2.lvl;
+-    var _index;
+-    
+-    if (_class < UnknownEnum.Value_8)
+-        _index = (_class * 3) + _skin;
+-    else
+-        _index = _class + 16;
++    var _gnx_icon_drawn = false;
+     
+-    draw_sprite_ext(spr_unit_icon_head, _index, arg0, arg1, 1, 1, image_angle, image_blend, image_alpha);
++    if (ds_map_exists(global.class_registry, _class))
++    {
++        var _gnx_rc = ds_map_find_value(global.class_registry, _class);
++        
++        if (variable_struct_exists(_gnx_rc, "icon_spr") && _gnx_rc.icon_spr != -1)
++        {
++            gnx_draw_sprite_ext(_gnx_rc.icon_spr, _skin, arg0, arg1, 1, 1, image_angle, image_blend, image_alpha);
++            
++            if (_hair != -1 && variable_struct_exists(_gnx_rc, "icon_hair_spr") && _gnx_rc.icon_hair_spr != -1)
++                gnx_draw_sprite_ext(_gnx_rc.icon_hair_spr, _hair, arg0, arg1, 1, 1, image_angle, image_blend, image_alpha);
++            
++            _gnx_icon_drawn = true;
++        }
++    }
+     
+-    if (_hair != -1)
++    if (!_gnx_icon_drawn)
+     {
+-        var _hair_index = (_class * 3) + _hair;
+-        draw_sprite_ext(spr_unit_icon_hair, _hair_index, arg0, arg1, 1, 1, image_angle, image_blend, image_alpha);
++        var _index;
++        
++        if (_class < 8)
++            _index = (_class * 3) + _skin;
++        else
++            _index = _class + 16;
++        
++        draw_sprite_ext(spr_unit_icon_head, _index, arg0, arg1, 1, 1, image_angle, image_blend, image_alpha);
++        
++        if (_hair != -1)
++        {
++            var _hair_index = (_class * 3) + _hair;
++            draw_sprite_ext(spr_unit_icon_hair, _hair_index, arg0, arg1, 1, 1, image_angle, image_blend, image_alpha);
++        }
+     }
+     
+     var _x_shift = 0;
+@@ -201,7 +221,7 @@
+     scr_draw_stage_unit_head(x, y, unit_data, true);
+     var _raid = obj_np.obj_raid.raid_data.raid_state;
+     
+-    if (_raid == UnknownEnum.Value_1 || _raid == UnknownEnum.Value_2)
++    if (_raid == 1 || _raid == 2)
+     {
+         gpu_set_fog(true, c_black, 0, 0);
+         image_alpha = 0.7;
+@@ -210,13 +230,3 @@
+         gpu_set_fog(false, c_white, 0, 0);
+     }
+ }
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_8 = 8,
+-    Value_25 = 25
+-}

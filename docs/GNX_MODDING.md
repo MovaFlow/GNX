@@ -814,12 +814,39 @@ The modder must provide a `default` or cover all classes.
 
 Same `spr_array`/`spr_c_array` slot layout and phases as `fixed` mode.
 
+**`by_mon_type` in class_map phases:** each phase entry (in `default` or per-class)
+can include a `by_mon_type` block that overrides sprites based on the monster type
+occupying the cell (0=Goblin, 1=Hobgoblin, 2=Tentacle, 3=Ogre). If the monster type
+matches, those sprites are used; otherwise the phase's base `spr_array`/`spr_c_array`
+apply.
+
+```json
+"classes": {
+  "my_mod.Witch": {
+    "phase_1": {
+      "spr_array": ["gnx:witch_idle_head", "gnx:witch_idle_breast", -1, -1, "gnx:witch_idle_leg", -1, -1],
+      "spr_c_array": [-1, -1, -1, -1, -1, -1, -1],
+      "by_mon_type": {
+        "1": {
+          "spr_array": ["gnx:witch_hob_head", "gnx:witch_hob_breast", -1, -1, "gnx:witch_hob_leg", -1, -1],
+          "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+        },
+        "3": {
+          "spr_array": ["gnx:witch_ogre_head", "gnx:witch_ogre_breast", -1, -1, "gnx:witch_ogre_leg", -1, -1],
+          "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+        }
+      }
+    }
+  }
+}
+```
+
 #### Dispatch priority
 
 When resolving human sprites, GNX checks modes in this order:
 
 1. `fixed` -> returns phase sprites directly
-2. `class_map` -> looks up `classes[class_id]`, falls back to `default`
+2. `class_map` -> looks up `classes[class_id]`, falls back to `default`; within each phase, `by_mon_type` overrides if the monster type matches
 3. `is_special` class -> class-side clothing override
 4. `base+class` -> base body + class clothing from strips
 

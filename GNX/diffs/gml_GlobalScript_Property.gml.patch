@@ -1,0 +1,71 @@
+--- /dev/null	2026-10-05 20:22:36.000000000 +0200
++++ gml/gml_GlobalScript_Property.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -0,0 +1,68 @@
++function Property(arg0, arg1, arg2 = undefined, arg3 = undefined, arg4 = undefined, arg5 = undefined, arg6 = UnknownEnum.Value_3) constructor
++{
++    static set = function(arg0)
++    {
++        if ((access & UnknownEnum.Value_2) == 0)
++            throw log_error("set :: writing to property '{0}' is not allowed.", name);
++        
++        if (is_callable(validator) && !validator(arg0))
++            throw log_error("set :: trying to set property '{0}' with an invalid value: {1}", name, arg0);
++        
++        var _setter = setter;
++        
++        if (is_callable(setter))
++        {
++            with (owner)
++                _setter(arg0);
++        }
++        else
++        {
++            variable_struct_set(owner, name, arg0);
++        }
++    };
++    
++    static get = function()
++    {
++        if ((access & UnknownEnum.Value_1) == 0)
++            throw log_error("get :: accessing property '{0}' is not allowed.", name);
++        
++        var _getter = getter;
++        
++        if (is_callable(getter))
++        {
++            with (owner)
++                return _getter();
++        }
++        else
++        {
++            return variable_struct_get(owner, name);
++        }
++    };
++    
++    static release = function()
++    {
++        owner = undefined;
++    };
++    
++    static toString = function()
++    {
++        var _name = name;
++        var _access = access ? "PRIVATE" : "PUBLIC";
++        return string("[{0}] {1}", _access, _name);
++    };
++    
++    owner = arg0;
++    name = arg1;
++    validator = arg3;
++    setter = arg4;
++    getter = arg5;
++    access = arg6;
++    variable_struct_set(owner, arg1, arg2);
++}
++
++enum UnknownEnum
++{
++    Value_1 = 1,
++    Value_2,
++    Value_3
++}

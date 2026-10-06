@@ -1,0 +1,2308 @@
+--- gml_138/gml_GlobalScript_s_slot_function.gml	2026-09-02 08:45:16.550128500 +0200
++++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-05 18:42:58.191115400 +0200
+@@ -3,7 +3,7 @@
+     var _list = global.slot_list[arg1];
+     var _x;
+     
+-    if (global.build_side && arg0 != UnknownEnum.Value_4)
++    if (global.build_side && arg0 != 4)
+     {
+         arg2--;
+         var _prev_slot = ds_list_find_value(_list, arg2);
+@@ -45,9 +45,9 @@
+         
+         switch (arg0)
+         {
+-            case UnknownEnum.Value_0:
++            case 0:
+                 scr_set_slot_h_base();
+-                slot_data.base_type = UnknownEnum.Value_0;
++                slot_data.base_type = 0;
+                 spr_base = spr_slot_back;
+                 image_xscale = 45;
+                 image_yscale = -74;
+@@ -55,9 +55,9 @@
+                 clean_id = -1;
+                 break;
+             
+-            case UnknownEnum.Value_1:
++            case 1:
+                 scr_set_slot_h_base();
+-                slot_data.base_type = UnknownEnum.Value_0;
++                slot_data.base_type = 0;
+                 spr_base = spr_big_slot_back;
+                 image_xscale = 77;
+                 image_yscale = -74;
+@@ -65,7 +65,7 @@
+                 clean_id = -1;
+                 break;
+             
+-            case UnknownEnum.Value_4:
++            case 4:
+                 x++;
+                 depth = -750;
+                 image_xscale = 18;
+@@ -73,10 +73,10 @@
+                 slot_data.index = 0;
+                 spr_base = spr_bet_pillar;
+                 _slot_w = 20;
+-                slot_data.between_type = UnknownEnum.Value_1;
++                slot_data.between_type = 1;
+                 break;
+             
+-            case UnknownEnum.Value_5:
++            case 5:
+                 x++;
+                 depth = -750;
+                 image_xscale = 9;
+@@ -84,21 +84,21 @@
+                 slot_data.index = 0;
+                 spr_base = spr_bet_plank;
+                 _slot_w = 11;
+-                slot_data.between_type = UnknownEnum.Value_0;
++                slot_data.between_type = 0;
+                 break;
+             
+-            case UnknownEnum.Value_3:
++            case 3:
+                 image_xscale = 45;
+                 image_yscale = -85;
+                 slot_data.index = 0;
+                 spr_base = spr_slot_entrance;
+                 _slot_w = 45;
+-                spr_slot = [[UnknownEnum.Value_4, 0, true, -1]];
++                spr_slot = [[4, 0, true, -1]];
+                 var _index = -1;
+                 
+                 with (obj_slot)
+                 {
+-                    if (slot_data.slot_type == UnknownEnum.Value_3 && slot_data.slot_floor == other.slot_data.slot_floor && variable_struct_exists(slot_data, "mod_index"))
++                    if (slot_data.slot_type == 3 && slot_data.slot_floor == other.slot_data.slot_floor && variable_struct_exists(slot_data, "mod_index"))
+                         _index = slot_data.mod_index;
+                 }
+                 
+@@ -116,19 +116,29 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_2:
++            case 2:
+                 scr_set_slot_h_base();
+-                slot_data.base_type = UnknownEnum.Value_4;
++                slot_data.base_type = 4;
+                 spr_base = spr_tent_back;
+                 image_xscale = 45;
+                 image_yscale = -74;
+                 _slot_w = 45;
+                 break;
++            
++            case 6:
++                scr_set_slot_h_base();
++                slot_data.base_type = 0;
++                spr_base = spr_xl_slot_back;
++                image_xscale = 150;
++                image_yscale = -74;
++                _slot_w = 150;
++                clean_id = -1;
++                break;
+         }
+         
+         if (spr_base != -1)
+         {
+-            var _num = sprite_get_number(spr_base) - 1;
++            var _num = gnx_sprite_get_number(spr_base) - 1;
+             slot_data.index = irandom_range(0, _num);
+         }
+         
+@@ -143,7 +153,7 @@
+     scr_shift_slot(_slot_id, _slot_w, arg1);
+     
+     if (arg3)
+-        _slot_id = scr_create_slot(UnknownEnum.Value_5, arg1, arg2 + 1, false);
++        _slot_id = scr_create_slot(5, arg1, arg2 + 1, false);
+     
+     scr_camera_x_border();
+     return _slot_id;
+@@ -191,8 +201,9 @@
+         
+         if (arg1 != -1)
+         {
++            scr_gnx_check_voice(arg1);
+             unit_data = arg1;
+-            slot_data.anim_struct.char_state = UnknownEnum.Value_0;
++            slot_data.anim_struct.char_state = 0;
+             slot_data.anim_struct.ff = true;
+             slot_data.h_wait = irandom_range(240, 360);
+             slot_data.h_step = 0;
+@@ -207,9 +218,9 @@
+             
+             for (var i = 0; i < _num; i++)
+             {
+-                var _type = spr_slot[i][UnknownEnum.Value_0];
++                var _type = spr_slot[i][0];
+                 
+-                if (_type == UnknownEnum.Value_5)
++                if (_type == 5)
+                     slot_data.mod_index[i] = 1;
+             }
+             
+@@ -219,7 +230,7 @@
+             {
+                 with (obj_window)
+                 {
+-                    if (interact_type == UnknownEnum.Value_2)
++                    if (interact_type == 2)
+                     {
+                         if (source_id == arg0)
+                         {
+@@ -250,7 +261,7 @@
+             
+             switch (slot_data.h_type)
+             {
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (unit_data.milk)
+                         slot_data.drink_num = 8;
+                     else
+@@ -258,7 +269,7 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_30:
++                case 30:
+                     if (unit_data.milk)
+                         slot_data.milk_num = 4;
+                     else
+@@ -266,44 +277,65 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_17:
++                case 17:
+                     if (slot_data.mon_placement[0] != -1)
+                     {
+                         with (slot_data.mon_placement[0])
+                         {
+-                            if (mon_data.carry_start_id != -1)
++                            if (mon_data.carry_start_id != -1 && instance_exists(mon_data.carry_start_id))
+                             {
+                                 mon_data.carry_start_id.slot_data.load = false;
+                                 mon_data.carry_start_id.slot_data.carry = false;
+                             }
+-                            
+-                            if (mon_data.carry_end_id != -1)
++
++                            if (mon_data.carry_end_id != -1 && instance_exists(mon_data.carry_end_id))
+                             {
+                                 mon_data.carry_end_id.slot_data.load = false;
+-                                mon_data.carry_start_id.slot_data.carry = false;
++                                mon_data.carry_end_id.slot_data.carry = false;
+                             }
+                         }
+                     }
+-                    
++
+                     h_unit_list = _old_h_unit_list;
+                     scr_unit_removal(false, true, false, false, -1);
+                     break;
+                 
+-                case UnknownEnum.Value_24:
++                case 24:
+                     slot_data.visual = true;
+-                    slot_data.anim_struct.char_state = UnknownEnum.Value_0;
++                    slot_data.anim_struct.char_state = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_25:
++                case 25:
+                     scr_slot_step = scr_slot_h_clone_idle;
+                     break;
+                 
+-                case UnknownEnum.Value_37:
++                case 37:
+                     if (unit_data.lvl != 7)
+                         bar_glow_rep = 0;
+                     
+                     break;
+             }
++            
++            if (ds_map_exists(global.cell_registry, slot_data.h_type))
++            {
++                var _rp_cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++                
++                if (variable_struct_exists(_rp_cell, "gnx_price"))
++                {
++                    var _rp = _rp_cell.physical;
++                    
++                    if (variable_struct_exists(_rp, "visual") && _rp.visual)
++                        slot_data.visual = true;
++                    
++                    if (variable_struct_exists(_rp, "anim_struct_overrides"))
++                    {
++                        var _ov = _rp.anim_struct_overrides;
++                        
++                        if (variable_struct_exists(_ov, "char_state"))
++                            slot_data.anim_struct.char_state = _ov.char_state;
++                    }
++                }
++            }
+         }
+         else
+         {
+@@ -318,18 +350,18 @@
+             
+             for (var i = 0; i < _num; i++)
+             {
+-                var _type = spr_slot[i][UnknownEnum.Value_0];
++                var _type = spr_slot[i][0];
+                 
+-                if (_type == UnknownEnum.Value_7 || _type == UnknownEnum.Value_8 || _type == UnknownEnum.Value_9 || _type == UnknownEnum.Value_6 || _type == UnknownEnum.Value_10 || _type == UnknownEnum.Value_11)
++                if (_type == 7 || _type == 8 || _type == 9 || _type == 6 || _type == 10 || _type == 11)
+                 {
+-                    spr_slot[i][UnknownEnum.Value_1] = -1;
+-                    spr_slot[i][UnknownEnum.Value_3] = -1;
++                    spr_slot[i][1] = -1;
++                    spr_slot[i][3] = -1;
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] != -2)
+-                        spr_slot[i][UnknownEnum.Value_2] = false;
++                    if (spr_slot[i][2] != -2)
++                        spr_slot[i][2] = false;
+                 }
+                 
+-                if (_type == UnknownEnum.Value_5)
++                if (_type == 5)
+                     slot_data.mod_index[i] = 0;
+             }
+             
+@@ -340,7 +372,7 @@
+                 
+                 for (var i = 0; i < _prop_num; i++)
+                 {
+-                    if (slot_data.prop[i].prop_type == UnknownEnum.Value_40)
++                    if (slot_data.prop[i].prop_type == 40)
+                         _prop_id = slot_data.prop[i].prop_id;
+                 }
+                 
+@@ -348,7 +380,7 @@
+                 {
+                     with (_prop_id)
+                     {
+-                        if (slot_id.slot_data.h_type == UnknownEnum.Value_5)
++                        if (slot_id.slot_data.h_type == 5)
+                         {
+                             if (!prop_data.spawn)
+                             {
+@@ -372,7 +404,7 @@
+             
+             switch (slot_data.h_type)
+             {
+-                case UnknownEnum.Value_36:
++                case 36:
+                     slot_data.anim_struct.milk_index = -1;
+                     slot_data.anim_struct.milk_timer = -1;
+                     slot_data.anim_struct.milk_spd = -1;
+@@ -380,7 +412,7 @@
+                     slot_data.anim_struct.blink_timer = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_4:
++                case 4:
+                     if (array_length(slot_data.prop) > 0)
+                     {
+                         if (instance_exists(slot_data.prop[0].prop_id))
+@@ -394,7 +426,7 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_11:
++                case 11:
+                     if (slot_data.drink_num != 8)
+                     {
+                         if (_unit_data != -1)
+@@ -408,7 +440,7 @@
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_30:
++                case 30:
+                     if (slot_data.milk_num != 4)
+                     {
+                         if (_unit_data != -1)
+@@ -418,49 +450,68 @@
+                             else
+                                 _unit_data.milk = false;
+                             
+-                            if (_unit_data.class == UnknownEnum.Value_9)
++                            // POPRAWKA (GNX): kazda postac produkujaca mleko (scr_unit 0), nie tylko krowa
++                            if (_unit_data.class == 9 || _unit_data.scr_unit == 0)
+                                 _unit_data.scr_wait = 0;
+                         }
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_17:
++                case 17:
+                     for (var i = 0; i < array_length(h_unit_list); i++)
+                     {
+-                        if (h_unit_list[i].mon_data.carry_start_id != -1)
++                        if (h_unit_list[i].mon_data.carry_start_id != -1 && instance_exists(h_unit_list[i].mon_data.carry_start_id))
+                         {
+                             h_unit_list[i].mon_data.carry_start_id.slot_data.load = false;
+                             h_unit_list[i].mon_data.carry_start_id.slot_data.carry = false;
+                         }
+-                        
+-                        if (h_unit_list[i].mon_data.carry_end_id != -1)
++
++                        if (h_unit_list[i].mon_data.carry_end_id != -1 && instance_exists(h_unit_list[i].mon_data.carry_end_id))
+                         {
+                             h_unit_list[i].mon_data.carry_end_id.slot_data.load = false;
+-                            h_unit_list[i].mon_data.carry_start_id.slot_data.carry = false;
++                            h_unit_list[i].mon_data.carry_end_id.slot_data.carry = false;
+                         }
+                     }
+                     
+                     slot_data.visual = true;
+                     scr_slot_step = scr_slot_state;
+-                    slot_data.anim_struct.char_state = UnknownEnum.Value_0;
++                    slot_data.anim_struct.char_state = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_24:
++                case 24:
+                     slot_data.visual = true;
+-                    slot_data.anim_struct.char_state = UnknownEnum.Value_0;
++                    slot_data.anim_struct.char_state = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_37:
++                case 37:
+                     bar_glow_rep = -1;
+                     break;
+             }
+             
++            if (ds_map_exists(global.cell_registry, slot_data.h_type))
++            {
++                var _rp_unoccupy = ds_map_find_value(global.cell_registry, slot_data.h_type).physical;
++                
++                if (variable_struct_exists(_rp_unoccupy, "scr_unoccupy"))
++                {
++                    // POPRAWKA (wydajnosc): wpis tylko przy VERBOSE LOG
++                    if (global.gnx_debug_verbose)
++                    {
++                        var _log = file_text_open_append("gnx_debug.txt");
++                        file_text_write_string(_log, "[GNX] scr_unoccupy h=" + string(slot_data.h_type) + "\n");
++                        file_text_close(_log);
++                    }
++
++                    script_execute(_rp_unoccupy.scr_unoccupy);
++                }
++            }
++            
+             if (instance_exists(obj_window))
+             {
+                 with (obj_window)
+                 {
+-                    if (interact_type == UnknownEnum.Value_2)
++                    if (interact_type == 2)
+                     {
+                         if (source_id == arg0)
+                         {
+@@ -499,71 +550,105 @@
+     var _unit_stat = unit_data;
+     slot_data.anim_struct.spr_type = arg0;
+     var _spr = scr_set_class_spr_data(_unit_stat, arg0, scr_slot_draw_special);
++    
++    if (!is_array(_spr))
++        exit;
++    
+     var _spr_array = _spr[0];
+     var _spr_c_array = _spr[1];
+     
++    if (!is_array(_spr_c_array))
++        exit;
++    
+     if (_spr_array != -1)
+     {
++        if (!is_array(spr_slot))
++            exit;
++        
+         var _num = array_length(spr_slot);
+         
+         for (var i = 0; i < _num; i++)
+         {
+-            var _type = spr_slot[i][UnknownEnum.Value_0];
++            if (!is_array(spr_slot[i]))
++                continue;
++            
++            var _type = spr_slot[i][0];
+             
+             switch (_type)
+             {
+-                case UnknownEnum.Value_10:
+-                    spr_slot[i][UnknownEnum.Value_1] = _spr_array[UnknownEnum.Value_1];
+-                    spr_slot[i][UnknownEnum.Value_3] = _spr_c_array[UnknownEnum.Value_1];
+-                    spr_slot[i][UnknownEnum.Value_5] = _spr_c_array[UnknownEnum.Value_0];
++                case 10:
++                    spr_slot[i][1] = _spr_array[1];
++                    spr_slot[i][3] = _spr_c_array[1];
++                    spr_slot[i][5] = _spr_c_array[0];
+                     break;
+                 
+-                case UnknownEnum.Value_6:
+-                    spr_slot[i][UnknownEnum.Value_1] = _spr_array[UnknownEnum.Value_2];
+-                    spr_slot[i][UnknownEnum.Value_3] = _spr_c_array[UnknownEnum.Value_2];
++                case 6:
++                    spr_slot[i][1] = _spr_array[2];
++                    spr_slot[i][3] = _spr_c_array[2];
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] != -2)
+-                        spr_slot[i][UnknownEnum.Value_2] = true;
++                    if (spr_slot[i][2] != -2)
++                        spr_slot[i][2] = true;
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_7:
+-                    spr_slot[i][UnknownEnum.Value_1] = _spr_array[UnknownEnum.Value_3];
++                case 7:
++                    spr_slot[i][1] = _spr_array[3];
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] != -2 && _spr_c_array[UnknownEnum.Value_3] != -1)
++                    if (spr_slot[i][2] != -2 && _spr_c_array[3] != -1)
+                     {
+-                        spr_slot[i][UnknownEnum.Value_3] = _spr_c_array[UnknownEnum.Value_3];
+-                        spr_slot[i][UnknownEnum.Value_2] = true;
++                        spr_slot[i][3] = _spr_c_array[3];
++                        spr_slot[i][2] = true;
+                     }
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_8:
+-                    spr_slot[i][UnknownEnum.Value_1] = _spr_array[UnknownEnum.Value_4];
+-                    spr_slot[i][UnknownEnum.Value_3] = _spr_c_array[UnknownEnum.Value_4];
++                case 8:
++                    spr_slot[i][1] = _spr_array[4];
++                    spr_slot[i][3] = _spr_c_array[4];
+                     
+-                    if (spr_slot[i][UnknownEnum.Value_2] != -2)
+-                        spr_slot[i][UnknownEnum.Value_2] = true;
++                    if (spr_slot[i][2] != -2)
++                        spr_slot[i][2] = true;
+                     
+                     break;
+                 
+-                case UnknownEnum.Value_9:
+-                    spr_slot[i][UnknownEnum.Value_1] = _spr_array[UnknownEnum.Value_5];
+-                    spr_slot[i][UnknownEnum.Value_3] = _spr_c_array[UnknownEnum.Value_5];
++                case 9:
++                    spr_slot[i][1] = _spr_array[5];
++                    spr_slot[i][3] = _spr_c_array[5];
+                     break;
+                 
+-                case UnknownEnum.Value_11:
+-                    spr_slot[i][UnknownEnum.Value_1] = _spr_array[UnknownEnum.Value_6];
++                case 11:
++                    spr_slot[i][1] = _spr_array[6];
+                     break;
+             }
+         }
+     }
+     
+-    if (slot_data.h_type == UnknownEnum.Value_27 || slot_data.h_type == UnknownEnum.Value_28 || slot_data.h_type == UnknownEnum.Value_31 || slot_data.h_type == UnknownEnum.Value_32 || slot_data.h_type == UnknownEnum.Value_29)
++    // POPRAWKA: log diagnostyczny tylko przy wlaczonym VERBOSE LOG (wczesniej pisal przy kazdej zmianie fazy)
++    if (slot_data.h_type == 39 && global.gnx_debug_verbose)
++    {
++        var _dbg_line = "[SHRINE-LAYERS] class=" + string(unit_data.class) + " phase=" + string(arg0) + " warstw=" + string(array_length(spr_slot));
++        
++        for (var _d = 0; _d < array_length(spr_slot); _d++)
++        {
++            if (!is_array(spr_slot[_d]))
++                continue;
++            
++            var _ds = spr_slot[_d][1];
++            var _dc = spr_slot[_d][3];
++            _dbg_line += (" | typ" + string(spr_slot[_d][0]) + ": " + ((!is_struct(_ds) && sprite_exists(_ds)) ? sprite_get_name(_ds) : string(_ds)));
++            _dbg_line += (" / c: " + ((!is_struct(_dc) && sprite_exists(_dc)) ? sprite_get_name(_dc) : string(_dc)));
++        }
++        
++        var _dbg_f = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_dbg_f, _dbg_line + "\n");
++        file_text_close(_dbg_f);
++    }
++    
++    if (slot_data.h_type == 27 || slot_data.h_type == 28 || slot_data.h_type == 31 || slot_data.h_type == 32 || slot_data.h_type == 29)
+     {
+         var _del = true;
+         
+-        if ((arg0 == UnknownEnum.Value_0 || arg0 == UnknownEnum.Value_2 || arg0 == UnknownEnum.Value_3) && slot_data.h_step <= 2)
++        if ((arg0 == 0 || arg0 == 2 || arg0 == 3) && slot_data.h_step <= 2)
+         {
+             if (array_length(h_unit_list) == 0)
+             {
+@@ -578,7 +663,7 @@
+                     spr_type = spr_h_tent_mon;
+                 }
+             }
+-            else if (arg0 == UnknownEnum.Value_3)
++            else if (arg0 == 3)
+             {
+                 with (h_unit_list[0])
+                     spr_type = spr_h_tent_ej_mon;
+@@ -602,22 +687,42 @@
+ 
+ function scr_slot_state()
+ {
++    if (variable_struct_exists(slot_data, "sp_y") && is_array(slot_data.sp_y) && array_length(slot_data.sp_y) < 2)
++        slot_data.sp_y = [slot_data.sp_y[0], slot_data.sp_y[0]];
++    
++    if (variable_struct_exists(slot_data, "sq_y") && is_array(slot_data.sq_y) && array_length(slot_data.sq_y) < 2)
++        slot_data.sq_y = [slot_data.sq_y[0], slot_data.sq_y[0]];
++    
+     animation_end = false;
++    // POPRAWKA (wydajnosc): tekst sledzenia skladamy tylko przy wlaczonym sledzeniu (wczesniej co klatke dla kazdej celi)
++    if (global.gnx_trace_entities)
++        scr_gnx_trace("STATE", id, "h_type=" + string(slot_data.h_type) + " char_state=" + string(slot_data.anim_struct.char_state) + " h_step=" + string(slot_data.h_step) + " ff=" + string(slot_data.anim_struct.ff));
+     
+     switch (slot_data.anim_struct.char_state)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             script_execute(scr_slot.idle);
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
++            if (!variable_struct_exists(scr_slot, "h"))
++            {
++                var _f = file_text_open_append("gnx_debug.txt");
++                file_text_write_string(_f, "[GNX] scr_slot_state: scr_slot.h missing  - h_type=" + string(slot_data.h_type) + " h_step=" + string(slot_data.h_step));
++                file_text_writeln(_f);
++                file_text_close(_f);
++                slot_data.anim_struct.char_state = 0;
++                slot_data.anim_struct.ff = true;
++                break;
++            }
++            
+             script_execute(scr_slot.h[slot_data.h_step]);
+             break;
+         
+-        case UnknownEnum.Value_2:
++        case 2:
+             break;
+         
+-        case UnknownEnum.Value_11:
++        case 11:
+             script_execute(scr_slot.none);
+             break;
+     }
+@@ -654,7 +759,7 @@
+             {
+                 array_push(global.unlock.breed, arg0);
+                 _base_array = global.unlock.breed;
+-                _button_group = UnknownEnum.Value_10;
++                _button_group = 10;
+                 _set = true;
+             }
+         }
+@@ -670,7 +775,7 @@
+             {
+                 array_push(global.unlock.utility, arg0);
+                 _base_array = global.unlock.utility;
+-                _button_group = UnknownEnum.Value_11;
++                _button_group = 11;
+                 _set = true;
+             }
+         }
+@@ -686,7 +791,7 @@
+             {
+                 array_push(global.unlock.pleasure, arg0);
+                 _base_array = global.unlock.pleasure;
+-                _button_group = UnknownEnum.Value_12;
++                _button_group = 12;
+                 _set = true;
+             }
+         }
+@@ -702,7 +807,7 @@
+             {
+                 array_push(global.unlock.b_breed, arg0);
+                 _base_array = global.unlock.b_breed;
+-                _button_group = UnknownEnum.Value_13;
++                _button_group = 13;
+                 _set = true;
+             }
+         }
+@@ -718,7 +823,7 @@
+             {
+                 array_push(global.unlock.b_utility, arg0);
+                 _base_array = global.unlock.b_utility;
+-                _button_group = UnknownEnum.Value_14;
++                _button_group = 14;
+                 _set = true;
+             }
+         }
+@@ -734,7 +839,7 @@
+             {
+                 array_push(global.unlock.b_other, arg0);
+                 _base_array = global.unlock.b_other;
+-                _button_group = UnknownEnum.Value_15;
++                _button_group = 15;
+                 _set = true;
+             }
+         }
+@@ -750,7 +855,7 @@
+             {
+                 array_push(global.unlock.t_breed, arg0);
+                 _base_array = global.unlock.t_breed;
+-                _button_group = UnknownEnum.Value_16;
++                _button_group = 16;
+                 _set = true;
+             }
+         }
+@@ -766,14 +871,40 @@
+             {
+                 array_push(global.unlock.t_utility, arg0);
+                 _base_array = global.unlock.t_utility;
+-                _button_group = UnknownEnum.Value_17;
++                _button_group = 17;
+                 _set = true;
+             }
+         }
+     }
+     
++    // POPRAWKA: cele XL (kategoria xl_breed) nie byly tu obslugiwane - unlock_cell / blueprint ich nie dodawal
++    if (!_set)
++    {
++        _order_array = global.xl_breed_order;
++
++        for (var i = 0; i < array_length(_order_array); i++)
++        {
++            if (arg0 == _order_array[i])
++            {
++                array_push(global.unlock.xl_breed, arg0);
++                _base_array = global.unlock.xl_breed;
++                _button_group = 93;
++                _set = true;
++            }
++        }
++    }
++
++    // POPRAWKA: nieznany typ celi - wczesniej scr_rearrange_buttons dostawal undefined i gra sie wywalala
++    if (!_set)
++    {
++        var _ulog = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_ulog, "[GNX-WARN] unlock: cell h=" + string(arg0) + " is not in any build category - skipped\n");
++        file_text_close(_ulog);
++        return false;
++    }
++
+     scr_rearrange_buttons(_button_group, _order_array, _base_array);
+-    var _data = 
++    var _data =
+     {
+         slot_type: arg0,
+         prop_type: -1,
+@@ -783,9 +914,10 @@
+     scr_check_add_guide(arg0);
+     
+     if (arg1)
+-        scr_pop_up_create(UnknownEnum.Value_13);
+-    
+-    scr_check_steam_achievement(UnknownEnum.Value_11);
++        scr_pop_up_create(13);
++
++    scr_check_steam_achievement(11);
++    return true;
+ }
+ 
+ function scr_add_new_prop_type(arg0, arg1)
+@@ -803,7 +935,7 @@
+             _set = true;
+             array_push(global.unlock.edit_top, arg0);
+             _base_array = global.unlock.edit_top;
+-            _button_group = UnknownEnum.Value_7;
++            _button_group = 7;
+         }
+     }
+     
+@@ -820,7 +952,7 @@
+             _set = true;
+             array_push(global.unlock.edit_mid, arg0);
+             _base_array = global.unlock.edit_mid;
+-            _button_group = UnknownEnum.Value_8;
++            _button_group = 8;
+         }
+     }
+     
+@@ -837,7 +969,7 @@
+             _set = true;
+             array_push(global.unlock.edit_bot, arg0);
+             _base_array = global.unlock.edit_bot;
+-            _button_group = UnknownEnum.Value_9;
++            _button_group = 9;
+         }
+     }
+     
+@@ -853,9 +985,9 @@
+     ds_list_add(global.new_button_list, _data);
+     
+     if (arg1)
+-        scr_pop_up_create(UnknownEnum.Value_14);
++        scr_pop_up_create(14);
+     
+-    scr_check_steam_achievement(UnknownEnum.Value_11);
++    scr_check_steam_achievement(11);
+ }
+ 
+ function scr_add_new_between_type(arg0, arg1)
+@@ -868,12 +1000,12 @@
+     {
+         if (arg0 == _order_array[i])
+         {
+-            if (arg0 == UnknownEnum.Value_1)
+-                array_push(global.unlock.edit_between, UnknownEnum.Value_0);
++            if (arg0 == 1)
++                array_push(global.unlock.edit_between, 0);
+             
+             array_push(global.unlock.edit_between, arg0);
+             _base_array = global.unlock.edit_between;
+-            _button_group = UnknownEnum.Value_6;
++            _button_group = 6;
+             _set = true;
+         }
+     }
+@@ -888,9 +1020,9 @@
+     ds_list_add(global.new_button_list, _data);
+     
+     if (arg1)
+-        scr_pop_up_create(UnknownEnum.Value_14);
++        scr_pop_up_create(14);
+     
+-    scr_check_steam_achievement(UnknownEnum.Value_11);
++    scr_check_steam_achievement(11);
+ }
+ 
+ function scr_rearrange_buttons(arg0, arg1, arg2)
+@@ -915,51 +1047,56 @@
+     
+     switch (arg0)
+     {
+-        case UnknownEnum.Value_10:
++        case 10:
+             global.unlock.breed = _array;
+             break;
+         
+-        case UnknownEnum.Value_11:
++        case 11:
+             global.unlock.utility = _array;
+             break;
+         
+-        case UnknownEnum.Value_12:
++        case 12:
+             global.unlock.pleasure = _array;
+             break;
+         
+-        case UnknownEnum.Value_13:
++        case 13:
+             global.unlock.b_breed = _array;
+             break;
+         
+-        case UnknownEnum.Value_14:
++        case 14:
+             global.unlock.b_utility = _array;
+             break;
+         
+-        case UnknownEnum.Value_15:
++        case 15:
+             global.unlock.b_other = _array;
+             break;
+         
+-        case UnknownEnum.Value_16:
++        case 16:
+             global.unlock.t_breed = _array;
+             break;
+         
+-        case UnknownEnum.Value_17:
++        case 17:
+             global.unlock.t_utility = _array;
+             break;
+         
+-        case UnknownEnum.Value_6:
++        // POPRAWKA: lista cel XL
++        case 93:
++            global.unlock.xl_breed = _array;
++            break;
++
++        case 6:
+             global.unlock.edit_between = _array;
+             break;
+         
+-        case UnknownEnum.Value_7:
++        case 7:
+             global.unlock.edit_top = _array;
+             break;
+         
+-        case UnknownEnum.Value_8:
++        case 8:
+             global.unlock.edit_mid = _array;
+             break;
+         
+-        case UnknownEnum.Value_9:
++        case 9:
+             global.unlock.edit_bot = _array;
+             break;
+     }
+@@ -986,173 +1123,246 @@
+     {
+         switch (slot_data.slot_type)
+         {
+-            case UnknownEnum.Value_0:
++            case 0:
++            case 6:
+                 if (slot_data.anim_struct != -1 && slot_h)
+                     _result = true;
+                 
+-                if (_result && slot_data.h_type == UnknownEnum.Value_5 && array_length(slot_data.prop) > 0)
++                if (_result && slot_data.h_type == 5 && array_length(slot_data.prop) > 0)
+                 {
+                     _result = false;
+                     
+                     if (arg2)
+-                        scr_pop_up_create(UnknownEnum.Value_16);
++                        scr_pop_up_create(16);
+                 }
+                 
+-                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && arg1.source_id.slot_data.h_type == UnknownEnum.Value_5 && array_length(arg1.source_id.slot_data.prop) > 0)
++                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && arg1.source_id.slot_data.h_type == 5 && array_length(arg1.source_id.slot_data.prop) > 0)
+                 {
+                     _result = false;
+                     
+                     if (arg2)
+-                        scr_pop_up_create(UnknownEnum.Value_16);
++                        scr_pop_up_create(16);
+                 }
+                 
+-                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && (arg1.source_id.slot_data.h_type == UnknownEnum.Value_36 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_37 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_38 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_39))
++                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && (arg1.source_id.slot_data.h_type == 36 || arg1.source_id.slot_data.h_type == 37 || arg1.source_id.slot_data.h_type == 38 || arg1.source_id.slot_data.h_type == 39))
+                 {
+                     if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
+                     {
+                         _result = false;
+                         
+                         if (arg2)
+-                            scr_pop_up_create(UnknownEnum.Value_0);
++                            scr_pop_up_create(0);
+                     }
+                 }
+                 
+-                if (_unit_data.class == UnknownEnum.Value_11)
++                var _gnx_has_req0 = ds_map_exists(global.cell_registry, slot_data.h_type) && variable_struct_exists(ds_map_find_value(global.cell_registry, slot_data.h_type).physical, "required_class");
++                
++                if (!_gnx_has_req0 && _unit_data.class == 11)
+                 {
+                     _result = false;
+                     
+                     if (arg2)
+-                        scr_pop_up_create(UnknownEnum.Value_0);
++                        scr_pop_up_create(0);
+                 }
+                 
+-                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && arg1.source_id.slot_data.h_type >= UnknownEnum.Value_26 && arg1.source_id.slot_data.h_type < UnknownEnum.Value_35 && (_old_unit_data.preg != -1 && _old_unit_data.preg != UnknownEnum.Value_2))
++                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && arg1.source_id.slot_data.h_type >= 26 && arg1.source_id.slot_data.h_type < 35 && (_old_unit_data.preg != -1 && _old_unit_data.preg != 2))
+                 {
+                     _result = false;
+                     
+                     if (arg2)
+-                        scr_pop_up_create(UnknownEnum.Value_31);
++                        scr_pop_up_create(31);
++                }
++                
++                if (_result && ds_map_exists(global.cell_registry, slot_data.h_type))
++                {
++                    var _rp_req0 = ds_map_find_value(global.cell_registry, slot_data.h_type).physical;
++                    
++                    if (variable_struct_exists(_rp_req0, "required_class"))
++                    {
++                        var _req0 = _rp_req0.required_class;
++                        var _class_ok0 = false;
++                        
++                        if (is_array(_req0))
++                        {
++                            for (var _ri0 = 0; _ri0 < array_length(_req0); _ri0++)
++                            {
++                                if (_unit_data.class == _req0[_ri0])
++                                {
++                                    _class_ok0 = true;
++                                    break;
++                                }
++                            }
++                        }
++                        else
++                        {
++                            _class_ok0 = _unit_data.class == _req0;
++                        }
++                        
++                        var _log0 = file_text_open_append("gnx_debug.txt");
++                        file_text_write_string(_log0, "[GNX] required_class h=" + string(slot_data.h_type) + " class=" + string(_unit_data.class) + " ok=" + string(_class_ok0) + "\n");
++                        file_text_close(_log0);
++                        
++                        if (!_class_ok0)
++                        {
++                            _result = false;
++                            
++                            if (arg2)
++                                scr_pop_up_create(0);
++                        }
++                    }
+                 }
+                 
+                 break;
+             
+-            case UnknownEnum.Value_1:
++            case 1:
+                 if (slot_data.anim_struct != -1 && slot_h)
+                     _result = true;
+                 
+-                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && (arg1.source_id.slot_data.h_type == UnknownEnum.Value_38 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_36 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_37 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_39))
++                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && (arg1.source_id.slot_data.h_type == 38 || arg1.source_id.slot_data.h_type == 36 || arg1.source_id.slot_data.h_type == 37 || arg1.source_id.slot_data.h_type == 39))
+                 {
+                     if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
+                     {
+                         _result = false;
+                         
+                         if (arg2)
+-                            scr_pop_up_create(UnknownEnum.Value_0);
++                            scr_pop_up_create(0);
+                     }
+                 }
+                 
+-                if (_result && ((_unit_data.class == UnknownEnum.Value_11 && slot_data.h_type != UnknownEnum.Value_37) || (slot_data.h_type == UnknownEnum.Value_37 && _unit_data.class != UnknownEnum.Value_11)))
++                var _gnx_has_req = ds_map_exists(global.cell_registry, slot_data.h_type) && variable_struct_exists(ds_map_find_value(global.cell_registry, slot_data.h_type).physical, "required_class");
++                
++                if (_result && !_gnx_has_req && ((_unit_data.class == 11 && slot_data.h_type != 37) || (slot_data.h_type == 37 && _unit_data.class != 11)))
+                 {
+                     _result = false;
+                     
+                     if (arg2)
+-                        scr_pop_up_create(UnknownEnum.Value_0);
++                        scr_pop_up_create(0);
+                 }
+                 
+-                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && arg1.source_id.slot_data.h_type >= UnknownEnum.Value_26 && arg1.source_id.slot_data.h_type < UnknownEnum.Value_35 && (_old_unit_data.preg != -1 && _old_unit_data.preg != UnknownEnum.Value_2))
++                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && arg1.source_id.slot_data.h_type >= 26 && arg1.source_id.slot_data.h_type < 35 && (_old_unit_data.preg != -1 && _old_unit_data.preg != 2))
+                 {
+                     _result = false;
+                     
+                     if (arg2)
+-                        scr_pop_up_create(UnknownEnum.Value_31);
++                        scr_pop_up_create(31);
+                 }
+                 
+                 if (_result)
+                 {
++                    var _gnx_hardcoded_req = -1;
++                    
+                     switch (slot_data.h_type)
+                     {
+-                        case UnknownEnum.Value_37:
+-                            if (_unit_data.class != UnknownEnum.Value_11)
+-                            {
+-                                _result = false;
+-                                
+-                                if (arg2)
+-                                    scr_pop_up_create(UnknownEnum.Value_0);
+-                            }
+-                            
++                        case 36:
++                            _gnx_hardcoded_req = 9;
+                             break;
+                         
+-                        case UnknownEnum.Value_38:
+-                            if (_unit_data.class != UnknownEnum.Value_12)
+-                            {
+-                                _result = false;
+-                                
+-                                if (arg2)
+-                                    scr_pop_up_create(UnknownEnum.Value_0);
+-                            }
+-                            
++                        case 37:
++                            _gnx_hardcoded_req = 11;
+                             break;
+                         
+-                        case UnknownEnum.Value_36:
+-                            if (_unit_data.class != UnknownEnum.Value_9)
+-                            {
+-                                _result = false;
+-                                
+-                                if (arg2)
+-                                    scr_pop_up_create(UnknownEnum.Value_0);
+-                            }
+-                            
++                        case 38:
++                            _gnx_hardcoded_req = 12;
++                            break;
++                        
++                        case 39:
++                            _gnx_hardcoded_req = 8;
+                             break;
++                    }
++                    
++                    var _gnx_req = _gnx_hardcoded_req;
++                    
++                    if (ds_map_exists(global.cell_registry, slot_data.h_type))
++                    {
++                        var _rp_req = ds_map_find_value(global.cell_registry, slot_data.h_type).physical;
++                        
++                        if (variable_struct_exists(_rp_req, "required_class"))
++                            _gnx_req = _rp_req.required_class;
++                    }
++                    
++                    if (_gnx_req != -1)
++                    {
++                        var _class_ok = false;
+                         
+-                        case UnknownEnum.Value_39:
+-                            if (_unit_data.class != UnknownEnum.Value_8)
++                        if (is_array(_gnx_req))
++                        {
++                            for (var _ri = 0; _ri < array_length(_gnx_req); _ri++)
+                             {
+-                                _result = false;
+-                                
+-                                if (arg2)
+-                                    scr_pop_up_create(UnknownEnum.Value_0);
++                                if (_unit_data.class == _gnx_req[_ri])
++                                {
++                                    _class_ok = true;
++                                    break;
++                                }
+                             }
++                        }
++                        else
++                        {
++                            _class_ok = _unit_data.class == _gnx_req;
++                        }
++                        
++                        if (global.gnx_debug_verbose)
++                        {
++                            var _log = file_text_open_append("gnx_debug.txt");
++                            file_text_write_string(_log, "[GNX] required_class h=" + string(slot_data.h_type) + " class=" + string(_unit_data.class) + " req=" + string(_gnx_req) + " ok=" + string(_class_ok) + "\n");
++                            file_text_close(_log);
++                        }
++                        
++                        if (!_class_ok)
++                        {
++                            _result = false;
+                             
+-                            break;
++                            if (arg2)
++                                scr_pop_up_create(0);
++                        }
+                     }
+                 }
+                 
+                 break;
+             
+-            case UnknownEnum.Value_2:
++            case 2:
+                 if (slot_data.anim_struct != -1 && slot_h)
+                     _result = true;
+                 
+-                if (_result && (arg1.drag_type == UnknownEnum.Value_2 || arg1.drag_type == UnknownEnum.Value_1) && (_unit_data.preg == 1 || (_unit_data.preg != -1 && _unit_data.preg != UnknownEnum.Value_2)))
++                if (_result && (arg1.drag_type == 2 || arg1.drag_type == 1) && (_unit_data.preg == 1 || (_unit_data.preg != -1 && _unit_data.preg != 2)))
+                 {
+                     _result = false;
+                     
+                     if (arg2)
+-                        scr_pop_up_create(UnknownEnum.Value_31);
++                        scr_pop_up_create(31);
+                 }
+                 
+-                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && (arg1.source_id.slot_data.h_type == UnknownEnum.Value_36 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_37 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_38 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_39))
++                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && (arg1.source_id.slot_data.h_type == 36 || arg1.source_id.slot_data.h_type == 37 || arg1.source_id.slot_data.h_type == 38 || arg1.source_id.slot_data.h_type == 39))
+                 {
+                     if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
+                     {
+                         _result = false;
+                         
+                         if (arg2)
+-                            scr_pop_up_create(UnknownEnum.Value_0);
++                            scr_pop_up_create(0);
+                     }
+                 }
+                 
+-                if (_unit_data.class == UnknownEnum.Value_11)
++                if (_unit_data.class == 11)
+                 {
+                     _result = false;
+                     
+                     if (arg2)
+-                        scr_pop_up_create(UnknownEnum.Value_0);
++                        scr_pop_up_create(0);
+                 }
+                 
+                 break;
+         }
+     }
+-    
++
++    // POPRAWKA (GNX): klasa z "only_listed_cells" tylko do cel, ktore ja wymieniaja w required_class
++    if (_result && !gnx_class_cell_listed_ok(arg0.slot_data.h_type, _unit_data.class))
++    {
++        _result = false;
++
++        if (arg2)
++            scr_pop_up_create(0);
++    }
++
+     return _result;
+ }
+ 
+@@ -1170,7 +1380,7 @@
+         var _c_pos = _start_pos + i;
+         var _slot_id = ds_list_find_value(global.slot_list[arg2], _c_pos);
+         
+-        if (_slot_id != undefined && _slot_id.slot_data.slot_type == UnknownEnum.Value_0 && _slot_id.slot_data.h_type == UnknownEnum.Value_11 && _slot_id.unit_data != -1 && array_length(_slot_id.h_unit_list) < 2 && _slot_id.slot_data.drink_num > 0)
++        if (_slot_id != undefined && _slot_id.slot_data.slot_type == 0 && _slot_id.slot_data.h_type == 11 && _slot_id.unit_data != -1 && array_length(_slot_id.h_unit_list) < 2 && _slot_id.slot_data.drink_num > 0)
+         {
+             if (abs(arg0 - _c_pos) < _slot_dist)
+             {
+@@ -1203,6 +1413,13 @@
+         {
+             var _c_slot_id = id;
+             
++            if (global.gnx_debug_verbose)
++            {
++                var _dbgc = file_text_open_append("gnx_debug.txt");
++                file_text_write_string(_dbgc, "[DBG-CARRY] class=" + string(unit_data.class) + " preg=" + string(unit_data.preg) + " milk=" + string(unit_data.milk) + " h=" + string(slot_data.h_type) + " carry=" + string(slot_data.carry) + " load=" + string(slot_data.load) + "\n");
++                file_text_close(_dbgc);
++            }
++            
+             if (unit_data.preg != -1)
+             {
+                 for (var i = 0; i < _count; i++)
+@@ -1211,7 +1428,7 @@
+                     _flip *= -1;
+                     var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
+                     
+-                    if (_t_slot_id != undefined && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && (_t_slot_id.slot_data.h_type == UnknownEnum.Value_5 || _t_slot_id.slot_data.h_type == UnknownEnum.Value_12) && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && array_length(_t_slot_id.slot_data.prop) == 0)
++                    if (_t_slot_id != undefined && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1) && (_t_slot_id.slot_data.h_type == 5 || _t_slot_id.slot_data.h_type == 12) && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && array_length(_t_slot_id.slot_data.prop) == 0)
+                     {
+                         i = _count;
+                         _set_mon = true;
+@@ -1229,7 +1446,7 @@
+                         _flip *= -1;
+                         var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
+                         
+-                        if (_t_slot_id != undefined && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && _t_slot_id.slot_data.h_type == UnknownEnum.Value_11 && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                        if (_t_slot_id != undefined && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1) && _t_slot_id.slot_data.h_type == 11 && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
+                         {
+                             i = _count;
+                             _set_mon = true;
+@@ -1246,7 +1463,7 @@
+                         _flip *= -1;
+                         var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
+                         
+-                        if (_t_slot_id != undefined && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1 || (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_2 && _t_slot_id.slot_data.h_type == UnknownEnum.Value_30)) && (_t_slot_id.slot_data.h_type == UnknownEnum.Value_4 || _t_slot_id.slot_data.h_type == UnknownEnum.Value_30) && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                        if (_t_slot_id != undefined && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || (_t_slot_id.slot_data.slot_type == 2 && _t_slot_id.slot_data.h_type == 30)) && (_t_slot_id.slot_data.h_type == 4 || _t_slot_id.slot_data.h_type == 30) && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
+                         {
+                             i = _count;
+                             _set_mon = true;
+@@ -1259,16 +1476,16 @@
+                 {
+                     switch (unit_data.class)
+                     {
+-                        case UnknownEnum.Value_8:
+-                            _cell_spe = UnknownEnum.Value_39;
++                        case 8:
++                            _cell_spe = 39;
+                             break;
+                         
+-                        case UnknownEnum.Value_12:
+-                            _cell_spe = UnknownEnum.Value_38;
++                        case 12:
++                            _cell_spe = 38;
+                             break;
+                         
+-                        case UnknownEnum.Value_9:
+-                            _cell_spe = UnknownEnum.Value_36;
++                        case 9:
++                            _cell_spe = 36;
+                             break;
+                     }
+                     
+@@ -1297,7 +1514,7 @@
+                             _flip *= -1;
+                             var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
+                             
+-                            if (_t_slot_id != undefined && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && _t_slot_id.slot_data.h_type <= UnknownEnum.Value_26 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                            if (_t_slot_id != undefined && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || _t_slot_id.slot_data.slot_type == 6) && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && (_t_slot_id.slot_data.h_type <= 26 || ds_map_exists(global.cell_registry, _t_slot_id.slot_data.h_type)) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && scr_gnx_carry_class_ok(_t_slot_id, _c_slot_id.unit_data.class))
+                             {
+                                 i = _count;
+                                 _set_mon = true;
+@@ -1332,7 +1549,7 @@
+                 _flip *= -1;
+                 var _c_slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
+                 
+-                if (_c_slot_id != undefined && _c_slot_id.slot_data.anim_struct != -1 && _c_slot_id.unit_data != -1 && (!_c_slot_id.slot_data.carry || !_c_slot_id.slot_data.load) && (_c_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || (_c_slot_id.slot_data.slot_type == UnknownEnum.Value_1 && _c_slot_id.slot_data.h_type != UnknownEnum.Value_37) || (_c_slot_id.slot_data.slot_type == UnknownEnum.Value_2 && _c_slot_id.slot_data.h_type == UnknownEnum.Value_30)))
++                if (_c_slot_id != undefined && _c_slot_id.slot_data.anim_struct != -1 && _c_slot_id.unit_data != -1 && (!_c_slot_id.slot_data.carry || !_c_slot_id.slot_data.load) && (_c_slot_id.slot_data.slot_type == 0 || _c_slot_id.slot_data.slot_type == 6 || (_c_slot_id.slot_data.slot_type == 1 && _c_slot_id.slot_data.h_type != 37) || (_c_slot_id.slot_data.slot_type == 2 && _c_slot_id.slot_data.h_type == 30)))
+                 {
+                     if (_c_slot_id.slot_data.allow_preg)
+                     {
+@@ -1359,7 +1576,7 @@
+                                         }
+                                     }
+                                     
+-                                    if (_allow && _t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 && _t_slot_id.slot_data.anim_struct != -1 && (_t_slot_id.slot_data.h_type == UnknownEnum.Value_5 || _t_slot_id.slot_data.h_type == UnknownEnum.Value_12) && (!_t_slot_id.slot_data.carry || !_c_slot_id.slot_data.load) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && array_length(_t_slot_id.slot_data.prop) == 0)
++                                    if (_allow && _t_slot_id.slot_data.slot_type == 0 && _t_slot_id.slot_data.anim_struct != -1 && (_t_slot_id.slot_data.h_type == 5 || _t_slot_id.slot_data.h_type == 12) && (!_t_slot_id.slot_data.carry || !_c_slot_id.slot_data.load) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && array_length(_t_slot_id.slot_data.prop) == 0)
+                                     {
+                                         _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                         
+@@ -1387,22 +1604,22 @@
+                         
+                         switch (_c_slot_id.unit_data.class)
+                         {
+-                            case UnknownEnum.Value_8:
+-                                _cell_spe = UnknownEnum.Value_39;
++                            case 8:
++                                _cell_spe = 39;
+                                 break;
+                             
+-                            case UnknownEnum.Value_12:
+-                                _cell_spe = UnknownEnum.Value_38;
++                            case 12:
++                                _cell_spe = 38;
+                                 break;
+                             
+-                            case UnknownEnum.Value_9:
+-                                _cell_spe = UnknownEnum.Value_36;
++                            case 9:
++                                _cell_spe = 36;
+                                 break;
+                         }
+                         
+                         switch (_c_slot_id.slot_data.h_type)
+                         {
+-                            case UnknownEnum.Value_4:
++                            case 4:
+                                 if (!_c_slot_id.unit_data.milk)
+                                 {
+                                     if (_cell_spe != -1)
+@@ -1465,7 +1682,7 @@
+                                                     }
+                                                 }
+                                                 
+-                                                if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && _t_slot_id.slot_data.h_type <= UnknownEnum.Value_26 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                                                if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || _t_slot_id.slot_data.slot_type == 6) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && (_t_slot_id.slot_data.h_type <= 26 || ds_map_exists(global.cell_registry, _t_slot_id.slot_data.h_type)) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && scr_gnx_carry_class_ok(_t_slot_id, _c_slot_id.unit_data.class))
+                                                 {
+                                                     _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                     
+@@ -1489,7 +1706,7 @@
+                                 
+                                 break;
+                             
+-                            case UnknownEnum.Value_30:
++                            case 30:
+                                 if (!_c_slot_id.unit_data.milk)
+                                 {
+                                     if (_cell_spe != -1)
+@@ -1552,7 +1769,7 @@
+                                                     }
+                                                 }
+                                                 
+-                                                if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && _t_slot_id.slot_data.h_type <= UnknownEnum.Value_26 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                                                if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || _t_slot_id.slot_data.slot_type == 6) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && (_t_slot_id.slot_data.h_type <= 26 || ds_map_exists(global.cell_registry, _t_slot_id.slot_data.h_type)) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && scr_gnx_carry_class_ok(_t_slot_id, _c_slot_id.unit_data.class))
+                                                 {
+                                                     _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                     
+@@ -1576,8 +1793,8 @@
+                                 
+                                 break;
+                             
+-                            case UnknownEnum.Value_5:
+-                                if (_c_slot_id.slot_data.anim_struct.char_state == UnknownEnum.Value_0 && _c_slot_id.unit_data.preg == -1)
++                            case 5:
++                                if (_c_slot_id.slot_data.anim_struct.char_state == 0 && _c_slot_id.unit_data.preg == -1)
+                                 {
+                                     if (_c_slot_id.unit_data.milk)
+                                     {
+@@ -1602,7 +1819,7 @@
+                                                     }
+                                                 }
+                                                 
+-                                                if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.h_type == UnknownEnum.Value_11 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                                                if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.h_type == 11 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
+                                                 {
+                                                     _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                     
+@@ -1646,7 +1863,7 @@
+                                                     }
+                                                 }
+                                                 
+-                                                if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1 || (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_2 && _t_slot_id.slot_data.h_type == UnknownEnum.Value_30)) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && (_t_slot_id.slot_data.h_type == UnknownEnum.Value_4 || _t_slot_id.slot_data.h_type == UnknownEnum.Value_30) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                                                if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || (_t_slot_id.slot_data.slot_type == 2 && _t_slot_id.slot_data.h_type == 30)) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && (_t_slot_id.slot_data.h_type == 4 || _t_slot_id.slot_data.h_type == 30) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
+                                                 {
+                                                     _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                     
+@@ -1729,7 +1946,7 @@
+                                                         }
+                                                     }
+                                                     
+-                                                    if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && _t_slot_id.slot_data.h_type <= UnknownEnum.Value_26 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                                                    if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || _t_slot_id.slot_data.slot_type == 6) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && (_t_slot_id.slot_data.h_type <= 26 || ds_map_exists(global.cell_registry, _t_slot_id.slot_data.h_type)) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && scr_gnx_carry_class_ok(_t_slot_id, _c_slot_id.unit_data.class))
+                                                     {
+                                                         _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                         
+@@ -1753,8 +1970,8 @@
+                                 
+                                 break;
+                             
+-                            case UnknownEnum.Value_12:
+-                                if (_c_slot_id.slot_data.anim_struct.char_state == UnknownEnum.Value_0 && _c_slot_id.unit_data.preg == -1)
++                            case 12:
++                                if (_c_slot_id.slot_data.anim_struct.char_state == 0 && _c_slot_id.unit_data.preg == -1)
+                                 {
+                                     if (_c_slot_id.unit_data.milk)
+                                     {
+@@ -1779,7 +1996,7 @@
+                                                     }
+                                                 }
+                                                 
+-                                                if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.h_type == UnknownEnum.Value_11 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                                                if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.h_type == 11 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
+                                                 {
+                                                     _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                     
+@@ -1823,7 +2040,7 @@
+                                                     }
+                                                 }
+                                                 
+-                                                if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1 || (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_2 && _t_slot_id.slot_data.h_type == UnknownEnum.Value_30)) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && (_t_slot_id.slot_data.h_type == UnknownEnum.Value_4 || _t_slot_id.slot_data.h_type == UnknownEnum.Value_30) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                                                if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || (_t_slot_id.slot_data.slot_type == 2 && _t_slot_id.slot_data.h_type == 30)) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && (_t_slot_id.slot_data.h_type == 4 || _t_slot_id.slot_data.h_type == 30) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
+                                                 {
+                                                     _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                     
+@@ -1906,7 +2123,7 @@
+                                                         }
+                                                     }
+                                                     
+-                                                    if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && _t_slot_id.slot_data.h_type <= UnknownEnum.Value_26 && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1)
++                                                    if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || _t_slot_id.slot_data.slot_type == 6) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && (_t_slot_id.slot_data.h_type <= 26 || ds_map_exists(global.cell_registry, _t_slot_id.slot_data.h_type)) && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && scr_gnx_carry_class_ok(_t_slot_id, _c_slot_id.unit_data.class))
+                                                     {
+                                                         _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                         
+@@ -1930,7 +2147,7 @@
+                                 
+                                 break;
+                             
+-                            case UnknownEnum.Value_11:
++                            case 11:
+                                 if (!_c_slot_id.unit_data.milk)
+                                 {
+                                     if (_cell_spe != -1)
+@@ -1993,7 +2210,7 @@
+                                                     }
+                                                 }
+                                                 
+-                                                if (_allow && (_t_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _t_slot_id.slot_data.slot_type == UnknownEnum.Value_1) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && _t_slot_id.slot_data.h_type < UnknownEnum.Value_26)
++                                                if (_allow && (_t_slot_id.slot_data.slot_type == 0 || _t_slot_id.slot_data.slot_type == 1 || _t_slot_id.slot_data.slot_type == 6) && !_c_slot_id.slot_data.carry && _t_slot_id.slot_data.anim_struct != -1 && _t_slot_id.slot_data.allow_preg && _t_slot_id.unit_data == -1 && _t_slot_id.slot_head_id == -1 && (_t_slot_id.slot_data.h_type < 26 || ds_map_exists(global.cell_registry, _t_slot_id.slot_data.h_type)) && scr_gnx_carry_class_ok(_t_slot_id, _c_slot_id.unit_data.class))
+                                                 {
+                                                     _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
+                                                     
+@@ -2022,12 +2239,29 @@
+             }
+         }
+     }
+-    
++
++    // POPRAWKA (GNX): klasa z "only_listed_cells" zostaje w miejscu, jesli cel jej nie wymienia
++    if (_set_mon && !gnx_class_cell_listed_ok(_slot_pos[1].slot_data.h_type, _slot_pos[0].unit_data.class))
++        _set_mon = false;
++
+     if (_set_mon)
+     {
+         var _c_slot_id = _slot_pos[0];
+         var _t_slot_id = _slot_pos[1];
+         _carry_exe = [_c_slot_id, _t_slot_id];
++        
++        if (global.gnx_debug_verbose)
++        {
++            var _dbgc2 = file_text_open_append("gnx_debug.txt");
++            file_text_write_string(_dbgc2, "[DBG-CARRY] MATCH src_h=" + string(_c_slot_id.slot_data.h_type) + " dst_h=" + string(_t_slot_id.slot_data.h_type) + " class=" + string(_c_slot_id.unit_data.class) + "\n");
++            file_text_close(_dbgc2);
++        }
++    }
++    else if (global.gnx_debug_verbose && unit_data != -1 && (unit_data.preg != -1 || unit_data.milk))
++    {
++        var _dbgc3 = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_dbgc3, "[DBG-CARRY] NO MATCH class=" + string(unit_data.class) + " preg=" + string(unit_data.preg) + " milk=" + string(unit_data.milk) + " h=" + string(slot_data.h_type) + "\n");
++        file_text_close(_dbgc3);
+     }
+     
+     return _carry_exe;
+@@ -2037,13 +2271,27 @@
+ {
+     var _carry = scr_check_carry_slot_range(arg0);
+     
+-    if (_carry != -1 && (global.val.mon_num[UnknownEnum.Value_1] - global.val.nest_num[2]) > 1)
++    if (global.gnx_debug_verbose && _carry != -1)
++    {
++        var _dbgs = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_dbgs, "[DBG-SPAWN] carry found. mon_num[1]=" + string(global.val.mon_num[1]) + " nest_num[2]=" + string(global.val.nest_num[2]) + " avail=" + string(global.val.mon_num[1] - global.val.nest_num[2]) + "\n");
++        file_text_close(_dbgs);
++    }
++    
++    if (_carry != -1 && (global.val.mon_num[1] - global.val.nest_num[2]) > 1)
+     {
+         var _x = floor(x + (image_xscale * 0.5));
+         var _y = y;
+         var _floor = slot_data.slot_floor;
+         var _door = scr_find_nearest_door(_x, _y, _floor);
+         
++        if (global.gnx_debug_verbose)
++        {
++            var _dbgd = file_text_open_append("gnx_debug.txt");
++            file_text_write_string(_dbgd, "[DBG-SPAWN] door=" + string(_door != -1) + "\n");
++            file_text_close(_dbgd);
++        }
++        
+         if (_door != -1)
+         {
+             _x = _door.x + floor(_door.image_xscale * 0.5);
+@@ -2051,15 +2299,24 @@
+             var _slot_pos = ds_list_find_index(global.slot_list[_floor], id);
+             var _c_slot_id = _carry[0];
+             var _t_slot_id = _carry[1];
++            
++            // POPRAWKA (wydajnosc): wpis tylko przy VERBOSE LOG
++            if (global.gnx_debug_verbose && ds_map_exists(global.cell_registry, _t_slot_id.slot_data.h_type))
++            {
++                var _dbgf = file_text_open_append("gnx_debug.txt");
++                file_text_write_string(_dbgf, "[GNX] goblin carry → h_type=" + string(_t_slot_id.slot_data.h_type) + "\n");
++                file_text_close(_dbgf);
++            }
++            
+             global.val.nest_num[2]++;
+-            var _mon = scr_create_mon(UnknownEnum.Value_1, _x, _y, _floor, _slot_pos, 0);
++            var _mon = scr_create_mon(1, _x, _y, _floor, _slot_pos, 0);
+             array_push(h_unit_list, _mon);
+             
+             with (_mon)
+             {
+                 mon_data.carry_start_id = _c_slot_id;
+                 mon_data.carry_end_id = _t_slot_id;
+-                mon_data.mood_type = UnknownEnum.Value_1;
++                mon_data.mood_type = 1;
+                 mon_data.mood_timer = 180;
+                 scr_mood_value_set(-0.25);
+             }
+@@ -2081,7 +2338,7 @@
+                 scr_create_slot_head(false, id);
+             }
+             
+-            slot_data.anim_struct.char_state = UnknownEnum.Value_1;
++            slot_data.anim_struct.char_state = 1;
+             slot_data.anim_struct.ff = true;
+         }
+     }
+@@ -2102,14 +2359,17 @@
+         var _c_pos = _start_pos + i;
+         var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
+         
+-        if (_slot_id != undefined && (_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _slot_id.slot_data.slot_type == UnknownEnum.Value_1) && _slot_id.clean_id == -1 && _slot_id.slot_data.slot_dirt > 0)
++        // POPRAWKA: sprzatanie obejmuje tez cele XL (slot_type 6)
++        if (_slot_id != undefined && (_slot_id.slot_data.slot_type == 0 || _slot_id.slot_data.slot_type == 1 || _slot_id.slot_data.slot_type == 6) && _slot_id.clean_id == -1 && _slot_id.slot_data.slot_dirt > 0)
+         {
+             with (_slot_id)
+             {
+                 var _shift_x = 0;
+                 
+-                if (_slot_id.slot_data.slot_type == UnknownEnum.Value_1)
++                if (_slot_id.slot_data.slot_type == 1)
+                     _shift_x = 11;
++                else if (_slot_id.slot_data.slot_type == 6)
++                    _shift_x = 52;
+                 
+                 clean_id = instance_create_depth(x + _shift_x, y, -761, obj_clean);
+                 
+@@ -2119,8 +2379,10 @@
+                     shift_x = _shift_x;
+                     var _width;
+                     
+-                    if (_slot_id.slot_data.slot_type == UnknownEnum.Value_0)
++                    if (_slot_id.slot_data.slot_type == 0)
+                         _width = 45;
++                    else if (_slot_id.slot_data.slot_type == 6)
++                        _width = 98;
+                     else
+                         _width = 77;
+                     
+@@ -2158,35 +2420,35 @@
+ 
+ function scr_mon_find_placement()
+ {
+-    var _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1];
++    var _type_ar = [0, 1];
+     var _place = 0;
+     var _num = array_length(h_unit_list);
+     var _exists = true;
+     
+     switch (slot_data.h_type)
+     {
+-        case UnknownEnum.Value_4:
+-            _type_ar = [UnknownEnum.Value_0];
++        case 4:
++            _type_ar = [0];
+             break;
+         
+-        case UnknownEnum.Value_17:
+-            _type_ar = [UnknownEnum.Value_1];
++        case 17:
++            _type_ar = [1];
+             break;
+         
+-        case UnknownEnum.Value_36:
+-            _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1];
++        case 36:
++            _type_ar = [0, 1];
+             _place = min(1, array_length(h_unit_list));
+             
+             if (_place == 0 || slot_data.mon_placement[0] == -1)
+-                _type_ar = [UnknownEnum.Value_0];
++                _type_ar = [0];
+             
+             break;
+         
+-        case UnknownEnum.Value_24:
+-            _type_ar = [UnknownEnum.Value_3];
++        case 24:
++            _type_ar = [3];
+             break;
+         
+-        case UnknownEnum.Value_18:
++        case 18:
+             var _hob = true;
+             var _slot_ar = [false, false, false];
+             var _ar = [];
+@@ -2206,12 +2468,12 @@
+                 _place = choose(0, 1);
+             
+             if (_place != 0)
+-                _type_ar = [UnknownEnum.Value_0];
++                _type_ar = [0];
+             
+             break;
+         
+-        case UnknownEnum.Value_19:
+-            _type_ar = [UnknownEnum.Value_0];
++        case 19:
++            _type_ar = [0];
+             var _slot_ar = [false, false];
+             var _ar = [];
+             
+@@ -2227,8 +2489,8 @@
+             _place = _ar[irandom_range(0, array_length(_ar) - 1)];
+             break;
+         
+-        case UnknownEnum.Value_38:
+-            _type_ar = [UnknownEnum.Value_3];
++        case 38:
++            _type_ar = [3];
+             var _slot_ar = [false, false];
+             var _ar = [];
+             
+@@ -2244,13 +2506,13 @@
+             _place = _ar[irandom_range(0, array_length(_ar) - 1)];
+             break;
+         
+-        case UnknownEnum.Value_23:
++        case 23:
+             var _slot_ar = [false, false];
+             var _ar = [];
+             
+             if (_num == 0)
+             {
+-                _type_ar = [UnknownEnum.Value_3];
++                _type_ar = [3];
+                 _place = 0;
+             }
+             else if (slot_data.mon_placement[0] == -1)
+@@ -2264,24 +2526,63 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_21:
+-            _type_ar = [UnknownEnum.Value_3];
++        case 21:
++            _type_ar = [3];
++            break;
++        
++        case 22:
++            _type_ar = [3];
+             break;
+         
+-        case UnknownEnum.Value_22:
+-            _type_ar = [UnknownEnum.Value_3];
++        case 20:
++            _type_ar = [3];
+             break;
+         
+-        case UnknownEnum.Value_20:
+-            _type_ar = [UnknownEnum.Value_3];
++        case 39:
++            _type_ar = [0, 1, 3];
+             break;
+         
+-        case UnknownEnum.Value_39:
+-            _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1, UnknownEnum.Value_3];
++        case 37:
++            _type_ar = [0, 1, 3];
+             break;
+         
+-        case UnknownEnum.Value_37:
+-            _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1, UnknownEnum.Value_3];
++        default:
++            if (ds_map_exists(global.cell_registry, slot_data.h_type))
++            {
++                var _gcell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++                
++                if (variable_struct_exists(_gcell.physical, "mon_placements") && is_array(_gcell.physical.mon_placements))
++                {
++                    var _mp = _gcell.physical.mon_placements;
++                    var _occupied = array_create(array_length(_mp), false);
++                    
++                    for (var i = 0; i < _num; i++)
++                        _occupied[h_unit_list[i].mon_data.placement_num] = true;
++                    
++                    var _open = [];
++                    
++                    for (var i = 0; i < array_length(_mp); i++)
++                    {
++                        if (!_occupied[i])
++                            array_push(_open, i);
++                    }
++                    
++                    if (array_length(_open) > 0)
++                    {
++                        _place = _open[irandom_range(0, array_length(_open) - 1)];
++                        _type_ar = _mp[_place];
++                    }
++                    else
++                    {
++                        _exists = false;
++                    }
++                }
++                else if (variable_struct_exists(_gcell, "mon_types") && _gcell.mon_types != undefined)
++                {
++                    _type_ar = _gcell.mon_types;
++                }
++            }
++            
+             break;
+     }
+     
+@@ -2297,8 +2598,103 @@
+     }
+ }
+ 
++// Sprawdza, czy cela arg0 (obj_slot) to nowa cela z modu z regulami typow potworow (mon_placements albo mon_types).
++// Cele wanilowe (takze patchowane przez mody) zwracaja false - one maja wlasna logike miejsc i dzialaja jak dotad.
++function gnx_cell_has_mon_rules(arg0)
++{
++    var _gcell = ds_map_find_value(global.cell_registry, arg0.slot_data.h_type);
++    
++    // mod_name dostaja tylko nowe cele z cells.json (nie patche wanilowych)
++    if (_gcell == undefined || !variable_struct_exists(_gcell, "mod_name"))
++        return false;
++    
++    if (variable_struct_exists(_gcell, "physical") && is_struct(_gcell.physical) && variable_struct_exists(_gcell.physical, "mon_placements") && is_array(_gcell.physical.mon_placements))
++        return true;
++    
++    return variable_struct_exists(_gcell, "mon_types") && is_array(_gcell.mon_types);
++}
++
++// Szuka w celi arg0 (obj_slot) wolnego miejsca dla potwora typu arg1 (0 goblin, 1 hobgoblin, 3 ogr).
++// Zwraca numer miejsca albo -1, gdy zadne wolne miejsce nie przyjmuje tego typu.
++// Wolne = zaden potwor z listy celi (takze idacy do niej) nie ma tego numeru miejsca.
++function gnx_cell_place_for_type(arg0, arg1)
++{
++    var _place = -1;
++    
++    // pelna cela (licza sie tez potwory w drodze) - nie ma czego szukac
++    if (array_length(arg0.h_unit_list) >= arg0.slot_data.max_mon_num)
++        return -1;
++    
++    var _gcell = ds_map_find_value(global.cell_registry, arg0.slot_data.h_type);
++    var _mp = -1;
++    var _mt = -1;
++    
++    if (_gcell != undefined)
++    {
++        if (variable_struct_exists(_gcell, "physical") && is_struct(_gcell.physical) && variable_struct_exists(_gcell.physical, "mon_placements") && is_array(_gcell.physical.mon_placements))
++            _mp = _gcell.physical.mon_placements;
++        
++        if (variable_struct_exists(_gcell, "mon_types") && is_array(_gcell.mon_types))
++            _mt = _gcell.mon_types;
++    }
++    
++    // bez listy miejsc: typ musi byc w mon_types (jesli cela je ma), a miejsce wybiera gra jak dotad
++    if (!is_array(_mp))
++    {
++        if (is_array(_mt) && !array_contains(_mt, arg1))
++            return -1;
++        
++        with (arg0)
++        {
++            var _ar = scr_mon_find_placement();
++            
++            if (_ar != -1)
++                _place = _ar[1];
++        }
++        
++        return _place;
++    }
++    
++    // z lista miejsc: zaznacz zajete miejsca
++    var _n = array_length(_mp);
++    var _occupied = array_create(_n, false);
++    
++    with (arg0)
++    {
++        for (var i = 0; i < array_length(h_unit_list); i++)
++        {
++            var _u = h_unit_list[i];
++            
++            if (gnx_is_live_inst(_u) && variable_instance_exists(_u, "mon_data") && is_struct(_u.mon_data))
++            {
++                var _pn = _u.mon_data.placement_num;
++                
++                if (_pn >= 0 && _pn < _n)
++                    _occupied[_pn] = true;
++            }
++        }
++    }
++    
++    // wolne miejsca, ktorych lista typow zawiera arg1; jesli kilka - losowe
++    var _ok = [];
++    
++    for (var i = 0; i < _n; i++)
++    {
++        if (!_occupied[i] && is_array(_mp[i]) && array_contains(_mp[i], arg1))
++            array_push(_ok, i);
++    }
++    
++    if (array_length(_ok) > 0)
++        _place = _ok[irandom_range(0, array_length(_ok) - 1)];
++    
++    return _place;
++}
++
+ function scr_slot_call_mon(arg0)
+ {
++    if (!variable_struct_exists(scr_slot, "h"))
++        exit;
++    
+     var _num = array_length(h_unit_list);
+     
+     if (_num < slot_data.max_mon_num && !slot_data.carry)
+@@ -2322,13 +2718,22 @@
+                 {
+                     with (obj_mon)
+                     {
+-                        if (mon_data.mon_state == UnknownEnum.Value_5 && mon_data.slot_id == -1 && mon_data.mon_floor == _floor && mon_data.task == UnknownEnum.Value_0 && mon_data.mon_type == _type)
++                        if (mon_data.mon_state == 5 && mon_data.slot_id == -1 && mon_data.mon_floor == _floor && mon_data.task == 0 && mon_data.mon_type == _type)
+                         {
+                             mon_data.slot_id = _slot_id;
+-                            mon_data.mon_state = UnknownEnum.Value_6;
++                            mon_data.mon_state = 6;
+                             mon_data.ff = true;
+                             mon_data.placement_num = _place;
+                             _mon = id;
++
++                            // POPRAWKA (wydajnosc): wpis tylko przy VERBOSE LOG
++                            if (global.gnx_debug_verbose)
++                            {
++                                var _gfd = file_text_open_append("gnx_debug.txt");
++                                file_text_write_string(_gfd, "[MON:" + string(id) + "] DISPATCHED(wander) from x=" + string(x) + " → h_type=" + string(_slot_id.slot_data.h_type) + " cell_x=" + string(_slot_id.x));
++                                file_text_writeln(_gfd);
++                                file_text_close(_gfd);
++                            }
+                             break;
+                         }
+                     }
+@@ -2340,7 +2745,7 @@
+                     var _y = y;
+                     var _door = -1;
+                     
+-                    if (slot_data.h_type == UnknownEnum.Value_4 || slot_data.h_type == UnknownEnum.Value_24 || (slot_data.h_type == UnknownEnum.Value_36 && _place == 0))
++                    if (slot_data.h_type == 4 || slot_data.h_type == 24 || (slot_data.h_type == 36 && _place == 0))
+                     {
+                         _door = scr_find_nearest_door(_x, _y, _floor);
+                     }
+@@ -2421,14 +2826,15 @@
+         if (unit_data.scr_wait >= 240)
+         {
+             scr_add_milk_item(1, 1);
+-            scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 62, 1, UnknownEnum.Value_1, false);
++            scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 62, 1, 1, false);
+             unit_data.milk = false;
+             unit_data.scr_wait = 0;
+         }
+     }
+ }
+ 
+-function scr_check_empty_cell_range(arg0, arg1)
++// arg2 = typ potwora, ktory ma wejsc (-1 = bez sprawdzania, jak dotad)
++function scr_check_empty_cell_range(arg0, arg1, arg2 = -1)
+ {
+     arg1 += global.val.add_range;
+     var _floor = arg0.slot_data.slot_floor;
+@@ -2446,8 +2852,13 @@
+         var _c_pos = _start_pos + i;
+         var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
+         
+-        if (_slot_id != undefined && (_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _slot_id.slot_data.slot_type == UnknownEnum.Value_1) && _slot_id.unit_data != -1 && !_slot_id.slot_data.carry && _slot_id.slot_data.load == 0 && _slot_id.slot_data.h_type != UnknownEnum.Value_11 && _slot_id.slot_data.h_type != UnknownEnum.Value_17 && _slot_id.slot_data.h_type != UnknownEnum.Value_24 && _slot_id.slot_data.h_type != UnknownEnum.Value_4 && _slot_id.slot_data.h_type != UnknownEnum.Value_20 && _slot_id.slot_data.h_type != UnknownEnum.Value_21 && _slot_id.slot_data.h_type != UnknownEnum.Value_22 && _slot_id.slot_data.h_type != UnknownEnum.Value_38)
++        if (_slot_id != undefined && (_slot_id.slot_data.slot_type == 0 || _slot_id.slot_data.slot_type == 1 || _slot_id.slot_data.slot_type == 6) && _slot_id.unit_data != -1 && !_slot_id.slot_data.carry && _slot_id.slot_data.load == 0 && _slot_id.slot_data.h_type != 11 && _slot_id.slot_data.h_type != 17 && _slot_id.slot_data.h_type != 24 && _slot_id.slot_data.h_type != 4 && _slot_id.slot_data.h_type != 20 && _slot_id.slot_data.h_type != 21 && _slot_id.slot_data.h_type != 22 && _slot_id.slot_data.h_type != 38 && variable_struct_exists(_slot_id.scr_slot, "h"))
+         {
++            // POPRAWKA: cela z modu z mon_placements/mon_types bez wolnego miejsca dla tego typu nie jest celem
++            // (wczesniej np. goblin z DRINK mogl trafic na miejsce tylko dla hobgoblina)
++            if (arg2 != -1 && gnx_cell_has_mon_rules(_slot_id) && gnx_cell_place_for_type(_slot_id, arg2) == -1)
++                continue;
++            
+             var _num = array_length(_slot_id.h_unit_list);
+             
+             if (abs(_pos - _c_pos) < _slot_dist)
+@@ -2456,7 +2867,7 @@
+                 
+                 switch (_slot_id.slot_data.h_type)
+                 {
+-                    case UnknownEnum.Value_23:
++                    case 23:
+                         _check = true;
+                         
+                         if (_num == 1)
+@@ -2467,10 +2878,10 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_37:
++                    case 37:
+                         _check = true;
+                         
+-                        if (_num < _slot_id.slot_data.max_mon_num && _slot_id.slot_data.anim_struct.char_state == UnknownEnum.Value_0 && !_slot_id.slot_data.mod_index[1])
++                        if (_num < _slot_id.slot_data.max_mon_num && _slot_id.slot_data.anim_struct.char_state == 0 && !_slot_id.slot_data.mod_index[1])
+                         {
+                             _slot_dist = abs(_pos - _c_pos);
+                             _target_id = _slot_id;
+@@ -2478,10 +2889,10 @@
+                         
+                         break;
+                     
+-                    case UnknownEnum.Value_39:
++                    case 39:
+                         _check = true;
+                         
+-                        if (_slot_id.slot_data.anim_struct.char_state == UnknownEnum.Value_0)
++                        if (_slot_id.slot_data.anim_struct.char_state == 0)
+                         {
+                             _slot_dist = abs(_pos - _c_pos);
+                             _target_id = _slot_id;
+@@ -2509,7 +2920,7 @@
+ {
+     var _exists = false;
+     
+-    if (arg0 == UnknownEnum.Value_11 || arg0 == UnknownEnum.Value_12 || arg0 == UnknownEnum.Value_10 || arg0 == UnknownEnum.Value_17 || arg0 == UnknownEnum.Value_33 || arg0 == UnknownEnum.Value_30 || arg0 == UnknownEnum.Value_24 || arg0 == UnknownEnum.Value_25 || arg0 == UnknownEnum.Value_41 || arg0 == UnknownEnum.Value_39 || arg0 == UnknownEnum.Value_40 || arg0 == UnknownEnum.Value_42)
++    if (arg0 == 11 || arg0 == 12 || arg0 == 10 || arg0 == 17 || arg0 == 33 || arg0 == 30 || arg0 == 24 || arg0 == 25 || arg0 == 41 || arg0 == 39 || arg0 == 40 || arg0 == 42)
+         _exists = true;
+     
+     if (_exists)
+@@ -2527,7 +2938,7 @@
+     
+     switch (arg0)
+     {
+-        case UnknownEnum.Value_5:
++        case 5:
+             _slot = true;
+             
+             if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
+@@ -2535,7 +2946,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_12:
++        case 12:
+             _slot = true;
+             
+             if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
+@@ -2543,7 +2954,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_4:
++        case 4:
+             _slot = true;
+             
+             if (floor(_unit_data.preg_c) == 0)
+@@ -2558,7 +2969,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_30:
++        case 30:
+             _slot = true;
+             
+             if (floor(_unit_data.preg_c) == 0)
+@@ -2573,7 +2984,7 @@
+             
+             break;
+         
+-        case UnknownEnum.Value_33:
++        case 33:
+             _slot = true;
+             _scr_check = scr_check_type_n_preg;
+             break;
+@@ -2602,7 +3013,7 @@
+             var _c_pos = _start_pos + i;
+             var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
+             
+-            if (_slot_id != undefined && _slot_id.slot_data.slot_type == UnknownEnum.Value_1 && _slot_id.slot_data.h_type == UnknownEnum.Value_41)
++            if (_slot_id != undefined && _slot_id.slot_data.slot_type == 1 && _slot_id.slot_data.h_type == 41)
+             {
+                 i = _dist;
+                 _frog = true;
+@@ -2623,8 +3034,8 @@
+                 ds_list_set(global.unit_list, _swap_pos, -1);
+                 scr_insert_unit_to_list(_unit_data, _swap_pos, -1);
+                 var _button = scr_reset_single_unit_window(_swap_pos);
+-                scr_occupy_slot(_old_slot_id, -1, true, UnknownEnum.Value_1);
+-                scr_occupy_slot(_old_slot_id, _old_unit_data, true, UnknownEnum.Value_1);
++                scr_occupy_slot(_old_slot_id, -1, true, 1);
++                scr_occupy_slot(_old_slot_id, _old_unit_data, true, 1);
+                 scr_create_slot_head(true, id);
+                 scr_swap_emitter(x + round(image_xscale * 0.5), y - 30, false);
+                 scr_swap_emitter(_button.x, _button.y, true);
+@@ -2641,7 +3052,7 @@
+     var _class = arg0.class;
+     var _same_check = false;
+     
+-    if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.drag_type == UnknownEnum.Value_1)
++    if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.drag_type == 1)
+         _hold_pos = obj_control.hold_id.button_num;
+     
+     for (var i = 0; i < _num; i++)
+@@ -2662,14 +3073,14 @@
+         {
+             var _pris_unit = ds_list_find_value(global.unit_list, i);
+             
+-            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) == 0 && (_pris_unit.class != UnknownEnum.Value_11 || (_pris_unit.class == UnknownEnum.Value_11 && _class == UnknownEnum.Value_11)))
++            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) == 0 && (_pris_unit.class != 11 || (_pris_unit.class == 11 && _class == 11)) && gnx_class_cell_listed_ok(arg1, _pris_unit.class))
+             {
+                 _swap_pos = i;
+                 i = _num;
+             }
+         }
+     }
+-    
++
+     return _swap_pos;
+ }
+ 
+@@ -2682,17 +3093,17 @@
+     var _same_check = false;
+     var _tent = false;
+     
+-    if (arg1 > UnknownEnum.Value_26 && arg1 < UnknownEnum.Value_35)
++    if (arg1 > 26 && arg1 < 35)
+         _tent = true;
+     
+-    if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.drag_type == UnknownEnum.Value_1)
++    if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.drag_type == 1)
+         _hold_pos = obj_control.hold_id.button_num;
+     
+     for (var i = 0; i < _num; i++)
+     {
+         var _pris_unit = ds_list_find_value(global.unit_list, i);
+         
+-        if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class == _class && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == UnknownEnum.Value_2)))))
++        if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class == _class && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == 2)))))
+         {
+             _swap_pos = i;
+             i = _num;
+@@ -2700,13 +3111,13 @@
+         }
+     }
+     
+-    if (!_same_check && arg1 < UnknownEnum.Value_35 && !arg2)
++    if (!_same_check && arg1 < 35 && !arg2)
+     {
+         for (var i = 0; i < _num; i++)
+         {
+             var _pris_unit = ds_list_find_value(global.unit_list, i);
+             
+-            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class != UnknownEnum.Value_11 && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == UnknownEnum.Value_2)))))
++            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class != 11 && gnx_class_cell_listed_ok(arg1, _pris_unit.class) && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == 2)))))
+             {
+                 _swap_pos = i;
+                 i = _num;
+@@ -2725,7 +3136,7 @@
+     var _class = arg0.class;
+     var _same_check = false;
+     
+-    if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.drag_type == UnknownEnum.Value_1)
++    if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.drag_type == 1)
+         _hold_pos = obj_control.hold_id.button_num;
+     
+     for (var i = 0; i < _num; i++)
+@@ -2746,7 +3157,7 @@
+         {
+             var _pris_unit = ds_list_find_value(global.unit_list, i);
+             
+-            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.milk) && _pris_unit.class != UnknownEnum.Value_11)
++            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.milk) && _pris_unit.class != 11 && gnx_class_cell_listed_ok(arg1, _pris_unit.class))
+             {
+                 _swap_pos = i;
+                 i = _num;
+@@ -2773,23 +3184,30 @@
+         }
+         else
+         {
+-            if (_change_id.slot_data.slot_type == UnknownEnum.Value_0)
++            if (_change_id.slot_data.slot_type == 0)
+             {
+-                _change_id.slot_data.base_type = UnknownEnum.Value_0;
++                _change_id.slot_data.base_type = 0;
+                 _change_id.spr_base = spr_slot_back;
+             }
+             
+-            if (_change_id.slot_data.slot_type == UnknownEnum.Value_1)
++            if (_change_id.slot_data.slot_type == 1)
+             {
+-                _change_id.slot_data.base_type = UnknownEnum.Value_0;
++                _change_id.slot_data.base_type = 0;
+                 _change_id.spr_base = spr_big_slot_back;
+             }
+             
+-            if (_change_id.slot_data.slot_type == UnknownEnum.Value_2)
++            if (_change_id.slot_data.slot_type == 2)
+             {
+-                _change_id.slot_data.base_type = UnknownEnum.Value_4;
++                _change_id.slot_data.base_type = 4;
+                 _change_id.spr_base = spr_tent_back;
+             }
++
++            // POPRAWKA: domyslna sciana celi XL
++            if (_change_id.slot_data.slot_type == 6)
++            {
++                _change_id.slot_data.base_type = 0;
++                _change_id.spr_base = spr_xl_slot_back;
++            }
+         }
+     }
+     
+@@ -2804,23 +3222,30 @@
+         }
+         else
+         {
+-            if (_change_id.slot_data.slot_type == UnknownEnum.Value_0)
++            if (_change_id.slot_data.slot_type == 0)
+             {
+-                _change_id.slot_data.base_type = UnknownEnum.Value_0;
++                _change_id.slot_data.base_type = 0;
+                 _change_id.spr_base = spr_slot_back;
+             }
+             
+-            if (_change_id.slot_data.slot_type == UnknownEnum.Value_1)
++            if (_change_id.slot_data.slot_type == 1)
+             {
+-                _change_id.slot_data.base_type = UnknownEnum.Value_0;
++                _change_id.slot_data.base_type = 0;
+                 _change_id.spr_base = spr_big_slot_back;
+             }
+             
+-            if (_change_id.slot_data.slot_type == UnknownEnum.Value_2)
++            if (_change_id.slot_data.slot_type == 2)
+             {
+-                _change_id.slot_data.base_type = UnknownEnum.Value_4;
++                _change_id.slot_data.base_type = 4;
+                 _change_id.spr_base = spr_tent_back;
+             }
++
++            // POPRAWKA: domyslna sciana celi XL
++            if (_change_id.slot_data.slot_type == 6)
++            {
++                _change_id.slot_data.base_type = 0;
++                _change_id.spr_base = spr_xl_slot_back;
++            }
+         }
+     }
+ }
+@@ -2832,67 +3257,94 @@
+     
+     switch (arg0.slot_data.slot_type)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             switch (arg1)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     _spr = spr_slot_back;
+-                    _base_type = UnknownEnum.Value_0;
++                    _base_type = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     _spr = spr_slot_back_pillar;
+-                    _base_type = UnknownEnum.Value_1;
++                    _base_type = 1;
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     _spr = spr_slot_back_rock;
+-                    _base_type = UnknownEnum.Value_2;
++                    _base_type = 2;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     _spr = spr_slot_back_brick;
+-                    _base_type = UnknownEnum.Value_3;
++                    _base_type = 3;
+                     break;
+             }
+             
+             break;
+         
+-        case UnknownEnum.Value_1:
++        case 1:
+             switch (arg1)
+             {
+-                case UnknownEnum.Value_0:
++                case 0:
+                     _spr = spr_big_slot_back;
+-                    _base_type = UnknownEnum.Value_0;
++                    _base_type = 0;
+                     break;
+                 
+-                case UnknownEnum.Value_1:
++                case 1:
+                     _spr = spr_big_slot_back_pillar;
+-                    _base_type = UnknownEnum.Value_1;
++                    _base_type = 1;
+                     break;
+                 
+-                case UnknownEnum.Value_2:
++                case 2:
+                     _spr = spr_big_slot_back_rock;
+-                    _base_type = UnknownEnum.Value_2;
++                    _base_type = 2;
+                     break;
+                 
+-                case UnknownEnum.Value_3:
++                case 3:
+                     _spr = spr_big_slot_back_brick;
+-                    _base_type = UnknownEnum.Value_3;
++                    _base_type = 3;
+                     break;
+             }
+             
+             break;
+         
+-        case UnknownEnum.Value_2:
++        // POPRAWKA: sciany celi XL
++        case 6:
++            switch (arg1)
++            {
++                case 0:
++                    _spr = spr_xl_slot_back;
++                    _base_type = 0;
++                    break;
++
++                case 1:
++                    _spr = spr_xl_slot_back_pillar;
++                    _base_type = 1;
++                    break;
++
++                case 2:
++                    _spr = spr_xl_slot_back_rock;
++                    _base_type = 2;
++                    break;
++
++                case 3:
++                    _spr = spr_xl_slot_back_brick;
++                    _base_type = 3;
++                    break;
++            }
++
++            break;
++
++        case 2:
+             switch (arg1)
+             {
+-                case UnknownEnum.Value_4:
++                case 4:
+                     _spr = spr_tent_back_full;
+-                    _base_type = UnknownEnum.Value_5;
++                    _base_type = 5;
+                     break;
+             }
+-            
++
+             break;
+     }
+     
+@@ -2978,49 +3430,3 @@
+             bar_glow_rep = 0;
+     }
+ }
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_10,
+-    Value_11,
+-    Value_12,
+-    Value_13,
+-    Value_14,
+-    Value_15,
+-    Value_16,
+-    Value_17,
+-    Value_18,
+-    Value_19,
+-    Value_20,
+-    Value_21,
+-    Value_22,
+-    Value_23,
+-    Value_24,
+-    Value_25,
+-    Value_26,
+-    Value_27,
+-    Value_28,
+-    Value_29,
+-    Value_30,
+-    Value_31,
+-    Value_32,
+-    Value_33,
+-    Value_35 = 35,
+-    Value_36,
+-    Value_37,
+-    Value_38,
+-    Value_39,
+-    Value_40,
+-    Value_41,
+-    Value_42
+-}

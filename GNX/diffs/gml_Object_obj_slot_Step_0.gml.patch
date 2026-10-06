@@ -1,0 +1,59 @@
+--- gml_138/gml_Object_obj_slot_Step_0.gml	2026-09-02 08:45:16.118546900 +0200
++++ gml/gml_Object_obj_slot_Step_0.gml	2026-10-05 18:42:59.670485000 +0200
+@@ -1,3 +1,23 @@
++// TEST EKONOMII: narzedzie "RUN ALL CELLS" wylacza odcinanie logiki cel poza ekranem (rysowanie dalej jest odcinane)
++if (!global.gnx_cull_step_off)
++{
++    var _vy = camera_get_view_y(view_camera[0]);
++    var _vh = camera_get_view_height(view_camera[0]);
++
++    if (y < (_vy - 400) || y > (_vy + _vh + 400))
++    {
++        gnx_cull_sleep = true;
++        exit;
++    }
++}
++
++// POPRAWKA: cela wraca do pracy po przerwie poza ekranem - w tym czasie potwory mogly zniknac, wiec najpierw czyscimy jej listy
++if (variable_instance_exists(id, "gnx_cull_sleep") && gnx_cull_sleep)
++{
++    gnx_cull_sleep = false;
++    gnx_slot_purge_dead_refs();
++}
++
+ if (scr_slot_step != -1)
+     script_execute(scr_slot_step);
+ 
+@@ -7,27 +27,21 @@
+ if (unit_data != -1 && unit_data.scr_unit != -1)
+ {
+     var _scr = -1;
+-    
++
+     switch (unit_data.scr_unit)
+     {
+-        case UnknownEnum.Value_0:
++        case 0:
+             _scr = scr_unit_milk_generate;
+             break;
+-        
+-        case UnknownEnum.Value_1:
++
++        case 1:
+             _scr = scr_unit_preg_generate;
+             break;
+     }
+-    
++
+     if (_scr != -1)
+         script_execute(_scr, 1);
+ }
+ 
+ if (slot_data.anim_struct != -1 && scr_slot_base != -1)
+     script_execute(scr_slot_base);
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1
+-}

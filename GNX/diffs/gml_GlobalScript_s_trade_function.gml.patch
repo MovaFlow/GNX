@@ -1,0 +1,172 @@
+--- gml_138/gml_GlobalScript_s_trade_function.gml	2026-09-02 08:45:16.443594600 +0200
++++ gml/gml_GlobalScript_s_trade_function.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -2,14 +2,14 @@
+ {
+     var _empty = true;
+     
+-    if (obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_3 && ((arg1 >= 172 && arg1 < 209) && (arg2 >= 104 && arg2 < 152)))
++    if (obj_np.obj_raid.raid_data.raid_state == 3 && ((arg1 >= 172 && arg1 < 209) && (arg2 >= 104 && arg2 < 152)))
+     {
+         _empty = false;
+         
+         switch (arg0.interact_type)
+         {
+-            case UnknownEnum.Value_20:
+-                if (arg0.unit_data.class < UnknownEnum.Value_8 || (arg0.unit_data.class >= UnknownEnum.Value_8 && arg0.unit_data.lvl >= 6))
++            case 20:
++                if (arg0.unit_data.class < 8 || (arg0.unit_data.class >= 8 && arg0.unit_data.lvl >= 6) || ds_map_exists(global.class_registry, arg0.unit_data.class))
+                 {
+                     var _num;
+                     
+@@ -17,7 +17,7 @@
+                     {
+                         _num = (min(5, unit_data.lvl) + 1) * 10;
+                         
+-                        if (drag_type == UnknownEnum.Value_5)
++                        if (drag_type == 5)
+                             global.val.cage[button_num] = -1;
+                         else
+                             ds_list_set(global.unit_list, button_num, -1);
+@@ -26,19 +26,19 @@
+                     }
+                     
+                     global.val.money += _num;
+-                    scr_check_steam_achievement(UnknownEnum.Value_4);
+-                    scr_icon_pop_up_create(arg1, arg2 - 10, _num, UnknownEnum.Value_2, true);
+-                    scr_sfx_play(UnknownEnum.Value_6);
++                    scr_check_steam_achievement(4);
++                    scr_icon_pop_up_create(arg1, arg2 - 10, _num, 2, true);
++                    scr_sfx_play(6);
+                     scr_check_softlock();
+                 }
+                 else
+                 {
+-                    scr_pop_up_create(UnknownEnum.Value_20);
++                    scr_pop_up_create(20);
+                 }
+                 
+                 break;
+             
+-            case UnknownEnum.Value_21:
++            case 21:
+                 var _inst = obj_np.obj_raid;
+                 var _info = {};
+                 var _mon_val = scr_mon_type_construct(arg0.unit_data.mon_type);
+@@ -55,10 +55,10 @@
+                 
+                 break;
+             
+-            case UnknownEnum.Value_23:
++            case 23:
+                 switch (arg0.item_type)
+                 {
+-                    case UnknownEnum.Value_4:
++                    case 4:
+                         var _inst = obj_np.obj_raid;
+                         var _item_lvl = arg0.image_index;
+                         var _info = {};
+@@ -69,7 +69,7 @@
+                         {
+                             var _item_data = ds_list_find_value(global.inv_list, i);
+                             
+-                            if (_item_data.item_type == UnknownEnum.Value_4 && _item_data.index == _item_lvl)
++                            if (_item_data.item_type == 4 && _item_data.index == _item_lvl)
+                             {
+                                 _max_num = _item_data.num;
+                                 i = _size;
+@@ -95,13 +95,13 @@
+ {
+     if (raid_data.ff)
+     {
+-        scr_create_button(190, 54, depth - 5, spr_button_ui, UnknownEnum.Value_46, id, scr_create_raid_back_button, -1, scr_draw_hover_button, 0, 0);
++        scr_create_button(190, 54, depth - 5, spr_button_ui, 46, id, scr_create_raid_back_button, -1, scr_draw_hover_button, 0, 0);
+         var _num = array_length(raid_data.trade_unit);
+-        scr_create_button_layout(195, 217, depth - 5, _num, 3, 44, 0, 0, spr_button_trade, UnknownEnum.Value_48, other.id, false, scr_create_raid_trade_button, -1, scr_draw_raid_trade_button);
+-        scr_create_button_layout(290, 108, depth - 5, 3, 1, 0, 17, 0, spr_button_trade_sell, UnknownEnum.Value_58, id, false, scr_create_trade_sell_button, -1, scr_draw_hover_button);
++        scr_create_button_layout(195, 217, depth - 5, _num, 3, 44, 0, 0, spr_button_trade, 48, other.id, false, scr_create_raid_trade_button, -1, scr_draw_raid_trade_button);
++        scr_create_button_layout(290, 108, depth - 5, 3, 1, 0, 17, 0, spr_button_trade_sell, 58, id, false, scr_create_trade_sell_button, -1, scr_draw_hover_button);
+         
+-        if (global.unlock.boss[UnknownEnum.Value_4] == 1)
+-            scr_create_button(245, 141, depth - 5, spr_button_trade_food, UnknownEnum.Value_59, id, scr_create_trade_food_button, -1, scr_draw_hover_button, 0, 0);
++        if (global.unlock.boss[4] == 1)
++            scr_create_button(245, 141, depth - 5, spr_button_trade_food, 59, id, scr_create_trade_food_button, -1, scr_draw_hover_button, 0, 0);
+         
+         raid_data.ff = false;
+     }
+@@ -140,7 +140,7 @@
+ 
+ function scr_set_trade_list()
+ {
+-    global.trade_list = [[UnknownEnum.Value_0, UnknownEnum.Value_4, UnknownEnum.Value_2], [UnknownEnum.Value_6, UnknownEnum.Value_2, UnknownEnum.Value_7], [UnknownEnum.Value_1, UnknownEnum.Value_3, UnknownEnum.Value_5], [UnknownEnum.Value_5, UnknownEnum.Value_5, UnknownEnum.Value_5], [UnknownEnum.Value_5, UnknownEnum.Value_5, UnknownEnum.Value_5]];
++    global.trade_list = [[0, 4, 2], [6, 2, 7], [1, 3, 5], [5, 5, 5], [5, 5, 5]];
+ }
+ 
+ function scr_choose_trade_item()
+@@ -175,6 +175,18 @@
+                 }
+             }
+             
++            var _gnx_pool = global.gnx_trade_list[i];
++            var _gnx_pool_num = array_length(_gnx_pool);
++            
++            for (var ii = 0; ii < _gnx_pool_num; ii++)
++            {
++                repeat (3)
++                {
++                    _pool_list[_num] = _gnx_pool[ii];
++                    _num++;
++                }
++            }
++            
+             _trade_num++;
+         }
+     }
+@@ -191,43 +203,22 @@
+         raid_data.trade_price[i] = 100 * (i + 1);
+     }
+     
+-    if (_trade_num >= 2 && global.unlock.boss[UnknownEnum.Value_5] == -1 && irandom_range(1, 100) <= 5)
++    if (_trade_num >= 2 && global.unlock.boss[5] == -1 && irandom_range(1, 100) <= 5)
+     {
+         var _a = irandom_range(0, _trade_num - 1);
+-        var _unit = scr_create_unit_base(UnknownEnum.Value_13, 5);
++        var _unit = scr_create_unit_base(13, 5);
+         raid_data.trade_unit[_a] = _unit;
+         raid_data.trade_price[_a] = 1000;
+     }
+     
+-    if (activate && raid_data.raid_state == UnknownEnum.Value_3)
++    if (activate && raid_data.raid_state == 3)
+     {
+         with (obj_button)
+         {
+-            if (interact_type == UnknownEnum.Value_48)
++            if (interact_type == 48)
+                 instance_destroy();
+         }
+         
+-        scr_create_button_layout(195, 217, depth - 5, _trade_num, 3, 44, 0, 0, spr_button_trade, UnknownEnum.Value_48, id, false, scr_create_raid_trade_button, -1, scr_draw_raid_trade_button);
++        scr_create_button_layout(195, 217, depth - 5, _trade_num, 3, 44, 0, 0, spr_button_trade, 48, id, false, scr_create_raid_trade_button, -1, scr_draw_raid_trade_button);
+     }
+ }
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_13 = 13,
+-    Value_20 = 20,
+-    Value_21,
+-    Value_23 = 23,
+-    Value_46 = 46,
+-    Value_48 = 48,
+-    Value_58 = 58,
+-    Value_59
+-}

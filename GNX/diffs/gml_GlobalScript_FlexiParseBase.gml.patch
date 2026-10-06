@@ -1,0 +1,215 @@
+--- /dev/null	2026-10-05 20:22:35.000000000 +0200
++++ gml/gml_GlobalScript_FlexiParseBase.gml	2026-09-24 15:31:46.000000000 +0200
+@@ -0,0 +1,212 @@
++function FlexiParseBase() constructor
++{
++    static initialize = function(arg0)
++    {
++        if (async_promise != undefined)
++        {
++            async_promise.Cancel();
++            __cleanup();
++        }
++        
++        __initialize(arg0);
++    };
++    
++    static cleanup = function()
++    {
++        if (async_promise != undefined)
++            async_promise.Cancel();
++        
++        __cleanup();
++    };
++    
++    static isFinished = function()
++    {
++        return __isFinished();
++    };
++    
++    static finalize = function()
++    {
++        return __finalize();
++    };
++    
++    static print = function(arg0)
++    {
++        if (logEnabled)
++            show_debug_message("[INFO] Logger :: " + string(instanceof(self)) + " :: " + arg0);
++    };
++    
++    static parseAsync = function(arg0, arg1 = undefined)
++    {
++        async_active = true;
++        async_promise = new Promise(method(self, function()
++        {
++            while (!PromiseExceededFrameBudget())
++            {
++                parseNext();
++                
++                if (isFinished())
++                {
++                    async_active = false;
++                    return finalize();
++                }
++            }
++            
++            PromisePostponeTaskRemoval();
++        }));
++        
++        if (arg0 != undefined)
++            async_promise.Then(arg0);
++        
++        if (arg1 != undefined)
++            async_promise.Catch(__gnx_nc(arg1, error_handler));
++        
++        return async_promise;
++    };
++    
++    static asyncPause = function()
++    {
++        if (async_promise != undefined)
++            async_promise.Pause();
++        
++        async_active = false;
++    };
++    
++    static asyncResume = function()
++    {
++        if (async_promise != undefined)
++        {
++            async_promise.Resume();
++            async_active = true;
++        }
++    };
++    
++    static asyncCancel = function()
++    {
++        if (async_promise != undefined)
++            async_promise.Cancel();
++        
++        async_active = false;
++    };
++    
++    static parseAll = function()
++    {
++        while (!isFinished())
++            parseNext();
++        
++        return finalize();
++    };
++    
++    static nextToken = function()
++    {
++        return __nextToken();
++    };
++    
++    static parseNext = function()
++    {
++        if (should_catch_errors)
++        {
++            try
++            {
++                var _length = array_length(parserSteps);
++                var i = 0;
++                
++                repeat (_length)
++                {
++                    var _shouldBreak = parserSteps[i]();
++                    
++                    if (_shouldBreak)
++                        break;
++                    
++                    i++;
++                }
++            }
++            catch (e)
++            {
++                error_handler(e);
++            }
++        }
++        else
++        {
++            var _length = array_length(parserSteps);
++            var i = 0;
++            
++            repeat (_length)
++            {
++                var _shouldBreak = parserSteps[i]();
++                
++                if (_shouldBreak)
++                    break;
++                
++                i++;
++            }
++        }
++    };
++    
++    static addParserStep = function(arg0)
++    {
++        array_push(parserSteps, arg0);
++    };
++    
++    static clearParserSteps = function()
++    {
++        array_resize(parserSteps, 0);
++    };
++    
++    static setErrorHandler = function(arg0)
++    {
++        error_handler = arg0;
++    };
++    
++    static setAsyncMaxTime = function(arg0)
++    {
++        async_max_time = arg0;
++    };
++    
++    static setCustomInitialize = function(arg0)
++    {
++        __initialize = arg0;
++    };
++    
++    static setCustomCleanup = function(arg0)
++    {
++        __cleanup = arg0;
++    };
++    
++    static setCustomFinalize = function(arg0)
++    {
++        __finalize = arg0;
++    };
++    
++    static setCustomIsFinished = function(arg0)
++    {
++        __isFinished = arg0;
++    };
++    
++    static setCustomNextToken = function(arg0)
++    {
++        __nextToken = arg0;
++    };
++    
++    static setLogEnabled = function(arg0)
++    {
++        logEnabled = arg0;
++    };
++    
++    static setErrorHandler = function(arg0)
++    {
++        should_catch_errors = arg0;
++    };
++    
++    logEnabled = false;
++    should_catch_errors = false;
++    
++    error_handler = function(arg0)
++    {
++        show_debug_message("[ERROR] " + instanceof(self) + " :: " + string(arg0));
++    };
++    
++    async_active = false;
++    async_max_time = (1 / game_get_speed(gamespeed_fps)) * 1000 * 0.125;
++    async_promise = undefined;
++    parserSteps = [];
++}
