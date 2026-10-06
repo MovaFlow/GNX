@@ -121,26 +121,13 @@ The diffs are on the github under GNX\diffs for all modified files.
 
 ---
 
-## Credit
-All credit goes to @BadColor for making this game. You are truly wonderful. We look forward to your success.
+## Credits
 
-Go support the developer, they deserve it:
+All credit goes to @BadColor for making this game. Go support the developer:
+[Steam](https://store.steampowered.com/app/3782910/Goblin_Nest/) | [Itch.io](https://badcolor.itch.io/goblin-nest) | [Discord](https://discord.gg/7HEAnEmyW2)
 
-Steam Page: https://store.steampowered.com/app/3782910/Goblin_Nest/
-
-Itch.io : https://badcolor.itch.io/goblin-nest
-
-Discord (mod support is here): https://discord.gg/7HEAnEmyW2
-
-Credit to @nevereverever for their excellent work on the Frieren Mod ([link](https://github.com/nevereverever53/GN_Mod_Frieren)), the advanced escape and conditional boss capture mechanics have been generalized to be used in GNX.
-
-Credit to @kazull for the improved export_class_sprites and scaffold_class scripts, including icon extraction, special class support, and the contributor-submitted codebase that was extended with GNX feature coverage.
-
-Credit to @Jadwick for the original Moan Mod ([link](https://jadwick.dev/mods/moan-mod/))  - its voices and SFX are ported into GNX's sound system. Also credit to Jadwick for [GBF](https://github.com/Jadwick/GBF) (Goblin's Best Friend), whose fossil-delta patching architecture inspired the GNX standalone installer.
-
-Credit to @Jadwick and @Radeonix for bug reports and fixes that improved GNX stability.
-
-Credit to @Mav for the multi-monster cell extensions: per-placement sprite variants, per-placement visual offsets (`mon_positions`), `by_class`/`by_mon_type` sprite dispatch for fixed-mode cells, consolidated `required_class` array support for special vanilla cells, bugfixes for `spr_data` initialization, `start_frame` defaults, and multi-slot unit removal. Also credit to Mav for tower boss support (`tower_boss_condition` for modded classes in endgame tower encounters), the locked cells feature (`"locked": true` to gate cells behind quest rewards), XL cells (slot type 6, 150px wide cells with dedicated backgrounds and the `xl_breed` build-menu category), shrine and chains monster sprite overrides (`shrine_bg`, `shrine_dirt`, `shrine_sign`, `ogre_chain_body` per-class keys in `mon_spr_overrides`), and cell patch merging (multiple mods patching the same vanilla cell with `required_class`/`by_class` merge logic).
+GNX is built with contributions from @Mav, @nevereverever, @kazull, @Jadwick, and @Radeonix.
+See [CREDITS.md](CREDITS.md) for full details.
 
 ## Coffee
 GNX is and will always be free.
