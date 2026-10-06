@@ -197,6 +197,7 @@ which needs no class registration at all.)
 | `sprite_prefix` | string | Prefix used to name all runtime sprites, e.g. `"spr_h_witch"` |
 | `default_leg` | int | Optional. Forces all units of this class to a fixed leg variant: `0`=warrior kneeling body (`spr_h_base_*_3`), `1`=leg_1, `2`=leg_2. Omit to use normal random leg selection |
 | `scr_unit` | int | Optional. Unit script type for passive regeneration: `-1` = none (default), `0` = milk regeneration (like Hathor), `1` = pregnancy regeneration (like Selene). Omit or `-1` to disable |
+| `only_listed_cells` | bool | Optional. If `true`, this class can only enter cells whose `required_class` list includes it. Enforced across slot availability, carry range, and type checks. Default `false` |
 | `voice` | struct | Optional. Fixed moan voice for this class: `{"bank": "soft", "pitch": 1.0}`. `bank` is a voice-bank name from a `sounds.json` (auto-prefixed with the owning mod). `pitch` optional (default random 0.9–1.15). Requires a sound mod to be loaded. See [§17](#17-sound-system--soundsjson) |
 
 ### Ogre patrol carry sprites (`gnx:carry_head` / `gnx:carry_hair`)
@@ -318,6 +319,29 @@ Every sprite used in `clothing_*` or `mon_spr` must be declared here.
 | `canvas_w` | no | Frame width if non-standard. Default = strip_width / frames |
 | `canvas_h` | no | Frame height if non-standard |
 | `folder` | no | Source folder name; used by `gnx_pack_strips.py` to find per-frame PNGs |
+| `mode` | no | Sprite loading mode: `"strip"` (default), `"folder"` (load numbered PNGs from a subdirectory), or `"from_game"` (reference a sprite already in data.win by name) |
+| `origin_from` | no | Name of a vanilla sprite to copy origin (xorig/yorig) from. Overrides `xorig`/`yorig` if set |
+
+**Folder mode:** set `"mode": "folder"` to load individual numbered PNGs from a subdirectory instead of a packed strip. The PNGs are sorted numerically by trailing number. Useful for sprites where per-frame editing is easier than strip packing.
+
+```json
+"my_anim": {
+  "mode": "folder",
+  "strip": "sprites/my_anim",
+  "frames": 12,
+  "xorig": 0,
+  "yorig": 90
+}
+```
+
+**From-game mode:** set `"mode": "from_game"` with `"strip"` set to the vanilla sprite asset name to reference a sprite already in data.win without loading a file.
+
+```json
+"vanilla_ref": {
+  "mode": "from_game",
+  "strip": "spr_h_goblin_idle_head"
+}
+```
 
 ### gnx: references
 
@@ -452,6 +476,35 @@ Tent cells. Three phases: idle (1), loop (2), birth (4). Each has two leg varian
   "phase_4": { ... }
 }
 ```
+
+### clothing_giant
+
+Giant cells (h_type 37). Same structure as `clothing_big`: start, idle, loop sub-phases.
+
+```json
+"clothing_giant": {
+  "start": {
+    "hair":    "gnx:giant_start_hair",
+    "head":    "gnx:giant_start_head",
+    "breast":  "gnx:giant_start_breast",
+    "leg_any": "gnx:giant_start_leg"
+  },
+  "idle": {
+    "hair":    "gnx:giant_idle_hair",
+    "head":    "gnx:giant_idle_head",
+    "breast":  "gnx:giant_idle_breast",
+    "leg_any": "gnx:giant_idle_leg"
+  },
+  "loop": {
+    "hair":    "gnx:giant_loop_hair",
+    "head":    "gnx:giant_loop_head",
+    "breast":  "gnx:giant_loop_breast",
+    "leg_any": "gnx:giant_loop_leg"
+  }
+}
+```
+
+Classes that declare `clothing_giant` can use GIANT cells. Without it, the class uses the default giant sprites.
 
 ---
 
@@ -1310,6 +1363,43 @@ Declare sprites in `sprites` and reference them with `gnx:` keys.
 | `shrine_bg` | background | SHRINE |
 | `shrine_dirt` | dirt (3 frames, one per level) | SHRINE |
 | `shrine_sign` | sign above cell (1 frame) | SHRINE |
+
+**Dairy keys:**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `dairy_blink` | blink sprite | DAIRY |
+
+**Giant keys (goblin):**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `goblin_giant_start_body_alpha` | body alpha | GIANT start |
+| `goblin_giant_start_pen` | pen | GIANT start |
+| `goblin_giant_body_alpha` | body alpha | GIANT loop |
+| `goblin_giant_pen` | pen | GIANT loop |
+| `goblin_giant_touch` | touch | GIANT loop |
+| `goblin_giant_enter` | enter | GIANT loop |
+| `goblin_giant_head_alpha` | head alpha | GIANT (draw) |
+| `goblin_giant_head_line` | head line | GIANT (draw) |
+
+**Giant keys (hobgoblin):** same 8 names with `hobgoblin_giant_` prefix.
+
+**Giant keys (ogre):**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `ogre_giant_start_alpha` | body alpha | GIANT start |
+| `ogre_giant_start_pen` | pen | GIANT start |
+| `ogre_giant_loop_alpha` | body alpha | GIANT loop |
+| `ogre_giant_loop_pen` | pen | GIANT loop |
+| `ogre_giant_loop_touch` | touch | GIANT loop |
+
+**Giant clothing key:**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `giant_cloth` | clothing overlay | GIANT |
 
 > **Note:** touch and enter are not drawn for `is_special` classes without their
 > own override — vanilla sprites would pick the wrong frame because `skin = -1`.
