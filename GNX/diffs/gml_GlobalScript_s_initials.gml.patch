@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-06 16:14:01.298629200 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 10:06:16.481019000 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -101,7 +101,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,6 +185,3202 @@
+@@ -167,12 +185,14426 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -3300,14 +3300,35 @@
 +    scr_gnx_build_expected();
 +    scr_gnx_test_suite();
 +    scr_gnx_test_dispatch_routing();
++
++    // tools/gnx_test.py launches with -gnx-autotest: exit cleanly once boot tests are logged
++    if (gnx_cli_has("-gnx-autotest"))
++    {
++        var _at = file_text_open_append("gnx_debug.txt");
++        file_text_write_string(_at, "[GNX-TEST] HARNESS DONE\n");
++        file_text_close(_at);
++        game_end();
++    }
++
 +    global.gnx_gmlc_env = -1;
      draw_set_font(fnt_base_font_eng);
      display_set_gui_size(480, 270);
      window_set_cursor(cr_none);
-@@ -175,6 +3389,10714 @@
-         room_goto(rm_logo);
- }
- 
+-    
++
++    if (!variable_global_exists("gnx_scn"))
++        global.gnx_scn = -1;
++
+     if (room == rm_init)
+-        room_goto(rm_logo);
++    {
++        var _scn = gnx_cli_value("-gnx-scenario");
++
++        if (_scn == "" || !scr_gnx_scn_start(_scn))
++            room_goto(rm_logo);
++    }
++}
++
 +function gnx_resolve_script(arg0)
 +{
 +    var _idx = asset_get_index(arg0);
@@ -3638,7 +3659,7 @@
 +    global.gnx_loaded_mods = [];
 +    global.gnx_map_deferred_mods = [];
 +    global.gnx_mod_map_decl = {};
-+    global.gnx_multimap_enabled = false;
++    global.gnx_multimap_enabled = true;
 +    
 +    if (variable_global_exists("gnx_in_travel") && global.gnx_in_travel)
 +    {
@@ -4819,9 +4840,39 @@
 +        exit;
 +    }
 +    
++    // A new cell (not a vanilla patch) needs a complete physical block; reject it instead of crashing
++    var _req = ["allow_preg", "max_mon_num", "anal", "slot_dirt_init", "scr_idle", "scr_h", "scr_draw", "hand_x", "hand_y", "hand_xscale", "hand_angle", "sq_x", "sq_y", "sp_x", "sp_y", "sp_anim_x", "sp_anim_y"];
++    var _cn = variable_struct_exists(arg0, "name") ? arg0.name : ("h_type " + string(_h));
++
++    if (!variable_struct_exists(arg0, "category"))
++    {
++        gnx_report_mod_error("Mod '" + arg1 + "': cell '" + _cn + "' has no category (build menu tab, see GNX_MODDING.md) - cell skipped");
++        exit;
++    }
++
++    if (!variable_struct_exists(arg0, "physical") || !is_struct(arg0.physical))
++    {
++        gnx_report_mod_error("Mod '" + arg1 + "': cell '" + _cn + "' has no physical block (required for new cells, see GNX_MODDING.md section 7) - cell skipped");
++        exit;
++    }
++
++    var _missing = "";
++
++    for (var _ri = 0; _ri < array_length(_req); _ri++)
++    {
++        if (!variable_struct_exists(arg0.physical, _req[_ri]))
++            _missing += (" " + _req[_ri]);
++    }
++
++    if (_missing != "")
++    {
++        gnx_report_mod_error("Mod '" + arg1 + "': cell '" + _cn + "' physical is missing:" + _missing + " - cell skipped");
++        exit;
++    }
++
 +    if (variable_struct_exists(arg0, "name"))
 +        ds_map_add(global.gnx_cell_name_to_id, arg1 + "." + arg0.name, _h);
-+    
++
 +    var _phys = arg0.physical;
 +    var _sprites_dict = variable_struct_exists(arg0, "sprites") ? arg0.sprites : undefined;
 +    var _base_dir = global.gnx_mods_root + arg1 + "/";
@@ -4843,6 +4894,14 @@
 +    }
 +    
 +    var _hspr_mode = (variable_struct_exists(arg0, "human_spr") && variable_struct_exists(arg0.human_spr, "mode")) ? arg0.human_spr.mode : "base+class";
++
++    // human_spr is optional (docs: base+class is the default); base_body follows the cell kind
++    var _hspr_cat = variable_struct_exists(arg0, "category") ? string(arg0.category) : "";
++    var _hspr_st = variable_struct_exists(arg0, "slot_type") ? arg0.slot_type : 0;
++    var _hspr_body = (string_copy(_hspr_cat, 1, 2) == "b_" || _hspr_st == 2) ? "big" : ((string_copy(_hspr_cat, 1, 2) == "t_" || _hspr_st == 3) ? "tent" : "standard");
++
++    if (variable_struct_exists(arg0, "human_spr") && variable_struct_exists(arg0.human_spr, "base_body"))
++        _hspr_body = arg0.human_spr.base_body;
 +    
 +    if (_hspr_mode == "fixed" || _hspr_mode == "class_map")
 +    {
@@ -4892,7 +4951,7 @@
 +    {
 +        h_type: _h,
 +        slot_type: variable_struct_exists(arg0, "slot_type") ? arg0.slot_type : 0,
-+        name: arg0.name,
++        name: _cn,
 +        gnx_price: variable_struct_exists(arg0, "price") ? arg0.price : 100,
 +        gnx_code_text: variable_struct_exists(arg0, "code_text") ? arg0.code_text : -1,
 +        gnx_spawn_info: variable_struct_exists(arg0, "spawn_info") ? arg0.spawn_info : -1,
@@ -4923,10 +4982,10 @@
 +            sp_anim_y: _phys.sp_anim_y
 +        },
 +        gnx_spr_wall: _spr_wall,
-+        human_spr: 
++        human_spr:
 +        {
-+            mode: arg0.human_spr.mode,
-+            base_body: arg0.human_spr.base_body
++            mode: _hspr_mode,
++            base_body: _hspr_body
 +        },
 +        mon_spr: gnx_resolve_mon_spr(variable_struct_exists(arg0, "mon_spr") ? arg0.mon_spr : undefined, _sprites_dict, _base_dir)
 +    };
@@ -5070,7 +5129,7 @@
 +    if (variable_struct_exists(arg0, "sfx_type"))
 +        _cell.sfx_type = arg0.sfx_type;
 +    
-+    var _hspr = arg0.human_spr;
++    var _hspr = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : {};  // optional: base+class default
 +    var _chspr = _cell.human_spr;
 +    
 +    if (_chspr.mode == "fixed")
@@ -5120,6 +5179,10 @@
 +            {
 +                var _ck = _cls_keys[_ci++];
 +                var _ce = variable_struct_get(_cls_src, _ck);
++
++                if (!is_struct(_ce))
++                    continue;  // "_comment" notes etc.
++
 +                var _ce_out = {};
 +                
 +                if (variable_struct_exists(_ce, "phase_0"))
@@ -5231,7 +5294,7 @@
 +    
 +    array_push(global.gnx_registered_cells, _reg_entry);
 +    var _log = file_text_open_append("gnx_debug.txt");
-+    file_text_write_string(_log, "[GNX] cell OK: h=" + string(_h) + " name=" + string(arg0.name) + " cat=" + string(_cat) + "\n");
++    file_text_write_string(_log, "[GNX] cell OK: h=" + string(_h) + " name=" + string(_cn) + " cat=" + string(_cat) + "\n");
 +    file_text_close(_log);
 +}
 +
@@ -7172,6 +7235,9 @@
 +            var _bck = _bc_keys[_bci];
 +            var _bc_entry = variable_struct_get(_bc_src, _bck);
 +
++            if (!is_struct(_bc_entry))
++                continue;  // "_comment" notes etc.
++
 +            // POPRAWKA (GNX): klucz z kropka ("Damona.DAMONA") zamieniamy na numer klasy; string_pos = pozycja znaku (0 = brak)
 +            if (string_pos(".", _bck) > 0)
 +            {
@@ -7199,7 +7265,9 @@
 +                for (var _bmti = 0; _bmti < array_length(_bmt_keys); _bmti++)
 +                {
 +                    var _bmtk = _bmt_keys[_bmti];
-+                    variable_struct_set(_bmt_out, _bmtk, gnx_resolve_spr_pair(variable_struct_get(_bmt_src, _bmtk), arg1, arg2));
++
++                    if (is_struct(variable_struct_get(_bmt_src, _bmtk)))  // skip "_comment" notes
++                        variable_struct_set(_bmt_out, _bmtk, gnx_resolve_spr_pair(variable_struct_get(_bmt_src, _bmtk), arg1, arg2));
 +                }
 +                
 +                _bc_resolved.by_mon_type = _bmt_out;
@@ -8944,6 +9012,459 @@
 +    }
 +}
 +
++function gnx_cli_has(arg0)
++{
++    // parameter_string(0) is the exe; user args are 1..parameter_count()
++    for (var _i = 1; _i <= parameter_count(); _i++)
++    {
++        if (parameter_string(_i) == arg0)
++            return true;
++    }
++
++    return false;
++}
++
++function gnx_cli_value(arg0)
++{
++    for (var _i = 1; _i < parameter_count(); _i++)
++    {
++        if (parameter_string(_i) == arg0)
++            return parameter_string(_i + 1);
++    }
++
++    return "";
++}
++
++// ---------------------------------------------------------------------------
++// Scenario runner (tools/gnx_test.py --scenario NAME, launches with -gnx-scenario NAME).
++// Reads <game dir>/GNX_scenarios/NAME.json, plays its steps from scr_main_end_step,
++// writes [GNX-SCN] lines to gnx_scenario.txt (gnx_debug.txt is truncated on travel),
++// then game_end(). Uses save slot 9 (gnx_harness_save.json) so player saves are never touched.
++// ---------------------------------------------------------------------------
++
++function gnx_scn_log(arg0)
++{
++    var _f = file_text_open_append("gnx_scenario.txt");
++    file_text_write_string(_f, "[GNX-SCN] " + arg0 + "\n");
++    file_text_close(_f);
++}
++
++function scr_gnx_scn_start(arg0)
++{
++    if (file_exists("gnx_scenario.txt"))
++        file_delete("gnx_scenario.txt");
++
++    var _path = program_directory + "GNX_scenarios/" + arg0 + ".json";
++    var _data = undefined;
++
++    if (file_exists(_path))
++    {
++        var _f = file_text_open_read(_path);
++        var _raw = "";
++
++        while (!file_text_eof(_f))
++            _raw += file_text_readln(_f);
++
++        file_text_close(_f);
++
++        try
++        {
++            _data = json_parse(_raw);
++        }
++        catch (_e)
++        {
++            _data = undefined;
++        }
++    }
++
++    if (!is_struct(_data) || !variable_struct_exists(_data, "steps") || !is_array(_data.steps))
++    {
++        gnx_scn_log("FAIL load cannot read steps from " + _path);
++        gnx_scn_log("DONE 0/1 passed");
++        game_end();
++        return false;
++    }
++
++    global.gnx_scn =
++    {
++        name: arg0,
++        steps: _data.steps,
++        idx: 0,
++        wait: 0,
++        awaiting: false,
++        pass: 0,
++        fail: 0,
++        snaps: {}
++    };
++    gnx_scn_log("START " + arg0 + " steps=" + string(array_length(_data.steps)));
++
++    // Frame-based game logic: uncap the frame rate so long waits finish fast
++    if (!variable_struct_exists(_data, "realtime") || !_data.realtime)
++        game_set_speed(1000, gamespeed_fps);
++
++    random_set_seed(variable_struct_exists(_data, "seed") ? _data.seed : 1);
++    global.load_file = 9;
++    room_goto(rm_game);
++    return true;
++}
++
++function scr_gnx_scn_check(arg0, arg1, arg2)
++{
++    if (arg1)
++    {
++        global.gnx_scn.pass++;
++        gnx_scn_log("PASS  " + arg0 + " " + arg2);
++    }
++    else
++    {
++        global.gnx_scn.fail++;
++        gnx_scn_log("FAIL  " + arg0 + " " + arg2);
++    }
++}
++
++function scr_gnx_scn_state()
++{
++    var _hist = {};
++
++    with (obj_slot)
++    {
++        // not every slot kind carries h_type (e.g. stair/corridor slots)
++        var _k = "t" + string(variable_struct_exists(slot_data, "slot_type") ? slot_data.slot_type : "?") + "h" + string(variable_struct_exists(slot_data, "h_type") ? slot_data.h_type : "-");
++        variable_struct_set(_hist, _k, (variable_struct_exists(_hist, _k) ? variable_struct_get(_hist, _k) : 0) + 1);
++    }
++
++    var _names = variable_struct_get_names(_hist);
++    array_sort(_names, true);
++    var _hs = "";
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++        _hs += (_names[_i] + "x" + string(variable_struct_get(_hist, _names[_i])) + " ");
++
++    var _prisoners = 0;
++
++    with (obj_slot)
++    {
++        if (is_struct(unit_data))
++            _prisoners++;
++    }
++
++    // interact_type 20 = unit button; follow=true while it sits in a cell (vanilla drag_type 2)
++    var _ubtn = 0;
++    var _ubtn_follow = 0;
++
++    with (obj_button)
++    {
++        if (interact_type == 20)
++        {
++            _ubtn++;
++
++            if (follow)
++                _ubtn_follow++;
++        }
++    }
++
++    return
++    {
++        active_map: global.gnx_active_map,
++        floor: global.val.floor,
++        slots: instance_number(obj_slot),
++        cells: _hs,
++        units: ds_list_size(global.unit_list),
++        prisoners: _prisoners,
++        unit_buttons: _ubtn,
++        unit_buttons_in_cells: _ubtn_follow,
++        mons: instance_number(obj_mon)
++    };
++}
++
++// Every follower must sit exactly where scr_main_end_step put it, on- or off-screen
++function scr_gnx_scn_follow_bad()
++{
++    var _bad = 0;
++    var _ex = "";
++
++    with (obj_button)
++    {
++        if (source_id != -1 && follow && instance_exists(source_id) && (abs(x - (source_id.x + shift_x)) > 1 || abs(y - (source_id.y + shift_y)) > 1))
++        {
++            _bad++;
++            _ex = "button it=" + string(interact_type) + " y=" + string(y) + " want=" + string(source_id.y + shift_y);
++        }
++    }
++
++    with (obj_mon)
++    {
++        if (mon_data.follow && mon_data.slot_id != -1 && instance_exists(mon_data.slot_id) && (abs(x - (mon_data.slot_id.x + (mon_data.x_shift * sign(image_xscale)))) > 1 || abs(y - (mon_data.slot_id.y + mon_data.y_shift)) > 1))
++        {
++            _bad++;
++            _ex = "mon y=" + string(y) + " want=" + string(mon_data.slot_id.y + mon_data.y_shift);
++        }
++    }
++
++    with (obj_tent)
++    {
++        if (instance_exists(source_id) && (abs(x - source_id.x) > 1 || abs(y - source_id.y) > 1))
++        {
++            _bad++;
++            _ex = "tent y=" + string(y) + " want=" + string(source_id.y);
++        }
++    }
++
++    with (obj_prop)
++    {
++        if (follow && slot_id != -1 && instance_exists(slot_id) && (abs(x - (slot_id.x + prop_data.shift_x)) > 1 || abs(y - (slot_id.y + prop_data.shift_y)) > 1))
++        {
++            _bad++;
++            _ex = "prop y=" + string(y) + " want=" + string(slot_id.y + prop_data.shift_y);
++        }
++    }
++
++    return [_bad, _ex];
++}
++
++function scr_gnx_scn_assert(arg0)
++{
++    var _what = arg0.assert;
++
++    switch (_what)
++    {
++        case "same_as":
++            var _was = variable_struct_get(global.gnx_scn.snaps, arg0.snapshot);
++
++            if (_was == undefined)
++            {
++                scr_gnx_scn_check("same_as", false, "no snapshot '" + string(arg0.snapshot) + "'");
++                break;
++            }
++
++            var _now = scr_gnx_scn_state();
++            var _keys = variable_struct_exists(arg0, "keys") ? arg0.keys : variable_struct_get_names(_was);
++            var _diff = "";
++
++            for (var _i = 0; _i < array_length(_keys); _i++)
++            {
++                var _a = variable_struct_get(_was, _keys[_i]);
++                var _b = variable_struct_get(_now, _keys[_i]);
++
++                if (string(_a) != string(_b))
++                    _diff += (_keys[_i] + ": " + string(_a) + " -> " + string(_b) + "; ");
++            }
++
++            scr_gnx_scn_check("same_as", _diff == "", "'" + arg0.snapshot + "' " + ((_diff == "") ? string(array_length(_keys)) + " keys equal" : _diff));
++            break;
++
++        case "follow_sync":
++            var _fb = scr_gnx_scn_follow_bad();
++            scr_gnx_scn_check("follow_sync", _fb[0] == 0, (_fb[0] == 0) ? "all followers in place" : string(_fb[0]) + " out of place, e.g. " + _fb[1]);
++            break;
++
++        case "prisoner_buttons":
++            // every occupied cell must keep a unit button (interact_type 20) following it
++            var _missing = 0;
++            var _total = 0;
++            var _mex = "";
++
++            with (obj_slot)
++            {
++                if (is_struct(unit_data))
++                {
++                    _total++;
++                    var _sid = id;
++                    var _has = false;
++
++                    with (obj_button)
++                    {
++                        if (interact_type == 20 && follow && source_id == _sid)
++                        {
++                            _has = true;
++                            break;
++                        }
++                    }
++
++                    if (!_has)
++                    {
++                        _missing++;
++                        _mex = "floor " + string(slot_data.slot_floor) + " y=" + string(y);
++                    }
++                }
++            }
++
++            scr_gnx_scn_check("prisoner_buttons", _missing == 0 && _total > 0, string(_total - _missing) + "/" + string(_total) + " occupied cells have their unit button" + ((_missing > 0) ? ", e.g. missing at " + _mex : ""));
++            break;
++
++        case "active_map":
++            scr_gnx_scn_check("active_map", global.gnx_active_map == arg0.is, "is '" + global.gnx_active_map + "' want '" + arg0.is + "'");
++            break;
++
++        case "return_entry":
++            var _found = false;
++
++            for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++            {
++                var _tl = global.gnx_travel_locations[_i];
++
++                if (_tl.target == "vanilla" && _tl.show_on == global.gnx_active_map)
++                    _found = true;
++            }
++
++            scr_gnx_scn_check("return_entry", _found, "map '" + global.gnx_active_map + "'");
++            break;
++
++        case "min":
++            var _v = variable_struct_get(scr_gnx_scn_state(), arg0.key);
++            scr_gnx_scn_check("min", _v >= arg0.value, arg0.key + "=" + string(_v) + " want >= " + string(arg0.value));
++            break;
++
++        default:
++            scr_gnx_scn_check("assert", false, "unknown assert '" + string(_what) + "'");
++            break;
++    }
++}
++
++function scr_gnx_scn_finish()
++{
++    gnx_scn_log("DONE " + string(global.gnx_scn.pass) + "/" + string(global.gnx_scn.pass + global.gnx_scn.fail) + " passed");
++    global.gnx_scn = -1;
++    game_end();
++}
++
++// Called at the end of scr_main_end_step, i.e. once per frame in rm_game after the load finished
++function scr_gnx_scn_step()
++{
++    var _s = global.gnx_scn;
++
++    // after travel/reload, hold until the room has been rebuilt. obj_np is placed in the
++    // room editor, so it keeps the same instance id across room changes: tag it instead.
++    if (_s.awaiting)
++    {
++        if (variable_instance_exists(obj_np, "gnx_scn_old"))
++            exit;
++
++        _s.awaiting = false;
++        gnx_scn_log("loaded (map '" + global.gnx_active_map + "')");
++    }
++
++    if (_s.wait > 0)
++    {
++        _s.wait--;
++        exit;
++    }
++
++    while (_s.idx < array_length(_s.steps))
++    {
++        var _st = _s.steps[_s.idx];
++        _s.idx++;
++
++        if (variable_struct_exists(_st, "wait"))
++        {
++            _s.wait = _st.wait;
++            exit;
++        }
++        else if (variable_struct_exists(_st, "do"))
++        {
++            var _act = variable_struct_get(_st, "do");  // "do" is a GML keyword; UTMT also lacks the [$ ] accessor
++            gnx_scn_log("do " + _act.type);
++            scr_gnx_exec_tool_action(_act, "_harness");
++        }
++        else if (variable_struct_exists(_st, "call"))
++        {
++            // any game/GNX function by name, e.g. {"call": "scr_swap_floors", "args": [0, 1]}
++            var _fn = gnx_resolve_script(_st.call);
++            var _a = variable_struct_exists(_st, "args") ? _st.args : [];
++
++            if (_fn < 0)
++            {
++                scr_gnx_scn_check("call", false, "no function '" + _st.call + "'");
++            }
++            else
++            {
++                gnx_scn_log("call " + _st.call + " " + json_stringify(_a));
++
++                switch (array_length(_a))
++                {
++                    case 0: script_execute(_fn); break;
++                    case 1: script_execute(_fn, _a[0]); break;
++                    case 2: script_execute(_fn, _a[0], _a[1]); break;
++                    case 3: script_execute(_fn, _a[0], _a[1], _a[2]); break;
++                    default: script_execute(_fn, _a[0], _a[1], _a[2], _a[3]); break;
++                }
++            }
++        }
++        else if (variable_struct_exists(_st, "camera_y"))
++        {
++            with (obj_camera)
++                y = _st.camera_y;
++
++            gnx_scn_log("camera_y " + string(_st.camera_y));
++        }
++        else if (variable_struct_exists(_st, "assert"))  // before "snapshot": same_as asserts carry a snapshot key
++        {
++            scr_gnx_scn_assert(_st);
++        }
++        else if (variable_struct_exists(_st, "snapshot"))
++        {
++            var _snap = scr_gnx_scn_state();
++            variable_struct_set(_s.snaps, _st.snapshot, _snap);
++            gnx_scn_log("snapshot '" + _st.snapshot + "' " + json_stringify(_snap));
++        }
++        else if (variable_struct_exists(_st, "save"))
++        {
++            scr_save_game(9);
++            gnx_scn_log("saved slot 9");
++        }
++        else if (variable_struct_exists(_st, "travel"))
++        {
++            var _ok = scr_gnx_travel(_st.travel);
++            scr_gnx_scn_check("travel", _ok, "to '" + _st.travel + "'");
++
++            if (!_ok)
++            {
++                scr_gnx_scn_finish();
++                exit;
++            }
++
++            obj_np.gnx_scn_old = true;
++            _s.awaiting = true;
++            exit;
++        }
++        else if (variable_struct_exists(_st, "reload"))
++        {
++            // same teardown as quit-to-menu, then load slot 9 instead of showing the menu
++            for (var i = 0; i <= global.val.floor; i++)
++                ds_list_destroy(global.slot_list[i]);
++
++            ds_list_destroy(global.unit_list);
++            ds_list_destroy(global.front_row);
++            ds_list_destroy(global.back_row);
++            ds_list_destroy(global.new_button_list);
++            ds_list_destroy(global.noti_list);
++            ds_list_destroy(global.inv_list);
++            ds_list_destroy(global.raid_inv_list);
++            ds_list_destroy(global.quest_list);
++            ds_list_destroy(global.new_guide_list);
++            ds_list_destroy(global.front_row_save);
++            ds_list_destroy(global.back_row_save);
++            scr_create_initials();
++            global.load_file = 9;
++            obj_np.gnx_scn_old = true;
++            _s.awaiting = true;
++            gnx_scn_log("reload slot 9");
++            room_goto(rm_game);
++            exit;
++        }
++        else if (variable_struct_exists(_st, "log"))
++        {
++            gnx_scn_log("note " + string(_st.log));
++        }
++        else
++        {
++            scr_gnx_scn_check("step", false, "unknown step #" + string(_s.idx - 1) + " " + json_stringify(_st));
++        }
++    }
++
++    scr_gnx_scn_finish();
++}
++
 +function scr_gnx_test_suite()
 +{
 +    var _log = file_text_open_append("gnx_debug.txt");
@@ -10529,42 +11050,34 @@
 +        {
 +            file_text_write_string(_log, "[GNX-TEST] SKIP  T69 (mid-travel)\n");
 +        }
++        else if (global.gnx_active_map == "vanilla")
++        {
++            // Return entries are only pushed while on a modded map (loader end + travel), so nothing to check here
++            file_text_write_string(_log, "[GNX-TEST] SKIP  T69 (on vanilla map)\n");
++        }
 +        else
 +        {
-+            var _bad69 = "";
-+            
-+            for (var _i69 = 0; _i69 < array_length(global.gnx_travel_locations); _i69++)
++            var _found69 = false;
++
++            for (var _j69 = 0; _j69 < array_length(global.gnx_travel_locations); _j69++)
 +            {
-+                var _tl69 = global.gnx_travel_locations[_i69];
-+                
-+                if (_tl69.show_on == "vanilla" && _tl69.target != "vanilla")
++                var _ret69 = global.gnx_travel_locations[_j69];
++
++                if (_ret69.target == "vanilla" && _ret69.show_on == global.gnx_active_map)
 +                {
-+                    var _found69 = false;
-+                    
-+                    for (var _j69 = 0; _j69 < array_length(global.gnx_travel_locations); _j69++)
-+                    {
-+                        var _ret69 = global.gnx_travel_locations[_j69];
-+                        
-+                        if (_ret69.target == "vanilla" && _ret69.show_on == _tl69.target)
-+                        {
-+                            _found69 = true;
-+                            break;
-+                        }
-+                    }
-+                    
-+                    if (!_found69)
-+                        _bad69 += (_tl69.target + "(no_return) ");
++                    _found69 = true;
++                    break;
 +                }
 +            }
-+            
-+            if (_bad69 == "")
++
++            if (_found69)
 +            {
-+                file_text_write_string(_log, "[GNX-TEST] PASS  T69 all outbound locations have return entries\n");
++                file_text_write_string(_log, "[GNX-TEST] PASS  T69 active map '" + global.gnx_active_map + "' has a return entry\n");
 +                _pass++;
 +            }
 +            else
 +            {
-+                file_text_write_string(_log, "[GNX-TEST] FAIL  T69 missing return: " + _bad69 + "\n");
++                file_text_write_string(_log, "[GNX-TEST] FAIL  T69 active map '" + global.gnx_active_map + "' has no return entry\n");
 +                _fail++;
 +            }
 +        }
@@ -14014,12 +14527,10 @@
 +    
 +    if (_f != -1)
 +        file_text_close(_f);
-+}
-+
+ }
+ 
  enum UnknownEnum
- {
-     Value_0,
-@@ -183,42 +14105,166 @@
+@@ -183,42 +14615,166 @@
      Value_3,
      Value_4,
      Value_5,

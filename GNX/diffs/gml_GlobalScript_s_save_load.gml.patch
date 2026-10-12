@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-05 18:15:28.512179600 +0200
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-12 09:29:32.381750700 +0200
 @@ -110,6 +110,7 @@
          _save_data.raid_data = raid_data;
      }
@@ -35,10 +35,16 @@
      
      _global.noti_list = _list;
      _list = [];
-@@ -218,6 +229,15 @@
+@@ -216,6 +227,19 @@
+             _save_type = "save_file_3.json";
+             scr_pop_up_create(UnknownEnum.Value_23);
              break;
-     }
-     
++
++        case 9:
++            _save_type = "gnx_harness_save.json";  // GNX scenario runner only, never offered to players
++            break;
++    }
++    
 +    if (global.gnx_multimap_enabled)
 +    {
 +        if (variable_global_exists("gnx_active_map"))
@@ -46,12 +52,10 @@
 +        
 +        if (variable_global_exists("gnx_inactive_maps"))
 +            _save_data.gnx_maps = global.gnx_inactive_maps;
-+    }
-+    
-     if (file_exists(_save_type))
-         file_delete(_save_type);
+     }
      
-@@ -248,42 +268,64 @@
+     if (file_exists(_save_type))
+@@ -248,42 +272,70 @@
  {
      var _load = false;
      var _load_type = -1;
@@ -103,7 +107,13 @@
 +            case 3:
 +                if (file_exists("save_file_3.json"))
 +                    _load_type = "save_file_3.json";
-+                
++
++                break;
++
++            case 9:
++                if (file_exists("gnx_harness_save.json"))
++                    _load_type = "gnx_harness_save.json";
++
 +                break;
 +        }
      }
@@ -143,7 +153,7 @@
          var _slot_list = _load_data.slot_list;
          var _start_x = -1;
          
-@@ -302,9 +344,12 @@
+@@ -302,9 +354,12 @@
              
              with (_slot_id)
              {
@@ -156,7 +166,7 @@
                      
                      if (_data.unit_data != -1)
                      {
-@@ -365,6 +410,29 @@
+@@ -365,6 +420,29 @@
                      spr_base = _spr;
                  }
                  
@@ -186,7 +196,7 @@
                  if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
                      spr_base = spr_tent_back_full;
                  
-@@ -432,6 +500,44 @@
+@@ -432,6 +510,44 @@
                  }
                  
                  slot_data = _data.slot_data;
@@ -231,7 +241,7 @@
              }
          }
          
-@@ -482,22 +588,14 @@
+@@ -482,22 +598,14 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -256,7 +266,7 @@
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +652,10 @@
+@@ -554,6 +662,10 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -267,7 +277,7 @@
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -568,6 +670,48 @@
+@@ -568,6 +680,48 @@
          var _global = _load_data.global_list;
          global.val = _global.val;
          global.unlock = _global.unlock;
@@ -316,7 +326,7 @@
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +750,21 @@
+@@ -606,11 +760,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -339,7 +349,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +788,12 @@
+@@ -634,7 +798,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -352,7 +362,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -656,6 +815,292 @@
+@@ -656,6 +825,292 @@
          
          _load_data = scr_patch_update_post(_load_data);
          scr_demo_to_full();
@@ -645,7 +655,7 @@
      }
      
      return _load;
-@@ -682,6 +1127,9 @@
+@@ -682,6 +1137,9 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -655,7 +665,7 @@
      }
      
      file_delete(_load_type);
-@@ -733,3 +1181,119 @@
+@@ -733,3 +1191,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
