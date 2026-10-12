@@ -17,6 +17,9 @@ All of these were in code that only runs when a map mod loads (map mods are defe
 - Fixed crash when a new cell has no `human_spr` block (see above).
 - Fixed crash when a new cell has no `category` or `name`. A missing `category` is now reported as a mod error; a missing `name` falls back to the cell's h_type in logs.
 - Fixed crash when `by_class`, `by_mon_type` or class_map `classes` sections contain `"_comment"` notes. Non-object entries are now skipped.
+- Fixed hobgoblins multiplying and a crash (`scr_draw_hobgoblin_carry`) after loading a save made while transfer cells were mid-transfer. The v1.4.7 load fix restarted every transfer cage, so each cage spawned a second hobgoblin team next to the restored one; when one team delivered the prisoner, the other was left carrying an empty cage. Now a cage whose team survived the load just finishes its transfer; only a cage with no team or half a team is cancelled and restarted.
+- Fixed modded content disappearing when loading a save made on a mod map. The save's map is now restored, and that map's mods loaded, before the load-time sanitizer runs; previously the sanitizer saw the map mod's cells and units as orphans and replaced them. The old menu-time "peek" workaround read the wrong save slot in practice and has been removed.
+- Fixed crash on first visit to a map whose `map_start` lists `cells`: the cell data was written to the separator slot instead of the new cell.
 - T69 (return entries) now checks the map you are actually on. On the vanilla map it is skipped instead of failing for every map mod, since return buttons only exist while on a modded map.
 
 ### Example Mod
@@ -28,7 +31,7 @@ All of these were in code that only runs when a map mod loads (map mods are defe
 ### Tooling
 
 - **`tools/gnx_test.py`**: automated test harness. Patches `GNX/gml` into a dedicated test copy of the game with the UTMT CLI, boots it, and reports the in-game test suite. A GML compile error, a runtime error, or a mod-loading popup is reported with its full text instead of hanging.
-- **Scenarios** (`tools/scenarios/*.json`): scripted in-game tests (save/reload round-trip, multi-map travel there and back, followers staying attached to off-screen cells, example mod loading). They use their own save slot and never touch player saves. A small `harness_map` test mod covers multi-map without depending on the example mod.
+- **Scenarios** (`tools/scenarios/*.json`): scripted in-game tests (save/reload round-trip, multi-map travel, save/load and menu flows, followers staying attached to off-screen cells, off-screen cells keeping running, transfer cells across save/reload, loading a save whose mods were removed, example mod loading). The harness backs up and checks the player's save slots around every run. They use their own save slot and never touch player saves. A small `harness_map` test mod covers multi-map without depending on the example mod.
 - Patch files (`GNX/diffs/`, `GNX/gnx.patch`) are now generated per changed `.gml` file only, by `tools/regen_patches.py`. The previous `gnx.patch` also contained unmodified vanilla files, backup copies and a local settings file.
 
 ## v1.4.7

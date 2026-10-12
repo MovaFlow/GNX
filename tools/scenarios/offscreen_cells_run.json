@@ -1,0 +1,20 @@
+{
+  "about": "Regression for the v1.4.6 step culling (mood, prison, milk, pregnancy and gold froze for cells off-screen). Self-checking: phase 1 turns step culling ON and expects off-screen cells to freeze, which proves the probe can see culling; phase 2 uses the shipped default (culling OFF) and expects them to keep running.",
+  "fixture": "nest",
+  "steps": [
+    {"wait": 120, "why": "let the loaded nest settle"},
+    {"camera_y": 100000, "why": "camera at the bottom floor: floors 0-3 are off-screen"},
+    {"wait": 30},
+    {"do": {"type": "set_var", "key": "gnx_cull_step_off", "value": 0}, "why": "control: re-enable the v1.4.6 step culling"},
+    {"wait": 5},
+    {"probe": "culled"},
+    {"wait": 300},
+    {"assert": "progressed", "probe": "culled", "max_frac": 0.1, "why": "with culling on, off-screen cells must be frozen (else the probe is blind)"},
+    {"do": {"type": "set_var", "key": "gnx_cull_step_off", "value": 1}, "why": "shipped default"},
+    {"wait": 5},
+    {"probe": "running"},
+    {"wait": 300},
+    {"assert": "progressed", "probe": "running", "min_frac": 0.5, "why": "with culling off, off-screen cells keep working"},
+    {"assert": "follow_sync"}
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "about": "Each map keeps its own state. Changes on the modded map must not leak into vanilla and back; a second visit restores the map as it was left and does not re-apply map_start.",
+  "mods": ["tools/scenarios/mods/harness_map"],
+  "steps": [
+    {"wait": 30},
+    {"do": {"type": "add_gold", "amount": 5000}},
+    {"do": {"type": "add_floor"}},
+    {"wait": 5},
+    {"snapshot": "vanilla"},
+    {"travel": "harness_map"},
+    {"wait": 30},
+    {"assert": "val", "key": "money", "is": 1234},
+    {"do": {"type": "add_gold", "amount": 777}},
+    {"do": {"type": "add_floor"}},
+    {"wait": 5},
+    {"snapshot": "map"},
+    {"travel": "vanilla"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "vanilla"},
+    {"assert": "same_as", "snapshot": "vanilla", "keys": ["active_map", "floor", "slots", "cells", "units", "money"]},
+    {"travel": "harness_map"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_map"},
+    {"assert": "same_as", "snapshot": "map", "keys": ["active_map", "floor", "slots", "cells", "units", "money"]}
+  ]
+}

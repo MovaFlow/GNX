@@ -1,0 +1,25 @@
+{
+  "about": "Regression for map-mod content being wiped on load (sanitizer ran before the save's map mods were loaded): harness_map places its own cell (h_type 9001) via map_start. Save while on the modded map, reload the way quit-to-menu + load does: the game must come back on the modded map with its state, and the vanilla map (stored in the save) must still be intact when travelling back.",
+  "mods": ["tools/scenarios/mods/harness_map"],
+  "steps": [
+    {"wait": 30},
+    {"do": {"type": "add_gold", "amount": 5000}},
+    {"wait": 5},
+    {"snapshot": "vanilla"},
+    {"travel": "harness_map"},
+    {"wait": 30},
+    {"do": {"type": "add_floor"}},
+    {"wait": 5},
+    {"snapshot": "map"},
+    {"save": true},
+    {"reload": true},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_map"},
+    {"assert": "same_as", "snapshot": "map", "keys": ["active_map", "floor", "slots", "cells", "units", "money"]},
+    {"assert": "return_entry"},
+    {"travel": "vanilla"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "vanilla"},
+    {"assert": "same_as", "snapshot": "vanilla", "keys": ["active_map", "floor", "slots", "cells", "units", "money"]}
+  ]
+}

@@ -63,4 +63,23 @@ assert verdict(r) == EXIT_PASS
 r["scn"] = parse_scn(SCN.split("[GNX-SCN] DONE")[0])  # game died mid-scenario
 assert verdict(r) == EXIT_TIMEOUT
 
+# player-save guard: a modified slot is restored, a created slot is moved aside, untouched slots stay
+import tempfile, pathlib, gnx_test
+with tempfile.TemporaryDirectory() as tmp:
+    tmp = pathlib.Path(tmp)
+    saves, game = tmp / "saves", tmp / "game"
+    saves.mkdir(); game.mkdir()
+    gnx_test.SAVE_DIR = saves
+    (saves / "save_file_1.json").write_text("REAL")
+    (saves / "save_file_2.json").write_text("KEEP")
+    g = gnx_test.guard_player_saves(game)
+    (saves / "save_file_1.json").write_text("HARNESS")   # overwritten by a bad scenario
+    (saves / "save_file_3.json").write_text("NEW")       # created by a bad scenario
+    touched = gnx_test.restore_player_saves(g)
+    assert sorted(touched) == ["save_file_1.json", "save_file_3.json"], touched
+    assert (saves / "save_file_1.json").read_text() == "REAL"
+    assert (saves / "save_file_2.json").read_text() == "KEEP"
+    assert not (saves / "save_file_3.json").exists() and (saves / "save_file_3.json.harness_created").exists()
+    assert gnx_test.restore_player_saves(g) == []
+
 print("ok")

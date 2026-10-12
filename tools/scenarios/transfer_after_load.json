@@ -1,0 +1,17 @@
+{
+  "about": "Regression for the v1.4.7 transfer-cell load bugs: after a save/reload, transfer cages (h_type 17) must resume and each must get both of its hobgoblins (the bug left cages stuck with one). A cage is 'stuck' when it has exactly one live hobgoblin in two samples 600 frames apart (a cage legitimately has one for up to 60 frames while loading).",
+  "fixture": "nest",
+  "steps": [
+    {"wait": 300, "why": "let transfers get going so the save captures cages mid-cycle"},
+    {"carry_stats": "before"},
+    {"save": true},
+    {"reload": true},
+    {"wait": 300},
+    {"carry_stats": "after"},
+    {"carry_probe": "after"},
+    {"wait": 600},
+    {"assert": "carry_stuck", "probe": "after"},
+    {"carry_stats": "later"},
+    {"assert": "follow_sync"}
+  ]
+}

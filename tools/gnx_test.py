@@ -45,6 +45,7 @@ SAVE_DIR = Path(os.environ.get("LOCALAPPDATA", "")) / "goblin_nest"
 LOG = SAVE_DIR / "gnx_debug.txt"
 SCN_LOG = SAVE_DIR / "gnx_scenario.txt"
 HARNESS_SAVE = SAVE_DIR / "gnx_harness_save.json"
+HARNESS_SAVE_B = SAVE_DIR / "gnx_harness_save_b.json"  # slot 8, always starts empty
 SCENARIOS = REPO / "tools" / "scenarios"
 SAVE_SLOTS = {"a": "save_file_a.json", "1": "save_file_1.json", "2": "save_file_2.json", "3": "save_file_3.json"}
 EXE = "GoblinNest.exe"
@@ -319,6 +320,9 @@ def boot(game_dir, timeout, keep_open, scenario=None):
         stext = SCN_LOG.read_text(encoding="utf-8", errors="replace") if SCN_LOG.is_file() else ""
         r["scn"] = parse_scn(stext)
         (game_dir / f"last_scenario_{scenario}.log").write_text(stext, encoding="utf-8")
+        if not r["scn"]["done"]:  # keep evidence of incomplete runs; later runs overwrite last_*.log
+            stamp = time.strftime("%Y%m%d_%H%M%S")
+            (game_dir / f"incomplete_{scenario}_{stamp}.log").write_text(text + "\n\n" + stext, encoding="utf-8")
     return r
 
 
@@ -326,7 +330,8 @@ def report(r, code):
     scn = r.get("scn")
     if scn is not None:
         state = "PASS" if code == EXIT_PASS else "FAIL" if scn["done"] else "INCOMPLETE"
-        print(f"SCENARIO {r['scenario']}: {state}  {scn['pass']}/{scn['total']}  ({r['boot_s']}s)")
+        tag = "" if scn["done"] else "  [blocked by a dialog, game killed]" if r.get("crash")             else f"  [game exited, code {r['exit_code']}]" if r["exit_code"] is not None else "  [timed out, game killed]"
+        print(f"SCENARIO {r['scenario']}: {state}  {scn['pass']}/{scn['total']}  ({r['boot_s']}s){tag}")
         for f in scn["fails"]:
             print("  " + f)
         if not scn["done"]:
@@ -393,6 +398,37 @@ def strip_mods(save):
     return save
 
 
+def guard_player_saves(game_dir):
+    """Copy the player's save slots aside before any run. Returns {name: (sha256 or None, backup path)}."""
+    store = game_dir / "save_guard"
+    store.mkdir(exist_ok=True)
+    guard = {}
+    for name in SAVE_SLOTS.values():
+        src = SAVE_DIR / name
+        if src.is_file():
+            shutil.copy2(src, store / name)
+            guard[name] = (hashlib.sha256(src.read_bytes()).hexdigest(), store / name)
+        else:
+            guard[name] = (None, None)
+    return guard
+
+
+def restore_player_saves(guard):
+    """Put back any player save that changed (or appeared) since guard_player_saves. Returns the names touched."""
+    touched = []
+    for name, (sha, backup) in guard.items():
+        cur = SAVE_DIR / name
+        now = hashlib.sha256(cur.read_bytes()).hexdigest() if cur.is_file() else None
+        if now == sha:
+            continue
+        touched.append(name)
+        if sha is None:
+            cur.rename(cur.with_name(cur.name + ".harness_created"))  # keep, never delete
+        else:
+            shutil.copy2(backup, cur)
+    return touched
+
+
 def capture_fixture(game_dir, slot, name, strip=False):
     """slot: a/1/2/3, or a file name in the save folder (e.g. a backup copy).
     The player's save is only read, never modified."""
@@ -430,6 +466,7 @@ def prepare_scenario(game_dir, sc):
         shutil.copy2(src, HARNESS_SAVE)
     else:
         HARNESS_SAVE.unlink(missing_ok=True)
+    HARNESS_SAVE_B.unlink(missing_ok=True)
 
 
 def main(argv=None):
@@ -497,6 +534,7 @@ def main(argv=None):
             shutil.copytree(SCENARIOS, dest)
 
         worst, results = EXIT_PASS, []
+        guard = guard_player_saves(game_dir)
         try:
             for name in runs:
                 sc = scns.get(name, {})
@@ -517,8 +555,16 @@ def main(argv=None):
                 results.append({k: v for k, v in r.items() if k != "tail"} | {"verdict": code})
                 if not a.json:
                     report(r, code)
+                touched = restore_player_saves(guard)
+                if touched:
+                    raise HarnessError(EXIT_FAIL, f"run '{name or 'boot'}' modified player save(s) {touched}; "
+                                                  "restored from the pre-run copy. Harness must only use slots 8/9.")
         finally:
             HARNESS_SAVE.unlink(missing_ok=True)
+            HARNESS_SAVE_B.unlink(missing_ok=True)
+            touched = restore_player_saves(guard)  # also after a crash or Ctrl+C mid-run
+            if touched:
+                print(f"ERROR: player save(s) {touched} were modified and have been restored", file=sys.stderr)
         if a.json:
             print(json.dumps(results if len(results) != 1 else results[0], indent=1))
         return worst

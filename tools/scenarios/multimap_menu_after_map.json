@@ -1,0 +1,20 @@
+{
+  "about": "Quit to menu while on a modded map, then load a vanilla save. Map-mod content loaded for the session just played must not leak into the next game.",
+  "mods": ["tools/scenarios/mods/harness_map"],
+  "steps": [
+    {"wait": 30},
+    {"do": {"type": "add_gold", "amount": 4321}},
+    {"wait": 5},
+    {"snapshot": "vanilla"},
+    {"save": 8, "why": "a plain vanilla save to come back to"},
+    {"travel": "harness_map"},
+    {"wait": 30},
+    {"assert": "cell_registered", "name": "HARNESS WALL", "is": true, "why": "control: proves the assert sees map-mod cells"},
+    {"save": 9},
+    {"reload": 8, "why": "quit to menu, then load the vanilla save"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "vanilla"},
+    {"assert": "same_as", "snapshot": "vanilla", "keys": ["active_map", "floor", "slots", "cells", "units", "money"]},
+    {"assert": "cell_registered", "name": "HARNESS WALL", "is": false, "why": "map-mod content must not be loaded on the vanilla map"}
+  ]
+}

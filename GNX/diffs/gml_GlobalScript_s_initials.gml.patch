@@ -1,76 +1,140 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 10:06:16.481019000 +0200
-@@ -1,8 +1,13 @@
- function scr_create_initials()
- {
-     randomize();
-+    global.gnx_version = "1.4.7";
-+    global.gnx_accepted_versions = ["1.38", "1.39"];
-+    global.val = {};
-     global.val.sfx_vol = 0.5;
-     global.val.bgm_vol = 0.5;
-+    global.val.language = 0;
-+    global.val.fullscreen = false;
-     global.val.money = 0;
-     global.val.food = 0;
-     global.val.play_time = 0;
-@@ -27,16 +32,16 @@
-     global.val.raid_num = 0;
-     global.val.birth_num = 0;
-     global.val.cap_num = 0;
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 14:44:16.269230400 +0200
+@@ -1,224 +1,15057 @@
+-function scr_create_initials()
+-{
+-    randomize();
+-    global.val.sfx_vol = 0.5;
+-    global.val.bgm_vol = 0.5;
+-    global.val.money = 0;
+-    global.val.food = 0;
+-    global.val.play_time = 0;
+-    global.val.day_timer = 0;
+-    global.val.day = 1;
+-    global.val.floor = 0;
+-    global.val.mood = 80;
+-    global.val.mood_red = 0;
+-    global.val.camera_click = 2;
+-    global.val.select_click = 1;
+-    global.val.show_head = false;
+-    global.val.stage_info = [-1, -1, -1, -1, -1];
+-    global.val.stage_lvl_sel = [0, 0, 0, 0, 0];
+-    global.val.cage = [-1];
+-    global.val.quest_new = false;
+-    global.val.quest_clear = false;
+-    global.val.troop_size = 0;
+-    global.val.cart_spd = 1;
+-    global.val.add_range = 0;
+-    global.val.orb_num = 4;
+-    global.val.elf_num = 0;
+-    global.val.raid_num = 0;
+-    global.val.birth_num = 0;
+-    global.val.cap_num = 0;
 -    global.val.alpha_type = UnknownEnum.Value_0;
-+    global.val.alpha_type = 0;
-     global.val.mon_alpha = 1;
+-    global.val.mon_alpha = 1;
 -    global.val.crate_alpha_type = UnknownEnum.Value_0;
-+    global.val.crate_alpha_type = 0;
-     global.val.crate_alpha = 1;
-     global.val.ui_place = false;
-     global.val.t_lvl = 0;
-     global.val.old_t_lvl = 0;
-     global.val.ct_lvl = 0;
-     global.val.demo = 0;
+-    global.val.crate_alpha = 1;
+-    global.val.ui_place = false;
+-    global.val.t_lvl = 0;
+-    global.val.old_t_lvl = 0;
+-    global.val.ct_lvl = 0;
+-    global.val.demo = 0;
 -    global.val.version = 1.38;
-+    global.val.version = 1.39;
-     global.val.goblin = 
-     {
-         num: [0, -1, -1, -1],
-@@ -85,6 +90,7 @@
-         b_other: [],
-         t_breed: [],
-         t_utility: [],
-+        xl_breed: [],
-         edit_between: [],
-         edit_top: [],
-         edit_mid: [],
-@@ -96,6 +102,16 @@
-         boss: [-1, -1, -1, -1, -1, -1]
-     };
-     global.val.br_unlock = [[[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]]];
-+    global.gnx_br_unlock = [];
-+    
-+    for (var _t = 0; _t < 4; _t++)
-+    {
-+        global.gnx_br_unlock[_t] = [];
-+        
-+        for (var _c = 0; _c < 4; _c++)
-+            global.gnx_br_unlock[_t][_c] = [];
-+    }
-+    
-     global.val.guide_unlock = 
-     {
-         num: 0,
-@@ -118,6 +134,7 @@
-     
-     scr_set_encounter_reward();
-     scr_set_shop_list();
-+    global._gnx_stash_load_file = variable_global_exists("load_file") ? global.load_file : -1;
-     global.load_file = -1;
-     global.mask_collision = false;
-     global.dirt_fix = 0;
-@@ -132,19 +149,20 @@
-     global.w_spd = 1;
-     global.zoom_target = 0;
-     global.muffle = 1;
+-    global.val.goblin = 
+-    {
+-        num: [0, -1, -1, -1],
+-        stat: [1, 1, 2, 3],
+-        lvl: [0, 0, 0, 0],
+-        expe: [0, 0, 0, 0],
+-        skill_lvl: [0, 0, 0, 0],
+-        skill_exp: [0, 0, 0, 0]
+-    };
+-    global.val.hobgoblin = 
+-    {
+-        num: [-1, -1, -1, -1],
+-        stat: [4, 5, 4, 5],
+-        lvl: [0, 0, 0, 0],
+-        expe: [0, 0, 0, 0],
+-        skill_lvl: [0, 0, 0, 0],
+-        skill_exp: [0, 0, 0, 0]
+-    };
+-    global.val.tentacle = 
+-    {
+-        num: [-1, -1, -1, -1],
+-        stat: [3, 3, 4, 4],
+-        lvl: [0, 0, 0, 0],
+-        expe: [0, 0, 0, 0],
+-        skill_lvl: [0, 0, 0, 0],
+-        skill_exp: [0, 0, 0, 0]
+-    };
+-    global.val.ogre = 
+-    {
+-        num: [-1, -1, -1, -1],
+-        stat: [6, 6, 7, 7],
+-        lvl: [0, 0, 0, 0],
+-        expe: [0, 0, 0, 0],
+-        skill_lvl: [0, 0, 0, 0],
+-        skill_exp: [0, 0, 0, 0]
+-    };
+-    global.val.mon_num = [0, -1, -1, -1];
+-    global.val.nest_num = [5, 0, 0, 0, 0];
+-    global.unlock = 
+-    {
+-        breed: [],
+-        utility: [],
+-        pleasure: [],
+-        b_breed: [],
+-        b_utility: [],
+-        b_other: [],
+-        t_breed: [],
+-        t_utility: [],
+-        edit_between: [],
+-        edit_top: [],
+-        edit_mid: [],
+-        edit_bot: [],
+-        entrance: false,
+-        raid: false,
+-        unit: false,
+-        timer: false,
+-        boss: [-1, -1, -1, -1, -1, -1]
+-    };
+-    global.val.br_unlock = [[[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]]];
+-    global.val.guide_unlock = 
+-    {
+-        num: 0,
+-        cell: []
+-    };
+-    global.unit_list = ds_list_create();
+-    global.front_row = ds_list_create();
+-    global.back_row = ds_list_create();
+-    global.new_button_list = ds_list_create();
+-    global.noti_list = ds_list_create();
+-    global.inv_list = ds_list_create();
+-    global.raid_inv_list = ds_list_create();
+-    global.quest_list = ds_list_create();
+-    global.new_guide_list = ds_list_create();
+-    global.front_row_save = ds_list_create();
+-    global.back_row_save = ds_list_create();
+-    
+-    for (var i = 0; i < 5; i++)
+-        ds_list_add(global.unit_list, -1);
+-    
+-    scr_set_encounter_reward();
+-    scr_set_shop_list();
+-    global.load_file = -1;
+-    global.mask_collision = false;
+-    global.dirt_fix = 0;
+-    global.death_fix = 0;
+-    global.trans_lock = false;
+-    global.camera_lock = false;
+-    global.click_lock = false;
+-    global.drag_lock = false;
+-    global.speed_lock = false;
+-    global.speed_save = false;
+-    global.build_side = false;
+-    global.w_spd = 1;
+-    global.zoom_target = 0;
+-    global.muffle = 1;
 -    global.breed_order = [UnknownEnum.Value_1, UnknownEnum.Value_2, UnknownEnum.Value_7, UnknownEnum.Value_8, UnknownEnum.Value_9, UnknownEnum.Value_13, UnknownEnum.Value_14];
 -    global.utility_order = [UnknownEnum.Value_5, UnknownEnum.Value_12, UnknownEnum.Value_4, UnknownEnum.Value_10, UnknownEnum.Value_11];
 -    global.pleasure_order = [UnknownEnum.Value_3, UnknownEnum.Value_6, UnknownEnum.Value_15];
@@ -84,6 +148,233 @@
 -    global.prop_order_mid = [UnknownEnum.Value_10, UnknownEnum.Value_7, UnknownEnum.Value_14, UnknownEnum.Value_17, UnknownEnum.Value_8, UnknownEnum.Value_11, UnknownEnum.Value_12, UnknownEnum.Value_36, UnknownEnum.Value_21, UnknownEnum.Value_27];
 -    global.prop_order_bot = [UnknownEnum.Value_0, UnknownEnum.Value_1, UnknownEnum.Value_20, UnknownEnum.Value_2, UnknownEnum.Value_3, UnknownEnum.Value_30, UnknownEnum.Value_31, UnknownEnum.Value_18, UnknownEnum.Value_4, UnknownEnum.Value_5, UnknownEnum.Value_22, UnknownEnum.Value_23, UnknownEnum.Value_25, UnknownEnum.Value_29, UnknownEnum.Value_32, UnknownEnum.Value_33, UnknownEnum.Value_34, UnknownEnum.Value_35, UnknownEnum.Value_26, UnknownEnum.Value_38];
 -    global.guide_order_cell = [UnknownEnum.Value_10, UnknownEnum.Value_12, UnknownEnum.Value_11, UnknownEnum.Value_17, UnknownEnum.Value_33, UnknownEnum.Value_30, UnknownEnum.Value_24, UnknownEnum.Value_25, UnknownEnum.Value_41, UnknownEnum.Value_42, UnknownEnum.Value_40, UnknownEnum.Value_39];
+-    global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
+-    var _goblin_alpha_c = make_color_rgb(35, 101, 0);
+-    var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
+-    var _ogre_alpha_c = make_color_rgb(127, 105, 52);
+-    global.mon_alpha_c = [_goblin_alpha_c, _hobgoblin_alpha_c, -1, _ogre_alpha_c];
+-    var _start_x = -1;
+-    global.slot_x = [];
+-    global.slot_list = [];
+-    global.slot_x[0] = _start_x;
+-    global.slot_list[0] = ds_list_create();
+-    var _c_1 = make_color_rgb(153, 0, 38);
+-    var _c_2 = make_color_rgb(216, 42, 13);
+-    var _c_3 = make_color_rgb(222, 161, 0);
+-    var _c_4 = make_color_rgb(1, 221, 0);
+-    global.mood_c = [_c_1, _c_2, _c_3, _c_4];
+-    global.max_exp = [50, 100, 150, 200, 250, 1];
+-    global.max_troop = [10, 25, 50, 90, 150, 220, 320, -1];
+-    global.bar_c = make_color_rgb(219, 173, 40);
+-    scr_set_mon_skill();
+-    scr_set_mon_range();
+-    scr_stage_raid_reward();
+-    scr_set_trade_list();
+-    draw_set_font(fnt_base_font_eng);
+-    display_set_gui_size(480, 270);
+-    window_set_cursor(cr_none);
+-    
+-    if (room == rm_init)
+-        room_goto(rm_logo);
+-}
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_10,
+-    Value_11,
+-    Value_12,
+-    Value_13,
+-    Value_14,
+-    Value_15,
+-    Value_16,
+-    Value_17,
+-    Value_18,
+-    Value_19,
+-    Value_20,
+-    Value_21,
+-    Value_22,
+-    Value_23,
+-    Value_24,
+-    Value_25,
+-    Value_26,
+-    Value_27,
+-    Value_28,
+-    Value_29,
+-    Value_30,
+-    Value_31,
+-    Value_32,
+-    Value_33,
+-    Value_34,
+-    Value_35,
+-    Value_36,
+-    Value_37,
+-    Value_38,
+-    Value_39,
+-    Value_40,
+-    Value_41,
+-    Value_42,
+-    Value_47 = 47
+-}
++function scr_create_initials()
++{
++    randomize();
++    global.gnx_version = "1.4.7";
++    global.gnx_accepted_versions = ["1.38", "1.39"];
++    global.val = {};
++    global.val.sfx_vol = 0.5;
++    global.val.bgm_vol = 0.5;
++    global.val.language = 0;
++    global.val.fullscreen = false;
++    global.val.money = 0;
++    global.val.food = 0;
++    global.val.play_time = 0;
++    global.val.day_timer = 0;
++    global.val.day = 1;
++    global.val.floor = 0;
++    global.val.mood = 80;
++    global.val.mood_red = 0;
++    global.val.camera_click = 2;
++    global.val.select_click = 1;
++    global.val.show_head = false;
++    global.val.stage_info = [-1, -1, -1, -1, -1];
++    global.val.stage_lvl_sel = [0, 0, 0, 0, 0];
++    global.val.cage = [-1];
++    global.val.quest_new = false;
++    global.val.quest_clear = false;
++    global.val.troop_size = 0;
++    global.val.cart_spd = 1;
++    global.val.add_range = 0;
++    global.val.orb_num = 4;
++    global.val.elf_num = 0;
++    global.val.raid_num = 0;
++    global.val.birth_num = 0;
++    global.val.cap_num = 0;
++    global.val.alpha_type = 0;
++    global.val.mon_alpha = 1;
++    global.val.crate_alpha_type = 0;
++    global.val.crate_alpha = 1;
++    global.val.ui_place = false;
++    global.val.t_lvl = 0;
++    global.val.old_t_lvl = 0;
++    global.val.ct_lvl = 0;
++    global.val.demo = 0;
++    global.val.version = 1.39;
++    global.val.goblin = 
++    {
++        num: [0, -1, -1, -1],
++        stat: [1, 1, 2, 3],
++        lvl: [0, 0, 0, 0],
++        expe: [0, 0, 0, 0],
++        skill_lvl: [0, 0, 0, 0],
++        skill_exp: [0, 0, 0, 0]
++    };
++    global.val.hobgoblin = 
++    {
++        num: [-1, -1, -1, -1],
++        stat: [4, 5, 4, 5],
++        lvl: [0, 0, 0, 0],
++        expe: [0, 0, 0, 0],
++        skill_lvl: [0, 0, 0, 0],
++        skill_exp: [0, 0, 0, 0]
++    };
++    global.val.tentacle = 
++    {
++        num: [-1, -1, -1, -1],
++        stat: [3, 3, 4, 4],
++        lvl: [0, 0, 0, 0],
++        expe: [0, 0, 0, 0],
++        skill_lvl: [0, 0, 0, 0],
++        skill_exp: [0, 0, 0, 0]
++    };
++    global.val.ogre = 
++    {
++        num: [-1, -1, -1, -1],
++        stat: [6, 6, 7, 7],
++        lvl: [0, 0, 0, 0],
++        expe: [0, 0, 0, 0],
++        skill_lvl: [0, 0, 0, 0],
++        skill_exp: [0, 0, 0, 0]
++    };
++    global.val.mon_num = [0, -1, -1, -1];
++    global.val.nest_num = [5, 0, 0, 0, 0];
++    global.unlock = 
++    {
++        breed: [],
++        utility: [],
++        pleasure: [],
++        b_breed: [],
++        b_utility: [],
++        b_other: [],
++        t_breed: [],
++        t_utility: [],
++        xl_breed: [],
++        edit_between: [],
++        edit_top: [],
++        edit_mid: [],
++        edit_bot: [],
++        entrance: false,
++        raid: false,
++        unit: false,
++        timer: false,
++        boss: [-1, -1, -1, -1, -1, -1]
++    };
++    global.val.br_unlock = [[[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]]];
++    global.gnx_br_unlock = [];
++    
++    for (var _t = 0; _t < 4; _t++)
++    {
++        global.gnx_br_unlock[_t] = [];
++        
++        for (var _c = 0; _c < 4; _c++)
++            global.gnx_br_unlock[_t][_c] = [];
++    }
++    
++    global.val.guide_unlock = 
++    {
++        num: 0,
++        cell: []
++    };
++    global.unit_list = ds_list_create();
++    global.front_row = ds_list_create();
++    global.back_row = ds_list_create();
++    global.new_button_list = ds_list_create();
++    global.noti_list = ds_list_create();
++    global.inv_list = ds_list_create();
++    global.raid_inv_list = ds_list_create();
++    global.quest_list = ds_list_create();
++    global.new_guide_list = ds_list_create();
++    global.front_row_save = ds_list_create();
++    global.back_row_save = ds_list_create();
++    
++    for (var i = 0; i < 5; i++)
++        ds_list_add(global.unit_list, -1);
++    
++    scr_set_encounter_reward();
++    scr_set_shop_list();
++    global.load_file = -1;
++    global.mask_collision = false;
++    global.dirt_fix = 0;
++    global.death_fix = 0;
++    global.trans_lock = false;
++    global.camera_lock = false;
++    global.click_lock = false;
++    global.drag_lock = false;
++    global.speed_lock = false;
++    global.speed_save = false;
++    global.build_side = false;
++    global.w_spd = 1;
++    global.zoom_target = 0;
++    global.muffle = 1;
 +    global.breed_order = [1, 2, 7, 8, 9, 13, 14];
 +    global.utility_order = [5, 12, 4, 10, 11];
 +    global.pleasure_order = [3, 6, 15];
@@ -98,13 +389,28 @@
 +    global.prop_order_mid = [10, 7, 14, 17, 8, 11, 12, 36, 21, 27];
 +    global.prop_order_bot = [0, 1, 20, 2, 3, 30, 31, 18, 4, 5, 22, 23, 25, 29, 32, 33, 34, 35, 26, 38];
 +    global.guide_order_cell = [10, 12, 11, 17, 33, 30, 24, 25, 41, 42, 40, 39];
-     global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
-     var _goblin_alpha_c = make_color_rgb(35, 101, 0);
-     var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +185,14426 @@
-     scr_set_mon_range();
-     scr_stage_raid_reward();
-     scr_set_trade_list();
++    global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
++    var _goblin_alpha_c = make_color_rgb(35, 101, 0);
++    var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
++    var _ogre_alpha_c = make_color_rgb(127, 105, 52);
++    global.mon_alpha_c = [_goblin_alpha_c, _hobgoblin_alpha_c, -1, _ogre_alpha_c];
++    var _start_x = -1;
++    global.slot_x = [];
++    global.slot_list = [];
++    global.slot_x[0] = _start_x;
++    global.slot_list[0] = ds_list_create();
++    var _c_1 = make_color_rgb(153, 0, 38);
++    var _c_2 = make_color_rgb(216, 42, 13);
++    var _c_3 = make_color_rgb(222, 161, 0);
++    var _c_4 = make_color_rgb(1, 221, 0);
++    global.mood_c = [_c_1, _c_2, _c_3, _c_4];
++    global.max_exp = [50, 100, 150, 200, 250, 1];
++    global.max_troop = [10, 25, 50, 90, 150, 220, 320, -1];
++    global.bar_c = make_color_rgb(219, 173, 40);
++    scr_set_mon_skill();
++    scr_set_mon_range();
++    scr_stage_raid_reward();
++    scr_set_trade_list();
 +    global.gnx_trade_list = [[], [], [], [], []];
 +    global.val.gnx_mod_data = {};
 +    global.gnx_mod_state = {};
@@ -3311,16 +3617,14 @@
 +    }
 +
 +    global.gnx_gmlc_env = -1;
-     draw_set_font(fnt_base_font_eng);
-     display_set_gui_size(480, 270);
-     window_set_cursor(cr_none);
--    
++    draw_set_font(fnt_base_font_eng);
++    display_set_gui_size(480, 270);
++    window_set_cursor(cr_none);
 +
 +    if (!variable_global_exists("gnx_scn"))
 +        global.gnx_scn = -1;
 +
-     if (room == rm_init)
--        room_goto(rm_logo);
++    if (room == rm_init)
 +    {
 +        var _scn = gnx_cli_value("-gnx-scenario");
 +
@@ -3671,32 +3975,9 @@
 +    }
 +    else
 +    {
++        // A loaded save's map is restored inside scr_load_slot (s_save_load), before the sanitizer runs
 +        global.gnx_active_map = "vanilla";
 +        global.gnx_inactive_maps = {};
-+
-+        if (global._gnx_stash_load_file >= 0 && global._gnx_stash_load_file <= 3)
-+        {
-+            var _peek_names = ["save_file_a.json", "save_file_1.json", "save_file_2.json", "save_file_3.json"];
-+            var _peek_file = _peek_names[global._gnx_stash_load_file];
-+
-+            if (file_exists(_peek_file))
-+            {
-+                var _pbuf = buffer_load(_peek_file);
-+                var _ptxt = buffer_read(_pbuf, buffer_text);
-+                buffer_delete(_pbuf);
-+                var _pdata = json_parse(_ptxt);
-+
-+                if (is_struct(_pdata) && variable_struct_exists(_pdata, "gnx_active_map"))
-+                {
-+                    global.gnx_active_map = _pdata.gnx_active_map;
-+                    var _plog = file_text_open_append(GNX_LOG);
-+                    file_text_write_string(_plog, "[GNX-MAP] peek: load_file=" + string(global._gnx_stash_load_file) + " active_map='" + _pdata.gnx_active_map + "'\n");
-+                    file_text_close(_plog);
-+                }
-+            }
-+        }
-+
-+        global._gnx_stash_load_file = -1;
 +    }
 +
 +    if (!variable_global_exists("gnx_travel_data") || global.gnx_travel_data == -1)
@@ -8935,8 +9216,12 @@
 +                continue;
 +            
 +            var _ix = ds_list_size(global.slot_list[_fl]);
-+            var _slot = scr_create_slot(_st, _fl, _ix, true);
-+            
++            var _sep = scr_create_slot(_st, _fl, _ix, true);
++
++            // with arg3=true scr_create_slot returns the separator it adds after the cell; the cell sits right before it
++            var _sep_pos = ds_list_find_index(global.slot_list[_fl], _sep);
++            var _slot = (_sep_pos > 0) ? ds_list_find_value(global.slot_list[_fl], _sep_pos - 1) : -1;
++
 +            if (_slot != -1)
 +            {
 +                scr_set_slot_h_data(_slot, _cd.h_type);
@@ -9102,7 +9387,8 @@
 +    if (!variable_struct_exists(_data, "realtime") || !_data.realtime)
 +        game_set_speed(1000, gamespeed_fps);
 +
-+    random_set_seed(variable_struct_exists(_data, "seed") ? _data.seed : 1);
++    global.gnx_scn.seed = variable_struct_exists(_data, "seed") ? _data.seed : 1;
++    random_set_seed(global.gnx_scn.seed);
 +    global.load_file = 9;
 +    room_goto(rm_game);
 +    return true;
@@ -9173,7 +9459,9 @@
 +        prisoners: _prisoners,
 +        unit_buttons: _ubtn,
 +        unit_buttons_in_cells: _ubtn_follow,
-+        mons: instance_number(obj_mon)
++        mons: instance_number(obj_mon),
++        money: global.val.money,
++        food: global.val.food
 +    };
 +}
 +
@@ -9220,6 +9508,125 @@
 +    }
 +
 +    return [_bad, _ex];
++}
++
++// Progress signature of one occupied cell (call inside with(obj_slot)): everything slot step culling freezes
++function scr_gnx_scn_slot_sig()
++{
++    var _a = slot_data.anim_struct;
++    var _s = string(floor(_a.index)) + "|" + string(_a.char_state);
++
++    if (variable_struct_exists(slot_data, "h_step"))
++        _s += "|" + string(slot_data.h_step);
++
++    if (variable_struct_exists(slot_data, "h_loop"))
++        _s += "|" + string(slot_data.h_loop);
++
++    if (variable_struct_exists(unit_data, "preg_c"))
++        _s += "|" + string(unit_data.preg_c);
++
++    if (variable_struct_exists(unit_data, "milk"))
++        _s += "|" + string(unit_data.milk);
++
++    return _s;
++}
++
++// Occupied, animated cells outside the step-culling band (camera +-400), as {id: signature}
++function scr_gnx_scn_offscreen_sigs()
++{
++    var _vy = camera_get_view_y(view_camera[0]);
++    var _vh = camera_get_view_height(view_camera[0]);
++    var _out = {};
++
++    with (obj_slot)
++    {
++        if (is_struct(unit_data) && is_struct(slot_data.anim_struct) && (y < (_vy - 400) || y > (_vy + _vh + 400)))
++            variable_struct_set(_out, string(id), scr_gnx_scn_slot_sig());
++    }
++
++    return _out;
++}
++
++// Transfer cages (h_type 17) and hobgoblins currently carrying (mon_state 7-9)
++function scr_gnx_scn_carry_stats()
++{
++    var _st = { cells: 0, carrying_mons: 0, hobgoblins: 0, hob_nest_num: global.val.nest_num[2] };
++    _st.last_cage_sweep = variable_global_exists("gnx_last_cage_sweep") ? global.gnx_last_cage_sweep : -1;  // [kept, restarted, dismissed]
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == 1)
++            _st.hobgoblins++;
++    }
++
++    with (obj_slot)
++    {
++        if (variable_struct_exists(slot_data, "h_type") && slot_data.h_type == 17)
++            _st.cells++;
++    }
++
++    _st.bad_carriers = 0;
++
++    with (obj_mon)
++    {
++        // states 7-9 are carry states only for hobgoblins (mon_type 1)
++        if (mon_data.mon_type == 1 && mon_data.mon_state >= 7 && mon_data.mon_state <= 9 && variable_struct_exists(mon_data, "carry_start_id"))
++        {
++            _st.carrying_mons++;
++        }
++    }
++
++    // hobgoblins in carry states per cage (their slot_id); a cage normally has one team of 2
++    var _per = {};
++    _st.max_carriers_per_cage = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == 1 && mon_data.mon_state >= 7 && mon_data.mon_state <= 9 && gnx_is_live_inst(mon_data.slot_id))
++        {
++            var _key = string(mon_data.slot_id);
++            var _n = (variable_struct_exists(_per, _key) ? variable_struct_get(_per, _key) : 0) + 1;
++            variable_struct_set(_per, _key, _n);
++            _st.max_carriers_per_cage = max(_st.max_carriers_per_cage, _n);
++        }
++    }
++
++    // any monster drawn with the carry routine while its carried unit is missing (scr_draw_hobgoblin_carry reads slot_id.unit_data.skin)
++    with (obj_mon)
++    {
++        if (scr_mon_draw != scr_draw_hobgoblin_carry || !variable_struct_exists(mon_data, "carry_start_id"))
++            continue;
++
++        if (mon_data.carry_start_id == -1 && mon_data.carry_end_id != -1 && !(gnx_is_live_inst(mon_data.slot_id) && is_struct(mon_data.slot_id.unit_data)))
++            _st.bad_carriers++;
++    }
++
++    return _st;
++}
++
++// Transfer cages (h_type 17) whose spawned hobgoblins (h_unit_list) are down to exactly one live one, as {id: true}
++function scr_gnx_scn_lone_cages()
++{
++    var _out = {};
++
++    with (obj_slot)
++    {
++        if (!variable_struct_exists(slot_data, "h_type") || slot_data.h_type != 17 || !is_array(h_unit_list))
++            continue;
++
++        var _live = 0;
++
++        for (var _li = 0; _li < array_length(h_unit_list); _li++)
++        {
++            if (gnx_is_live_inst(h_unit_list[_li]))
++                _live++;
++        }
++
++        if (_live == 1)
++            variable_struct_set(_out, string(id), true);
++    }
++
++    return _out;
 +}
 +
 +function scr_gnx_scn_assert(arg0)
@@ -9292,6 +9699,154 @@
 +            scr_gnx_scn_check("prisoner_buttons", _missing == 0 && _total > 0, string(_total - _missing) + "/" + string(_total) + " occupied cells have their unit button" + ((_missing > 0) ? ", e.g. missing at " + _mex : ""));
 +            break;
 +
++        case "val":
++            // {"assert": "val", "key": "money", "is": 100, "tol": 0.5}  (global.val field; numbers compare within tol, default 0.01)
++            var _vv = variable_struct_exists(global.val, arg0.key) ? variable_struct_get(global.val, arg0.key) : undefined;
++            var _vok;
++
++            if (is_numeric(_vv) && is_numeric(arg0.is))
++                _vok = abs(_vv - arg0.is) <= (variable_struct_exists(arg0, "tol") ? arg0.tol : 0.01);
++            else
++                _vok = string(_vv) == string(arg0.is);
++
++            scr_gnx_scn_check("val", _vok, arg0.key + "=" + string(_vv) + " want " + string(arg0.is));
++            break;
++
++        case "progressed":
++            // {"assert": "progressed", "probe": "p", "min_frac": 0.5} or "max_frac": 0.1
++            // share of off-screen occupied cells whose signature changed since the probe
++            var _was_p = variable_struct_get(global.gnx_scn.snaps, "probe:" + arg0.probe);
++
++            if (_was_p == undefined)
++            {
++                scr_gnx_scn_check("progressed", false, "no probe '" + string(arg0.probe) + "'");
++                break;
++            }
++
++            var _now_p = scr_gnx_scn_offscreen_sigs();
++            var _pk = variable_struct_get_names(_was_p);
++            var _tot = 0;
++            var _chg = 0;
++
++            for (var _pi = 0; _pi < array_length(_pk); _pi++)
++            {
++                if (!variable_struct_exists(_now_p, _pk[_pi]))
++                    continue;  // came on-screen or emptied: not comparable
++
++                _tot++;
++
++                if (variable_struct_get(_now_p, _pk[_pi]) != variable_struct_get(_was_p, _pk[_pi]))
++                    _chg++;
++            }
++
++            var _frac = (_tot > 0) ? (_chg / _tot) : 0;
++            var _pok = _tot > 0;
++
++            if (variable_struct_exists(arg0, "min_frac"))
++                _pok = _pok && _frac >= arg0.min_frac;
++
++            if (variable_struct_exists(arg0, "max_frac"))
++                _pok = _pok && _frac <= arg0.max_frac;
++
++            scr_gnx_scn_check("progressed", _pok, "'" + arg0.probe + "' " + string(_chg) + "/" + string(_tot) + " off-screen cells changed (" + string(round(_frac * 100)) + "%)");
++            break;
++
++        case "registry_ok":
++            // every built cell and every unit (in cells and in the cage) must point at registered content,
++            // i.e. nothing still references a removed mod
++            var _bad_cells = 0;
++            var _bad_units = 0;
++            var _rex = "";
++
++            with (obj_slot)
++            {
++                if (variable_struct_exists(slot_data, "h_type") && slot_data.anim_struct != -1 && !ds_map_exists(global.cell_registry, slot_data.h_type))
++                {
++                    _bad_cells++;
++                    _rex = "cell h_type " + string(slot_data.h_type);
++                }
++
++                if (is_struct(unit_data) && !ds_map_exists(global.class_registry, unit_data.class))
++                {
++                    _bad_units++;
++                    _rex = "unit class " + string(unit_data.class);
++                }
++            }
++
++            for (var _ci3 = 0; _ci3 < array_length(global.val.cage); _ci3++)
++            {
++                var _cu = global.val.cage[_ci3];
++
++                if (is_struct(_cu) && variable_struct_exists(_cu, "class") && !ds_map_exists(global.class_registry, _cu.class))
++                {
++                    _bad_units++;
++                    _rex = "caged unit class " + string(_cu.class);
++                }
++            }
++
++            scr_gnx_scn_check("registry_ok", _bad_cells == 0 && _bad_units == 0, string(_bad_cells) + " unregistered cell(s), " + string(_bad_units) + " unregistered unit(s)" + ((_rex != "") ? ", e.g. " + _rex : ""));
++            break;
++
++        case "carry_ok":
++            // {"assert": "carry_ok", "probe": "p", "max_hob_growth": 6}: one team per cage, nobody carrying an
++            // empty cage, and no hobgoblin explosion since the probe
++            var _cw = variable_struct_get(global.gnx_scn.snaps, "carry:" + arg0.probe);
++            
++            if (_cw == undefined)
++            {
++                scr_gnx_scn_check("carry_ok", false, "no carry_probe '" + string(arg0.probe) + "'");
++                break;
++            }
++            
++            var _cn2 = scr_gnx_scn_carry_stats();
++            var _grow = _cn2.hobgoblins - _cw.hobgoblins;
++            var _gmax = variable_struct_exists(arg0, "max_hob_growth") ? arg0.max_hob_growth : 6;
++            var _cok = _cn2.max_carriers_per_cage <= 2 && _cn2.bad_carriers == 0 && _grow <= _gmax;
++            scr_gnx_scn_check("carry_ok", _cok, "max carriers/cage=" + string(_cn2.max_carriers_per_cage) + " bad=" + string(_cn2.bad_carriers) + " hobgoblins " + string(_cw.hobgoblins) + "->" + string(_cn2.hobgoblins) + " (max +" + string(_gmax) + ")");
++            break;
++        
++        case "carry_stuck":
++            // {"assert": "carry_stuck", "probe": "p"}: no cage may have a single hobgoblin both at the probe and now
++            var _lone_was = variable_struct_get(global.gnx_scn.snaps, "lone:" + arg0.probe);
++
++            if (_lone_was == undefined)
++            {
++                scr_gnx_scn_check("carry_stuck", false, "no carry_probe '" + string(arg0.probe) + "'");
++                break;
++            }
++
++            var _lone_now = scr_gnx_scn_lone_cages();
++            var _lk = variable_struct_get_names(_lone_was);
++            var _stuck = 0;
++
++            for (var _lj = 0; _lj < array_length(_lk); _lj++)
++            {
++                if (variable_struct_exists(_lone_now, _lk[_lj]))
++                    _stuck++;
++            }
++
++            var _cst = scr_gnx_scn_carry_stats();
++            scr_gnx_scn_check("carry_stuck", _stuck == 0, string(_stuck) + " cage(s) stuck with one hobgoblin since '" + arg0.probe + "' (" + string(_cst.cells) + " cages, " + string(_cst.carrying_mons) + " hobgoblins carrying)");
++            break;
++
++        case "cell_registered":
++            // {"assert": "cell_registered", "name": "HARNESS WALL", "is": false}
++            var _creg = false;
++            var _ck2 = ds_map_find_first(global.cell_registry);
++
++            while (_ck2 != undefined)
++            {
++                var _ce2 = ds_map_find_value(global.cell_registry, _ck2);
++
++                if (is_struct(_ce2) && variable_struct_exists(_ce2, "name") && _ce2.name == arg0.name)
++                    _creg = true;
++
++                _ck2 = ds_map_find_next(global.cell_registry, _ck2);
++            }
++
++            scr_gnx_scn_check("cell_registered", _creg == arg0.is, "'" + arg0.name + "' registered=" + string(_creg) + " want " + string(arg0.is) + " (map '" + global.gnx_active_map + "')");
++            break;
++
 +        case "active_map":
 +            scr_gnx_scn_check("active_map", global.gnx_active_map == arg0.is, "is '" + global.gnx_active_map + "' want '" + arg0.is + "'");
 +            break;
@@ -9341,6 +9896,7 @@
 +            exit;
 +
 +        _s.awaiting = false;
++        random_set_seed(_s.seed);  // travel/reload re-ran initials (randomize)
 +        gnx_scn_log("loaded (map '" + global.gnx_active_map + "')");
 +    }
 +
@@ -9407,10 +9963,31 @@
 +            variable_struct_set(_s.snaps, _st.snapshot, _snap);
 +            gnx_scn_log("snapshot '" + _st.snapshot + "' " + json_stringify(_snap));
 +        }
++        else if (variable_struct_exists(_st, "carry_probe"))
++        {
++            var _lone = scr_gnx_scn_lone_cages();
++            variable_struct_set(_s.snaps, "lone:" + _st.carry_probe, _lone);
++            variable_struct_set(_s.snaps, "carry:" + _st.carry_probe, scr_gnx_scn_carry_stats());
++            gnx_scn_log("carry_probe '" + _st.carry_probe + "' " + string(array_length(variable_struct_get_names(_lone))) + " cage(s) with one hobgoblin");
++        }
++        else if (variable_struct_exists(_st, "carry_stats"))
++        {
++            gnx_scn_log("carry_stats '" + string(_st.carry_stats) + "' " + json_stringify(scr_gnx_scn_carry_stats()));
++        }
++        else if (variable_struct_exists(_st, "probe"))
++        {
++            // remember off-screen cell signatures; "progressed" compares against them later
++            var _sig = scr_gnx_scn_offscreen_sigs();
++            variable_struct_set(_s.snaps, "probe:" + _st.probe, _sig);
++            gnx_scn_log("probe '" + _st.probe + "' " + string(array_length(variable_struct_get_names(_sig))) + " off-screen occupied cells");
++        }
 +        else if (variable_struct_exists(_st, "save"))
 +        {
-+            scr_save_game(9);
-+            gnx_scn_log("saved slot 9");
++            // {"save": true} = slot 9; {"save": 8} = second harness slot
++            // harness slots only: json_parse turns `true` into 1 (= player slot 1!), so anything but an explicit 8 means 9
++            var _sslot = (is_numeric(_st.save) && _st.save == 8) ? 8 : 9;
++            scr_save_game(_sslot);
++            gnx_scn_log("saved slot " + string(_sslot));
 +        }
 +        else if (variable_struct_exists(_st, "travel"))
 +        {
@@ -9444,11 +10021,16 @@
 +            ds_list_destroy(global.new_guide_list);
 +            ds_list_destroy(global.front_row_save);
 +            ds_list_destroy(global.back_row_save);
++            // initials run while load_file still names the slot just played, exactly like quit-to-menu
 +            scr_create_initials();
-+            global.load_file = 9;
++            random_set_seed(_s.seed);  // initials call randomize(); keep scenarios reproducible
++
++            // {"reload": true} = slot 9; {"reload": 8} = other harness slot (empty file -> new game)
++            var _rslot = (is_numeric(_st.reload) && _st.reload == 8) ? 8 : 9;  // harness slots only, see save
++            global.load_file = _rslot;
 +            obj_np.gnx_scn_old = true;
 +            _s.awaiting = true;
-+            gnx_scn_log("reload slot 9");
++            gnx_scn_log("reload slot " + string(_rslot));
 +            room_goto(rm_game);
 +            exit;
 +        }
@@ -14527,51 +15109,16 @@
 +    
 +    if (_f != -1)
 +        file_text_close(_f);
- }
- 
- enum UnknownEnum
-@@ -183,42 +14615,166 @@
-     Value_3,
-     Value_4,
-     Value_5,
--    Value_6,
--    Value_7,
--    Value_8,
--    Value_9,
--    Value_10,
--    Value_11,
--    Value_12,
--    Value_13,
--    Value_14,
--    Value_15,
--    Value_16,
--    Value_17,
--    Value_18,
--    Value_19,
--    Value_20,
--    Value_21,
--    Value_22,
--    Value_23,
--    Value_24,
--    Value_25,
--    Value_26,
--    Value_27,
--    Value_28,
--    Value_29,
--    Value_30,
--    Value_31,
--    Value_32,
--    Value_33,
--    Value_34,
--    Value_35,
--    Value_36,
--    Value_37,
--    Value_38,
--    Value_39,
--    Value_40,
--    Value_41,
--    Value_42,
--    Value_47 = 47
++}
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
 +    Value_7 = 7,
 +    Value_12 = 12,
 +    Value_33 = 33,
@@ -14734,4 +15281,4 @@
 +{
 +    var _ui = scr_mouse_least_depth_obj(device_mouse_x_to_gui(0), device_mouse_y_to_gui(0), -1);
 +    return _ui != -1 && _ui.gui;
- }
++}
