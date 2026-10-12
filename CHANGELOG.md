@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+**Game version:** 1.39
+
+### New Features
+
+- **Multi-map travel re-enabled**: `global.gnx_multimap_enabled` is on again. Mods declaring `map`, `map_button` and `map_start` in `manifest.json` get a travel button on the vanilla map.
+- **`human_spr` is now optional on new cells**: omitting it gives `base+class` mode, with `base_body` picked from the cell kind (`b_*` categories / slot type 2 = `big`, `t_*` / slot type 3 = `tent`, otherwise `standard`). This matches what the docs already said.
+
+### Bug Fixes
+
+All of these were in code that only runs when a map mod loads (map mods are deferred at boot), so they crashed the game the first time a player travelled to a map:
+
+- Fixed crash when a new cell has no `physical` block. The cell is now skipped and reported in the "Mod loading problem(s)" popup, together with the list of missing required fields.
+- Fixed crash when a new cell has no `human_spr` block (see above).
+- Fixed crash when a new cell has no `category` or `name`. A missing `category` is now reported as a mod error; a missing `name` falls back to the cell's h_type in logs.
+- Fixed crash when `by_class`, `by_mon_type` or class_map `classes` sections contain `"_comment"` notes. Non-object entries are now skipped.
+- T69 (return entries) now checks the map you are actually on. On the vanilla map it is skipped instead of failing for every map mod, since return buttons only exist while on a modded map.
+
+### Example Mod
+
+- Every cell in `GNX/example_mod` and `docs/example_mod` now has a complete `physical` block (standard, large, tent and XL templates). Previously most cells had none and could not load.
+- `compatible_game_versions` updated to `1.39`. Doc examples in `GNX_MODDING.md` and `TUTORIAL.md` updated to match.
+- `GNX_MODDING.md` section 7 now lists the required `physical` fields for new cells.
+
+### Tooling
+
+- **`tools/gnx_test.py`**: automated test harness. Patches `GNX/gml` into a dedicated test copy of the game with the UTMT CLI, boots it, and reports the in-game test suite. A GML compile error, a runtime error, or a mod-loading popup is reported with its full text instead of hanging.
+- **Scenarios** (`tools/scenarios/*.json`): scripted in-game tests (save/reload round-trip, multi-map travel there and back, followers staying attached to off-screen cells, example mod loading). They use their own save slot and never touch player saves. A small `harness_map` test mod covers multi-map without depending on the example mod.
+- Patch files (`GNX/diffs/`, `GNX/gnx.patch`) are now generated per changed `.gml` file only, by `tools/regen_patches.py`. The previous `gnx.patch` also contained unmodified vanilla files, backup copies and a local settings file.
+
 ## v1.4.7
 
 **Game version:** 1.39
@@ -21,6 +52,7 @@
 - Added `gnx_slot_purge_dead_refs()` to clean dead monster refs from cell placement and unit lists. Runs on cell wake-up from off-screen sleep, unit removal, and monster arrival.
 - Fixed `scr_slot_carry_idle` milk class check: any class with `scr_unit == 0` now qualifies, not just hardcoded class 9.
 - Relaxed T16 test so classes providing `clothing_giant` instead of `clothing_standard` pass mod class validation.
+- Reverted the off-screen culling from v1.4.6 that broke gameplay: buttons, monsters, tents and props now follow their cell every frame again, on or off screen (prisoners no longer disappear or end up on the wrong floor), and step culling is off by default (`gnx_cull_step_off`), so mood, prison and cell logic no longer depend on where the camera is. Draw culling stays, which keeps most of the FPS gain.
 
 ## v1.4.6
 

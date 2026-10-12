@@ -1,6 +1,6 @@
 # GNX Modding Tutorial  - Building Your First Mod
 
-> **Compatibility:** GNX v1.4+ · Game version 1.38
+> **Compatibility:** GNX v1.4+ · Game version 1.39
 
 This is a hands-on walkthrough for a new modder. It builds up a mod step by
 step, from "hello world" to a custom class and a custom cell, using

@@ -65,7 +65,7 @@ if they share a `class_id` or `h_type` (last writer wins).
   "mod_id": "my_mod",
   "name": "My Mod",
   "version": "1.0.0",
-  "compatible_game_versions": ["1.38"],
+  "compatible_game_versions": ["1.39"],
   "classes": "classes.json",
   "cells": "cells.json"
 }
@@ -569,6 +569,13 @@ field to let GNX hash it.
 
 Controls gameplay behaviour: which scripts run, hand positions, unlock rules.
 
+**Required for every new cell** (vanilla patches with an existing `h_type` only override what they list):
+`allow_preg`, `max_mon_num`, `anal`, `slot_dirt_init`, `scr_idle`, `scr_h`, `scr_draw`, `hand_x`, `hand_y`,
+`hand_xscale`, `hand_angle`, `sq_x`, `sq_y`, `sp_x`, `sp_y`, `sp_anim_x`, `sp_anim_y`. A new cell missing
+the block (or any of these fields), or missing `category`, is skipped and reported in the
+"Mod loading problem(s)" popup and `gnx_debug.txt`. Large and tent cells use empty hand arrays (`[]`).
+`GNX/example_mod/cells.json` has a working block for each cell kind (standard, large, tent, XL).
+
 ```json
 "physical": {
   "allow_preg": true,
@@ -749,6 +756,9 @@ are available, set via the `mode` field.
 `base_body`: `"standard"` for normal cells, `"big"` for large cells, `"tent"` for tent cells.
 
 #### Mode: `base+class` (default)
+
+`human_spr` is optional. Omitting it means `base+class` with `base_body` taken from the cell kind
+(`b_*` categories / slot_type 2: `big`, `t_*` / slot_type 3: `tent`, otherwise `standard`).
 
 Cell provides the base body; class clothing tables provide per-class sprites.
 `is_special` classes override with their own sprite tables. This is the standard
@@ -1791,7 +1801,7 @@ Manifest for this example:
   "mod_id": "my_mod",
   "name": "My Mod",
   "version": "1.0.0",
-  "compatible_game_versions": ["1.38"],
+  "compatible_game_versions": ["1.39"],
   "tools": "tools.json",
   "save_state": {
     "version": 1,
@@ -2118,7 +2128,7 @@ Add three fields to `manifest.json`:
 {
   "name": "Outpost Mod",
   "version": "1.0",
-  "compatible_game_versions": ["1.38"],
+  "compatible_game_versions": ["1.39"],
   "map": "outpost_mod",
   "map_button": {
     "label": "Outpost",

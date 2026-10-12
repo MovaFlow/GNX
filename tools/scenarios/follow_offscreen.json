@@ -1,0 +1,24 @@
+{
+  "about": "Regression for the v1.4.7 culling bugs (vanishing prisoners). Load a populated nest, scroll the camera to the bottom, then move cells that are now off-screen (swap floors 0 and 1). Every follower (unit buttons, monsters, tentacles, props) must move with its cell even while off-screen, and every prisoner must keep its unit button. Mutation-tested: re-adding the camera-bounds check in scr_main_end_step makes this fail.",
+  "fixture": "nest",
+  "steps": [
+    {"wait": 120, "why": "unit buttons for loaded prisoners keep appearing for ~60 frames after load"},
+    {"snapshot": "start"},
+    {"assert": "prisoner_buttons"},
+    {"assert": "follow_sync"},
+    {"camera_y": 100000},
+    {"wait": 60},
+    {"call": "scr_swap_floors", "args": [0, 1]},
+    {"wait": 120},
+    {"assert": "follow_sync"},
+    {"assert": "prisoner_buttons"},
+    {"camera_y": 0},
+    {"wait": 120},
+    {"assert": "follow_sync"},
+    {"call": "scr_swap_floors", "args": [0, 1]},
+    {"wait": 60},
+    {"assert": "follow_sync"},
+    {"assert": "prisoner_buttons"},
+    {"assert": "same_as", "snapshot": "start", "keys": ["floor", "slots", "cells", "prisoners"]}
+  ]
+}
