@@ -2151,7 +2151,7 @@ Add three fields to `manifest.json`:
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `map` | yes | Unique map identifier string. Must match the mod's folder name. Used as the key in `gnx_inactive_maps` and save data |
+| `map` | yes | Map identifier string, used as the key in `gnx_inactive_maps` and save data. Usually the mod's folder name; mods that add content to another mod's map use that map's identifier (see Several map mods) |
 
 A mod with a `map` field is **deferred** at boot: its classes, cells, quests,
 sounds, and props are only loaded when the player travels to that map.
@@ -2162,10 +2162,10 @@ Controls the travel button shown on the vanilla map.
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `label` | yes | Button text (e.g. "Outpost") |
-| `x` | yes | X position on the gameplay screen |
-| `y` | yes | Y position on the gameplay screen |
-| `map_sprite` | no | PNG file in the mod folder used as the map background. Loaded via `sprite_add` at boot |
+| `label` | no | Button text (e.g. "Outpost"). Default: the `map` identifier |
+| `x` | no | X position on the raid panel's world map (default 210). Keep it at about 205 or more: further left, the label starts under the panel's left edge |
+| `y` | no | Y position on the raid panel's world map (default 70) |
+| `map_sprite` | no | PNG in the mod's `sprites/` folder used as the map background. Loaded via `sprite_add` at boot |
 | `return_label` | no | Label for the return-to-vanilla button shown on the mod map (default: "Return") |
 
 The travel button uses `gnx_map_button.png` from `GNX_assets/` as its sprite.

@@ -1,0 +1,224 @@
+{
+  "about": "The pre-travel selector driven through its real buttons (scr_gnx_travel_selector_activate): +/-1 and +/-10 per row (gold, food, goblins), clamping at 0 and at what the player has, Cancel (closes, takes nothing), then Confirm (travel with the chosen amounts). Screenshots in harness_game/screens/multimap_selector_ui/.",
+  "mods": [
+    "tools/scenarios/mods/harness_map"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "add_gold",
+        "amount": 5000
+      }
+    },
+    {
+      "do": {
+        "type": "add_food",
+        "amount": 300
+      }
+    },
+    {
+      "do": {
+        "type": "spawn_mon",
+        "species": 0,
+        "amount": 6
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "snapshot": "village"
+    },
+    {
+      "open_selector": "harness_map"
+    },
+    {
+      "assert": "selector",
+      "gold": 0,
+      "food": 0,
+      "goblins": 0
+    },
+    {
+      "wait": 3
+    },
+    {
+      "screenshot": "open"
+    },
+    {
+      "press_travel_button": {
+        "num": 3,
+        "row": 0,
+        "times": 3
+      }
+    },
+    {
+      "press_travel_button": {
+        "num": 0,
+        "row": 0,
+        "times": 1
+      }
+    },
+    {
+      "assert": "selector",
+      "gold": 29
+    },
+    {
+      "press_travel_button": {
+        "num": 2,
+        "row": 0,
+        "times": 10
+      }
+    },
+    {
+      "assert": "selector",
+      "gold": 0,
+      "why": "clamped at 0"
+    },
+    {
+      "press_travel_button": {
+        "num": 3,
+        "row": 0,
+        "times": 600
+      }
+    },
+    {
+      "assert": "selector",
+      "gold": 5000,
+      "why": "clamped at the gold the player has"
+    },
+    {
+      "press_travel_button": {
+        "num": 1,
+        "row": 1,
+        "times": 5
+      }
+    },
+    {
+      "press_travel_button": {
+        "num": 1,
+        "row": 2,
+        "times": 30
+      }
+    },
+    {
+      "assert": "selector",
+      "food": 5,
+      "goblins": 24,
+      "why": "goblins clamped at the 24 owned"
+    },
+    {
+      "press_travel_button": {
+        "num": 0,
+        "row": 2,
+        "times": 2
+      }
+    },
+    {
+      "assert": "selector",
+      "gold": 5000,
+      "food": 5,
+      "goblins": 22
+    },
+    {
+      "wait": 3
+    },
+    {
+      "screenshot": "filled"
+    },
+    {
+      "press_travel_button": {
+        "num": 20
+      }
+    },
+    {
+      "assert": "selector",
+      "open": false
+    },
+    {
+      "wait": 20
+    },
+    {
+      "screenshot": "after_cancel",
+      "why": "raid/world map with the travel button labels"
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "village",
+      "keys": [
+        "active_map",
+        "money",
+        "food",
+        "goblins"
+      ],
+      "why": "cancel takes nothing"
+    },
+    {
+      "open_selector": "harness_map"
+    },
+    {
+      "press_travel_button": {
+        "num": 3,
+        "row": 0,
+        "times": 50
+      }
+    },
+    {
+      "press_travel_button": {
+        "num": 3,
+        "row": 1,
+        "times": 2
+      }
+    },
+    {
+      "press_travel_button": {
+        "num": 1,
+        "row": 2,
+        "times": 2
+      }
+    },
+    {
+      "assert": "selector",
+      "gold": 500,
+      "food": 20,
+      "goblins": 2
+    },
+    {
+      "press_travel_button": {
+        "num": 21
+      }
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 1734
+    },
+    {
+      "assert": "val",
+      "key": "food",
+      "is": 76,
+      "tol": 1
+    },
+    {
+      "assert": "min",
+      "key": "goblins",
+      "value": 5,
+      "max": 5
+    },
+    {
+      "wait": 3
+    },
+    {
+      "screenshot": "arrived"
+    }
+  ]
+}

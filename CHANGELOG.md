@@ -20,6 +20,7 @@ All of these were in code that only runs when a map mod loads (map mods are defe
 - Fixed hobgoblins multiplying and a crash (`scr_draw_hobgoblin_carry`) after loading a save made while transfer cells were mid-transfer. The v1.4.7 load fix restarted every transfer cage, so each cage spawned a second hobgoblin team next to the restored one; when one team delivered the prisoner, the other was left carrying an empty cage. Now a cage whose team survived the load just finishes its transfer; only a cage with no team or half a team is cancelled and restarted.
 - Two mods declaring a travel button or `map_start` for the same map no longer produce two buttons with the last-loaded `map_start` silently winning: the first mod in load order owns the map, the other's button and `map_start` are ignored (its content still loads there) and the conflict is reported.
 - The "Mod loading problem(s)" popup is shown once per session instead of again on every travel and every return to the menu.
+- Removed leftover debug text (green button numbers) drawn over the pre-travel selector's +/- buttons.
 - The pre-travel selector no longer opens when travel is impossible (raid out, a blocking window open, something held, travel already under way): it used to take the chosen gold, food and goblins and hide the raid window before the travel was refused. A short notice now says why.
 - Fixed gold, food and goblins taken along with the pre-travel selector being lost: they were deducted at departure but never arrived (a travel reset the carried amounts, and they were applied before the destination map loaded, which overwrote them). The day counter now also carries over to a map visited for the first time.
 - Loading a save made on a mod map whose mod is no longer installed now puts the player back in their village (the vanilla map stored in the save) instead of stranding them on a map with no way back. The missing map is kept in the save untouched, so reinstalling the mod brings it back as it was. A short in-game notice tells the player why they are back in the village.
@@ -30,6 +31,7 @@ All of these were in code that only runs when a map mod loads (map mods are defe
 ### Example Mod
 
 - Every cell in `GNX/example_mod` and `docs/example_mod` now has a complete `physical` block (standard, large, tent and XL templates). Previously most cells had none and could not load.
+- The example map's travel button moved from x 185 to 210, so its label is no longer cut off by the raid panel's edge.
 - `compatible_game_versions` updated to `1.39`. Doc examples in `GNX_MODDING.md` and `TUTORIAL.md` updated to match.
 - `GNX_MODDING.md` section 7 now lists the required `physical` fields for new cells.
 

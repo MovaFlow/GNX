@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:43:57.299615000 +0200
-@@ -1,224 +1,15227 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:57:22.210043500 +0200
+@@ -1,224 +1,15284 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -8912,17 +8912,6 @@
 +    }
 +}
 +
-+function scr_gnx_travel_btn_debug_draw()
-+{
-+    scr_draw_hover_button();
-+    draw_set_color(c_lime);
-+    draw_set_halign(fa_center);
-+    draw_text(x, y - 10, "bn=" + string(button_num) + " xs=" + string(round(image_xscale * 10) / 10));
-+    draw_text(x, y + 2, "ii=" + string(image_index) + " si=" + string(sprite_index));
-+    draw_set_color(c_white);
-+    draw_set_halign(fa_left);
-+}
-+
 +function scr_gnx_travel_btn_init()
 +{
 +    gui = true;
@@ -9021,8 +9010,8 @@
 +        for (var _r = 0; _r < 3; _r++)
 +        {
 +            _setup_row = _r;
-+            scr_create_button_layout(-12, _row_y[_r], depth - 1, 2, 2, 25, 0, 0, spr_button_num_1, 61, id, false, scr_gnx_travel_btn_init, -1, scr_gnx_travel_btn_debug_draw);
-+            scr_create_button_layout(-20, _row_y[_r], depth - 1, 2, 2, 41, 0, 0, spr_button_num_2, 61, id, false, scr_gnx_travel_btn_init, -1, scr_gnx_travel_btn_debug_draw);
++            scr_create_button_layout(-12, _row_y[_r], depth - 1, 2, 2, 25, 0, 0, spr_button_num_1, 61, id, false, scr_gnx_travel_btn_init, -1, scr_draw_hover_button);
++            scr_create_button_layout(-20, _row_y[_r], depth - 1, 2, 2, 41, 0, 0, spr_button_num_2, 61, id, false, scr_gnx_travel_btn_init, -1, scr_draw_hover_button);
 +        }
 +        
 +        var _b = scr_create_button(-20, 30, depth - 1, spr_button_sure, 61, id, scr_gnx_travel_sure_init, -1, scr_draw_sure_button, 20, 0);
@@ -9807,6 +9796,32 @@
 +            scr_gnx_scn_check("progressed", _pok, "'" + arg0.probe + "' " + string(_chg) + "/" + string(_tot) + " off-screen cells changed (" + string(round(_frac * 100)) + "%)");
 +            break;
 +
++        case "selector":
++            // {"assert": "selector", "open": true, "gold": n, "food": n, "goblins": n}: the open selector's chosen amounts
++            var _sw = -1;
++            
++            with (obj_window)
++            {
++                if (interact_type == 60)
++                    _sw = id;
++            }
++            
++            if (variable_struct_exists(arg0, "open") && !arg0.open)
++            {
++                scr_gnx_scn_check("selector", _sw == -1, "closed=" + string(_sw == -1));
++                break;
++            }
++            
++            if (_sw == -1)
++            {
++                scr_gnx_scn_check("selector", false, "no selector open");
++                break;
++            }
++            
++            var _sok = (!variable_struct_exists(arg0, "gold") || _sw.carry_gold == arg0.gold) && (!variable_struct_exists(arg0, "food") || _sw.carry_food == arg0.food) && (!variable_struct_exists(arg0, "goblins") || _sw.carry_goblins == arg0.goblins);
++            scr_gnx_scn_check("selector", _sok, "gold=" + string(_sw.carry_gold) + " food=" + string(_sw.carry_food) + " goblins=" + string(_sw.carry_goblins) + " (max " + string(_sw.max_gold) + "/" + string(_sw.max_food) + "/" + string(_sw.max_goblins) + ")");
++            break;
++        
 +        case "popup_shown":
 +            // {"assert": "popup_shown", "contains": "text"}: a toast (obj_pop_up) with that text is on screen
 +            var _found_pop = false;
@@ -10111,6 +10126,48 @@
 +            obj_np.gnx_scn_old = true;
 +            _s.awaiting = true;
 +            exit;
++        }
++        else if (variable_struct_exists(_st, "open_selector"))
++        {
++            // {"open_selector": "map"}: open the real pre-travel selector (as the travel button does)
++            var _osel = scr_gnx_create_travel_selector({ target: _st.open_selector, label: _st.open_selector });
++            gnx_scn_log("open_selector " + _st.open_selector + ((_osel == -1) ? " refused" : ""));
++        }
++        else if (variable_struct_exists(_st, "press_travel_button"))
++        {
++            // {"press_travel_button": {"num": 3, "row": 0, "times": 2}}: click selector buttons through their real
++            // handler. num 0/1/2/3 = -1/+1/-10/+10 on a row; 20 = cancel, 21 = confirm (row -1).
++            var _pb = _st.press_travel_button;
++            var _pt = variable_struct_exists(_pb, "times") ? _pb.times : 1;
++            var _pressed = 0;
++            
++            repeat (_pt)
++            {
++                with (obj_button)
++                {
++                    if (interact_type == 61 && button_num == _pb.num && variable_instance_exists(id, "travel_row") && travel_row == (variable_struct_exists(_pb, "row") ? _pb.row : -1))
++                    {
++                        scr_gnx_travel_selector_activate();
++                        _pressed++;
++                        break;
++                    }
++                }
++            }
++            
++            gnx_scn_log("press_travel_button num=" + string(_pb.num) + " pressed " + string(_pressed) + "/" + string(_pt));
++            
++            if (_pb.num == 21 && global.gnx_trigger_load)  // confirm started a travel
++            {
++                obj_np.gnx_scn_old = true;
++                _s.awaiting = true;
++                exit;
++            }
++        }
++        else if (variable_struct_exists(_st, "screenshot"))
++        {
++            // {"screenshot": "name"}: save what is on screen as gnx_shot_<name>.png (harness collects it)
++            screen_save("gnx_shot_" + string(_st.screenshot) + ".png");
++            gnx_scn_log("screenshot " + string(_st.screenshot));
 +        }
 +        else if (variable_struct_exists(_st, "until_raid_idle"))
 +        {

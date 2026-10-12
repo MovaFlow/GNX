@@ -272,6 +272,8 @@ def boot(game_dir, timeout, keep_open, scenario=None, expect_dialog=None):
     Scenario: -gnx-scenario NAME, game exits when the scenario writes DONE."""
     LOG.unlink(missing_ok=True)  # the game truncates it at boot anyway; this makes stale logs impossible
     SCN_LOG.unlink(missing_ok=True)
+    for f in SAVE_DIR.glob("gnx_shot_*.png"):
+        f.unlink()
     si = subprocess.STARTUPINFO()
     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     si.wShowWindow = 7  # SW_SHOWMINNOACTIVE: don't steal focus
@@ -334,6 +336,13 @@ def boot(game_dir, timeout, keep_open, scenario=None, expect_dialog=None):
         stext = SCN_LOG.read_text(encoding="utf-8", errors="replace") if SCN_LOG.is_file() else ""
         r["scn"] = parse_scn(stext)
         (game_dir / f"last_scenario_{scenario}.log").write_text(stext, encoding="utf-8")
+        shots = sorted(SAVE_DIR.glob("gnx_shot_*.png"))
+        if shots:  # screenshots taken by the scenario's "screenshot" steps
+            out = game_dir / "screens" / scenario
+            out.mkdir(parents=True, exist_ok=True)
+            for f in shots:
+                shutil.move(str(f), out / f.name[len("gnx_shot_"):])
+            r["screens"] = [str(out / f.name[len("gnx_shot_"):]) for f in shots]
         if not r["scn"]["done"]:  # keep evidence of incomplete runs; later runs overwrite last_*.log
             stamp = time.strftime("%Y%m%d_%H%M%S")
             (game_dir / f"incomplete_{scenario}_{stamp}.log").write_text(text + "\n\n" + stext, encoding="utf-8")
