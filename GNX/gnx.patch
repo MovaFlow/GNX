@@ -3529,8 +3529,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:02:41.163466400 +0200
-@@ -1,224 +1,15093 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:10:01.659688100 +0200
+@@ -1,224 +1,15129 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -7523,11 +7523,15 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    global.gnx_map_start_decl = {};
 +    global.gnx_pending_map_start = "";
 +    global.gnx_pending_notice = "";  // shown as an in-game toast once the nest exists (obj_control step)
-+    global.gnx_carry_day = -1;
-+    global.gnx_carry_timer = -1;
-+    global.gnx_carry_gold = -1;
-+    global.gnx_carry_food = -1;
-+    global.gnx_carry_goblins = -1;
++    // a travel re-runs initials before the carry is applied (obj_control step): keep it then
++    if (!global.gnx_in_travel)
++    {
++        global.gnx_carry_day = -1;
++        global.gnx_carry_timer = -1;
++        global.gnx_carry_gold = -1;
++        global.gnx_carry_food = -1;
++        global.gnx_carry_goblins = -1;
++    }
 +    global.gnx_runtime_sprites = [];
 +    global.gnx_mod_errors = [];
 +    global.gnx_class_name_to_id = ds_map_create();
@@ -12957,6 +12961,14 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    for (var _i = 0; _i < array_length(_names); _i++)
 +        _hs += (_names[_i] + "x" + string(variable_struct_get(_hist, _names[_i])) + " ");
 +
++    var _gob = 0;  // goblin troops, summed like the travel selector does
++    
++    for (var _gi = 0; _gi < array_length(global.val.goblin.num); _gi++)
++    {
++        if (global.val.goblin.num[_gi] != -1)
++            _gob += global.val.goblin.num[_gi];
++    }
++    
 +    var _prisoners = 0;
 +
 +    with (obj_slot)
@@ -12992,7 +13004,9 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        unit_buttons_in_cells: _ubtn_follow,
 +        mons: instance_number(obj_mon),
 +        money: global.val.money,
-+        food: global.val.food
++        food: global.val.food,
++        goblins: _gob,
++        day: global.val.day
 +    };
 +}
 +
@@ -13429,7 +13443,9 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +
 +        case "min":
 +            var _v = variable_struct_get(scr_gnx_scn_state(), arg0.key);
-+            scr_gnx_scn_check("min", _v >= arg0.value, arg0.key + "=" + string(_v) + " want >= " + string(arg0.value));
++            // {"assert": "min", "key": k, "value": lo} and optional "max": hi (state keys, see scr_gnx_scn_state)
++            var _vhi = variable_struct_exists(arg0, "max") ? arg0.max : infinity;
++            scr_gnx_scn_check("min", _v >= arg0.value && _v <= _vhi, arg0.key + "=" + string(_v) + " want " + string(arg0.value) + ((_vhi != infinity) ? ".." + string(_vhi) : "+"));
 +            break;
 +
 +        default:
@@ -13565,6 +13581,26 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +
 +            if (_was_map == _st.travel)
 +                continue;  // already there: scr_gnx_travel returns true without reloading
++            
++            obj_np.gnx_scn_old = true;
++            _s.awaiting = true;
++            exit;
++        }
++        else if (variable_struct_exists(_st, "travel_with"))
++        {
++            // {"travel_with": {"to": "map", "gold": n, "food": n, "goblins": n}}: the real pre-travel selector,
++            // confirmed with those amounts (clamped to its maxima like the +/- buttons)
++            var _tw = _st.travel_with;
++            var _sel = scr_gnx_create_travel_selector({ target: _tw.to, label: _tw.to });
++            
++            with (_sel)
++            {
++                carry_gold = clamp(variable_struct_exists(_tw, "gold") ? _tw.gold : 0, 0, max_gold);
++                carry_food = clamp(variable_struct_exists(_tw, "food") ? _tw.food : 0, 0, max_food);
++                carry_goblins = clamp(variable_struct_exists(_tw, "goblins") ? _tw.goblins : 0, 0, max_goblins);
++                gnx_scn_log("travel_with " + target_mod + " gold=" + string(carry_gold) + " food=" + string(carry_food) + " goblins=" + string(carry_goblins));
++                scr_gnx_travel_selector_enter();
++            }
 +            
 +            obj_np.gnx_scn_old = true;
 +            _s.awaiting = true;
@@ -42480,8 +42516,8 @@ diff -uN gml_138/gml_GlobalScript_Vector3.gml gml/gml_GlobalScript_Vector3.gml
 +}
 diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_Step_0.gml
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-12 15:03:20.170309700 +0200
-@@ -1 +1,113 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-12 15:09:38.712290100 +0200
+@@ -1 +1,117 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -42519,32 +42555,7 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 +    scr_create_initials();
 +    global.gnx_in_travel = false;
 +    
-+    if (global.gnx_carry_day != -1)
-+    {
-+        global.val.day = global.gnx_carry_day;
-+        global.val.day_timer = global.gnx_carry_timer;
-+        global.gnx_carry_day = -1;
-+        global.gnx_carry_timer = -1;
-+    }
-+    
-+    if (global.gnx_carry_gold > 0)
-+    {
-+        global.val.money += global.gnx_carry_gold;
-+        global.gnx_carry_gold = -1;
-+    }
-+    
-+    if (global.gnx_carry_food > 0)
-+    {
-+        global.val.food += global.gnx_carry_food;
-+        global.gnx_carry_food = -1;
-+    }
-+    
-+    if (global.gnx_carry_goblins > 0)
-+    {
-+        scr_mon_num_edit(0, 0, global.gnx_carry_goblins, true);
-+        global.val.nest_num[0] = scr_all_mon_num_cal();
-+        global.gnx_carry_goblins = -1;
-+    }
++    // carried day/gold/food/goblins are applied after the destination map has loaded (see below)
 +    
 +    if (global.gnx_travel_data == -1 && variable_struct_exists(global.gnx_map_start_decl, global.gnx_active_map))
 +        global.gnx_pending_map_start = global.gnx_active_map;
@@ -42569,6 +42580,35 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 +    var _msm = global.gnx_pending_map_start;
 +    global.gnx_pending_map_start = "";
 +    scr_gnx_apply_map_start(_msm);
++}
++
++// Travel carry (pre-travel selector + shared day counter). Applied only once the destination map is in
++// place, after its map_start: applying it before the map loads let the load / map_start overwrite it.
++if (global.gnx_multimap_enabled && global.gnx_pending_map_start == "" && instance_exists(obj_slot) && (global.gnx_carry_day != -1 || global.gnx_carry_gold > 0 || global.gnx_carry_food > 0 || global.gnx_carry_goblins > 0))
++{
++    if (global.gnx_carry_day != -1)
++    {
++        global.val.day = global.gnx_carry_day;
++        global.val.day_timer = global.gnx_carry_timer;
++    }
++    
++    if (global.gnx_carry_gold > 0)
++        global.val.money += global.gnx_carry_gold;
++    
++    if (global.gnx_carry_food > 0)
++        global.val.food += global.gnx_carry_food;
++    
++    if (global.gnx_carry_goblins > 0)
++    {
++        scr_mon_num_edit(0, 0, global.gnx_carry_goblins, true);
++        global.val.nest_num[0] = scr_all_mon_num_cal();
++    }
++    
++    global.gnx_carry_day = -1;
++    global.gnx_carry_timer = -1;
++    global.gnx_carry_gold = -1;
++    global.gnx_carry_food = -1;
++    global.gnx_carry_goblins = -1;
 +}
 +
 +if (global.gnx_perf_enabled)

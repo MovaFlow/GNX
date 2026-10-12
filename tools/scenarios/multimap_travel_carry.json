@@ -1,0 +1,117 @@
+{
+  "about": "Pre-travel selector: what the player chooses to take (gold, food, goblins) leaves the departure map and arrives on the destination map, on a first visit (on top of map_start) and on the way back; the day counter carries over. Drives the real selector (scr_gnx_create_travel_selector + scr_gnx_travel_selector_enter); only the +/- button clicks are not exercised.",
+  "mods": [
+    "tools/scenarios/mods/harness_map"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "add_gold",
+        "amount": 5000
+      }
+    },
+    {
+      "do": {
+        "type": "add_food",
+        "amount": 300
+      }
+    },
+    {
+      "do": {
+        "type": "spawn_mon",
+        "species": 0,
+        "amount": 6
+      }
+    },
+    {
+      "do": {
+        "type": "set_day",
+        "value": 7
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "snapshot": "van_before"
+    },
+    {
+      "travel_with": {
+        "to": "harness_map",
+        "gold": 500,
+        "food": 20,
+        "goblins": 2
+      }
+    },
+    {
+      "wait": 30
+    },
+    {
+      "snapshot": "map_arrival"
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 1734,
+      "why": "map_start 1234 + carried 500"
+    },
+    {
+      "assert": "val",
+      "key": "food",
+      "is": 76,
+      "tol": 1,
+      "why": "map_start 56 + carried 20"
+    },
+    {
+      "assert": "val",
+      "key": "day",
+      "is": 7,
+      "why": "day counter is shared across maps"
+    },
+    {
+      "assert": "min",
+      "key": "goblins",
+      "value": 5,
+      "max": 5,
+      "why": "map_start 3 + carried 2"
+    },
+    {
+      "travel_with": {
+        "to": "vanilla",
+        "gold": 100
+      }
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "vanilla"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 4600,
+      "why": "5000 - 500 taken + 100 brought back"
+    },
+    {
+      "assert": "min",
+      "key": "goblins",
+      "value": 22,
+      "max": 22,
+      "why": "24 before departure - 2 taken along"
+    },
+    {
+      "assert": "val",
+      "key": "day",
+      "is": 7
+    }
+  ]
+}

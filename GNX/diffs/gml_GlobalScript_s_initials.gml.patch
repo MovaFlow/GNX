@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:02:41.163466400 +0200
-@@ -1,224 +1,15093 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:10:01.659688100 +0200
+@@ -1,224 +1,15129 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -3993,11 +3993,15 @@
 +    global.gnx_map_start_decl = {};
 +    global.gnx_pending_map_start = "";
 +    global.gnx_pending_notice = "";  // shown as an in-game toast once the nest exists (obj_control step)
-+    global.gnx_carry_day = -1;
-+    global.gnx_carry_timer = -1;
-+    global.gnx_carry_gold = -1;
-+    global.gnx_carry_food = -1;
-+    global.gnx_carry_goblins = -1;
++    // a travel re-runs initials before the carry is applied (obj_control step): keep it then
++    if (!global.gnx_in_travel)
++    {
++        global.gnx_carry_day = -1;
++        global.gnx_carry_timer = -1;
++        global.gnx_carry_gold = -1;
++        global.gnx_carry_food = -1;
++        global.gnx_carry_goblins = -1;
++    }
 +    global.gnx_runtime_sprites = [];
 +    global.gnx_mod_errors = [];
 +    global.gnx_class_name_to_id = ds_map_create();
@@ -9427,6 +9431,14 @@
 +    for (var _i = 0; _i < array_length(_names); _i++)
 +        _hs += (_names[_i] + "x" + string(variable_struct_get(_hist, _names[_i])) + " ");
 +
++    var _gob = 0;  // goblin troops, summed like the travel selector does
++    
++    for (var _gi = 0; _gi < array_length(global.val.goblin.num); _gi++)
++    {
++        if (global.val.goblin.num[_gi] != -1)
++            _gob += global.val.goblin.num[_gi];
++    }
++    
 +    var _prisoners = 0;
 +
 +    with (obj_slot)
@@ -9462,7 +9474,9 @@
 +        unit_buttons_in_cells: _ubtn_follow,
 +        mons: instance_number(obj_mon),
 +        money: global.val.money,
-+        food: global.val.food
++        food: global.val.food,
++        goblins: _gob,
++        day: global.val.day
 +    };
 +}
 +
@@ -9899,7 +9913,9 @@
 +
 +        case "min":
 +            var _v = variable_struct_get(scr_gnx_scn_state(), arg0.key);
-+            scr_gnx_scn_check("min", _v >= arg0.value, arg0.key + "=" + string(_v) + " want >= " + string(arg0.value));
++            // {"assert": "min", "key": k, "value": lo} and optional "max": hi (state keys, see scr_gnx_scn_state)
++            var _vhi = variable_struct_exists(arg0, "max") ? arg0.max : infinity;
++            scr_gnx_scn_check("min", _v >= arg0.value && _v <= _vhi, arg0.key + "=" + string(_v) + " want " + string(arg0.value) + ((_vhi != infinity) ? ".." + string(_vhi) : "+"));
 +            break;
 +
 +        default:
@@ -10035,6 +10051,26 @@
 +
 +            if (_was_map == _st.travel)
 +                continue;  // already there: scr_gnx_travel returns true without reloading
++            
++            obj_np.gnx_scn_old = true;
++            _s.awaiting = true;
++            exit;
++        }
++        else if (variable_struct_exists(_st, "travel_with"))
++        {
++            // {"travel_with": {"to": "map", "gold": n, "food": n, "goblins": n}}: the real pre-travel selector,
++            // confirmed with those amounts (clamped to its maxima like the +/- buttons)
++            var _tw = _st.travel_with;
++            var _sel = scr_gnx_create_travel_selector({ target: _tw.to, label: _tw.to });
++            
++            with (_sel)
++            {
++                carry_gold = clamp(variable_struct_exists(_tw, "gold") ? _tw.gold : 0, 0, max_gold);
++                carry_food = clamp(variable_struct_exists(_tw, "food") ? _tw.food : 0, 0, max_food);
++                carry_goblins = clamp(variable_struct_exists(_tw, "goblins") ? _tw.goblins : 0, 0, max_goblins);
++                gnx_scn_log("travel_with " + target_mod + " gold=" + string(carry_gold) + " food=" + string(carry_food) + " goblins=" + string(carry_goblins));
++                scr_gnx_travel_selector_enter();
++            }
 +            
 +            obj_np.gnx_scn_old = true;
 +            _s.awaiting = true;

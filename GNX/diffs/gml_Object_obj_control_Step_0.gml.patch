@@ -1,6 +1,6 @@
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-12 15:03:20.170309700 +0200
-@@ -1 +1,113 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-12 15:09:38.712290100 +0200
+@@ -1 +1,117 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -38,32 +38,7 @@
 +    scr_create_initials();
 +    global.gnx_in_travel = false;
 +    
-+    if (global.gnx_carry_day != -1)
-+    {
-+        global.val.day = global.gnx_carry_day;
-+        global.val.day_timer = global.gnx_carry_timer;
-+        global.gnx_carry_day = -1;
-+        global.gnx_carry_timer = -1;
-+    }
-+    
-+    if (global.gnx_carry_gold > 0)
-+    {
-+        global.val.money += global.gnx_carry_gold;
-+        global.gnx_carry_gold = -1;
-+    }
-+    
-+    if (global.gnx_carry_food > 0)
-+    {
-+        global.val.food += global.gnx_carry_food;
-+        global.gnx_carry_food = -1;
-+    }
-+    
-+    if (global.gnx_carry_goblins > 0)
-+    {
-+        scr_mon_num_edit(0, 0, global.gnx_carry_goblins, true);
-+        global.val.nest_num[0] = scr_all_mon_num_cal();
-+        global.gnx_carry_goblins = -1;
-+    }
++    // carried day/gold/food/goblins are applied after the destination map has loaded (see below)
 +    
 +    if (global.gnx_travel_data == -1 && variable_struct_exists(global.gnx_map_start_decl, global.gnx_active_map))
 +        global.gnx_pending_map_start = global.gnx_active_map;
@@ -88,6 +63,35 @@
 +    var _msm = global.gnx_pending_map_start;
 +    global.gnx_pending_map_start = "";
 +    scr_gnx_apply_map_start(_msm);
++}
++
++// Travel carry (pre-travel selector + shared day counter). Applied only once the destination map is in
++// place, after its map_start: applying it before the map loads let the load / map_start overwrite it.
++if (global.gnx_multimap_enabled && global.gnx_pending_map_start == "" && instance_exists(obj_slot) && (global.gnx_carry_day != -1 || global.gnx_carry_gold > 0 || global.gnx_carry_food > 0 || global.gnx_carry_goblins > 0))
++{
++    if (global.gnx_carry_day != -1)
++    {
++        global.val.day = global.gnx_carry_day;
++        global.val.day_timer = global.gnx_carry_timer;
++    }
++    
++    if (global.gnx_carry_gold > 0)
++        global.val.money += global.gnx_carry_gold;
++    
++    if (global.gnx_carry_food > 0)
++        global.val.food += global.gnx_carry_food;
++    
++    if (global.gnx_carry_goblins > 0)
++    {
++        scr_mon_num_edit(0, 0, global.gnx_carry_goblins, true);
++        global.val.nest_num[0] = scr_all_mon_num_cal();
++    }
++    
++    global.gnx_carry_day = -1;
++    global.gnx_carry_timer = -1;
++    global.gnx_carry_gold = -1;
++    global.gnx_carry_food = -1;
++    global.gnx_carry_goblins = -1;
 +}
 +
 +if (global.gnx_perf_enabled)
