@@ -260,14 +260,14 @@ def game_dialog(pid):
 
             u.EnumChildWindows(h, cb_t(child), 0)
             body = "\n".join(l for l in "\n".join(texts).splitlines() if l.strip() and not set(l) <= set("#_"))
-            found.append((gettext(h), body))
+            found.append((gettext(h), body, h))
         return True
 
     u.EnumWindows(cb_t(top), 0)
-    return found[0] if found else None
+    return found[0] if found else None  # (title, text, hwnd)
 
 
-def boot(game_dir, timeout, keep_open, scenario=None):
+def boot(game_dir, timeout, keep_open, scenario=None, expect_dialog=None):
     """Launch once. Plain boot: -gnx-autotest, game exits after the boot tests.
     Scenario: -gnx-scenario NAME, game exits when the scenario writes DONE."""
     LOG.unlink(missing_ok=True)  # the game truncates it at boot anyway; this makes stale logs impossible
@@ -284,6 +284,7 @@ def boot(game_dir, timeout, keep_open, scenario=None):
     proc = subprocess.Popen(args, cwd=game_dir, startupinfo=si)
     t0 = time.time()
     r, crash, done_at = parse_log(""), None, None
+    dismissed, seen_dialogs = [], set()
     try:
         while time.time() - t0 < timeout:
             time.sleep(0.25)
@@ -298,6 +299,17 @@ def boot(game_dir, timeout, keep_open, scenario=None):
                 if time.time() - done_at > 3:
                     break  # build predates -gnx-autotest: fall back to killing it
             crash = game_dialog(proc.pid)
+            if crash and expect_dialog and expect_dialog in crash[1]:
+                # an expected popup (e.g. a deliberate mod conflict): press OK and keep going
+                import ctypes
+                ctypes.windll.user32.PostMessageW(crash[2], 0x0111, 1, 0)  # WM_COMMAND, IDOK
+                ctypes.windll.user32.PostMessageW(crash[2], 0x0010, 0, 0)  # WM_CLOSE (message boxes honour it)
+                if crash[2] not in seen_dialogs:  # count each dialog once, however long it takes to close
+                    seen_dialogs.add(crash[2])
+                    dismissed.append(crash[1].splitlines()[0] if crash[1] else crash[0])
+                crash = None
+                time.sleep(0.5)
+                continue
             if crash:
                 break
         r["boot_s"] = round(time.time() - t0, 1)
@@ -313,7 +325,9 @@ def boot(game_dir, timeout, keep_open, scenario=None):
     text = LOG.read_text(encoding="utf-8", errors="replace") if LOG.is_file() else ""
     boot_s, exit_code = r["boot_s"], r["exit_code"]
     r = parse_log(text)  # final read: the game may have written its last lines right before exiting
-    r.update(boot_s=boot_s, exit_code=exit_code, crash=crash, kept_open=keep_open,
+    if crash:
+        crash = crash[:2]  # hwnd is meaningless after the run (and not JSON)
+    r.update(boot_s=boot_s, exit_code=exit_code, crash=crash, dismissed_dialogs=dismissed, kept_open=keep_open,
              tail=text.splitlines()[-40:], scenario=scenario)
     (game_dir / "last_run.log").write_text(text, encoding="utf-8")
     if scenario:
@@ -548,7 +562,14 @@ def main(argv=None):
                         continue
                 run_mods = [REPO / m for m in sc["mods"]] if "mods" in sc else mods
                 deploy_mods(game_dir, run_mods, accepted)
-                r = boot(game_dir, sc.get("timeout", a.timeout), a.keep_open and not name, name)
+                r = boot(game_dir, sc.get("timeout", a.timeout), a.keep_open and not name, name, sc.get("expect_dialog"))
+                if sc.get("expect_dialog") and not r["dismissed_dialogs"] and r.get("scn"):
+                    # the scenario relies on that popup appearing: missing it is a failure
+                    r["scn"]["fails"].append("FAIL  expected dialog containing '" + sc["expect_dialog"] + "' never appeared")
+                if sc.get("expect_dialog"):  # the expected problem is also logged as a mod error
+                    r["mod_errors"] = [m for m in r["mod_errors"] if sc["expect_dialog"] not in m]
+                if len(r["dismissed_dialogs"]) > 1 and r.get("scn"):
+                    r["scn"]["fails"].append(f"FAIL  expected dialog appeared {len(r['dismissed_dialogs'])} times (should show once per session)")
                 r["suite_ignored"] = sc.get("check_boot_suite", True) is False
                 if sc.get("save_fixture_as") and HARNESS_SAVE.is_file():
                     # setup scenarios hand their slot-9 save to later scenarios as a fixture

@@ -1,0 +1,24 @@
+{
+  "about": "A content-only mod for someone else's map (harness_map_addon declares map 'harness_map', no button, no map_start): its cell loads on harness_map next to the owner's, never on the village, and it adds no second travel button.",
+  "mods": ["tools/scenarios/mods/harness_map", "tools/scenarios/mods/harness_map_addon"],
+  "steps": [
+    {"wait": 30},
+    {"assert": "travel_location", "to": "harness_map", "why": "exactly one button, from the owner mod"},
+    {"assert": "cell_registered", "name": "ADDON WALL", "is": false},
+    {"travel": "harness_map"},
+    {"wait": 30},
+    {"assert": "cell_registered", "name": "HARNESS WALL", "is": true},
+    {"assert": "cell_registered", "name": "ADDON WALL", "is": true},
+    {"assert": "val", "key": "money", "is": 1234, "why": "owner's map_start, applied once"},
+    {"assert": "has_cell", "h_type": 9001},
+    {"save": true},
+    {"reload": true},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_map"},
+    {"assert": "cell_registered", "name": "ADDON WALL", "is": true, "why": "deferred load after a save/reload brings both mods back"},
+    {"travel": "vanilla"},
+    {"wait": 30},
+    {"assert": "cell_registered", "name": "ADDON WALL", "is": false},
+    {"assert": "cell_registered", "name": "HARNESS WALL", "is": false}
+  ]
+}

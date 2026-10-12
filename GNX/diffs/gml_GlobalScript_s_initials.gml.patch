@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:10:01.659688100 +0200
-@@ -1,224 +1,15129 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:26:20.200266900 +0200
+@@ -1,224 +1,15168 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -3991,6 +3991,7 @@
 +    global.gnx_travel_locations = [];
 +    global.gnx_map_sprite = -1;
 +    global.gnx_map_start_decl = {};
++    global.gnx_map_owner = {};  // map id -> mod that owns its travel button + map_start
 +    global.gnx_pending_map_start = "";
 +    global.gnx_pending_notice = "";  // shown as an in-game toast once the nest exists (obj_control step)
 +    // a travel re-runs initials before the carry is applied (obj_control step): keep it then
@@ -4368,7 +4369,13 @@
 +            _msg += ("- " + global.gnx_mod_errors[_ei] + "\n");
 +        
 +        _msg += "\nDetails in gnx_debug.txt.";
-+        show_message(_msg);
++
++        // the loader re-runs on every travel and menu return: show the same problems only once per session
++        if (!variable_global_exists("gnx_mod_errors_shown") || global.gnx_mod_errors_shown != _msg)
++        {
++            global.gnx_mod_errors_shown = _msg;
++            show_message(_msg);
++        }
 +    }
 +}
 +
@@ -4735,7 +4742,24 @@
 +    
 +    if (global.gnx_multimap_enabled)
 +    {
-+        if (variable_struct_exists(_manifest, "map_button") && _mod_map != "vanilla" && _mod_map != "all")
++        // The first mod (load order) to declare a button or map_start for a map owns it. A later one is
++        // treated as content for that map only: its button/map_start are ignored and reported.
++        var _not_owner = false;
++        
++        if ((variable_struct_exists(_manifest, "map_button") || variable_struct_exists(_manifest, "map_start")) && _mod_map != "vanilla" && _mod_map != "all")
++        {
++            if (!variable_struct_exists(global.gnx_map_owner, _mod_map))
++            {
++                variable_struct_set(global.gnx_map_owner, _mod_map, arg0);
++            }
++            else if (variable_struct_get(global.gnx_map_owner, _mod_map) != arg0)
++            {
++                _not_owner = true;
++                gnx_report_mod_error("Mod '" + arg0 + "' also declares map '" + _mod_map + "' (already owned by '" + variable_struct_get(global.gnx_map_owner, _mod_map) + "'); its travel button and map_start are ignored");
++            }
++        }
++        
++        if (variable_struct_exists(_manifest, "map_button") && _mod_map != "vanilla" && _mod_map != "all" && !_not_owner)
 +        {
 +            var _mb = _manifest.map_button;
 +            var _tl = {};
@@ -4782,7 +4806,7 @@
 +            file_text_close(_log);
 +        }
 +        
-+        if (variable_struct_exists(_manifest, "map_start") && _mod_map != "vanilla" && _mod_map != "all")
++        if (variable_struct_exists(_manifest, "map_start") && _mod_map != "vanilla" && _mod_map != "all" && !_not_owner)
 +            variable_struct_set(global.gnx_map_start_decl, _mod_map, _manifest.map_start);
 +        
 +        if (_mod_map != "all" && _mod_map != global.gnx_active_map)
@@ -9777,6 +9801,21 @@
 +            }
 +            
 +            scr_gnx_scn_check("popup_shown", _found_pop, "'" + arg0.contains + "'");
++            break;
++        
++        case "travel_location":
++            // {"assert": "travel_location", "to": "map"}: the current map offers a travel button to that map
++            var _tl_n = 0;
++            
++            for (var _tli = 0; _tli < array_length(global.gnx_travel_locations); _tli++)
++            {
++                var _tlx = global.gnx_travel_locations[_tli];
++                
++                if (_tlx.target == arg0.to && _tlx.show_on == global.gnx_active_map)
++                    _tl_n++;
++            }
++            
++            scr_gnx_scn_check("travel_location", _tl_n == 1, "'" + global.gnx_active_map + "' -> '" + arg0.to + "' x" + string(_tl_n) + " (want exactly 1)");
 +            break;
 +        
 +        case "inactive_map":

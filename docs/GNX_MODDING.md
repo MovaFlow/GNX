@@ -2199,6 +2199,20 @@ once (first visit); returning to a previously visited map restores the snapshot.
 - The save-select screen shows the map name (e.g. "Outpost") next to the save
   title when the save was made on a non-vanilla map
 - Loading a save on a non-vanilla map triggers deferred mod loading automatically
+- If the save's map belongs to a mod that is no longer installed, the player is put
+  back in their village (the vanilla map stored in the save) with a short notice.
+  The missing map stays in the save untouched; reinstalling the mod brings it back.
+
+### Several map mods
+
+- Different maps: each mod with its own `map` gets its own travel button on the
+  village, its own `map_start`, and its content loads only on its map.
+- Sharing a map: a mod can declare another mod's `map` **without** `map_button` /
+  `map_start` to add content (cells, classes…) to that map only.
+- Ownership: the first mod in load order (alphabetical by folder) that declares a
+  `map_button` or `map_start` for a map owns it. A later mod declaring either for the
+  same map has them ignored (its content still loads there), and the conflict is
+  listed in the "Mod loading problem(s)" popup.
 
 ### Unlocks
 
@@ -2208,7 +2222,7 @@ player had on vanilla.
 
 ### Limitations (current)
 
-- One mod map at a time (multiple map mods are not yet supported in parallel)
-- Inventory does not travel between maps
-- No pre-travel resource/unit selector (planned for a future phase)
+- Inventory does not travel between maps (gold, food and goblins do, via the
+  pre-travel selector)
+- Travel goes through the village: there is no direct button between two mod maps
 - Map-specific quests and encounter pools are not yet implemented
