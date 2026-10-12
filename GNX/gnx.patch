@@ -3529,8 +3529,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 14:44:16.269230400 +0200
-@@ -1,224 +1,15057 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:02:41.163466400 +0200
+@@ -1,224 +1,15093 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -7522,6 +7522,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    global.gnx_map_sprite = -1;
 +    global.gnx_map_start_decl = {};
 +    global.gnx_pending_map_start = "";
++    global.gnx_pending_notice = "";  // shown as an in-game toast once the nest exists (obj_control step)
 +    global.gnx_carry_day = -1;
 +    global.gnx_carry_timer = -1;
 +    global.gnx_carry_gold = -1;
@@ -13281,6 +13282,37 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            scr_gnx_scn_check("progressed", _pok, "'" + arg0.probe + "' " + string(_chg) + "/" + string(_tot) + " off-screen cells changed (" + string(round(_frac * 100)) + "%)");
 +            break;
 +
++        case "popup_shown":
++            // {"assert": "popup_shown", "contains": "text"}: a toast (obj_pop_up) with that text is on screen
++            var _found_pop = false;
++            
++            with (obj_pop_up)
++            {
++                if (is_string(pop_up_data.text_type) && string_pos(arg0.contains, pop_up_data.text_type) > 0)
++                    _found_pop = true;
++            }
++            
++            scr_gnx_scn_check("popup_shown", _found_pop, "'" + arg0.contains + "'");
++            break;
++        
++        case "inactive_map":
++            // {"assert": "inactive_map", "name": "harness_map"}: that map's state is stored in the save
++            scr_gnx_scn_check("inactive_map", is_struct(global.gnx_inactive_maps) && variable_struct_exists(global.gnx_inactive_maps, arg0.name), "'" + arg0.name + "' stored=" + string(is_struct(global.gnx_inactive_maps) && variable_struct_exists(global.gnx_inactive_maps, arg0.name)));
++            break;
++
++        case "has_cell":
++            // {"assert": "has_cell", "h_type": 9001}: at least one built cell of that type exists
++            var _hc = 0;
++
++            with (obj_slot)
++            {
++                if (variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg0.h_type && slot_data.anim_struct != -1)
++                    _hc++;
++            }
++
++            scr_gnx_scn_check("has_cell", _hc > 0, "h_type " + string(arg0.h_type) + " x" + string(_hc));
++            break;
++
 +        case "registry_ok":
 +            // every built cell and every unit (in cells and in the cage) must point at registered content,
 +            // i.e. nothing still references a removed mod
@@ -13521,6 +13553,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        }
 +        else if (variable_struct_exists(_st, "travel"))
 +        {
++            var _was_map = global.gnx_active_map;
 +            var _ok = scr_gnx_travel(_st.travel);
 +            scr_gnx_scn_check("travel", _ok, "to '" + _st.travel + "'");
 +
@@ -13530,6 +13563,9 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +                exit;
 +            }
 +
++            if (_was_map == _st.travel)
++                continue;  // already there: scr_gnx_travel returns true without reloading
++            
 +            obj_np.gnx_scn_old = true;
 +            _s.awaiting = true;
 +            exit;
@@ -25755,8 +25791,8 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
 -}
 diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_load.gml
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-12 14:33:18.363364900 +0200
-@@ -1,735 +1,1391 @@
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-12 15:03:18.494602400 +0200
+@@ -1,735 +1,1429 @@
 -function scr_save_game(arg0)
 -{
 -    var _save_data = {};
@@ -26849,6 +26885,44 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +                global.gnx_inactive_maps = _load_data.gnx_maps;
 +            else
 +                global.gnx_inactive_maps = {};
++
++            // Saved on a map whose mod is no longer installed: there is no return button and nothing
++            // declares that map, so the player would be stranded. Load the village (vanilla snapshot)
++            // instead and keep the orphan map's state untouched in the save, so reinstalling the mod
++            // brings it back as it was (loading it here would let the sanitizer rewrite its content).
++            if (global.gnx_multimap_enabled && global.gnx_active_map != "vanilla" && variable_struct_exists(global.gnx_inactive_maps, "vanilla"))
++            {
++                var _declared = false;
++                var _decl = variable_struct_get_names(global.gnx_mod_map_decl);
++
++                for (var _di = 0; _di < array_length(_decl); _di++)
++                {
++                    if (variable_struct_get(global.gnx_mod_map_decl, _decl[_di]) == global.gnx_active_map)
++                        _declared = true;
++                }
++
++                if (!_declared)
++                {
++                    var _orphan_name = global.gnx_active_map;
++                    var _orphan = {};
++                    var _keys = variable_struct_get_names(_load_data);
++
++                    for (var _ki = 0; _ki < array_length(_keys); _ki++)
++                    {
++                        if (_keys[_ki] != "gnx_maps" && _keys[_ki] != "gnx_active_map")
++                            variable_struct_set(_orphan, _keys[_ki], variable_struct_get(_load_data, _keys[_ki]));
++                    }
++
++                    _load_data = variable_struct_get(global.gnx_inactive_maps, "vanilla");
++                    variable_struct_remove(global.gnx_inactive_maps, "vanilla");
++                    variable_struct_set(global.gnx_inactive_maps, _orphan_name, _orphan);
++                    global.gnx_active_map = "vanilla";
++                    var _olog = file_text_open_append("gnx_debug.txt");
++                    file_text_write_string(_olog, "[GNX-MAP] save was on map '" + _orphan_name + "' but no installed mod declares it: loading the vanilla map, '" + _orphan_name + "' kept in the save\n");
++                    file_text_close(_olog);
++                    global.gnx_pending_notice = "Map '" + _orphan_name + "' isn't installed: back in your village. Its progress is kept.";
++                }
++            }
 +
 +            scr_gnx_load_deferred_map_mods();
 +        }
@@ -42406,8 +42480,9 @@ diff -uN gml_138/gml_GlobalScript_Vector3.gml gml/gml_GlobalScript_Vector3.gml
 +}
 diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_Step_0.gml
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-05 10:01:02.000000000 +0200
-@@ -1 +1,107 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-12 15:03:20.170309700 +0200
+@@ -1 +1,113 @@
+-scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
 +    global.gnx_trigger_load = false;
@@ -42481,7 +42556,13 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 +    exit;
 +}
 +
- scr_mouse_control();
++scr_mouse_control();
++
++if (variable_global_exists("gnx_pending_notice") && global.gnx_pending_notice != "" && instance_exists(obj_slot))
++{
++    scr_gnx_pop_up_create(global.gnx_pending_notice);
++    global.gnx_pending_notice = "";
++}
 +
 +if (global.gnx_multimap_enabled && global.gnx_pending_map_start != "" && instance_exists(obj_slot))
 +{

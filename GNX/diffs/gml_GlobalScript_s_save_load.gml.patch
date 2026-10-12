@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-12 14:33:18.363364900 +0200
-@@ -1,735 +1,1391 @@
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-12 15:03:18.494602400 +0200
+@@ -1,735 +1,1429 @@
 -function scr_save_game(arg0)
 -{
 -    var _save_data = {};
@@ -1093,6 +1093,44 @@
 +                global.gnx_inactive_maps = _load_data.gnx_maps;
 +            else
 +                global.gnx_inactive_maps = {};
++
++            // Saved on a map whose mod is no longer installed: there is no return button and nothing
++            // declares that map, so the player would be stranded. Load the village (vanilla snapshot)
++            // instead and keep the orphan map's state untouched in the save, so reinstalling the mod
++            // brings it back as it was (loading it here would let the sanitizer rewrite its content).
++            if (global.gnx_multimap_enabled && global.gnx_active_map != "vanilla" && variable_struct_exists(global.gnx_inactive_maps, "vanilla"))
++            {
++                var _declared = false;
++                var _decl = variable_struct_get_names(global.gnx_mod_map_decl);
++
++                for (var _di = 0; _di < array_length(_decl); _di++)
++                {
++                    if (variable_struct_get(global.gnx_mod_map_decl, _decl[_di]) == global.gnx_active_map)
++                        _declared = true;
++                }
++
++                if (!_declared)
++                {
++                    var _orphan_name = global.gnx_active_map;
++                    var _orphan = {};
++                    var _keys = variable_struct_get_names(_load_data);
++
++                    for (var _ki = 0; _ki < array_length(_keys); _ki++)
++                    {
++                        if (_keys[_ki] != "gnx_maps" && _keys[_ki] != "gnx_active_map")
++                            variable_struct_set(_orphan, _keys[_ki], variable_struct_get(_load_data, _keys[_ki]));
++                    }
++
++                    _load_data = variable_struct_get(global.gnx_inactive_maps, "vanilla");
++                    variable_struct_remove(global.gnx_inactive_maps, "vanilla");
++                    variable_struct_set(global.gnx_inactive_maps, _orphan_name, _orphan);
++                    global.gnx_active_map = "vanilla";
++                    var _olog = file_text_open_append("gnx_debug.txt");
++                    file_text_write_string(_olog, "[GNX-MAP] save was on map '" + _orphan_name + "' but no installed mod declares it: loading the vanilla map, '" + _orphan_name + "' kept in the save\n");
++                    file_text_close(_olog);
++                    global.gnx_pending_notice = "Map '" + _orphan_name + "' isn't installed: back in your village. Its progress is kept.";
++                }
++            }
 +
 +            scr_gnx_load_deferred_map_mods();
 +        }

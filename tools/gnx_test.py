@@ -550,6 +550,10 @@ def main(argv=None):
                 deploy_mods(game_dir, run_mods, accepted)
                 r = boot(game_dir, sc.get("timeout", a.timeout), a.keep_open and not name, name)
                 r["suite_ignored"] = sc.get("check_boot_suite", True) is False
+                if sc.get("save_fixture_as") and HARNESS_SAVE.is_file():
+                    # setup scenarios hand their slot-9 save to later scenarios as a fixture
+                    (game_dir / "fixtures").mkdir(exist_ok=True)
+                    shutil.copy2(HARNESS_SAVE, game_dir / "fixtures" / f"{sc['save_fixture_as']}.json")
                 code = verdict(r)
                 worst = max(worst, code)  # 4 timeout/crash > 1 fail > 0 pass
                 results.append({k: v for k, v in r.items() if k != "tail"} | {"verdict": code})
