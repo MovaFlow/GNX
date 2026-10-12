@@ -477,7 +477,14 @@ def prepare_scenario(game_dir, sc):
         if not src.is_file():
             raise HarnessError(EXIT_PREFLIGHT, f"fixture '{fx}' missing ({src}); "
                                                f"create it with --capture-fixture <slot> {fx}")
-        shutil.copy2(src, HARNESS_SAVE)
+        if sc.get("fixture_on_map"):
+            # play the fixture's nest as the live state of a mod map; the village waits as a fresh map
+            data = json.loads(src.read_text(encoding="utf-8-sig"))
+            data["gnx_active_map"] = sc["fixture_on_map"]
+            data["gnx_maps"] = {"vanilla": "fresh"}
+            HARNESS_SAVE.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+        else:
+            shutil.copy2(src, HARNESS_SAVE)
     else:
         HARNESS_SAVE.unlink(missing_ok=True)
     HARNESS_SAVE_B.unlink(missing_ok=True)

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:26:20.200266900 +0200
-@@ -1,224 +1,15168 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-12 15:43:57.299615000 +0200
+@@ -1,224 +1,15227 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -8697,11 +8697,12 @@
 +    return json_parse(json_stringify(_save_data));
 +}
 +
-+function scr_gnx_travel(arg0)
++// Why travel is not possible right now, as a player-facing reason ("" = travel allowed). Logs the cause.
++// Checked before the pre-travel selector opens (it would otherwise take the chosen goods first).
++function scr_gnx_travel_blocked()
 +{
-+    if (!global.gnx_multimap_enabled)
-+        return false;
-+    
++    var _why = "";
++    var _log_why = "";
 +    var _raid_state = 0;
 +    
 +    with (obj_np.obj_raid)
@@ -8709,39 +8710,50 @@
 +    
 +    if (_raid_state != 0)
 +    {
-+        var _l = file_text_open_append("gnx_debug.txt");
-+        file_text_write_string(_l, "[GNX-MAP] travel blocked: raid active\n");
-+        file_text_close(_l);
-+        return false;
++        _why = "Can't travel while a raid is out.";
++        _log_why = "raid active";
 +    }
-+    
-+    var _has_blocking_window = false;
-+    var _blocking_types = "";
-+    
-+    with (obj_window)
++    else
 +    {
-+        if (interact_type == 2 || interact_type == 3 || interact_type == 5 || interact_type == 11 || interact_type == 28)
++        var _blocking_types = "";
++        
++        with (obj_window)
 +        {
-+            _has_blocking_window = true;
-+            _blocking_types += (string(interact_type) + " ");
++            if (interact_type == 2 || interact_type == 3 || interact_type == 5 || interact_type == 11 || interact_type == 28)
++                _blocking_types += (string(interact_type) + " ");
++        }
++        
++        if (_blocking_types != "")
++        {
++            _why = "Close the open window before travelling.";
++            _log_why = "window types=" + _blocking_types;
++        }
++        else if (obj_control.hold_id != -1)
++        {
++            _why = "Drop what you're holding before travelling.";
++            _log_why = "drag in progress";
++        }
++        else if (variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
++        {
++            _why = "Already travelling.";
++            _log_why = "load already pending";
 +        }
 +    }
 +    
-+    if (_has_blocking_window)
++    if (_log_why != "")
 +    {
 +        var _l = file_text_open_append("gnx_debug.txt");
-+        file_text_write_string(_l, "[GNX-MAP] travel blocked: window types=" + _blocking_types + "\n");
++        file_text_write_string(_l, "[GNX-MAP] travel blocked: " + _log_why + "\n");
 +        file_text_close(_l);
-+        return false;
 +    }
 +    
-+    if (obj_control.hold_id != -1)
-+    {
-+        var _l = file_text_open_append("gnx_debug.txt");
-+        file_text_write_string(_l, "[GNX-MAP] travel blocked: drag in progress\n");
-+        file_text_close(_l);
++    return _why;
++}
++
++function scr_gnx_travel(arg0)
++{
++    if (!global.gnx_multimap_enabled)
 +        return false;
-+    }
 +    
 +    if (global.gnx_active_map == arg0)
 +    {
@@ -8751,13 +8763,8 @@
 +        return true;
 +    }
 +    
-+    if (variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
-+    {
-+        var _l = file_text_open_append("gnx_debug.txt");
-+        file_text_write_string(_l, "[GNX-MAP] travel blocked: load already pending\n");
-+        file_text_close(_l);
++    if (scr_gnx_travel_blocked() != "")
 +        return false;
-+    }
 +    
 +    var _log = file_text_open_append("gnx_debug.txt");
 +    file_text_write_string(_log, "[GNX-MAP] travel: " + global.gnx_active_map + " -> " + arg0 + "\n");
@@ -8953,6 +8960,14 @@
 +
 +function scr_gnx_create_travel_selector(arg0)
 +{
++    var _blocked = scr_gnx_travel_blocked();
++    
++    if (_blocked != "")
++    {
++        scr_gnx_pop_up_create(_blocked);
++        return -1;
++    }
++    
 +    var _exists = false;
 +    
 +    with (obj_window)
@@ -9406,6 +9421,7 @@
 +        idx: 0,
 +        wait: 0,
 +        awaiting: false,
++        until_left: -1,
 +        pass: 0,
 +        fail: 0,
 +        snaps: {}
@@ -9500,7 +9516,8 @@
 +        money: global.val.money,
 +        food: global.val.food,
 +        goblins: _gob,
-+        day: global.val.day
++        day: global.val.day,
++        quests: ds_list_size(global.quest_list)
 +    };
 +}
 +
@@ -10095,12 +10112,48 @@
 +            _s.awaiting = true;
 +            exit;
 +        }
++        else if (variable_struct_exists(_st, "until_raid_idle"))
++        {
++            // {"until_raid_idle": max_frames}: hold here until no raid is out (travel is refused during a raid)
++            var _rs = 0;
++            
++            with (obj_np.obj_raid)
++                _rs = raid_data.raid_state;
++            
++            if (_rs == 0)
++            {
++                gnx_scn_log("raid idle");
++                _s.until_left = -1;
++                continue;
++            }
++            
++            if (_s.until_left == -1)
++                _s.until_left = _st.until_raid_idle;
++            
++            _s.until_left--;
++            
++            if (_s.until_left <= 0)
++            {
++                scr_gnx_scn_check("until_raid_idle", false, "raid still out (state " + string(_rs) + ") after " + string(_st.until_raid_idle) + " frames");
++                _s.until_left = -1;
++                continue;
++            }
++            
++            _s.idx--;  // re-run this step next frame
++            exit;
++        }
 +        else if (variable_struct_exists(_st, "travel_with"))
 +        {
 +            // {"travel_with": {"to": "map", "gold": n, "food": n, "goblins": n}}: the real pre-travel selector,
 +            // confirmed with those amounts (clamped to its maxima like the +/- buttons)
 +            var _tw = _st.travel_with;
 +            var _sel = scr_gnx_create_travel_selector({ target: _tw.to, label: _tw.to });
++            
++            if (_sel == -1)
++            {
++                gnx_scn_log("travel_with: selector refused to open");
++                continue;
++            }
 +            
 +            with (_sel)
 +            {
@@ -10109,6 +10162,12 @@
 +                carry_goblins = clamp(variable_struct_exists(_tw, "goblins") ? _tw.goblins : 0, 0, max_goblins);
 +                gnx_scn_log("travel_with " + target_mod + " gold=" + string(carry_gold) + " food=" + string(carry_food) + " goblins=" + string(carry_goblins));
 +                scr_gnx_travel_selector_enter();
++            }
++            
++            if (!global.gnx_trigger_load)
++            {
++                gnx_scn_log("travel_with refused (no travel triggered)");
++                continue;  // still on the same map: don't wait for a reload that never comes
 +            }
 +            
 +            obj_np.gnx_scn_old = true;

@@ -1,0 +1,109 @@
+{
+  "about": "Gameplay on a mod map: the 23-floor 'modded' fixture (save_file_2.json, 544 prisoners, 9 transfer cages, no raid out; its missing mods are cleaned on load) is played as harness_map's live state (village stored as a fresh map). Cells keep running off-screen, and travelling away mid-transfer and back restores the busy map without multiplying hobgoblins, crashing, or losing prisoners (travel restores through scr_load_slot like a save/load).",
+  "fixture": "modded",
+  "fixture_on_map": "harness_map",
+  "mods": [
+    "tools/scenarios/mods/harness_map"
+  ],
+  "seed": 1,
+  "timeout": 240,
+  "steps": [
+    {
+      "wait": 120
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "return_entry"
+    },
+    {
+      "assert": "prisoner_buttons"
+    },
+    {
+      "camera_y": 100000
+    },
+    {
+      "wait": 30
+    },
+    {
+      "probe": "busy"
+    },
+    {
+      "wait": 300
+    },
+    {
+      "assert": "progressed",
+      "probe": "busy",
+      "min_frac": 0.5
+    },
+    {
+      "until_raid_idle": 8000,
+      "why": "the nest has a raid out; travel is refused until it is back"
+    },
+    {
+      "wait": 120
+    },
+    {
+      "snapshot": "map_before"
+    },
+    {
+      "carry_probe": "map_before"
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 60
+    },
+    {
+      "assert": "active_map",
+      "is": "vanilla"
+    },
+    {
+      "assert": "val",
+      "key": "floor",
+      "is": 0,
+      "why": "fresh village"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 300
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "carry_ok",
+      "probe": "map_before",
+      "max_hob_growth": 6
+    },
+    {
+      "wait": 300
+    },
+    {
+      "assert": "carry_ok",
+      "probe": "map_before",
+      "max_hob_growth": 6
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "map_before",
+      "keys": [
+        "floor",
+        "slots",
+        "prisoners"
+      ]
+    },
+    {
+      "assert": "prisoner_buttons"
+    },
+    {
+      "assert": "follow_sync"
+    }
+  ]
+}

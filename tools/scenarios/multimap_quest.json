@@ -1,0 +1,87 @@
+{
+  "about": "A quest started on a mod map belongs to that map: it survives a save/reload there, is not in the village's quest list, and is back when returning.",
+  "mods": [
+    "tools/scenarios/mods/harness_map"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "snapshot": "vanilla"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "snapshot": "map_no_quest"
+    },
+    {
+      "do": {
+        "type": "fire_event",
+        "event_id": "harness_map.harness_quest"
+      }
+    },
+    {
+      "wait": 10
+    },
+    {
+      "snapshot": "map_quest"
+    },
+    {
+      "assert": "min",
+      "key": "quests",
+      "value": 1,
+      "why": "control: the quest was added (compare with map_no_quest in the log)"
+    },
+    {
+      "save": true
+    },
+    {
+      "reload": true
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "map_quest",
+      "keys": [
+        "active_map",
+        "quests"
+      ]
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "vanilla",
+      "keys": [
+        "active_map",
+        "quests"
+      ],
+      "why": "map quest not in the village"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "map_quest",
+      "keys": [
+        "active_map",
+        "quests"
+      ]
+    }
+  ]
+}
