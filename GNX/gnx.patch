@@ -3538,8 +3538,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 08:26:21.773776000 +0200
-@@ -1,224 +1,15991 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 08:46:00.776858800 +0200
+@@ -1,224 +1,16081 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -13275,6 +13275,51 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    scr_button_type_activate_data();
 +}
 +
++function gnx_scn_prison_free()
++{
++    var _n = 0;
++    
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        if (ds_list_find_value(global.unit_list, i) == -1)
++            _n++;
++    }
++    
++    return _n;
++}
++
++// The checks scr_mouse_action makes before a click on the raid (Go) button reaches its handler (vanilla
++// s_mouse_action, obj_button / Value_41). Returns the refusal popup, or -1 and stores ap_save like a real click.
++function gnx_scn_raid_go_refusal()
++{
++    var _raid = obj_np.obj_raid;
++    
++    if (_raid.raid_data.stage == -1)
++        return 5;
++    
++    if (ds_list_size(global.front_row) == 0 && ds_list_size(global.back_row) == 0)
++        return 1;
++    
++    var _stage_lvl = min(global.val.stage_lvl_sel[_raid.raid_data.stage], 2);
++    var _data = global.val.stage_info[_raid.raid_data.stage].info[_stage_lvl];
++    var _md = scr_calculate_mood_rate();
++    
++    if ((_raid.raid_data.ap[0] * _md.md_rate) < _data.en_ap[0] || (_raid.raid_data.ap[1] * _md.md_rate) < _data.en_ap[1])
++        return 32;
++    
++    for (var i = 0; i < array_length(global.val.cage); i++)
++    {
++        if (global.val.cage[i] != -1)
++            return 2;  // vanilla reports captives over loot
++    }
++    
++    if (ds_list_size(global.raid_inv_list) > 0)
++        return 3;
++    
++    _raid.ap_save = [_raid.raid_data.ap[0] * _md.md_rate, _raid.raid_data.ap[1] * _md.md_rate];
++    return -1;
++}
++
 +function gnx_scn_log(arg0)
 +{
 +    var _f = file_text_open_append("gnx_scenario.txt");
@@ -13325,6 +13370,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        idx: 0,
 +        wait: 0,
 +        awaiting: false,
++        prog_last: 0,
 +        until_left: -1,
 +        pass: 0,
 +        fail: 0,
@@ -13796,7 +13842,20 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            if (variable_struct_exists(arg0, "cage_min"))
 +                _r_ok = _r_ok && (_cage_n >= arg0.cage_min);
 +
-+            scr_gnx_scn_check("raid", _r_ok, "state=" + string(_rd.raid_state) + " troops=" + string(_troops) + " stage=" + string(_rd.stage) + " cage=" + string(_cage_n) + " loot=" + string(ds_list_size(global.raid_inv_list)));
++            var _cage_cls = "";
++            
++            for (var _ci = 0; _ci < array_length(global.val.cage); _ci++)
++            {
++                if (global.val.cage[_ci] != -1)
++                    _cage_cls += string(global.val.cage[_ci].class) + " ";
++            }
++            
++            var _stg = "";
++            
++            for (var _si = 0; _si < array_length(global.val.stage_info); _si++)
++                _stg += ((global.val.stage_info[_si] == -1) ? "-" : string(global.val.stage_info[_si].max_lvl)) + "/" + string(global.val.stage_lvl_sel[_si]) + " ";
++            
++            scr_gnx_scn_check("raid", _r_ok, "state=" + string(_rd.raid_state) + " troops=" + string(_troops) + " stage=" + string(_rd.stage) + " cage=" + string(_cage_n) + " loot=" + string(ds_list_size(global.raid_inv_list)) + " cage_classes=[" + _cage_cls + "] prison_free=" + string(gnx_scn_prison_free()) + " stages(max/sel)=[" + _stg + "]");
 +            break;
 +
 +        case "selector":
@@ -14032,6 +14091,14 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    {
 +        var _st = _s.steps[_s.idx];
 +        _s.idx++;
++        
++        if (_s.idx > _s.prog_last)  // progress for the harness's live display (steps that hold re-run their index)
++        {
++            _s.prog_last = _s.idx;
++            var _pf = file_text_open_write("gnx_scn_progress.txt");
++            file_text_write_string(_pf, string(_s.idx) + "/" + string(array_length(_s.steps)));
++            file_text_close(_pf);
++        }
 +
 +        if (variable_struct_exists(_st, "wait"))
 +        {
@@ -14236,7 +14303,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +
 +            with (obj_button)
 +            {
-+                if (interact_type == 43 && button_num == _st.raid_stage)
++                if (interact_type == 43 && button_num == _st.raid_stage && obj_np.obj_raid.raid_data.stage != _st.raid_stage)
 +                {
 +                    trigger = true;
 +                    _rs_hit++;
@@ -14350,22 +14417,43 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +
 +            gnx_scn_log("press type=" + string(_pp.type) + " num=" + string(_pp_num) + " found=" + string(_pp_hit));
 +        }
++        else if (variable_struct_exists(_st, "free_prison"))
++        {
++            // {"free_prison": n}: harness-only: drop prisoners from the prison list until n slots are free
++            // (collecting captives needs one free slot each, and the rich fixtures have a full prison)
++            for (var _fi = ds_list_size(global.unit_list) - 1; _fi >= 0 && gnx_scn_prison_free() < _st.free_prison; _fi--)
++            {
++                if (ds_list_find_value(global.unit_list, _fi) != -1)
++                    ds_list_set(global.unit_list, _fi, -1);
++            }
++            
++            scr_reset_unit_window(-1);
++            gnx_scn_log("free_prison free=" + string(gnx_scn_prison_free()));
++        }
 +        else if (variable_struct_exists(_st, "raid_go"))
 +        {
-+            // {"raid_go": true}: the world map's raid (Go) button
-+            var _rg = 0;
-+
-+            with (obj_button)
++            // {"raid_go": true}: the world map's raid (Go) button, with the checks the mouse handler makes before
++            // the click (gnx_scn_raid_go_refusal). {"raid_go": {"expect_refused": popup}}: Go must be refused
++            // with that popup (5 no stage, 1 empty formation, 32 too weak, 3 loot left, 2 captives left).
++            var _rg_why = gnx_scn_raid_go_refusal();
++            var _rg_want = is_struct(_st.raid_go) && variable_struct_exists(_st.raid_go, "expect_refused") ? _st.raid_go.expect_refused : -1;
++            
++            if (_rg_want != -1 || _rg_why != -1)
++                scr_gnx_scn_check("raid_go", _rg_why == _rg_want, "refusal popup " + string(_rg_why) + " want " + string(_rg_want));
++            
++            if (_rg_why == -1)
 +            {
-+                if (interact_type == 41)
++                with (obj_button)
 +                {
-+                    _rg++;
-+                    gnx_scn_click();
-+                    break;
++                    if (interact_type == 41)
++                    {
++                        gnx_scn_click();
++                        break;
++                    }
 +                }
 +            }
-+
-+            gnx_scn_log("raid_go found=" + string(_rg) + " stage=" + string(obj_np.obj_raid.raid_data.stage) + " state=" + string(obj_np.obj_raid.raid_data.raid_state));
++            
++            gnx_scn_log("raid_go stage=" + string(obj_np.obj_raid.raid_data.stage) + " state=" + string(obj_np.obj_raid.raid_data.raid_state));
 +        }
 +        else if (variable_struct_exists(_st, "raid_finish"))
 +        {
@@ -14375,9 +14463,11 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            var _rr = obj_np.obj_raid;
 +            var _rstate = _rr.raid_data.raid_state;
 +
-+            if (_rstate == 0)
++            var _until = variable_struct_exists(_st, "until_state") ? _st.until_state : 0;
++            
++            if (_rstate == _until)
 +            {
-+                gnx_scn_log("raid_finish: back home");
++                gnx_scn_log("raid_finish: reached state " + string(_until));
 +                _s.until_left = -1;
 +                continue;
 +            }

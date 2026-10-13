@@ -14,10 +14,18 @@ Every run after that:
     python tools/gnx_test.py --mods GNX/example_mod,E:/other_mod
     python tools/gnx_test.py --keep-open      # leave game running after tests
     python tools/gnx_test.py --scenario save_roundtrip   # boot + one scenario
-    python tools/gnx_test.py --all            # boot tests + every scenario
+    python tools/gnx_test.py --all            # boot tests + every scenario (parallel, ~100 s)
+    python tools/gnx_test.py --all --quick    # skip scenarios marked "slow": true (~65 s)
+    python tools/gnx_test.py --all -j 2       # games at once (default: half the CPUs, max 4)
+
+Runs go to worker copies in <game-dir>/workers/wNN whose data.win carries the game name gnx_hrn_wNN, so
+each saves to its own %LOCALAPPDATA%/gnx_hrn_wNN folder: games run side by side, the player's goblin_nest
+folder is never used (except by --keep-open), and the real game can stay open meanwhile. A progress
+window (tools/gnx_progress_window.py) stays on top for the whole run; --no-window / --no-progress.
+Run times are kept in <game-dir>/durations.json to schedule the longest runs first.
 
 Scenarios (tools/scenarios/*.json) are played in-game by scr_gnx_scn_step. They use
-save slot 9 (gnx_harness_save.json); player saves are never read or written. A
+save slots 9 / 8 in the worker's own save folder; player saves are never read or written. A
 scenario with "fixture": "NAME" starts from harness_game/fixtures/NAME.json:
     python tools/gnx_test.py --capture-fixture 2 nest   # copies save_file_2.json
 
@@ -41,11 +49,7 @@ GNX_SRC = REPO / "GNX"
 DEFAULT_GAME_DIR = REPO / "harness_game"
 DEFAULT_UTMT = REPO / "UTMT_CLI_v0.9.2.0-Windows" / "UndertaleModCli.exe"
 DEFAULT_MODS = [GNX_SRC / "example_mod"]
-SAVE_DIR = Path(os.environ.get("LOCALAPPDATA", "")) / "goblin_nest"
-LOG = SAVE_DIR / "gnx_debug.txt"
-SCN_LOG = SAVE_DIR / "gnx_scenario.txt"
-HARNESS_SAVE = SAVE_DIR / "gnx_harness_save.json"
-HARNESS_SAVE_B = SAVE_DIR / "gnx_harness_save_b.json"  # slot 8, always starts empty
+SAVE_DIR = Path(os.environ.get("LOCALAPPDATA", "")) / "goblin_nest"  # the player's saves (and --keep-open runs)
 SCENARIOS = REPO / "tools" / "scenarios"
 SAVE_SLOTS = {"a": "save_file_a.json", "1": "save_file_1.json", "2": "save_file_2.json", "3": "save_file_3.json"}
 EXE = "GoblinNest.exe"
@@ -53,6 +57,185 @@ VANILLA = "data.vanilla.win"
 STAMP = ".harness_stamp"
 
 EXIT_PASS, EXIT_FAIL, EXIT_PATCH, EXIT_PREFLIGHT, EXIT_TIMEOUT = 0, 1, 2, 3, 4
+
+
+class Box:
+    """One game copy plus the save folder it writes to. Workers run renamed copies of data.win (the game name
+    in GEN8 picks the save folder), so several games can run at once without sharing logs or saves, and
+    without ever touching the player's goblin_nest folder. `out` is where logs, screenshots and fixtures go."""
+
+    def __init__(self, out, run_dir, save_dir, wid=0):
+        self.out, self.run_dir, self.save_dir, self.wid = out, run_dir, save_dir, wid
+        self.log = save_dir / "gnx_debug.txt"
+        self.scn_log = save_dir / "gnx_scenario.txt"
+        self.harness_save = save_dir / "gnx_harness_save.json"
+        self.harness_save_b = save_dir / "gnx_harness_save_b.json"  # slot 8, always starts empty
+        self.scn_progress = save_dir / "gnx_scn_progress.txt"  # "step/total", written by scr_gnx_scn_step
+
+
+def make_workers(game_dir, n):
+    """Worker game copies in <game_dir>/workers/wNN, each with data.win renamed to gnx_hrn_wNN (same length
+    as goblin_nest, patched in place) so it saves to %LOCALAPPDATA%/gnx_hrn_wNN. Refreshed when data.win changes."""
+    src = game_dir / "data.win"
+    sig = f"{src.stat().st_size}:{src.stat().st_mtime_ns}"
+    data = None
+    boxes = []
+    for i in range(1, n + 1):
+        name = f"gnx_hrn_w{i:02d}"
+        wd = game_dir / "workers" / f"w{i:02d}"
+        wd.mkdir(parents=True, exist_ok=True)
+        for f in (EXE, "options.ini"):
+            if (game_dir / f).is_file() and not (wd / f).is_file():
+                shutil.copy2(game_dir / f, wd / f)
+        stamp = wd / ".data_sig"
+        if not stamp.is_file() or stamp.read_text() != sig or not (wd / "data.win").is_file():
+            if data is None:
+                data = bytearray(src.read_bytes())
+                gen8 = data.find(b"GEN8")
+                off = int.from_bytes(data[gen8 + 12:gen8 + 16], "little")  # GEN8 FileName (also the game name)
+                if data[off:off + 11] != b"goblin_nest":
+                    raise HarnessError(EXIT_PREFLIGHT, f"data.win game name is {bytes(data[off:off + 11])!r}, "
+                                                       "expected goblin_nest: cannot make isolated workers")
+            data[off:off + 11] = name.encode()
+            (wd / "data.win").write_bytes(data)
+            stamp.write_text(sig)
+        save_dir = SAVE_DIR.parent / name
+        save_dir.mkdir(exist_ok=True)
+        boxes.append(Box(game_dir, wd, save_dir, i))
+    return boxes
+
+
+def fmt_left(s):
+    return f"~{int(s // 60)}:{int(s % 60):02d} left"
+
+
+class Progress:
+    """Live progress: a window (tools/gnx_progress_window.py, always on top, for the whole run) and, in a
+    terminal, one status line on stderr. Shows runs done/N with ETA, what each worker is doing (boot self-test,
+    dispatch check, scenario steps) and every finished run's verdict. Thread-safe (one thread per worker)."""
+
+    def __init__(self, line=False, window=False):
+        import threading
+        self.lock = threading.Lock()
+        self.line, self.window = line, window
+        self.on = line or window
+        self.uni = line and "utf" in (getattr(sys.stderr, "encoding", "") or "").lower()
+        self.n, self.workers, self.results = 0, 1, []
+        self.active = {}  # wid -> [name, what, frac, t_start, estimate]
+        self.pending_est = 0.0
+        self.headline = ""
+        self.state = Path(tempfile.gettempdir()) / f"gnx_harness_progress_{os.getpid()}.json"
+        if window:
+            pyw = Path(sys.executable).with_name("pythonw.exe")
+            try:
+                subprocess.Popen([str(pyw if pyw.is_file() else sys.executable),
+                                  str(Path(__file__).with_name("gnx_progress_window.py")),
+                                  str(self.state), str(os.getpid())])
+            except OSError:
+                self.window = False
+
+    def plan(self, n, workers, pending_est):
+        with self.lock:
+            self.n, self.workers, self.pending_est = n, workers, pending_est
+            self._show()
+
+    def start(self, wid, name, est):
+        with self.lock:
+            self.pending_est = max(0.0, self.pending_est - est)
+            self.active[wid] = [name or "boot tests", "starting", 0.0, time.time(), est]
+            self._show()
+
+    def result(self, wid, name, verdict, detail=""):
+        with self.lock:
+            self.active.pop(wid, None)
+            self.results.append([name or "boot tests", verdict, detail])
+            self._show()
+
+    def finish(self):
+        with self.lock:
+            self.active.clear()
+            self._clear()
+            self._write(finished=True)
+
+    def bar(self, frac, width):
+        full, empty = ("█", "░") if self.uni else ("#", "-")
+        filled = int(round(max(0.0, min(1.0, frac)) * width))
+        return full * filled + empty * (width - filled)
+
+    def tick(self, wid, box, log_text, scn_text):
+        if not self.on:
+            return
+        selftest = len(re.findall(r"^\[GNX-TEST\] (?:PASS|FAIL|SKIP)  T", log_text, re.M))
+        droute = len(re.findall(r"DROUTE", log_text))
+        bad = len(re.findall(r"^\[GNX-(?:TEST|SCN)\] FAIL", log_text + "\n" + scn_text, re.M))
+        what, frac = "booting the game", 0.05
+        if selftest:
+            what, frac = f"self-test {selftest}", 0.3
+        if droute:
+            what, frac = f"self-test {selftest}, dispatch {droute}", 0.6
+        try:
+            step, total = (int(x) for x in box.scn_progress.read_text().split("/"))
+        except (OSError, ValueError):
+            step = total = 0
+        if total:
+            ok = len(re.findall(r"^\[GNX-SCN\] PASS", scn_text, re.M))
+            what, frac = f"step {step}/{total}, {ok} ok", step / total
+        if bad:
+            what += f", {bad} FAIL"
+        with self.lock:
+            if wid in self.active:
+                self.active[wid][1:3] = [what, frac]
+            self._show()
+
+    def _eta(self, now):
+        if not self.n:
+            return ""
+        running = sum(max(0.0, a[4] - (now - a[3])) for a in self.active.values())
+        return fmt_left((self.pending_est + running) / max(1, self.workers)) if self.pending_est + running > 0 else ""
+
+    def _show(self):
+        now = time.time()
+        if self.window:
+            self._write()
+        if self.line:
+            done = len(self.results)
+            act = "  ".join(f"{a[0]} {self.bar(a[2], 6)}" for a in self.active.values())
+            line = f"[{done}/{self.n}] {self.bar(done / max(1, self.n), 16)} {act}  {self._eta(now)}"
+            width = shutil.get_terminal_size((100, 20)).columns - 1
+            sys.stderr.write("\r" + line[:width].ljust(width))
+            sys.stderr.flush()
+
+    def _write(self, finished=False):
+        if not self.window:
+            return
+        now = time.time()
+        act = [[a[0], f"{a[1]}  ({now - a[3]:.0f}s)", a[2]] for _, a in sorted(self.active.items())]
+        tmp = self.state.with_suffix(".tmp")
+        try:
+            tmp.write_text(json.dumps({"n": self.n, "workers": self.workers, "headline": self.headline,
+                                       "active": act, "eta": self._eta(now), "results": self.results,
+                                       "finished": finished}), encoding="utf-8")
+            os.replace(tmp, self.state)
+        except OSError:
+            pass
+
+    def note(self, headline):
+        with self.lock:
+            self.headline = headline
+            self._show()
+
+    def _clear(self):
+        if self.line:
+            width = shutil.get_terminal_size((100, 20)).columns - 1
+            sys.stderr.write("\r" + " " * width + "\r")
+            sys.stderr.flush()
+
+    def clear(self):
+        with self.lock:
+            self._clear()
+
+
+PROGRESS = Progress(False)
 
 
 class HarnessError(Exception):
@@ -267,31 +450,36 @@ def game_dialog(pid):
     return found[0] if found else None  # (title, text, hwnd)
 
 
-def boot(game_dir, timeout, keep_open, scenario=None, expect_dialog=None):
+def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
     """Launch once. Plain boot: -gnx-autotest, game exits after the boot tests.
     Scenario: -gnx-scenario NAME, game exits when the scenario writes DONE."""
-    LOG.unlink(missing_ok=True)  # the game truncates it at boot anyway; this makes stale logs impossible
-    SCN_LOG.unlink(missing_ok=True)
-    for f in SAVE_DIR.glob("gnx_shot_*.png"):
+    box.log.unlink(missing_ok=True)  # the game truncates it at boot anyway; this makes stale logs impossible
+    box.scn_log.unlink(missing_ok=True)
+    box.scn_progress.unlink(missing_ok=True)
+    for f in box.save_dir.glob("gnx_shot_*.png"):
         f.unlink()
     si = subprocess.STARTUPINFO()
     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     si.wShowWindow = 7  # SW_SHOWMINNOACTIVE: don't steal focus
     # -gnx-autotest / -gnx-scenario are read in scr_create_initials (s_initials.gml)
-    args = [str(game_dir / EXE)]
+    args = [str(box.run_dir / EXE)]
     if scenario:
         args += ["-gnx-scenario", scenario]
     elif not keep_open:
         args += ["-gnx-autotest"]
-    proc = subprocess.Popen(args, cwd=game_dir, startupinfo=si)
+    proc = subprocess.Popen(args, cwd=box.run_dir, startupinfo=si)
     t0 = time.time()
     r, crash, done_at = parse_log(""), None, None
     dismissed, seen_dialogs = [], set()
     try:
         while time.time() - t0 < timeout:
             time.sleep(0.25)
-            if LOG.is_file():
-                r = parse_log(LOG.read_text(encoding="utf-8", errors="replace"))
+            log_text = box.log.read_text(encoding="utf-8", errors="replace") if box.log.is_file() else ""
+            if log_text:
+                r = parse_log(log_text)
+            if PROGRESS.on:
+                PROGRESS.tick(box.wid, box, log_text,
+                              box.scn_log.read_text(encoding="utf-8", errors="replace") if box.scn_log.is_file() else "")
             if proc.poll() is not None:
                 break
             if r["done"] and not scenario:
@@ -324,21 +512,23 @@ def boot(game_dir, timeout, keep_open, scenario=None, expect_dialog=None):
                 proc.wait(5)
             except subprocess.TimeoutExpired:
                 proc.kill()
-    text = LOG.read_text(encoding="utf-8", errors="replace") if LOG.is_file() else ""
+    text = box.log.read_text(encoding="utf-8", errors="replace") if box.log.is_file() else ""
     boot_s, exit_code = r["boot_s"], r["exit_code"]
     r = parse_log(text)  # final read: the game may have written its last lines right before exiting
     if crash:
         crash = crash[:2]  # hwnd is meaningless after the run (and not JSON)
     r.update(boot_s=boot_s, exit_code=exit_code, crash=crash, dismissed_dialogs=dismissed, kept_open=keep_open,
              tail=text.splitlines()[-40:], scenario=scenario)
-    (game_dir / "last_run.log").write_text(text, encoding="utf-8")
+    game_dir = box.out
+    (game_dir / ("last_run.log" if not scenario else f"last_debug_{scenario}.log")).write_text(text, encoding="utf-8")
     if scenario:
-        stext = SCN_LOG.read_text(encoding="utf-8", errors="replace") if SCN_LOG.is_file() else ""
+        stext = box.scn_log.read_text(encoding="utf-8", errors="replace") if box.scn_log.is_file() else ""
         r["scn"] = parse_scn(stext)
         (game_dir / f"last_scenario_{scenario}.log").write_text(stext, encoding="utf-8")
-        shots = sorted(SAVE_DIR.glob("gnx_shot_*.png"))
+        shots = sorted(box.save_dir.glob("gnx_shot_*.png"))
         if shots:  # screenshots taken by the scenario's "screenshot" steps
             out = game_dir / "screens" / scenario
+            shutil.rmtree(out, ignore_errors=True)
             out.mkdir(parents=True, exist_ok=True)
             for f in shots:
                 shutil.move(str(f), out / f.name[len("gnx_shot_"):])
@@ -350,6 +540,7 @@ def boot(game_dir, timeout, keep_open, scenario=None, expect_dialog=None):
 
 
 def report(r, code):
+    PROGRESS.clear()
     scn = r.get("scn")
     if scn is not None:
         state = "PASS" if code == EXIT_PASS else "FAIL" if scn["done"] else "INCOMPLETE"
@@ -478,11 +669,14 @@ def load_scenario(name):
     return sc
 
 
-def prepare_scenario(game_dir, sc):
+def prepare_scenario(box, sc):
     """Seed save slot 9 from the scenario's fixture, or clear it for a fresh game."""
+    for m in sc.get("mods", []):  # local-only mods (harness_game/test_mods) may be absent: SKIP under --all
+        if not (REPO / m / "manifest.json").is_file():
+            raise HarnessError(EXIT_PREFLIGHT, f"mod '{m}' missing")
     fx = sc.get("fixture")
     if fx:
-        src = game_dir / "fixtures" / f"{fx}.json"
+        src = box.out / "fixtures" / f"{fx}.json"
         if not src.is_file():
             raise HarnessError(EXIT_PREFLIGHT, f"fixture '{fx}' missing ({src}); "
                                                f"create it with --capture-fixture <slot> {fx}")
@@ -491,12 +685,28 @@ def prepare_scenario(game_dir, sc):
             data = json.loads(src.read_text(encoding="utf-8-sig"))
             data["gnx_active_map"] = sc["fixture_on_map"]
             data["gnx_maps"] = {"vanilla": "fresh"}
-            HARNESS_SAVE.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+            box.harness_save.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
         else:
-            shutil.copy2(src, HARNESS_SAVE)
+            shutil.copy2(src, box.harness_save)
     else:
-        HARNESS_SAVE.unlink(missing_ok=True)
-    HARNESS_SAVE_B.unlink(missing_ok=True)
+        box.harness_save.unlink(missing_ok=True)
+    box.harness_save_b.unlink(missing_ok=True)
+
+
+def plan_jobs(runs, scns):
+    """Group runs into jobs for the worker pool. A scenario whose fixture another scenario produces
+    ("save_fixture_as") must run after it on the same worker: such chains become one job, in run order."""
+    producer = {scns[n]["save_fixture_as"]: n for n in runs if n and scns[n].get("save_fixture_as")}
+    job_of, jobs = {}, []
+    for n in runs:
+        dep = producer.get(scns[n].get("fixture")) if n else None
+        if dep is not None and dep in job_of:  # (None is the boot run, never a producer)
+            job_of[n] = job_of[dep]
+            job_of[n].append(n)
+        else:
+            job_of[n] = [n]
+            jobs.append(job_of[n])
+    return jobs
 
 
 def main(argv=None):
@@ -510,8 +720,13 @@ def main(argv=None):
     ap.add_argument("--timeout", type=float, default=60)
     ap.add_argument("--keep-open", action="store_true", help="leave the game running after the tests")
     ap.add_argument("--json", action="store_true", help="print the result as JSON")
+    ap.add_argument("--no-progress", action="store_true", help="no progress window and no progress line")
+    ap.add_argument("--no-window", action="store_true", help="no progress window (the terminal line still shows)")
     ap.add_argument("--scenario", help="comma-separated scenario names from tools/scenarios/")
     ap.add_argument("--all", action="store_true", help="boot tests, then every scenario")
+    ap.add_argument("-j", "--jobs", type=int, default=max(1, min(4, (os.cpu_count() or 2) // 2)),
+                    help="games run at once, each in its own copy and save folder (default: half the CPUs, max 4)")
+    ap.add_argument("--quick", action="store_true", help="skip scenarios marked \"slow\": true")
     ap.add_argument("--capture-fixture", nargs=2, metavar=("SLOT", "NAME"),
                     help="copy save slot (a/1/2/3) or a save-folder file name to "
                          "harness_game/fixtures/NAME.json, then exit")
@@ -526,7 +741,7 @@ def main(argv=None):
         if a.capture_fixture:
             capture_fixture(game_dir, *a.capture_fixture, strip=a.strip_mods)
             return EXIT_PASS
-        if game_running():
+        if a.keep_open and game_running():  # only --keep-open uses the normal save folder; workers are isolated
             raise HarnessError(EXIT_PREFLIGHT, f"{EXE} is already running; close it first "
                                                "(it shares the debug log and saves)")
         for p in (game_dir / EXE, game_dir / VANILLA):
@@ -535,6 +750,10 @@ def main(argv=None):
         accepted = accepted_versions()
         mods = [Path(m.strip()) for m in a.mods.split(",")] if a.mods else DEFAULT_MODS
 
+        global PROGRESS
+        PROGRESS = Progress(line=sys.stderr.isatty() and not a.json and not a.no_progress,
+                            window=not a.json and not a.no_progress and not a.no_window)
+        PROGRESS.note("checking / patching data.win")
         if not a.no_patch:
             if not a.utmt.is_file():
                 raise HarnessError(EXIT_PREFLIGHT, f"UTMT CLI not found: {a.utmt}")
@@ -557,57 +776,128 @@ def main(argv=None):
         else:
             runs = [None]
         scns = {name: load_scenario(name) for name in runs if name}  # validate all before launching
-        if scns:
-            dest = game_dir / "GNX_scenarios"
-            if dest.exists():
-                shutil.rmtree(dest)
-            shutil.copytree(SCENARIOS, dest)
-
-        worst, results = EXIT_PASS, []
-        guard = guard_player_saves(game_dir)
+        if a.quick:
+            slow = [n for n in runs if n and scns[n].get("slow")]
+            runs = [n for n in runs if n not in slow]
+            if slow:
+                print(f"--quick: skipping {len(slow)} slow scenario(s): {', '.join(slow)}", file=sys.stderr)
+        jobs = plan_jobs(runs, scns)
+        durations_file = game_dir / "durations.json"
         try:
-            for name in runs:
-                sc = scns.get(name, {})
-                if name:
-                    try:
-                        prepare_scenario(game_dir, sc)
-                    except HarnessError as e:
-                        if not a.all:
-                            raise
+            known = json.loads(durations_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            known = {}
+        est = lambda n: known.get(n or "boot", 6.0)
+        jobs.sort(key=lambda j: -sum(est(n) for n in j))  # longest first: the pool finishes together
+
+        if a.keep_open:
+            boxes = [Box(game_dir, game_dir, SAVE_DIR)]  # a game left open for you uses your normal folders
+        else:
+            boxes = make_workers(game_dir, max(1, min(a.jobs, len(jobs))))
+        if scns:
+            for b in boxes:
+                dest = b.run_dir / "GNX_scenarios"
+                if dest.exists():
+                    shutil.rmtree(dest)
+                shutil.copytree(SCENARIOS, dest)
+        PROGRESS.plan(len(runs), len(boxes), sum(est(n) for n in runs))
+        PROGRESS.note(f"{len(runs)} runs on {len(boxes)} worker(s)")
+
+        import queue
+        import threading
+        todo = queue.Queue()
+        for j in jobs:
+            todo.put(j)
+        out_lock = threading.Lock()
+        results, failure = {}, []
+
+        def run_one(box, name):
+            sc = scns.get(name, {})
+            PROGRESS.start(box.wid, name, est(name))
+            if name:
+                try:
+                    prepare_scenario(box, sc)
+                except HarnessError as e:
+                    if not a.all:
+                        raise
+                    PROGRESS.result(box.wid, name, "SKIP", str(e)[:60])
+                    with out_lock:
+                        PROGRESS.clear()
                         print(f"SCENARIO {name}: SKIP  {e}")  # --all: a missing fixture is not a failure
-                        continue
-                run_mods = [REPO / m for m in sc["mods"]] if "mods" in sc else mods
-                deploy_mods(game_dir, run_mods, accepted)
-                r = boot(game_dir, sc.get("timeout", a.timeout), a.keep_open and not name, name, sc.get("expect_dialog"))
-                if sc.get("expect_dialog") and not r["dismissed_dialogs"] and r.get("scn"):
-                    # the scenario relies on that popup appearing: missing it is a failure
-                    r["scn"]["fails"].append("FAIL  expected dialog containing '" + sc["expect_dialog"] + "' never appeared")
-                if sc.get("expect_dialog"):  # the expected problem is also logged as a mod error
-                    r["mod_errors"] = [m for m in r["mod_errors"] if sc["expect_dialog"] not in m]
-                if len(r["dismissed_dialogs"]) > 1 and r.get("scn"):
-                    r["scn"]["fails"].append(f"FAIL  expected dialog appeared {len(r['dismissed_dialogs'])} times (should show once per session)")
-                r["suite_ignored"] = sc.get("check_boot_suite", True) is False
-                if sc.get("save_fixture_as") and HARNESS_SAVE.is_file():
-                    # setup scenarios hand their slot-9 save to later scenarios as a fixture
-                    (game_dir / "fixtures").mkdir(exist_ok=True)
-                    shutil.copy2(HARNESS_SAVE, game_dir / "fixtures" / f"{sc['save_fixture_as']}.json")
-                code = verdict(r)
-                worst = max(worst, code)  # 4 timeout/crash > 1 fail > 0 pass
-                results.append({k: v for k, v in r.items() if k != "tail"} | {"verdict": code})
+                    return
+            run_mods = [REPO / m for m in sc["mods"]] if "mods" in sc else mods
+            deploy_mods(box.run_dir, run_mods, accepted)
+            r = boot(box, sc.get("timeout", a.timeout), a.keep_open and not name, name, sc.get("expect_dialog"))
+            if sc.get("expect_dialog") and not r["dismissed_dialogs"] and r.get("scn"):
+                # the scenario relies on that popup appearing: missing it is a failure
+                r["scn"]["fails"].append("FAIL  expected dialog containing '" + sc["expect_dialog"] + "' never appeared")
+            if sc.get("expect_dialog"):  # the expected problem is also logged as a mod error
+                r["mod_errors"] = [m for m in r["mod_errors"] if sc["expect_dialog"] not in m]
+            if len(r["dismissed_dialogs"]) > 1 and r.get("scn"):
+                r["scn"]["fails"].append(f"FAIL  expected dialog appeared {len(r['dismissed_dialogs'])} times (should show once per session)")
+            r["suite_ignored"] = sc.get("check_boot_suite", True) is False
+            if sc.get("save_fixture_as") and box.harness_save.is_file():
+                # setup scenarios hand their slot-9 save to later scenarios as a fixture
+                (game_dir / "fixtures").mkdir(exist_ok=True)
+                shutil.copy2(box.harness_save, game_dir / "fixtures" / f"{sc['save_fixture_as']}.json")
+            code = verdict(r)
+            if r.get("scn") is not None:
+                state = "PASS" if code == EXIT_PASS else "FAIL" if r["scn"]["done"] else "INCOMPLETE"
+                PROGRESS.result(box.wid, name, state, f"{r['scn']['pass']}/{r['scn']['total']}  {r['boot_s']}s")
+            else:
+                PROGRESS.result(box.wid, name, "PASS" if code == EXIT_PASS else "FAIL",
+                                f"suite {r.get('suite_pass')}/{r.get('suite_total')}  {r['boot_s']}s")
+            if code in (EXIT_PASS, EXIT_FAIL) and r.get("boot_s"):
+                known[name or "boot"] = r["boot_s"]
+            with out_lock:
+                results[name] = {k: v for k, v in r.items() if k != "tail"} | {"verdict": code}
                 if not a.json:
                     report(r, code)
-                touched = restore_player_saves(guard)
-                if touched:
-                    raise HarnessError(EXIT_FAIL, f"run '{name or 'boot'}' modified player save(s) {touched}; "
-                                                  "restored from the pre-run copy. Harness must only use slots 8/9.")
+
+        def worker(box):
+            while not failure:
+                try:
+                    job = todo.get_nowait()
+                except queue.Empty:
+                    return
+                for name in job:  # a fixture chain runs in order on one worker
+                    try:
+                        run_one(box, name)
+                    except HarnessError as e:
+                        failure.append(e)
+                        return
+                    except Exception as e:  # keep the other workers' results; report this one
+                        failure.append(HarnessError(EXIT_TIMEOUT, f"run '{name or 'boot'}': {type(e).__name__}: {e}"))
+                        return
+
+        guard = guard_player_saves(game_dir)
+        try:
+            threads = [threading.Thread(target=worker, args=(b,), daemon=True) for b in boxes]
+            for t in threads:
+                t.start()
+            for t in threads:
+                while t.is_alive():
+                    t.join(0.5)  # short joins keep Ctrl+C working
         finally:
-            HARNESS_SAVE.unlink(missing_ok=True)
-            HARNESS_SAVE_B.unlink(missing_ok=True)
-            touched = restore_player_saves(guard)  # also after a crash or Ctrl+C mid-run
+            PROGRESS.finish()
+            for b in boxes:
+                if b.save_dir != SAVE_DIR:
+                    b.harness_save.unlink(missing_ok=True)
+                    b.harness_save_b.unlink(missing_ok=True)
+            touched = restore_player_saves(guard)  # workers never write there; checked anyway
             if touched:
                 print(f"ERROR: player save(s) {touched} were modified and have been restored", file=sys.stderr)
+                failure.append(HarnessError(EXIT_FAIL, f"player save(s) {touched} modified (restored)"))
+            try:
+                durations_file.write_text(json.dumps(known, indent=0, sort_keys=True), encoding="utf-8")
+            except OSError:
+                pass
+        if failure:
+            raise failure[0]
+        ordered = [results[n] for n in runs if n in results]
+        worst = max([r["verdict"] for r in ordered] or [EXIT_PASS])  # 4 timeout/crash > 1 fail > 0 pass
         if a.json:
-            print(json.dumps(results if len(results) != 1 else results[0], indent=1))
+            print(json.dumps(ordered if len(ordered) != 1 else ordered[0], indent=1))
         return worst
     except HarnessError as e:
         print(f"ERROR: {e}", file=sys.stderr)

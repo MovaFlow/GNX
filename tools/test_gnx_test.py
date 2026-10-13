@@ -83,3 +83,27 @@ with tempfile.TemporaryDirectory() as tmp:
     assert gnx_test.restore_player_saves(g) == []
 
 print("ok")
+
+# live progress line: bar fill, and one rendered line (forced on; normally terminal-only)
+import io, sys as _sys
+from pathlib import Path as _P
+from gnx_test import Progress, Box, plan_jobs
+p = Progress(line=True)
+p.uni = False
+assert p.bar(0.5, 4) == "##--" and p.bar(2, 3) == "###" and p.bar(-1, 2) == "--"
+_err, _sys.stderr = _sys.stderr, io.StringIO()
+try:
+    p.plan(10, 2, 60.0)
+    p.start(1, "raid_all_stages", 9.0)
+    p.tick(1, Box(_P("."), _P("."), _P("no_such_dir")), "[GNX-TEST] PASS  T01 x" + chr(10), "[GNX-SCN] PASS  a" + chr(10) + "[GNX-SCN] FAIL  b" + chr(10))
+    p.result(1, "raid_all_stages", "FAIL", "1/2")
+    line = _sys.stderr.getvalue()
+finally:
+    _sys.stderr = _err
+assert "[0/10]" in line and "raid_all_stages" in line and "[1/10]" in line, line
+assert p.results == [["raid_all_stages", "FAIL", "1/2"]]
+
+# job planning: a fixture chain (save_fixture_as -> fixture) stays one job, in order
+sc = {"a": {"save_fixture_as": "fx"}, "b": {"fixture": "fx", "save_fixture_as": "fx2"}, "c": {"fixture": "fx2"},
+      "d": {"fixture": "nest"}}
+assert plan_jobs([None, "a", "b", "c", "d"], sc) == [[None], ["a", "b", "c"], ["d"]]
