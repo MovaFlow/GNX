@@ -2132,8 +2132,6 @@ Add three fields to `manifest.json`:
   "map": "outpost_mod",
   "map_button": {
     "label": "Outpost",
-    "x": 210,
-    "y": 55,
     "map_sprite": "map_gray.png",
     "return_label": "Village",
     "unlock": {"type": "stage_cleared", "stage": 1, "min_level": 2}
@@ -2160,18 +2158,17 @@ sounds, and props are only loaded when the player travels to that map.
 
 #### `map_button`
 
-Controls the travel button shown on the vanilla map.
+How the map appears in the travel menu (the round map button in the top-left corner of the
+raid panel's world map, on every map; it lists every other map the player can reach).
 
 | Field | Required | Notes |
 |-------|----------|-------|
-| `label` | no | Button text (e.g. "Outpost"). Default: the `map` identifier |
-| `x` | no | X position on the raid panel's world map (default 210). Keep it at about 205 or more: further left, the label starts under the panel's left edge |
-| `y` | no | Y position on the raid panel's world map (default 70) |
-| `map_sprite` | no | PNG in the mod's `sprites/` folder used as the map background. Loaded via `sprite_add` at boot |
-| `return_label` | no | Label for the return-to-vanilla button shown on the mod map (default: "Return") |
+| `label` | no | The map's name in the travel menu and on the load page (e.g. "Outpost"). Default: the `map` identifier |
+| `map_sprite` | no | PNG in the mod's `sprites/` folder, drawn as the raid panel's world map while the player is on this map (133x91). Loaded via `sprite_add` at boot |
+| `return_label` | no | The village's name in the travel menu while on this map (default: "Return") |
+| `x`, `y` | no | Ignored since GNX 1.4.8 (they placed a per-map button on the world map; the travel menu replaced it) |
 | `unlock` | no | A condition, or an array of conditions (all must hold), in the quest condition format (`gold_gte`, `stage_cleared`, `state_equals`... see `docs/QUESTS_SCHEMA.md`). Until it holds the map is hidden, both from the world map and from the travel menu. The first time it holds, the map unlocks for good: it is saved, shared by every map, and announced with a short notice. `state_*` conditions read this mod's own state |
 
-The travel button uses `gnx_map_button.png` from `GNX_assets/` as its sprite.
 
 #### `map_start`
 
@@ -2188,14 +2185,14 @@ once (first visit); returning to a previously visited map restores the snapshot.
 | `cells` | no | none | Cells built at the start: `{"h_type": N, "slot_type": 0, "floor": F}`. `h_type` must be a number (a cell's name is not resolved here; give your own cells a fixed `h_type`). `floor` from 0 to `floors`; others are skipped |
 
 `python tools/build_mod.py <mod_dir> <game_dir>` checks all of the above before deploying (unknown
-condition types, buttons off screen or under the panel edge, cells on floors that do not exist, a
-missing `map_sprite` file) and deploys the map image from `sprites/`.
+condition types, cells on floors that do not exist, a missing `map_sprite` file) and deploys the
+map image from `sprites/`.
 
 ### How travel works
 
-1. Player picks a destination: the travel button on the raid panel's world map, or
-   the map button in the top-left corner of the world map (on every map), which lists every other map
-   (village included) so any map can be reached from any other. Both open the
+1. Player clicks the map button in the top-left corner of the raid panel's world map
+   (on every map) and picks a destination from the travel menu, which lists every other
+   map (village included), so any map can be reached from any other. This opens the
    pre-travel selector (gold, food and goblins to take along)
 2. The current map's full state is **snapshot** (val, slots, monsters, raid,
    quests, ds_lists) and stored in `global.gnx_inactive_maps`
@@ -2216,8 +2213,8 @@ missing `map_sprite` file) and deploys the map image from `sprites/`.
 
 ### Several map mods
 
-- Different maps: each mod with its own `map` gets its own travel button on the
-  village, its own `map_start`, and its content loads only on its map.
+- Different maps: each mod with its own `map` gets its own entry in the travel menu,
+  its own `map_start`, and its content loads only on its map.
 - Sharing a map: a mod can declare another mod's `map` **without** `map_button` /
   `map_start` to add content (cells, classes…) to that map only.
 - Ownership: the first mod in load order (alphabetical by folder) that declares a

@@ -931,7 +931,7 @@ diff -uN gml_138/gml_GlobalScript_PropertyHolder.gml gml/gml_GlobalScript_Proper
 +}
 diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_button_activate.gml
 --- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-12 16:54:52.501338300 +0200
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-13 10:18:50.941979100 +0200
 @@ -29,6 +29,12 @@
              trigger = false;
              global.click_lock = false;
@@ -1339,33 +1339,20 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          instance_destroy();
                                  }
                              }
-@@ -1673,6 +1871,25 @@
+@@ -1673,6 +1871,12 @@
                      break;
                  
                  case UnknownEnum.Value_45:
-+                    if (global.gnx_multimap_enabled && button_num >= 100)
++                    if (global.gnx_multimap_enabled && button_num == 999)  // the world map's map-selector button
 +                    {
-+                        if (button_num == 999)
-+                        {
-+                            scr_gnx_open_travel_menu();
-+                            break;
-+                        }
-+                        
-+                        var _tl_idx = button_num - 100;
-+                        var _dl = file_text_open_append("gnx_debug.txt");
-+                        file_text_write_string(_dl, "[GNX-MAP] Value_45 travel click: idx=" + string(_tl_idx) + " locs=" + string(array_length(global.gnx_travel_locations)) + "\n");
-+                        file_text_close(_dl);
-+                        
-+                        if (_tl_idx >= 0 && _tl_idx < array_length(global.gnx_travel_locations))
-+                            scr_gnx_create_travel_selector(global.gnx_travel_locations[_tl_idx]);
-+                        
++                        scr_gnx_open_travel_menu();
 +                        break;
 +                    }
 +                    
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
-@@ -1853,6 +2070,7 @@
+@@ -1853,6 +2057,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
                          scr_create_map_buttons();
@@ -1373,7 +1360,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      break;
-@@ -2046,6 +2264,16 @@
+@@ -2046,6 +2251,16 @@
                              break;
                          
                          case 3:
@@ -1390,7 +1377,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              game_end();
                              break;
                      }
-@@ -2056,43 +2284,43 @@
+@@ -2056,43 +2271,43 @@
                      switch (button_num)
                      {
                          case 0:
@@ -1444,7 +1431,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                      }
                      
-@@ -2167,45 +2395,45 @@
+@@ -2167,45 +2382,45 @@
                                  
                                  switch (global.val.language)
                                  {
@@ -1500,7 +1487,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          _text = "Deletar arquivo salvo?";
                                          break;
                                  }
-@@ -2265,48 +2493,48 @@
+@@ -2265,48 +2480,48 @@
                          
                          switch (global.val.language)
                          {
@@ -1559,7 +1546,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  _text = "Sobrescrever arquivo salvo?";
                                  break;
                          }
-@@ -2481,6 +2709,315 @@
+@@ -2481,6 +2696,315 @@
                      
                      scr_reset_unit_window(-1);
                      break;
@@ -3538,8 +3525,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 10:11:43.285635800 +0200
-@@ -1,224 +1,16470 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 10:18:42.912302800 +0200
+@@ -1,224 +1,16425 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -13408,59 +13395,14 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    file_text_close(_log);
 +}
 +
-+function scr_gnx_create_travel_btn()
-+{
-+    fail_shake = false;
-+    hover = false;
-+    gui = true;
-+    act_resize = true;
-+    image_index = 0;
-+    image_speed = 0;
-+    spr_sel = -1;
-+}
-+
-+function scr_gnx_draw_travel_button()
-+{
-+    draw_sprite_ext(sprite_index, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
-+    
-+    if (hover != -1 && hover && !trigger)
-+    {
-+        var _p = 0.35 + (0.25 * sin(current_time / 250));
-+        draw_sprite_ext(sprite_index, image_index, x, y, image_xscale * 1.25, image_yscale * 1.25, image_angle, c_white, _p);
-+        hover = false;
-+    }
-+    
-+    var _idx = button_num - 100;
-+    
-+    if (_idx >= 0 && _idx < array_length(global.gnx_travel_locations))
-+    {
-+        draw_set_halign(fa_center);
-+        draw_set_color(c_white);
-+        draw_set_alpha(1);
-+        draw_text(x, y + (sprite_get_height(sprite_index) * 0.5) + 2, global.gnx_travel_locations[_idx].label);
-+        draw_set_halign(fa_left);
-+    }
-+}
-+
++// World map: the map-selector button (travel menu) is the only travel control. Per-map buttons ("flags")
++// were removed in 1.4.8; map_button.x / y are no longer used.
 +function scr_gnx_create_travel_buttons()
 +{
 +    if (!global.gnx_multimap_enabled)
 +        exit;
 +    
 +    scr_gnx_create_travel_menu_button();
-+    var _current = global.gnx_active_map;
-+    var _spr = asset_get_index("spr_gnx_map_button");
-+    
-+    if (_spr < 0 || !sprite_exists(_spr))
-+        _spr = spr_button_stage;
-+    
-+    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
-+    {
-+        var _tl = global.gnx_travel_locations[_i];
-+        
-+        if (_tl.show_on == _current && scr_gnx_map_unlocked(_tl))
-+            scr_create_button(_tl.x, _tl.y, depth - 5, _spr, 45, id, scr_gnx_create_travel_btn, -1, scr_gnx_draw_travel_button, 100 + _i, 0);
-+    }
 +}
 +
 +function gnx_cli_has(arg0)

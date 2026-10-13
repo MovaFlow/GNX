@@ -499,8 +499,6 @@ New folder `GNX_mods/my_map/manifest.json`:
   "map": "my_map",
   "map_button": {
     "label": "Old Mine",
-    "x": 210,
-    "y": 55,
     "return_label": "Village",
     "unlock": {"type": "gold_gte", "value": 2000}
   },
@@ -515,9 +513,9 @@ New folder `GNX_mods/my_map/manifest.json`:
 ```
 - `map` makes this a **map mod**: everything it adds (classes, cells, quests...)
   loads only while the player is on that map. Other maps never see it.
-- `map_button` puts "Old Mine" on the raid panel's world map, and in the travel
-  menu (the round map button in the world map's top-left corner, on every map).
-  `unlock` keeps it hidden until the player has had 2000 gold once.
+- `map_button` lists "Old Mine" in the travel menu (the round map button in the
+  top-left corner of the raid panel's world map, on every map). `unlock` keeps it
+  hidden until the player has had 2000 gold once.
 - `map_start` is the state of a first visit: one extra floor, some gold, food
   and goblins, and a WALL1 cell (vanilla `h_type` 1) on floor 1.
 
@@ -530,7 +528,7 @@ python tools/build_mod.py my_map <game_dir> --skip-pack
 OK - map 'my_map'
 ```
 It reports what the game would silently skip: a cell on a floor that does not
-exist, an unknown `unlock` condition, a button under the raid panel's edge.
+exist, an unknown `unlock` condition, a missing map image.
 
 In game: get 2000 gold, and a notice says "New map: Old Mine". Open the raid
 panel, click the map button, pick Old Mine, choose what to take along (gold,

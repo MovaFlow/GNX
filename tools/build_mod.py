@@ -99,15 +99,9 @@ def check_map(manifest, mod_dir):
     if has_btn:
         if not isinstance(mb, dict):
             return out + [("ERROR", "map_button must be an object")]
-        for k in ("x", "y"):
-            if k in mb and not isinstance(mb[k], (int, float)):
-                out.append(("ERROR", f"map_button.{k} must be a number, got {mb[k]!r}"))
-        x, y = mb.get("x", 210), mb.get("y", 70)
-        if isinstance(x, (int, float)) and isinstance(y, (int, float)):
-            if not (0 <= x <= 480 and 0 <= y <= 270):
-                out.append(("ERROR", f"map_button at ({x}, {y}) is off screen (GUI is 480x270)"))
-            elif x < 205:
-                out.append(("WARN", f"map_button.x {x} < 205: the label starts under the raid panel's left edge"))
+        if "x" in mb or "y" in mb:
+            out.append(("WARN", "map_button.x / y are ignored since GNX 1.4.8: maps are reached from the travel "
+                                "menu (the map button in the world map's corner)"))
         if "map_sprite" in mb and not (mod_dir / "sprites" / mb["map_sprite"]).is_file():
             out.append(("WARN", f"map_button.map_sprite: sprites/{mb['map_sprite']} not found (the default button is used)"))
         if "unlock" in mb:
