@@ -7,9 +7,13 @@
 ### New Features
 
 - **Multi-map travel re-enabled**: `global.gnx_multimap_enabled` is on again. Mods declaring `map`, `map_button` and `map_start` in `manifest.json` get a travel button on the vanilla map.
+- **Travel menu**: a map button in the top-left corner of the raid panel's world map, on every map, opens a menu listing every other map, so you can travel from any map to any other (not just between the village and a map). Picking one opens the usual pre-travel selector.
+- **Travel transition**: travelling fades to black while a goblin with a backpack walks along a dotted route ("Travelling to ..."), and fades back in on arrival. The load happens behind it.
 - **`human_spr` is now optional on new cells**: omitting it gives `base+class` mode, with `base_body` picked from the cell kind (`b_*` categories / slot type 2 = `big`, `t_*` / slot type 3 = `tent`, otherwise `standard`). This matches what the docs already said.
 
 ### Bug Fixes
+
+- The pre-travel selector's buttons shared an id with the build menu's side toggle, so every +/- click also flipped which side the build menu opens on. Opening the selector from outside the raid map also opened the raid window on Cancel.
 
 All of these were in code that only runs when a map mod loads (map mods are deferred at boot), so they crashed the game the first time a player travelled to a map:
 

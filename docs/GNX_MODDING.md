@@ -2185,7 +2185,10 @@ once (first visit); returning to a previously visited map restores the snapshot.
 
 ### How travel works
 
-1. Player clicks the travel button on either map
+1. Player picks a destination: the travel button on the raid panel's world map, or
+   the map button in the top-left corner of the world map (on every map), which lists every other map
+   (village included) so any map can be reached from any other. Both open the
+   pre-travel selector (gold, food and goblins to take along)
 2. The current map's full state is **snapshot** (val, slots, monsters, raid,
    quests, ds_lists) and stored in `global.gnx_inactive_maps`
 3. The game reinitializes via `scr_create_initials`
@@ -2224,5 +2227,4 @@ player had on vanilla.
 
 - Inventory does not travel between maps (gold, food and goblins do, via the
   pre-travel selector)
-- Travel goes through the village: there is no direct button between two mod maps
 - Map-specific quests and encounter pools are not yet implemented

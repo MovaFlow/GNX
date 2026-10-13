@@ -1,0 +1,325 @@
+{
+  "about": "The map button in the top-left corner of the raid panel's world map and its travel menu, through real button clicks: every map lists every other map, map-to-map travel (A -> B -> A) works without going through the village, Close and the selector's Cancel leave things as they were (Cancel brings the raid window back). The first trip screenshots the travel transition (fade + walking goblin). Also guards the old interact-type clash: selector buttons used type 61, which is also vanilla's build-side toggle, so every +/- click flipped global.build_side. Screenshots in harness_game/screens/multimap_travel_menu/.",
+  "mods": [
+    "tools/scenarios/mods/harness_map",
+    "tools/scenarios/mods/harness_map_b"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "global",
+      "name": "build_side",
+      "is": 0
+    },
+    {
+      "screenshot": "village_hud"
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 3
+    },
+    {
+      "screenshot": "raid_map"
+    },
+    {
+      "open_raid": false
+    },
+    {
+      "wait": 3
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "travel_menu",
+      "targets": [
+        "harness_map",
+        "harness_map_b"
+      ]
+    },
+    {
+      "screenshot": "menu_village"
+    },
+    {
+      "press_travel_menu": "close"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "travel_menu",
+      "open": false
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "press_travel_menu": "harness_map"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "travel_menu",
+      "open": false,
+      "why": "picking a map closes the menu"
+    },
+    {
+      "assert": "selector",
+      "gold": 0,
+      "food": 0,
+      "goblins": 0
+    },
+    {
+      "press_travel_button": {
+        "num": 20
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "selector",
+      "open": false
+    },
+    {
+      "screenshot": "after_cancel",
+      "why": "the raid window must not pop open"
+    },
+    {
+      "do": {
+        "type": "add_gold",
+        "amount": 50
+      }
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "press_travel_menu": "harness_map"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_button": {
+        "num": 1,
+        "row": 0,
+        "times": 2
+      }
+    },
+    {
+      "assert": "selector",
+      "gold": 2,
+      "food": 0,
+      "goblins": 0
+    },
+    {
+      "assert": "global",
+      "name": "build_side",
+      "is": 0,
+      "why": "selector clicks must not reach vanilla's build-side toggle"
+    },
+    {
+      "press_travel_button": {
+        "num": 21,
+        "no_wait": true
+      }
+    },
+    {
+      "wait": 6
+    },
+    {
+      "screenshot": "fx_fading"
+    },
+    {
+      "wait": 22
+    },
+    {
+      "screenshot": "fx_walking"
+    },
+    {
+      "await_travel": true
+    },
+    {
+      "wait": 3
+    },
+    {
+      "screenshot": "fx_arriving"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 1236
+    },
+    {
+      "screenshot": "map_a_hud"
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "travel_menu",
+      "targets": [
+        "vanilla",
+        "harness_map_b"
+      ]
+    },
+    {
+      "screenshot": "menu_map_a"
+    },
+    {
+      "press_travel_menu": "harness_map_b"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_button": {
+        "num": 21
+      }
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map_b"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 4321
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9002
+    },
+    {
+      "assert": "cell_registered",
+      "name": "HARNESS WALL",
+      "is": false,
+      "why": "map A's content must not follow to map B"
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "travel_menu",
+      "targets": [
+        "vanilla",
+        "harness_map"
+      ]
+    },
+    {
+      "press_travel_menu": "harness_map"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_button": {
+        "num": 21
+      }
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 1236,
+      "why": "map A kept its state while we were on map B"
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9001
+    },
+    {
+      "assert": "cell_registered",
+      "name": "B WALL",
+      "is": false
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "press_travel_menu": "vanilla"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_button": {
+        "num": 21
+      }
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "vanilla"
+    }
+  ]
+}

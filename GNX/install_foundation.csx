@@ -126,6 +126,11 @@ if (assetsDir != null)
             UndertaleSprite refSpr = Data.Sprites.ByName("spr_big_slot_back_rock");
             if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
         }
+        else if (baseName == "gnx_travel_button")
+        {
+            // centred, so the press animation (act_resize) scales around the middle
+            ox = w / 2; oy = h / 2;
+        }
 
         // Create the sprite resource
         UndertaleSprite spr = new();
