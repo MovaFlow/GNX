@@ -3538,8 +3538,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 09:46:02.797137000 +0200
-@@ -1,224 +1,16429 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 10:11:43.285635800 +0200
+@@ -1,224 +1,16470 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -14069,6 +14069,47 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            // {"assert": "global", "name": "build_side", "is": 0}: a global variable's value
 +            var _gv = variable_global_get(arg0.name);
 +            scr_gnx_scn_check("global", _gv == arg0.is, arg0.name + "=" + string(_gv) + " want " + string(arg0.is));
++            break;
++
++        case "content":
++            // {"assert": "content", "tools": "mod", "voice_bank": "mod.bank", "quest": "mod.event", "map_sprite": true,
++            //  "is": true}: a mod's tools are in the tool menu / its voice bank loaded (with sounds) / its quest
++            // event registered / a map image is drawn on this map's world map. One key per assert.
++            var _ct_what = "";
++            var _ct_has = false;
++
++            if (variable_struct_exists(arg0, "tools"))
++            {
++                _ct_what = "tools of " + arg0.tools;
++
++                for (var _ti = 0; _ti < array_length(global.gnx_tool_registry); _ti++)
++                {
++                    if (global.gnx_tool_registry[_ti].mod_name == arg0.tools && array_length(global.gnx_tool_registry[_ti].categories) > 0)
++                        _ct_has = true;
++                }
++            }
++            else if (variable_struct_exists(arg0, "voice_bank"))
++            {
++                _ct_what = "voice bank " + arg0.voice_bank;
++
++                if (ds_map_exists(global.gnx_voice_banks, arg0.voice_bank))
++                {
++                    var _vb = ds_map_find_value(global.gnx_voice_banks, arg0.voice_bank);
++                    _ct_has = is_array(_vb) && array_length(_vb) > 0 && audio_exists(_vb[0]);
++                }
++            }
++            else if (variable_struct_exists(arg0, "quest"))
++            {
++                _ct_what = "quest event " + arg0.quest;
++                _ct_has = ds_map_exists(global.gnx_quest_events, arg0.quest);
++            }
++            else if (variable_struct_exists(arg0, "map_sprite"))
++            {
++                _ct_what = "map image";
++                _ct_has = global.gnx_map_sprite != -1 && sprite_exists(global.gnx_map_sprite);
++            }
++
++            scr_gnx_scn_check("content", _ct_has == arg0.is, _ct_what + " present=" + string(_ct_has) + " want " + string(arg0.is == true) + " on '" + global.gnx_active_map + "'");
 +            break;
 +
 +        case "unlocked":

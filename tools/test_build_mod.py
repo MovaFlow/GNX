@@ -23,3 +23,24 @@ assert errs({"map": "m", "map_button": {}, "map_start": {"floors": 1, "cells": [
 assert errs({"map": "m", "map_button": {}, "map_start": {"cells": [{"h_type": "MY CELL"}]}})
 assert any(lvl == "WARN" for lvl, _ in check_map({"map": "m", "map_button": {"x": 150}}, here))
 print("ok")
+
+# deploy: every file a mod can use reaches GNX_mods/<mod_id>/ (json files from the manifest, the map image,
+# and the strips/atlas/sounds/portraits folders). Run on a temp copy of the full test map mod.
+import shutil, subprocess, sys, tempfile
+with tempfile.TemporaryDirectory() as tmp:
+    src = Path(tmp) / "src" / "harness_map_full"
+    shutil.copytree(ROOT / "tools/scenarios/mods/harness_map_full", src)
+    for rel in ("sounds/snd_fmoan0_1.ogg", "portraits/face.png", "atlas/uv.json", "strips/spr_x.png"):
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_bytes(b"test")
+    game = Path(tmp) / "game"
+    game.mkdir()
+    r = subprocess.run([sys.executable, str(ROOT / "tools/build_mod.py"), str(src), str(game), "--skip-pack"],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    dep = game / "GNX_mods" / "harness_map_full"
+    for rel in ("manifest.json", "quests.json", "tools.json", "sounds.json", "sprites/full_map.png",
+                "sounds/snd_fmoan0_1.ogg", "portraits/face.png", "atlas/uv.json", "strips/spr_x.png"):
+        assert (dep / rel).is_file(), f"build_mod did not deploy {rel}"
+    assert "OK - map 'harness_full'" in r.stdout, r.stdout
+print("deploy ok")

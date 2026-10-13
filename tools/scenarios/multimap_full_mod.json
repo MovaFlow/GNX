@@ -1,0 +1,43 @@
+{
+  "about": "A map mod with every content file (harness_map_full: tools, quests, sounds, map image) loads all of it on its map and none of it elsewhere. The audio clip is not in the repo: local_files copies it from the local moan_mod (harness_game/test_mods; the scenario is skipped without it). The map image replaces the raid panel's world map on that map only (screenshots).",
+  "mods": ["tools/scenarios/mods/harness_map_full"],
+  "local_files": [
+    {"from": "harness_game/test_mods/moan_mod/sounds/snd_fmoan0_1.ogg", "to": "harness_map_full/sounds/snd_fmoan0_1.ogg"}
+  ],
+  "steps": [
+    {"wait": 30},
+    {"assert": "content", "tools": "harness_map_full", "is": false, "why": "map mod content is deferred to its map"},
+    {"assert": "content", "voice_bank": "harness_map_full.full", "is": false},
+    {"assert": "content", "quest": "harness_map_full.full_quest", "is": false},
+    {"assert": "content", "map_sprite": true, "is": false},
+    {"open_raid": true},
+    {"wait": 3},
+    {"screenshot": "village_world_map"},
+    {"open_raid": false},
+    {"wait": 3},
+    {"travel": "harness_full"},
+    {"wait": 40},
+    {"assert": "active_map", "is": "harness_full"},
+    {"assert": "val", "key": "money", "is": 777},
+    {"assert": "content", "tools": "harness_map_full", "is": true},
+    {"assert": "content", "voice_bank": "harness_map_full.full", "is": true, "why": "sounds/ loaded (clip copied from moan_mod)"},
+    {"assert": "content", "quest": "harness_map_full.full_quest", "is": true},
+    {"assert": "content", "map_sprite": true, "is": true},
+    {"open_raid": true},
+    {"wait": 3},
+    {"screenshot": "full_map_world_map"},
+    {"open_raid": false},
+    {"wait": 3},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 40},
+    {"assert": "content", "voice_bank": "harness_map_full.full", "is": true, "why": "still loaded after a reload on the map"},
+    {"assert": "content", "map_sprite": true, "is": true},
+    {"travel": "vanilla"},
+    {"wait": 40},
+    {"assert": "content", "tools": "harness_map_full", "is": false, "why": "unloaded again back in the village"},
+    {"assert": "content", "voice_bank": "harness_map_full.full", "is": false},
+    {"assert": "content", "quest": "harness_map_full.full_quest", "is": false},
+    {"assert": "content", "map_sprite": true, "is": false}
+  ]
+}

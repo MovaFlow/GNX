@@ -674,6 +674,9 @@ def prepare_scenario(box, sc):
     for m in sc.get("mods", []):  # local-only mods (harness_game/test_mods) may be absent: SKIP under --all
         if not (REPO / m / "manifest.json").is_file():
             raise HarnessError(EXIT_PREFLIGHT, f"mod '{m}' missing")
+    for f in sc.get("local_files", []):  # files the repo must not ship (e.g. audio), copied from local mods
+        if not (REPO / f["from"]).is_file():
+            raise HarnessError(EXIT_PREFLIGHT, f"local file '{f['from']}' missing")
     if box.save_dir != SAVE_DIR:  # worker folders only: never the player's
         for slot_file in SAVE_SLOTS.values():
             (box.save_dir / slot_file).unlink(missing_ok=True)
@@ -842,6 +845,11 @@ def main(argv=None):
                     return
             run_mods = [REPO / m for m in sc["mods"]] if "mods" in sc else mods
             deploy_mods(box.run_dir, run_mods, accepted)
+            for f in sc.get("local_files", []):
+                # {"local_files": [{"from": "harness_game/test_mods/x/sounds/a.ogg", "to": "my_mod/sounds/a.ogg"}]}
+                dst = box.run_dir / "GNX_mods" / f["to"]
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(REPO / f["from"], dst)
             r = boot(box, sc.get("timeout", a.timeout), a.keep_open and not name, name, sc.get("expect_dialog"))
             if sc.get("expect_dialog") and not r["dismissed_dialogs"] and r.get("scn"):
                 # the scenario relies on that popup appearing: missing it is a failure

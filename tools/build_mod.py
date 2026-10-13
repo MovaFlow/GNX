@@ -232,9 +232,10 @@ def main():
         print(f"[dry] would create {dest}")
         for f in files_to_copy:
             print(f"[dry] would copy {f}")
-        if (mod_dir / "strips").is_dir():
-            n = len(list((mod_dir / "strips").glob("*.png")))
-            print(f"[dry] would copy strips/ ({n} files)")
+        for folder in ("strips", "atlas", "sounds", "portraits"):
+            if (mod_dir / folder).is_dir():
+                n = sum(1 for f in (mod_dir / folder).rglob("*") if f.is_file())
+                print(f"[dry] would copy {folder}/ ({n} files)")
     else:
         if dest.exists():
             shutil.rmtree(dest)
@@ -250,11 +251,12 @@ def main():
             (dest / "sprites").mkdir(exist_ok=True)
             shutil.copy2(mod_dir / "sprites" / ms_name, dest / "sprites" / ms_name)
             print(f"  copied: sprites/{ms_name}")
-        strips_src = mod_dir / "strips"
-        if strips_src.is_dir():
-            shutil.copytree(strips_src, dest / "strips")
-            n = len(list((dest / "strips").glob("*.png")))
-            print(f"  copied: strips/ ({n} files)")
+        for folder in ("strips", "atlas", "sounds", "portraits"):  # everything the loader reads from the mod folder
+            src_dir = mod_dir / folder
+            if src_dir.is_dir():
+                shutil.copytree(src_dir, dest / folder)
+                n = sum(1 for f in (dest / folder).rglob("*") if f.is_file())
+                print(f"  copied: {folder}/ ({n} files)")
     print()
 
     compat = manifest.get("compatible_game_versions", [])
