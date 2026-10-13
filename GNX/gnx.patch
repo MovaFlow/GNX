@@ -3538,8 +3538,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 09:32:10.573359800 +0200
-@@ -1,224 +1,16271 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 09:46:02.797137000 +0200
+@@ -1,224 +1,16429 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -7537,6 +7537,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    global.gnx_map_owner = {};  // map id -> mod that owns its travel button + map_start
 +    global.gnx_pending_map_start = "";
 +    global.gnx_pending_notice = "";  // shown as an in-game toast once the nest exists (obj_control step)
++    global.gnx_map_unlock_tick = 0;
 +    // a travel re-runs initials before the carry is applied (obj_control step): keep it then
 +    if (!global.gnx_in_travel)
 +    {
@@ -7545,6 +7546,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        global.gnx_carry_gold = -1;
 +        global.gnx_carry_food = -1;
 +        global.gnx_carry_goblins = -1;
++        global.gnx_carry_unlock = -1;
 +    }
 +    global.gnx_runtime_sprites = [];
 +    global.gnx_mod_errors = [];
@@ -8312,6 +8314,19 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            _tl.x = variable_struct_exists(_mb, "x") ? _mb.x : 210;
 +            _tl.y = variable_struct_exists(_mb, "y") ? _mb.y : 70;
 +            _tl.mod_name = arg0;
++            _tl.unlock = -1;
++            
++            if (variable_struct_exists(_mb, "unlock"))  // condition (or array of conditions, all needed) to show the map
++            {
++                _tl.unlock = _mb.unlock;
++                var _ucl = is_array(_tl.unlock) ? _tl.unlock : [_tl.unlock];
++                
++                for (var _uci = 0; _uci < array_length(_ucl); _uci++)
++                {
++                    if (is_struct(_ucl[_uci]))
++                        scr_gnx_resolve_condition_refs(_ucl[_uci], arg0);
++                }
++            }
 +            
 +            if (variable_struct_exists(_mb, "map_sprite"))
 +            {
@@ -12423,8 +12438,73 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    
 +    global.gnx_carry_day = global.val.day;
 +    global.gnx_carry_timer = global.val.day_timer;
++    global.gnx_carry_unlock = json_parse(json_stringify(global.unlock));  // unlocks are shared by every map
 +    global.gnx_trigger_load = true;
 +    return true;
++}
++
++// Unlocks are shared by all maps: merge the map we came from into the one we arrived on (obj_control step,
++// once the destination is up). Cell lists: union, but only cells that exist on this map (a map mod's cell
++// must not reach the village's build menu). Feature flags: OR. boss[] stays per map (story progress tied to
++// that map's stages and prisoners). Returns how many unlocks were added.
++function scr_gnx_merge_unlocks(arg0)
++{
++    var _n = 0;
++    var _keys = variable_struct_get_names(arg0);
++    var _cells = ["breed", "utility", "pleasure", "b_breed", "b_utility", "b_other", "t_breed", "t_utility"];
++    
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        var _k = _keys[_i];
++        
++        if (_k == "boss" || !variable_struct_exists(global.unlock, _k))
++            continue;
++        
++        var _src = variable_struct_get(arg0, _k);
++        var _dst = variable_struct_get(global.unlock, _k);
++        
++        if (is_array(_src) && is_array(_dst))
++        {
++            var _is_cells = false;
++            
++            for (var _c = 0; _c < array_length(_cells); _c++)
++            {
++                if (_cells[_c] == _k)
++                    _is_cells = true;
++            }
++            
++            for (var _j = 0; _j < array_length(_src); _j++)
++            {
++                var _v = _src[_j];
++                var _have = false;
++                
++                for (var _d = 0; _d < array_length(_dst); _d++)
++                {
++                    if (_dst[_d] == _v)
++                    {
++                        _have = true;
++                        break;
++                    }
++                }
++                
++                if (_have || (_is_cells && is_real(_v) && _v >= 43 && !ds_map_exists(global.cell_registry, _v)))
++                    continue;
++                
++                array_push(_dst, _v);
++                _n++;
++            }
++        }
++        else if (!is_array(_src) && !is_struct(_src) && _src && !_dst)
++        {
++            variable_struct_set(global.unlock, _k, true);
++            _n++;
++        }
++    }
++    
++    var _l = file_text_open_append("gnx_debug.txt");
++    file_text_write_string(_l, "[GNX-MAP] unlocks synced on arrival at '" + global.gnx_active_map + "': " + string(_n) + " added" + chr(10));
++    file_text_close(_l);
++    return _n;
 +}
 +
 +function scr_gnx_travel_selector_activate()
@@ -12895,6 +12975,54 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    draw_set_alpha(1);
 +}
 +
++// A map with a map_button "unlock" condition stays hidden (travel menu, world map) until the condition holds
++// once; it is then remembered in global.unlock.gnx_maps (saved, and shared by every map like other unlocks)
++// and announced. arg0 = a travel location.
++function scr_gnx_map_unlocked(arg0)
++{
++    if (!variable_struct_exists(arg0, "unlock") || (!is_struct(arg0.unlock) && !is_array(arg0.unlock)))
++        return true;
++    
++    if (!variable_struct_exists(global.unlock, "gnx_maps"))
++        global.unlock.gnx_maps = [];
++    
++    for (var _i = 0; _i < array_length(global.unlock.gnx_maps); _i++)
++    {
++        if (global.unlock.gnx_maps[_i] == arg0.target)
++            return true;
++    }
++    
++    var _conds = is_array(arg0.unlock) ? arg0.unlock : [arg0.unlock];
++    
++    for (var _i = 0; _i < array_length(_conds); _i++)
++    {
++        if (!is_struct(_conds[_i]) || !scr_gnx_eval_condition(_conds[_i], arg0.mod_name))
++            return false;
++    }
++    
++    array_push(global.unlock.gnx_maps, arg0.target);
++    var _l = file_text_open_append("gnx_debug.txt");
++    file_text_write_string(_l, "[GNX-MAP] map unlocked: " + arg0.target + chr(10));
++    file_text_close(_l);
++    
++    if (instance_exists(obj_slot))
++        scr_gnx_pop_up_create("New map: " + arg0.label + " (travel from the world map)");
++    
++    return true;
++}
++
++// obj_control step, every 60 frames: notice maps whose unlock condition has just been met
++function scr_gnx_check_map_unlocks()
++{
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++        
++        if (_tl.target != "vanilla" && _tl.target != global.gnx_active_map)
++            scr_gnx_map_unlocked(_tl);
++    }
++}
++
 +// Every map the player can travel to from the current one: the village plus each declared map, minus the
 +// current map. [{target, label}]
 +function scr_gnx_travel_destinations()
@@ -12926,7 +13054,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    {
 +        var _tl = global.gnx_travel_locations[_i];
 +
-+        if (_tl.target == "vanilla" || _tl.target == _cur || variable_struct_exists(_seen, _tl.target))
++        if (_tl.target == "vanilla" || _tl.target == _cur || variable_struct_exists(_seen, _tl.target) || !scr_gnx_map_unlocked(_tl))
 +            continue;
 +
 +        variable_struct_set(_seen, _tl.target, true);
@@ -13330,7 +13458,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    {
 +        var _tl = global.gnx_travel_locations[_i];
 +        
-+        if (_tl.show_on == _current)
++        if (_tl.show_on == _current && scr_gnx_map_unlocked(_tl))
 +            scr_create_button(_tl.x, _tl.y, depth - 5, _spr, 45, id, scr_gnx_create_travel_btn, -1, scr_gnx_draw_travel_button, 100 + _i, 0);
 +    }
 +}
@@ -13941,6 +14069,36 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            // {"assert": "global", "name": "build_side", "is": 0}: a global variable's value
 +            var _gv = variable_global_get(arg0.name);
 +            scr_gnx_scn_check("global", _gv == arg0.is, arg0.name + "=" + string(_gv) + " want " + string(arg0.is));
++            break;
++
++        case "unlocked":
++            // {"assert": "unlocked", "h_type": 20, "is": true} (in any build category) or {"flag": "raid", "is": true}
++            var _un = false;
++
++            if (variable_struct_exists(arg0, "flag"))
++            {
++                _un = variable_struct_exists(global.unlock, arg0.flag) && variable_struct_get(global.unlock, arg0.flag) == true;
++            }
++            else
++            {
++                var _ucats = variable_struct_get_names(global.unlock);
++
++                for (var _uc = 0; _uc < array_length(_ucats); _uc++)
++                {
++                    var _ua = variable_struct_get(global.unlock, _ucats[_uc]);
++
++                    if (_ucats[_uc] == "boss" || !is_array(_ua))
++                        continue;
++
++                    for (var _ui = 0; _ui < array_length(_ua); _ui++)
++                    {
++                        if (_ua[_ui] == arg0.h_type)
++                            _un = true;
++                    }
++                }
++            }
++
++            scr_gnx_scn_check("unlocked", _un == arg0.is, (variable_struct_exists(arg0, "flag") ? arg0.flag : "h " + string(arg0.h_type)) + " unlocked=" + string(_un) + " want " + string(arg0.is == true) + " on '" + global.gnx_active_map + "'");
 +            break;
 +
 +        case "load_label":
@@ -43671,8 +43829,8 @@ diff -uN gml_138/gml_GlobalScript_Vector3.gml gml/gml_GlobalScript_Vector3.gml
 +}
 diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_Step_0.gml
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-12 16:57:39.657725100 +0200
-@@ -1 +1,120 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-13 09:46:08.571605000 +0200
+@@ -1 +1,132 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -43768,6 +43926,18 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 +    global.gnx_carry_food = -1;
 +    global.gnx_carry_goblins = -1;
 +}
++
++// Unlocks are shared by every map: merged in once the destination is up (see scr_gnx_merge_unlocks)
++if (global.gnx_multimap_enabled && is_struct(global.gnx_carry_unlock) && global.gnx_pending_map_start == "" && instance_exists(obj_slot) && !scr_gnx_travel_pending())
++{
++    scr_gnx_merge_unlocks(global.gnx_carry_unlock);
++    global.gnx_carry_unlock = -1;
++}
++
++global.gnx_map_unlock_tick++;
++
++if (global.gnx_multimap_enabled && instance_exists(obj_slot) && (global.gnx_map_unlock_tick mod 60) == 0)  // maps whose unlock condition was just met
++    scr_gnx_check_map_unlocks();
 +
 +if (global.gnx_perf_enabled)
 +{

@@ -8,6 +8,10 @@
 
 - **Multi-map travel re-enabled**: `global.gnx_multimap_enabled` is on again. Mods declaring `map`, `map_button` and `map_start` in `manifest.json` get a travel button on the vanilla map.
 - **Travel menu**: a map button in the top-left corner of the raid panel's world map, on every map, opens a menu listing every other map, so you can travel from any map to any other (not just between the village and a map). Picking one opens the usual pre-travel selector.
+- **Shared unlocks**: anything unlocked on one map (cells, raid, shop, timer...) is unlocked on every map, merged in on arrival. A map mod's own cells stay out of other maps' build menus, and boss progress stays with each map.
+- **Maps that unlock later**: `map_button.unlock` takes a quest-style condition (or an array of them). The map stays hidden from the world map and the travel menu until it holds once; then it unlocks for good on every map, with a notice.
+- **`build_mod.py` checks map mods**: map/map_button/map_start fields, unlock condition types, button positions, map_start cells on floors that do not exist, and the map image. It now also deploys a mod's quests, tools, sounds and props files and its map image (it only copied classes and cells before).
+- **Tutorial chapter 8, "A map of your own"**; GNX_MODDING section 20 corrected (map_start `floors` is extra floors below floor 0, default 0; `cells` documented).
 - **Travel transition**: travelling fades to black while a goblin with a backpack walks along a dotted route ("Travelling to ..."), and fades back in on arrival. The load happens behind it.
 - **`human_spr` is now optional on new cells**: omitting it gives `base+class` mode, with `base_body` picked from the cell kind (`b_*` categories / slot type 2 = `big`, `t_*` / slot type 3 = `tent`, otherwise `standard`). This matches what the docs already said.
 

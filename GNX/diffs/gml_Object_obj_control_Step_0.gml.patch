@@ -1,6 +1,6 @@
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-12 16:57:39.657725100 +0200
-@@ -1 +1,120 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-13 09:46:08.571605000 +0200
+@@ -1 +1,132 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -96,6 +96,18 @@
 +    global.gnx_carry_food = -1;
 +    global.gnx_carry_goblins = -1;
 +}
++
++// Unlocks are shared by every map: merged in once the destination is up (see scr_gnx_merge_unlocks)
++if (global.gnx_multimap_enabled && is_struct(global.gnx_carry_unlock) && global.gnx_pending_map_start == "" && instance_exists(obj_slot) && !scr_gnx_travel_pending())
++{
++    scr_gnx_merge_unlocks(global.gnx_carry_unlock);
++    global.gnx_carry_unlock = -1;
++}
++
++global.gnx_map_unlock_tick++;
++
++if (global.gnx_multimap_enabled && instance_exists(obj_slot) && (global.gnx_map_unlock_tick mod 60) == 0)  // maps whose unlock condition was just met
++    scr_gnx_check_map_unlocks();
 +
 +if (global.gnx_perf_enabled)
 +{

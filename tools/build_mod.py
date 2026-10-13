@@ -75,6 +75,71 @@ def run_pack_strips(mod_dir: Path, dry_run: bool, force: bool):
     print()
 
 
+CONDITION_TYPES = {"state_equals", "state_gte", "state_lte", "stage_discovered", "stage_cleared", "boss_captured",
+                   "cell_built", "cell_occupied", "unit_count", "raid_won", "gold_gte", "floor_gte", "cell_count"}
+
+
+def check_map(manifest, mod_dir):
+    """Problems in a map mod's manifest (map / map_button / map_start), as (level, message); level ERROR means
+    the loader ignores or rejects the part, WARN means it loads but probably not as intended."""
+    out = []
+    has_btn, has_start = "map_button" in manifest, "map_start" in manifest
+    mp = manifest.get("map")
+    if not (has_btn or has_start or mp):
+        return out
+    if (has_btn or has_start) and not mp:
+        return [("ERROR", "map_button / map_start need a \"map\" id; without it the mod is not a map mod")]
+    if not isinstance(mp, str) or not mp:
+        return [("ERROR", f"map must be a non-empty string, got {mp!r}")]
+    if mp in ("vanilla", "all") and (has_btn or has_start):
+        out.append(("ERROR", f"map '{mp}' is reserved: map_button / map_start are ignored for it"))
+    if mp not in ("vanilla", "all") and not has_btn:
+        out.append(("WARN", f"map '{mp}' has no map_button: players can only reach it if another mod adds one"))
+    mb = manifest.get("map_button", {})
+    if has_btn:
+        if not isinstance(mb, dict):
+            return out + [("ERROR", "map_button must be an object")]
+        for k in ("x", "y"):
+            if k in mb and not isinstance(mb[k], (int, float)):
+                out.append(("ERROR", f"map_button.{k} must be a number, got {mb[k]!r}"))
+        x, y = mb.get("x", 210), mb.get("y", 70)
+        if isinstance(x, (int, float)) and isinstance(y, (int, float)):
+            if not (0 <= x <= 480 and 0 <= y <= 270):
+                out.append(("ERROR", f"map_button at ({x}, {y}) is off screen (GUI is 480x270)"))
+            elif x < 205:
+                out.append(("WARN", f"map_button.x {x} < 205: the label starts under the raid panel's left edge"))
+        if "map_sprite" in mb and not (mod_dir / "sprites" / mb["map_sprite"]).is_file():
+            out.append(("WARN", f"map_button.map_sprite: sprites/{mb['map_sprite']} not found (the default button is used)"))
+        if "unlock" in mb:
+            conds = mb["unlock"] if isinstance(mb["unlock"], list) else [mb["unlock"]]
+            for c in conds:
+                if not isinstance(c, dict) or "type" not in c:
+                    out.append(("ERROR", f"map_button.unlock: each condition needs a \"type\", got {c!r}"))
+                elif c["type"] not in CONDITION_TYPES:
+                    out.append(("ERROR", f"map_button.unlock: unknown condition type '{c['type']}' "
+                                         f"(known: {', '.join(sorted(CONDITION_TYPES))})"))
+    ms = manifest.get("map_start")
+    if has_start:
+        if not isinstance(ms, dict):
+            return out + [("ERROR", "map_start must be an object")]
+        for k in ("floors", "money", "food", "mood", "goblins"):
+            if k in ms and not isinstance(ms[k], (int, float)):
+                out.append(("ERROR", f"map_start.{k} must be a number, got {ms[k]!r}"))
+        floors = ms.get("floors", 0) if isinstance(ms.get("floors", 0), (int, float)) else 0
+        for i, c in enumerate(ms.get("cells", [])):
+            if not isinstance(c, dict) or "h_type" not in c:
+                out.append(("ERROR", f"map_start.cells[{i}]: needs an h_type"))
+                continue
+            if not isinstance(c["h_type"], int):
+                out.append(("ERROR", f"map_start.cells[{i}].h_type must be a number (cell names are not "
+                                     f"resolved here), got {c['h_type']!r}"))
+            fl = c.get("floor", 0)
+            if not isinstance(fl, int) or not 0 <= fl <= floors:
+                out.append(("ERROR", f"map_start.cells[{i}].floor {fl!r}: the map has floors 0..{floors} "
+                                     f"(map_start.floors adds floors on top of floor 0); the cell is skipped"))
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description="Pack and deploy a GNX mod into the game's GNX_mods/ folder.")
     parser.add_argument("mod_dir", help="Mod source folder (manifest.json, classes/cells.json, sprites/)")
@@ -116,7 +181,7 @@ def main():
     print("--- Pack verification ---")
     leftovers = []
     json_files = {}
-    for role in ("classes", "cells"):
+    for role in ("classes", "cells", "quests", "tools", "sounds", "props"):
         rel = manifest.get(role)
         if not rel:
             continue
@@ -125,6 +190,8 @@ def main():
             print(f"WARN: {role}: file '{rel}' not found (referenced by manifest.json)")
             continue
         json_files[role] = (rel, p)
+        if role not in ("classes", "cells"):
+            continue  # only classes/cells reference packed sprites
         data = load_json_loose(p)
         for label, key in find_unpacked(data):
             leftovers.append((rel, label, key))
@@ -140,6 +207,16 @@ def main():
     if not (mod_dir / "strips").is_dir():
         print("WARN: no strips/ folder in the mod - nothing to deploy on the sprite side.")
     print()
+
+    # 2b. Map mod checks
+    probs = check_map(manifest, mod_dir)
+    if probs or manifest.get("map"):
+        print("--- Map mod checks ---")
+        for level, msg in probs:
+            print(f"{level}: {msg}")
+        if not probs:
+            print(f"OK - map '{manifest['map']}'")
+        print()
 
     # 3. Deploy
     dest = game_dir / "GNX_mods" / mod_id
@@ -168,6 +245,11 @@ def main():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
             print(f"  copied: {f}")
+        ms_name = manifest.get("map_button", {}).get("map_sprite") if isinstance(manifest.get("map_button"), dict) else None
+        if ms_name and (mod_dir / "sprites" / ms_name).is_file():  # the world-map image is loaded from sprites/
+            (dest / "sprites").mkdir(exist_ok=True)
+            shutil.copy2(mod_dir / "sprites" / ms_name, dest / "sprites" / ms_name)
+            print(f"  copied: sprites/{ms_name}")
         strips_src = mod_dir / "strips"
         if strips_src.is_dir():
             shutil.copytree(strips_src, dest / "strips")

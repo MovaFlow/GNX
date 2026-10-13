@@ -22,7 +22,8 @@ worked*.
 - [5. Custom cell  - your own room](#5-custom-cell--your-own-room)
 - [6. Test, debug, iterate](#6-test-debug-iterate)
 - [7. Going further](#7-going-further)
-- [8. Tooling reference](#8-tooling-reference)
+- [8. A map of your own](#8-a-map-of-your-own)
+- [9. Tooling reference](#9-tooling-reference)
   - [export_class_sprites.py](#export_class_spritespy--copy--rename-a-vanilla-class)
   - [scaffold_class.py](#scaffold_classpy--generate-a-classesjson-stub-from-detected-sprites)
   - [scaffold_cell.py](#scaffold_cellpy--generate-a-cell-stub)
@@ -170,11 +171,11 @@ documented in `gnx_pack_strips_doc.md`) turns a folder of numbered per-frame
 PNGs into a single strip image + metadata block.
 
 **Don't have custom art yet?** Use `export_class_sprites.py` (see
-[§8 → export_class_sprites.py](#export_class_spritespy--copy--rename-a-vanilla-class))
+[§9 → export_class_sprites.py](#export_class_spritespy--copy--rename-a-vanilla-class))
 to copy a vanilla class's full sprite set and rename it to your prefix. This
 gives you a working sprite folder you can pack and test immediately, then swap
 for real art later. The script requires a one-time UMT sprite export  - the full
-steps are in §8.
+steps are in §9.
 
 **Basic workflow:**
 
@@ -228,13 +229,13 @@ with in cells.
 **Choosing a tool  - pick one:**
 
 - **You copied vanilla sprites in §3** → run `scaffold_class.py` now
-  (see [§8 → scaffold_class.py](#scaffold_classpy--generate-a-classesjson-stub-from-detected-sprites)).
+  (see [§9 → scaffold_class.py](#scaffold_classpy--generate-a-classesjson-stub-from-detected-sprites)).
   It scans your `sprites/` folder and generates a ready-to-fill `classes.json`
   stub with every detected sprite pre-wired and all clothing sections built.
   Merge the output into your `classes.json` array and skip to step 3 below.
 
 - **No sprites yet / using custom art** → run `generate_class.py` instead
-  (see [§8 → generate_class.py](#generate_classpy--interactive-classesjson-generator)).
+  (see [§9 → generate_class.py](#generate_classpy--interactive-classesjson-generator)).
   It walks you through the class fields interactively and writes a stub without
   needing a `sprites/` folder at all. Use `example_mod/classes.json` as a
   reference for field semantics.
@@ -292,12 +293,12 @@ animation, and h-scene sprites.
 **Choosing a tool  - pick one:**
 
 - **Starting from scratch** → run `scaffold_cell.py`
-  (see [§8 → scaffold_cell.py](#scaffold_cellpy--generate-a-cell-stub)).
+  (see [§9 → scaffold_cell.py](#scaffold_cellpy--generate-a-cell-stub)).
   Generates a complete stub with every sprite key pre-wired and every sprite
   folder named, ready to drop art into.
 
 - **Prefer interactive prompts** → run `generate_cell.py` instead
-  (see [§8 → generate_cell.py](#generate_cellpy--interactive-cellsjson-generator)).
+  (see [§9 → generate_cell.py](#generate_cellpy--interactive-cellsjson-generator)).
   Asks questions and writes the stub; also handles vanilla patches.
 
 **Using scaffold_cell.py:**
@@ -483,7 +484,66 @@ Once the basics above work, GNX_MODDING.md covers the rest:
 
 ---
 
-## 8. Tooling reference
+## 8. A map of your own
+
+Goal: a second dungeon the player travels to, with its own floors, cells and
+economy. No sprites needed: this uses vanilla cells.
+
+New folder `GNX_mods/my_map/manifest.json`:
+```json
+{
+  "mod_id": "my_map",
+  "name": "My Map",
+  "version": "1.0.0",
+  "compatible_game_versions": ["1.39"],
+  "map": "my_map",
+  "map_button": {
+    "label": "Old Mine",
+    "x": 210,
+    "y": 55,
+    "return_label": "Village",
+    "unlock": {"type": "gold_gte", "value": 2000}
+  },
+  "map_start": {
+    "floors": 1,
+    "money": 300,
+    "food": 40,
+    "goblins": 3,
+    "cells": [{"h_type": 1, "slot_type": 0, "floor": 1}]
+  }
+}
+```
+- `map` makes this a **map mod**: everything it adds (classes, cells, quests...)
+  loads only while the player is on that map. Other maps never see it.
+- `map_button` puts "Old Mine" on the raid panel's world map, and in the travel
+  menu (the round map button in the world map's top-left corner, on every map).
+  `unlock` keeps it hidden until the player has had 2000 gold once.
+- `map_start` is the state of a first visit: one extra floor, some gold, food
+  and goblins, and a WALL1 cell (vanilla `h_type` 1) on floor 1.
+
+To start the map with one of your own cells, give that cell a fixed `h_type`
+(e.g. `9100`) in `cells.json`: `map_start` takes numbers, not names. Check the
+manifest before playing:
+```
+python tools/build_mod.py my_map <game_dir> --skip-pack
+--- Map mod checks ---
+OK - map 'my_map'
+```
+It reports what the game would silently skip: a cell on a floor that does not
+exist, an unknown `unlock` condition, a button under the raid panel's edge.
+
+In game: get 2000 gold, and a notice says "New map: Old Mine". Open the raid
+panel, click the map button, pick Old Mine, choose what to take along (gold,
+food, goblins), and travel. Things to know:
+- The village stays as you left it (maps you are not on are frozen).
+- Unlocks are shared: a cell unlocked on one map is unlocked on all of them.
+- A save remembers which map you were on; the load page shows its name.
+
+Full reference: [GNX_MODDING.md §20](GNX_MODDING.md#20-multi-map-travel).
+
+---
+
+## 9. Tooling reference
 
 All scripts are in `<tools>/` (see [§0](#0-prerequisites) for how to find that
 path). Run them with Python 3. All require Pillow (`pip install Pillow`).

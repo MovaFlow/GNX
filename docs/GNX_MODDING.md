@@ -2132,17 +2132,19 @@ Add three fields to `manifest.json`:
   "map": "outpost_mod",
   "map_button": {
     "label": "Outpost",
-    "x": 185,
+    "x": 210,
     "y": 55,
     "map_sprite": "map_gray.png",
-    "return_label": "Village"
+    "return_label": "Village",
+    "unlock": {"type": "stage_cleared", "stage": 1, "min_level": 2}
   },
   "map_start": {
     "floors": 1,
     "money": 400,
     "food": 60,
     "mood": 85,
-    "goblins": 5
+    "goblins": 5,
+    "cells": [{"h_type": 1, "slot_type": 0, "floor": 1}]
   }
 }
 ```
@@ -2167,6 +2169,7 @@ Controls the travel button shown on the vanilla map.
 | `y` | no | Y position on the raid panel's world map (default 70) |
 | `map_sprite` | no | PNG in the mod's `sprites/` folder used as the map background. Loaded via `sprite_add` at boot |
 | `return_label` | no | Label for the return-to-vanilla button shown on the mod map (default: "Return") |
+| `unlock` | no | A condition, or an array of conditions (all must hold), in the quest condition format (`gold_gte`, `stage_cleared`, `state_equals`... see `docs/QUESTS_SCHEMA.md`). Until it holds the map is hidden, both from the world map and from the travel menu. The first time it holds, the map unlocks for good: it is saved, shared by every map, and announced with a short notice. `state_*` conditions read this mod's own state |
 
 The travel button uses `gnx_map_button.png` from `GNX_assets/` as its sprite.
 
@@ -2177,11 +2180,16 @@ once (first visit); returning to a previously visited map restores the snapshot.
 
 | Field | Required | Default | Notes |
 |-------|----------|---------|-------|
-| `floors` | no | 1 | Number of dungeon floors to create (entrance floor is always floor 0) |
+| `floors` | no | 0 | Extra floors added below the entrance floor (floor 0). `floors: 2` gives floors 0, 1 and 2 |
 | `money` | no | 0 | Starting gold |
 | `food` | no | 0 | Starting food |
 | `mood` | no | 50 | Starting mood (0–100) |
 | `goblins` | no | 5 | Number of basic goblins to spawn. Set to 0 for no starting goblins |
+| `cells` | no | none | Cells built at the start: `{"h_type": N, "slot_type": 0, "floor": F}`. `h_type` must be a number (a cell's name is not resolved here; give your own cells a fixed `h_type`). `floor` from 0 to `floors`; others are skipped |
+
+`python tools/build_mod.py <mod_dir> <game_dir>` checks all of the above before deploying (unknown
+condition types, buttons off screen or under the panel edge, cells on floors that do not exist, a
+missing `map_sprite` file) and deploys the map image from `sprites/`.
 
 ### How travel works
 
@@ -2219,9 +2227,17 @@ once (first visit); returning to a previously visited map restores the snapshot.
 
 ### Unlocks
 
-Unlocks (raid button, shop, settings features) are **carried over** from the
-vanilla map. A fresh non-vanilla map starts with the same unlocked features the
-player had on vanilla.
+Unlocks are **shared by every map**: a cell or feature (raid, shop, timer...) unlocked
+on one map is unlocked on all of them, merged in when the player arrives. Two
+exceptions: a cell that only exists on one map (a map mod's own cell) stays out of the
+other maps' build menus, and boss progress (`boss[]`) stays with each map, since it is
+tied to that map's stages and prisoners. Raid stages and their encounters also belong
+to each map.
+
+### Maps the player is not on
+
+They are **frozen**: no births, income or day timer while the player is away. The day
+counter itself is shared, so arriving on a map continues the same timeline.
 
 ### Limitations (current)
 
