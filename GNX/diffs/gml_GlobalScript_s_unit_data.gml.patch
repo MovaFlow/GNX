@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_unit_data.gml	2026-09-02 08:45:16.552128800 +0200
-+++ gml/gml_GlobalScript_s_unit_data.gml	2026-10-05 18:44:50.342403100 +0200
-@@ -11,25 +11,694 @@
++++ gml/gml_GlobalScript_s_unit_data.gml	2026-10-13 09:18:53.619307900 +0200
+@@ -11,25 +11,696 @@
      var _leg = -1;
      var _leg_p = -1;
      
@@ -81,15 +81,17 @@
 +                            {
 +                                var _bmt = variable_struct_get(_bc.by_mon_type, string(h_unit_list[0].mon_data.mon_type));
 +                                
-+                                if (_bmt != undefined)
++                                if (_bmt != undefined && gnx_pair_usable(_bmt))
 +                                    return [_bmt.spr_array, _bmt.spr_c_array];
 +                            }
 +                            
-+                            return [_bc.spr_array, _bc.spr_c_array];
++                            if (gnx_pair_usable(_bc))
++                                return [_bc.spr_array, _bc.spr_c_array];
 +                        }
 +                    }
 +                    
-+                    return [_rfixed.spr_array, _rfixed.spr_c_array];
++                    if (gnx_pair_usable(_rfixed))  // nothing loaded at phase level: fall through to the cell's normal sprites
++                        return [_rfixed.spr_array, _rfixed.spr_c_array];
 +                }
 +            }
 +            else if (variable_struct_exists(_rrule_pre, "mode") && _rrule_pre.mode == "class_map")
@@ -701,7 +703,7 @@
                              _spr_array = [-1, spr_cow_loop_head, spr_cow_breast, -1, -1, -1];
                              _spr_c_array = [-1, -1, -1, spr_cow_loop_hand, spr_cow_loop_leg, -1];
                              break;
-@@ -37,17 +706,17 @@
+@@ -37,17 +708,17 @@
                      
                      break;
                  
@@ -722,7 +724,7 @@
                              _spr_array = [-1, -1, spr_h_morrigan_chain_loop_breast, -1, spr_h_morrigan_chain_loop_leg, -1];
                              _spr_c_array = [-1, -1, spr_h_morrigan_chain_loop_breast_c, -1, spr_h_morrigan_chain_loop_leg_c, -1];
                              break;
-@@ -55,17 +724,17 @@
+@@ -55,17 +726,17 @@
                      
                      break;
                  
@@ -743,7 +745,7 @@
                              _spr_array = [-1, spr_h_lilith_shrine_loop_head, spr_h_lilith_shrine_loop_hand, spr_h_lilith_hand, spr_h_lilith_shrine_loop_leg, -1];
                              _spr_c_array = [-1, -1, spr_h_lilith_shrine_loop_hand, spr_h_lilith_hand_c, spr_h_lilith_shrine_loop_leg_c, -1];
                              break;
-@@ -78,21 +747,21 @@
+@@ -78,21 +749,21 @@
              {
                  switch (arg1)
                  {
@@ -769,7 +771,7 @@
                                  _head = spr_h_base_big_start_head_3;
                                  _breast = spr_h_base_big_start_breast_3;
                                  _leg = spr_h_base_big_start_leg_3;
-@@ -102,21 +771,21 @@
+@@ -102,21 +773,21 @@
                          _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, -1, -1];
                          break;
                      
@@ -795,7 +797,7 @@
                                  _head = spr_h_base_big_idle_head_3;
                                  _breast = spr_h_base_big_idle_breast_3;
                                  _leg = spr_h_base_big_idle_leg_3;
-@@ -126,21 +795,21 @@
+@@ -126,21 +797,21 @@
                          _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, -1, -1];
                          break;
                      
@@ -821,7 +823,7 @@
                                  _breast = spr_h_base_big_loop_breast_3;
                                  _leg = spr_h_base_big_loop_leg_3;
                                  _head = spr_h_base_big_loop_head_3;
-@@ -153,17 +822,17 @@
+@@ -153,17 +824,17 @@
                  
                  switch (_class)
                  {
@@ -843,7 +845,7 @@
                                          _leg = spr_h_peasant_big_start_leg_2;
                                          break;
                                  }
-@@ -171,14 +840,14 @@
+@@ -171,14 +842,14 @@
                                  _spr_c_array = [spr_h_peasant_big_start_hair, spr_h_peasant_big_start_head, spr_h_peasant_big_start_breast, -1, _leg, -1];
                                  break;
                              
@@ -861,7 +863,7 @@
                                          _leg = spr_h_peasant_big_idle_leg_2;
                                          break;
                                  }
-@@ -186,14 +855,14 @@
+@@ -186,14 +857,14 @@
                                  _spr_c_array = [spr_h_peasant_big_idle_hair, spr_h_peasant_big_idle_head, spr_h_peasant_big_idle_breast, -1, _leg, -1];
                                  break;
                              
@@ -879,7 +881,7 @@
                                          _leg = spr_h_peasant_big_loop_leg;
                                          break;
                                  }
-@@ -204,17 +873,17 @@
+@@ -204,17 +875,17 @@
                          
                          break;
                      
@@ -901,7 +903,7 @@
                                          _leg = spr_h_cleric_big_start_leg;
                                          break;
                                  }
-@@ -222,14 +891,14 @@
+@@ -222,14 +893,14 @@
                                  _spr_c_array = [-1, spr_h_cleric_big_start_head, spr_h_cleric_big_start_breast, -1, _leg, -1];
                                  break;
                              
@@ -919,7 +921,7 @@
                                          _leg = spr_h_cleric_big_idle_leg;
                                          break;
                                  }
-@@ -237,14 +906,14 @@
+@@ -237,14 +908,14 @@
                                  _spr_c_array = [-1, spr_h_cleric_big_idle_head, spr_h_cleric_big_idle_breast, spr_h_cleric_hand, _leg, -1];
                                  break;
                              
@@ -937,7 +939,7 @@
                                          _leg = spr_h_cleric_big_loop_leg;
                                          break;
                                  }
-@@ -255,17 +924,17 @@
+@@ -255,17 +926,17 @@
                          
                          break;
                      
@@ -959,7 +961,7 @@
                                          _leg = spr_h_knight_big_start_leg;
                                          break;
                                  }
-@@ -273,14 +942,14 @@
+@@ -273,14 +944,14 @@
                                  _spr_c_array = [spr_h_knight_big_start_hair, spr_h_knight_big_start_head, spr_h_knight_big_start_breast, -1, _leg, -1];
                                  break;
                              
@@ -977,7 +979,7 @@
                                          _leg = spr_h_knight_big_idle_leg_2;
                                          break;
                                  }
-@@ -288,14 +957,14 @@
+@@ -288,14 +959,14 @@
                                  _spr_c_array = [spr_h_knight_big_idle_hair, spr_h_knight_big_idle_head, spr_h_knight_big_idle_breast, spr_h_knight_hand, _leg, -1];
                                  break;
                              
@@ -995,7 +997,7 @@
                                          _leg = spr_h_knight_big_loop_leg;
                                          break;
                                  }
-@@ -306,17 +975,17 @@
+@@ -306,17 +977,17 @@
                          
                          break;
                      
@@ -1017,7 +1019,7 @@
                                          _leg = spr_h_nun_big_start_leg;
                                          break;
                                  }
-@@ -324,14 +993,14 @@
+@@ -324,14 +995,14 @@
                                  _spr_c_array = [-1, spr_h_nun_big_start_head, spr_h_nun_big_start_breast, -1, _leg, -1];
                                  break;
                              
@@ -1035,7 +1037,7 @@
                                          _leg = spr_h_nun_big_idle_leg_2;
                                          break;
                                  }
-@@ -339,14 +1008,14 @@
+@@ -339,14 +1010,14 @@
                                  _spr_c_array = [-1, spr_h_nun_big_idle_head, spr_h_nun_big_idle_breast, -1, _leg, -1];
                                  break;
                              
@@ -1053,7 +1055,7 @@
                                          _leg = spr_h_nun_big_loop_leg;
                                          break;
                                  }
-@@ -357,17 +1026,17 @@
+@@ -357,17 +1028,17 @@
                          
                          break;
                      
@@ -1075,7 +1077,7 @@
                                          _leg = spr_h_ranger_big_start_leg;
                                          break;
                                  }
-@@ -375,14 +1044,14 @@
+@@ -375,14 +1046,14 @@
                                  _spr_c_array = [-1, spr_h_ranger_big_start_head, spr_h_ranger_big_start_breast, -1, _leg, -1];
                                  break;
                              
@@ -1093,7 +1095,7 @@
                                          _leg = spr_h_ranger_big_idle_leg_2;
                                          break;
                                  }
-@@ -390,14 +1059,14 @@
+@@ -390,14 +1061,14 @@
                                  _spr_c_array = [-1, spr_h_ranger_big_idle_head, spr_h_ranger_big_idle_breast, spr_h_ranger_hand, _leg, -1];
                                  break;
                              
@@ -1111,7 +1113,7 @@
                                          _leg = spr_h_ranger_big_loop_leg;
                                          break;
                                  }
-@@ -408,17 +1077,17 @@
+@@ -408,17 +1079,17 @@
                          
                          break;
                      
@@ -1133,7 +1135,7 @@
                                          _leg = spr_h_samurai_big_start_leg;
                                          break;
                                  }
-@@ -426,14 +1095,14 @@
+@@ -426,14 +1097,14 @@
                                  _spr_c_array = [spr_h_samurai_big_start_hair, spr_h_samurai_big_start_head, spr_h_samurai_big_start_breast, -1, _leg, -1];
                                  break;
                              
@@ -1151,7 +1153,7 @@
                                          _leg = spr_h_samurai_big_idle_leg_2;
                                          break;
                                  }
-@@ -441,14 +1110,14 @@
+@@ -441,14 +1112,14 @@
                                  _spr_c_array = [spr_h_samurai_big_idle_hair, spr_h_samurai_big_idle_head, spr_h_samurai_big_idle_breast, spr_h_samurai_hand, _leg, -1];
                                  break;
                              
@@ -1169,7 +1171,7 @@
                                          _leg = spr_h_samurai_big_loop_leg;
                                          break;
                                  }
-@@ -459,56 +1128,56 @@
+@@ -459,56 +1130,56 @@
                          
                          break;
                      
@@ -1238,7 +1240,7 @@
                                  _spr_array = [-1, spr_h_cow_big_loop_head, spr_h_cow_big_loop_breast, spr_h_cow_hand, spr_h_cow_big_loop_leg, -1];
                                  _spr_c_array = [-1, spr_h_cow_big_loop_head, spr_h_cow_big_loop_breast_c, spr_h_cow_hand_c, spr_h_cow_big_loop_leg_c, -1];
                                  break;
-@@ -516,20 +1185,20 @@
+@@ -516,20 +1187,20 @@
                          
                          break;
                      
@@ -1263,7 +1265,7 @@
                                  _spr_array = [-1, spr_h_nyx_big_loop_head, spr_h_nyx_big_loop_breast, spr_h_nyx_hand, spr_h_nyx_big_loop_leg, -1];
                                  _spr_c_array = [-1, spr_h_nyx_big_loop_head, spr_h_nyx_big_loop_breast_c, spr_h_nyx_hand_c, spr_h_nyx_big_loop_leg_c, -1];
                                  break;
-@@ -537,20 +1206,20 @@
+@@ -537,20 +1208,20 @@
                          
                          break;
                      
@@ -1288,7 +1290,7 @@
                                  _spr_array = [-1, spr_h_lilith_big_loop_head, spr_h_lilith_big_loop_breast, spr_h_lilith_hand, spr_h_lilith_big_loop_leg, -1];
                                  _spr_c_array = [-1, spr_h_lilith_big_loop_head, spr_h_lilith_big_loop_breast_c, spr_h_lilith_hand_c, spr_h_lilith_big_loop_leg_c, -1];
                                  break;
-@@ -558,20 +1227,20 @@
+@@ -558,20 +1229,20 @@
                          
                          break;
                      
@@ -1313,7 +1315,7 @@
                                  _spr_array = [-1, spr_h_cat_big_loop_head, spr_h_cat_big_loop_breast, spr_h_cat_hand, spr_h_cat_big_loop_leg, -1];
                                  _spr_c_array = [-1, spr_h_cat_big_loop_head, spr_h_cat_big_loop_breast_c, spr_h_cat_hand_c, spr_h_cat_big_loop_leg_c, -1];
                                  break;
-@@ -579,20 +1248,20 @@
+@@ -579,20 +1250,20 @@
                          
                          break;
                      
@@ -1338,7 +1340,7 @@
                                  _spr_array = [-1, spr_h_morrigan_big_loop_head, spr_h_morrigan_big_loop_breast, spr_h_morrigan_hand, spr_h_morrigan_big_loop_leg, -1];
                                  _spr_c_array = [-1, spr_h_morrigan_big_loop_head, spr_h_morrigan_big_loop_breast_c, spr_h_morrigan_hand_c, spr_h_morrigan_big_loop_leg_c, -1];
                                  break;
-@@ -600,46 +1269,25 @@
+@@ -600,46 +1271,25 @@
                          
                          break;
                      
@@ -1392,7 +1394,7 @@
                                  break;
                          }
                          
-@@ -649,25 +1297,25 @@
+@@ -649,25 +1299,25 @@
              
              break;
          
@@ -1423,7 +1425,7 @@
                              _head = spr_h_base_idle_head_3;
                              _breast = spr_h_base_idle_breast_3;
                              _leg = spr_h_base_idle_leg_3;
-@@ -678,22 +1326,22 @@
+@@ -678,22 +1328,22 @@
                      _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, _leg_p, -1];
                      break;
                  
@@ -1450,7 +1452,7 @@
                              _head = spr_h_base_loop_head_3;
                              _breast = spr_h_base_loop_breast_3;
                              _leg = spr_h_base_loop_leg_3;
-@@ -707,17 +1355,17 @@
+@@ -707,17 +1357,17 @@
              
              switch (_class)
              {
@@ -1472,7 +1474,7 @@
                                      _leg = spr_h_peasant_idle_leg_2;
                                      break;
                              }
-@@ -725,14 +1373,14 @@
+@@ -725,14 +1375,14 @@
                              _spr_c_array = [spr_h_peasant_idle_hair, spr_h_peasant_idle_head, spr_h_peasant_idle_breast, -1, _leg, spr_h_peasant_idle_leg_part];
                              break;
                          
@@ -1490,7 +1492,7 @@
                                      _leg = spr_h_peasant_loop_leg_2;
                                      break;
                              }
-@@ -743,17 +1391,17 @@
+@@ -743,17 +1393,17 @@
                      
                      break;
                  
@@ -1512,7 +1514,7 @@
                                      _leg = spr_h_cleric_idle_leg_2;
                                      break;
                              }
-@@ -761,14 +1409,14 @@
+@@ -761,14 +1411,14 @@
                              _spr_c_array = [-1, spr_h_cleric_idle_head, spr_h_cleric_idle_breast, spr_h_cleric_hand, _leg, spr_h_cleric_idle_leg_part];
                              break;
                          
@@ -1530,7 +1532,7 @@
                                      _leg = spr_h_cleric_loop_leg_2;
                                      break;
                              }
-@@ -779,17 +1427,17 @@
+@@ -779,17 +1429,17 @@
                      
                      break;
                  
@@ -1552,7 +1554,7 @@
                                      _leg = spr_h_knight_idle_leg_2;
                                      break;
                              }
-@@ -797,14 +1445,14 @@
+@@ -797,14 +1447,14 @@
                              _spr_c_array = [spr_h_knight_idle_hair, spr_h_knight_idle_head, spr_h_knight_idle_breast, spr_h_knight_hand, _leg, spr_h_knight_idle_leg_part];
                              break;
                          
@@ -1570,7 +1572,7 @@
                                      _leg = spr_h_knight_loop_leg_2;
                                      break;
                              }
-@@ -815,17 +1463,17 @@
+@@ -815,17 +1465,17 @@
                      
                      break;
                  
@@ -1592,7 +1594,7 @@
                                      _leg = spr_h_nun_idle_leg_2;
                                      break;
                              }
-@@ -833,14 +1481,14 @@
+@@ -833,14 +1483,14 @@
                              _spr_c_array = [-1, spr_h_nun_idle_head, spr_h_nun_idle_breast, -1, _leg, spr_h_nun_idle_leg_part];
                              break;
                          
@@ -1610,7 +1612,7 @@
                                      _leg = spr_h_nun_loop_leg_2;
                                      break;
                              }
-@@ -851,55 +1499,55 @@
+@@ -851,55 +1501,55 @@
                      
                      break;
                  
@@ -1679,7 +1681,7 @@
                                      _leg = spr_h_samurai_idle_leg_2;
                                      break;
                              }
-@@ -907,14 +1555,14 @@
+@@ -907,14 +1557,14 @@
                              _spr_c_array = [spr_h_samurai_idle_hair, spr_h_samurai_idle_head, spr_h_samurai_idle_breast, spr_h_samurai_hand, _leg, spr_h_samurai_idle_leg_part];
                              break;
                          
@@ -1697,7 +1699,7 @@
                                      _leg = spr_h_samurai_loop_leg_2;
                                      break;
                              }
-@@ -925,43 +1573,43 @@
+@@ -925,43 +1575,43 @@
                      
                      break;
                  
@@ -1750,7 +1752,7 @@
                              _spr_array = [-1, spr_h_base_loop_head_cow, spr_h_base_loop_breast_cow, spr_h_cow_hand, spr_h_base_loop_leg_cow, spr_h_base_loop_leg_part_cow, spr_h_base_loop_cape_cow];
                              _spr_c_array = [-1, spr_h_base_loop_head_cow, spr_h_base_loop_breast_c_cow, spr_h_cow_hand_c, spr_h_base_loop_leg_c_cow, spr_h_base_loop_leg_part_c_cow];
                              break;
-@@ -969,15 +1617,15 @@
+@@ -969,15 +1619,15 @@
                      
                      break;
                  
@@ -1769,7 +1771,7 @@
                              _spr_array = [-1, spr_h_base_loop_head_nyx, spr_h_base_loop_breast_nyx, spr_h_nyx_hand, spr_h_base_loop_leg_nyx, spr_h_base_loop_leg_part_nyx, -1];
                              _spr_c_array = [-1, spr_h_base_loop_head_nyx, spr_h_base_loop_breast_c_nyx, spr_h_nyx_hand_c, spr_h_base_loop_leg_c_nyx, spr_h_base_loop_leg_part_c_nyx];
                              break;
-@@ -985,15 +1633,15 @@
+@@ -985,15 +1635,15 @@
                      
                      break;
                  
@@ -1788,7 +1790,7 @@
                              _spr_array = [-1, spr_h_base_loop_head_cat, spr_h_base_loop_breast_cat, spr_h_cat_hand, spr_h_base_loop_leg_cat, spr_h_base_loop_leg_part_cat, -1];
                              _spr_c_array = [-1, spr_h_base_loop_head_cat, spr_h_base_loop_breast_c_cat, spr_h_cat_hand_c, spr_h_base_loop_leg_c_cat, spr_h_base_loop_leg_part_c_cat];
                              break;
-@@ -1001,15 +1649,15 @@
+@@ -1001,15 +1651,15 @@
                      
                      break;
                  
@@ -1807,7 +1809,7 @@
                              _spr_array = [-1, spr_h_base_loop_head_morrigan, spr_h_base_loop_breast_morrigan, spr_h_morrigan_hand, spr_h_base_loop_leg_morrigan, spr_h_base_loop_leg_part_morrigan, spr_h_base_idle_cape_morrigan];
                              _spr_c_array = [-1, spr_h_base_loop_head_morrigan, spr_h_base_loop_breast_c_morrigan, spr_h_morrigan_hand_c, spr_h_base_loop_leg_c_morrigan, spr_h_base_loop_leg_part_c_morrigan];
                              break;
-@@ -1017,60 +1665,44 @@
+@@ -1017,60 +1667,44 @@
                      
                      break;
                  
@@ -1876,7 +1878,7 @@
                              _head = spr_h_tent_idle_head_3;
                              _breast = spr_h_tent_idle_breast_3;
                              _leg = spr_h_tent_idle_leg_3;
-@@ -1081,22 +1713,22 @@
+@@ -1081,22 +1715,22 @@
                      _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, _leg_p, -1];
                      break;
                  
@@ -1903,7 +1905,7 @@
                              _head = spr_h_tent_loop_head_3;
                              _breast = spr_h_tent_loop_breast_3;
                              _leg = spr_h_tent_loop_leg_3;
-@@ -1107,22 +1739,22 @@
+@@ -1107,22 +1741,22 @@
                      _spr_array = [-1, _head, _breast, spr_h_base_hand, _leg, _leg_p, -1];
                      break;
                  
@@ -1930,7 +1932,7 @@
                              _head = spr_h_tent_birth_head_3;
                              _breast = spr_h_tent_birth_breast_3;
                              _leg = spr_h_tent_birth_leg_3;
-@@ -1136,17 +1768,17 @@
+@@ -1136,17 +1770,17 @@
              
              switch (_class)
              {
@@ -1952,7 +1954,7 @@
                                      _leg = spr_h_peasant_tent_idle_leg;
                                      break;
                              }
-@@ -1154,14 +1786,14 @@
+@@ -1154,14 +1788,14 @@
                              _spr_c_array = [spr_h_peasant_tent_idle_hair, spr_h_peasant_tent_idle_head, spr_h_peasant_tent_idle_breast, -1, _leg, spr_h_peasant_tent_idle_leg_part];
                              break;
                          
@@ -1970,7 +1972,7 @@
                                      _leg = spr_h_peasant_tent_loop_leg_v2;
                                      break;
                              }
-@@ -1169,14 +1801,14 @@
+@@ -1169,14 +1803,14 @@
                              _spr_c_array = [spr_h_peasant_tent_loop_hair, spr_h_peasant_tent_loop_head, spr_h_peasant_tent_loop_breast, -1, _leg, spr_h_peasant_tent_loop_leg_part];
                              break;
                          
@@ -1988,7 +1990,7 @@
                                      _leg = spr_h_peasant_tent_birth_leg;
                                      break;
                              }
-@@ -1187,17 +1819,17 @@
+@@ -1187,17 +1821,17 @@
                      
                      break;
                  
@@ -2010,7 +2012,7 @@
                                      _leg = spr_h_cleric_tent_idle_leg;
                                      break;
                              }
-@@ -1205,14 +1837,14 @@
+@@ -1205,14 +1839,14 @@
                              _spr_c_array = [-1, spr_h_cleric_tent_idle_head, spr_h_cleric_tent_idle_breast, spr_h_cleric_hand, _leg, spr_h_cleric_tent_idle_leg_part];
                              break;
                          
@@ -2028,7 +2030,7 @@
                                      _leg = spr_h_cleric_tent_loop_leg;
                                      break;
                              }
-@@ -1220,14 +1852,14 @@
+@@ -1220,14 +1854,14 @@
                              _spr_c_array = [-1, spr_h_cleric_tent_loop_head, spr_h_cleric_tent_loop_breast, spr_h_cleric_hand, _leg, spr_h_cleric_tent_loop_leg_part];
                              break;
                          
@@ -2046,7 +2048,7 @@
                                      _leg = spr_h_cleric_tent_birth_leg;
                                      break;
                              }
-@@ -1238,17 +1870,17 @@
+@@ -1238,17 +1872,17 @@
                      
                      break;
                  
@@ -2068,7 +2070,7 @@
                                      _leg = spr_h_knight_tent_idle_leg_v2;
                                      break;
                              }
-@@ -1256,14 +1888,14 @@
+@@ -1256,14 +1890,14 @@
                              _spr_c_array = [spr_h_knight_tent_idle_hair, spr_h_knight_tent_idle_head, spr_h_knight_tent_idle_breast, spr_h_knight_hand, _leg, spr_h_knight_tent_idle_leg_part];
                              break;
                          
@@ -2086,7 +2088,7 @@
                                      _leg = spr_h_knight_tent_loop_leg_v2;
                                      break;
                              }
-@@ -1271,14 +1903,14 @@
+@@ -1271,14 +1905,14 @@
                              _spr_c_array = [spr_h_knight_tent_loop_hair, spr_h_knight_tent_loop_head, spr_h_knight_tent_loop_breast, spr_h_knight_hand, _leg, spr_h_knight_tent_loop_leg_part];
                              break;
                          
@@ -2104,7 +2106,7 @@
                                      _leg = spr_h_knight_tent_birth_leg_v2;
                                      break;
                              }
-@@ -1289,17 +1921,17 @@
+@@ -1289,17 +1923,17 @@
                      
                      break;
                  
@@ -2126,7 +2128,7 @@
                                      _leg = spr_h_nun_tent_idle_leg_v2;
                                      break;
                              }
-@@ -1307,14 +1939,14 @@
+@@ -1307,14 +1941,14 @@
                              _spr_c_array = [-1, spr_h_nun_tent_idle_head, spr_h_nun_tent_idle_breast, -1, _leg, spr_h_nun_tent_idle_leg_part];
                              break;
                          
@@ -2144,7 +2146,7 @@
                                      _leg = spr_h_nun_tent_loop_leg_v2;
                                      break;
                              }
-@@ -1322,14 +1954,14 @@
+@@ -1322,14 +1956,14 @@
                              _spr_c_array = [-1, spr_h_nun_tent_loop_head, spr_h_nun_tent_loop_breast, -1, _leg, spr_h_nun_tent_loop_leg_part];
                              break;
                          
@@ -2162,7 +2164,7 @@
                                      _leg = spr_h_nun_tent_birth_leg_v2;
                                      break;
                              }
-@@ -1340,17 +1972,17 @@
+@@ -1340,17 +1974,17 @@
                      
                      break;
                  
@@ -2184,7 +2186,7 @@
                                      _leg = spr_h_ranger_tent_idle_leg_v2;
                                      break;
                              }
-@@ -1358,14 +1990,14 @@
+@@ -1358,14 +1992,14 @@
                              _spr_c_array = [-1, spr_h_ranger_tent_idle_head, spr_h_ranger_tent_idle_breast, spr_h_ranger_hand, _leg, spr_h_ranger_tent_idle_leg_part];
                              break;
                          
@@ -2202,7 +2204,7 @@
                                      _leg = spr_h_ranger_tent_loop_leg_v2;
                                      break;
                              }
-@@ -1373,14 +2005,14 @@
+@@ -1373,14 +2007,14 @@
                              _spr_c_array = [-1, spr_h_ranger_tent_loop_head, spr_h_ranger_tent_loop_breast, spr_h_ranger_hand, _leg, spr_h_ranger_tent_loop_leg_part];
                              break;
                          
@@ -2220,7 +2222,7 @@
                                      _leg = spr_h_ranger_tent_birth_leg_v2;
                                      break;
                              }
-@@ -1391,17 +2023,17 @@
+@@ -1391,17 +2025,17 @@
                      
                      break;
                  
@@ -2242,7 +2244,7 @@
                                      _leg = spr_h_samurai_tent_idle_leg_v2;
                                      break;
                              }
-@@ -1409,14 +2041,14 @@
+@@ -1409,14 +2043,14 @@
                              _spr_c_array = [spr_h_samurai_tent_idle_hair, spr_h_samurai_tent_idle_head, spr_h_samurai_tent_idle_breast, spr_h_samurai_hand, _leg, spr_h_samurai_tent_idle_leg_part];
                              break;
                          
@@ -2260,7 +2262,7 @@
                                      _leg = spr_h_samurai_tent_loop_leg_v2;
                                      break;
                              }
-@@ -1424,14 +2056,14 @@
+@@ -1424,14 +2058,14 @@
                              _spr_c_array = [spr_h_samurai_tent_loop_hair, spr_h_samurai_tent_loop_head, spr_h_samurai_tent_loop_breast, spr_h_samurai_hand, _leg, spr_h_samurai_tent_loop_leg_part];
                              break;
                          
@@ -2278,7 +2280,7 @@
                                      _leg = spr_h_samurai_tent_birth_leg_v2;
                                      break;
                              }
-@@ -1442,56 +2074,56 @@
+@@ -1442,56 +2076,56 @@
                      
                      break;
                  
@@ -2347,7 +2349,7 @@
                              _spr_array = [-1, spr_h_cow_tent_birth_head, spr_h_cow_tent_birth_breast, spr_h_cow_hand, spr_h_cow_tent_birth_leg, spr_h_cow_tent_birth_leg_part];
                              _spr_c_array = [-1, spr_h_cow_tent_birth_head, spr_h_cow_tent_birth_breast_c, spr_h_cow_hand_c, spr_h_cow_tent_birth_leg_c, spr_h_cow_tent_birth_leg_part_c];
                              break;
-@@ -1499,20 +2131,20 @@
+@@ -1499,20 +2133,20 @@
                      
                      break;
                  
@@ -2372,7 +2374,7 @@
                              _spr_array = [-1, spr_h_nyx_tent_birth_head, spr_h_nyx_tent_birth_breast, spr_h_nyx_hand, spr_h_nyx_tent_birth_leg, spr_h_nyx_tent_birth_leg_part];
                              _spr_c_array = [-1, spr_h_nyx_tent_birth_head, spr_h_nyx_tent_birth_breast_c, spr_h_nyx_hand_c, spr_h_nyx_tent_birth_leg_c, spr_h_nyx_tent_birth_leg_part_c];
                              break;
-@@ -1520,20 +2152,20 @@
+@@ -1520,20 +2154,20 @@
                      
                      break;
                  
@@ -2397,7 +2399,7 @@
                              _spr_array = [-1, spr_h_morrigan_tent_birth_head, spr_h_morrigan_tent_birth_breast, spr_h_morrigan_hand, spr_h_morrigan_tent_birth_leg, spr_h_morrigan_tent_birth_leg_part];
                              _spr_c_array = [-1, spr_h_morrigan_tent_birth_head, spr_h_morrigan_tent_birth_breast_c, spr_h_morrigan_hand_c, spr_h_morrigan_tent_birth_leg_c, spr_h_morrigan_tent_birth_leg_part_c];
                              break;
-@@ -1541,20 +2173,20 @@
+@@ -1541,20 +2175,20 @@
                      
                      break;
                  
@@ -2422,7 +2424,7 @@
                              _spr_array = [-1, spr_h_cat_tent_birth_head, spr_h_cat_tent_birth_breast, spr_h_cat_hand, spr_h_cat_tent_birth_leg, spr_h_cat_tent_birth_leg_part];
                              _spr_c_array = [-1, spr_h_cat_tent_birth_head, spr_h_cat_tent_birth_breast_c, spr_h_cat_hand_c, spr_h_cat_tent_birth_leg_c, spr_h_cat_tent_birth_leg_part_c];
                              break;
-@@ -1562,47 +2194,26 @@
+@@ -1562,47 +2196,26 @@
                      
                      break;
                  
@@ -2474,7 +2476,7 @@
              }
              
              break;
-@@ -1616,10 +2227,12 @@
+@@ -1616,10 +2229,12 @@
  {
      var _info = {};
      _info.scr_unit = -1;
@@ -2488,7 +2490,7 @@
      
      switch (arg1)
      {
-@@ -1646,49 +2259,49 @@
+@@ -1646,49 +2261,49 @@
      
      switch (arg0)
      {
@@ -2551,7 +2553,7 @@
              
              if (arg1 == 7)
                  _info.preg_c = 10;
-@@ -1697,7 +2310,7 @@
+@@ -1697,7 +2312,7 @@
              
              break;
          
@@ -2560,7 +2562,7 @@
              _info.class_name = "NYX";
              _info.skin = -1;
              
-@@ -1706,10 +2319,10 @@
+@@ -1706,10 +2321,10 @@
              else
                  _info.preg_c = -1;
              
@@ -2573,7 +2575,7 @@
              _info.class_name = "SELENE";
              _info.skin = -1;
              
-@@ -1720,12 +2333,12 @@
+@@ -1720,12 +2335,12 @@
              else
              {
                  _info.preg_c = 10;
@@ -2588,7 +2590,7 @@
              _info.class_name = "MORRIGAN";
              _info.skin = -1;
              
-@@ -1734,10 +2347,10 @@
+@@ -1734,10 +2349,10 @@
              else
                  _info.preg_c = 16;
              
@@ -2601,7 +2603,7 @@
              _info.class_name = "BASTET";
              _info.skin = -1;
              
-@@ -1746,10 +2359,10 @@
+@@ -1746,10 +2361,10 @@
              else
                  _info.preg_c = 12;
              
@@ -2614,7 +2616,7 @@
              _info.class_name = "LILITH";
              _info.skin = -1;
              
-@@ -1758,19 +2371,51 @@
+@@ -1758,19 +2373,51 @@
              else
                  _info.preg_c = 666;
              
@@ -2676,7 +2678,7 @@
      }
      
      return _info;
-@@ -1788,86 +2433,124 @@
+@@ -1788,86 +2435,124 @@
      
      switch (_leg)
      {
@@ -2817,7 +2819,7 @@
              _base = spr_ogre_carry_base_cat;
              _head = -1;
              _hand = -1;
-@@ -1875,6 +2558,7 @@
+@@ -1875,6 +2560,7 @@
              break;
      }
      
@@ -2825,7 +2827,7 @@
      var _spr_data = 
      {
          base: _base,
-@@ -1882,7 +2566,8 @@
+@@ -1882,7 +2568,8 @@
          hand: _hand,
          hair: _hair,
          skin: _skin,
@@ -2835,7 +2837,7 @@
      };
      return _spr_data;
  }
-@@ -1893,66 +2578,74 @@
+@@ -1893,66 +2580,74 @@
      var _fap = 0;
      var _bap = 0;
      
@@ -2923,7 +2925,7 @@
              _fap = 0;
              _bap = 0;
              break;
-@@ -1960,25 +2653,3 @@
+@@ -1960,25 +2655,3 @@
      
      return [_fap, _bap];
  }

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 08:46:00.776858800 +0200
-@@ -1,224 +1,16081 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 09:21:07.749145900 +0200
+@@ -1,224 +1,16202 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -3606,6 +3606,10 @@
 +    scr_gnx_build_expected();
 +    scr_gnx_test_suite();
 +    scr_gnx_test_dispatch_routing();
++
++    // harness runs (tools/gnx_test.py) are silent: several games may run at once
++    if (gnx_cli_has("-gnx-autotest") || gnx_cli_value("-gnx-scenario") != "")
++        audio_master_gain(0);
 +
 +    // tools/gnx_test.py launches with -gnx-autotest: exit cleanly once boot tests are logged
 +    if (gnx_cli_has("-gnx-autotest"))
@@ -7447,6 +7451,56 @@
 +    return _out;
 +}
 +
++// Vanilla sprite fallback for a class's sprite tables (clothing_* / naked_*). arg0 = the resolved table,
++// arg1 = its JSON definition, arg2 = the vanilla table to take from. Fills keys the mod left out, and
++// sprites whose "gnx:" reference did not load (missing file); an explicit -1 stays -1 (no layer on purpose).
++// A mod's leg_any is kept: the dispatch prefers leg_0/1/2 over it, so those are not added next to it.
++// arg3 = also add keys the mod left out (overrides of a vanilla class; a new class only gets unloadable refs
++// replaced). Returns how many entries came from vanilla.
++function gnx_fill_from_vanilla(arg0, arg1, arg2, arg3)
++{
++    if (!is_struct(arg0) || !is_struct(arg2))
++        return 0;
++
++    var _n = 0;
++    var _keys = variable_struct_get_names(arg2);
++    var _has_any = variable_struct_exists(arg0, "leg_any");
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        var _k = _keys[_i];
++        var _bv = variable_struct_get(arg2, _k);
++
++        if (!variable_struct_exists(arg0, _k))
++        {
++            if (!arg3)
++                continue;
++            
++            if (_has_any && (_k == "leg_0" || _k == "leg_1" || _k == "leg_2"))
++                continue;
++
++            variable_struct_set(arg0, _k, _bv);
++            _n++;
++            continue;
++        }
++
++        var _rv = variable_struct_get(arg0, _k);
++        var _dv = (is_struct(arg1) && variable_struct_exists(arg1, _k)) ? variable_struct_get(arg1, _k) : undefined;
++
++        if (is_struct(_rv) && is_struct(_bv))
++        {
++            _n += gnx_fill_from_vanilla(_rv, _dv, _bv, arg3);
++        }
++        else if (is_string(_dv) && (_rv == -1 || !scr_gnx_spr_ok(_rv)) && !is_struct(_bv))  // -1 = the ref did not load
++        {
++            variable_struct_set(arg0, _k, _bv);
++            _n++;
++        }
++    }
++
++    return _n;
++}
++
 +function gnx_resolve_class_phase(arg0, arg1, arg2, arg3)
 +{
 +    if (arg0 == undefined)
@@ -7523,8 +7577,27 @@
 +        repeat (array_length(_arr))
 +            array_push(_out.spr_c_array, gnx_resolve_layer_sprite(_arr[_i++], arg1, arg2));
 +    }
-+    
++
++    // usable = has at least one sprite that loaded. The fixed-mode dispatch skips unusable entries (no
++    // phase-level arrays, e.g. a phase with only by_class; or every file missing) and falls through to the
++    // cell's normal sprites, the vanilla ones for a patched vanilla cell, instead of handing out empty arrays.
++    _out.usable = false;
++
++    for (var _u = 0; _u < array_length(_out.spr_array); _u++)
++    {
++        if (_out.spr_array[_u] != -1 && scr_gnx_spr_ok(_out.spr_array[_u]))
++        {
++            _out.usable = true;
++            break;
++        }
++    }
++
 +    return _out;
++}
++
++function gnx_pair_usable(arg0)
++{
++    return !variable_struct_exists(arg0, "usable") || arg0.usable;
 +}
 +
 +function gnx_resolve_special_phase(arg0, arg1, arg2)
@@ -8315,6 +8388,31 @@
 +            
 +            if (!variable_struct_exists(_prov, _bk))
 +                variable_struct_set(_rclass, _bk, variable_struct_get(_base, _bk));
++        }
++    }
++    
++    // vanilla sprite fallback: an override takes what it lacks (or failed to load) from the class it replaces;
++    // a new non-special class gets the vanilla peasant's sprite wherever one of its files did not load
++    var _fb_base = (_is_merge && is_struct(_base)) ? _base : ((!_rclass.is_special && ds_map_exists(global.class_registry, 0)) ? ds_map_find_value(global.class_registry, 0) : undefined);
++    
++    if (is_struct(_fb_base))
++    {
++        var _fb_keys = ["clothing_standard", "clothing_big", "clothing_tent", "naked_standard", "naked_big", "naked_tent"];
++        var _fb_n = 0;
++        
++        for (var _fbi = 0; _fbi < array_length(_fb_keys); _fbi++)
++        {
++            var _fbk = _fb_keys[_fbi];
++            
++            if (variable_struct_exists(arg0, _fbk) && variable_struct_exists(_rclass, _fbk) && variable_struct_exists(_fb_base, _fbk))
++                _fb_n += gnx_fill_from_vanilla(variable_struct_get(_rclass, _fbk), variable_struct_get(arg0, _fbk), variable_struct_get(_fb_base, _fbk), _is_merge);
++        }
++        
++        if (_fb_n > 0)
++        {
++            _log = file_text_open_append("gnx_debug.txt");
++            file_text_write_string(_log, "[GNX-WARN] Mod '" + arg1 + "' class " + string(_class_id) + ": " + string(_fb_n) + " sprite(s) missing or not loadable, using the vanilla " + (_is_merge ? "class's" : "peasant's") + " instead\n");
++            file_text_close(_log);
 +        }
 +    }
 +    
@@ -15705,7 +15803,30 @@
 +        exit;
 +    }
 +    
++    // a sprite that never loaded (missing mod file) is skipped, not a crash; logged once per value
++    if (!is_real(arg0) && !is_handle(arg0) || !sprite_exists(arg0))
++    {
++        gnx_warn_bad_draw(arg0);
++        exit;
++    }
++    
 +    draw_sprite_ext(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
++}
++
++function gnx_warn_bad_draw(arg0)
++{
++    if (!variable_global_exists("gnx_bad_draw_seen"))
++        global.gnx_bad_draw_seen = {};
++    
++    var _k = string(arg0);
++    
++    if (variable_struct_exists(global.gnx_bad_draw_seen, _k))
++        exit;
++    
++    variable_struct_set(global.gnx_bad_draw_seen, _k, true);
++    var _l = file_text_open_append("gnx_debug.txt");
++    file_text_write_string(_l, "[GNX-WARN] skipped drawing a sprite that does not exist (" + _k + "), probably a missing mod file" + chr(10));
++    file_text_close(_l);
 +}
 +
 +function gnx_draw_sprite(arg0, arg1, arg2, arg3)

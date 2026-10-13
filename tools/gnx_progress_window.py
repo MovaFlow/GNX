@@ -101,7 +101,7 @@ def poll():
             run_what.config(text="")
             run_bar["value"] = 1.0
             all_bar["value"] = 1.0
-            close_at = 6000 if not fails else 20000  # keep a failed run's list up longer
+            close_at = 800 if not fails else 20000  # all green: close at once; failures stay up to be read
             root.after(close_at, root.destroy)
     if close_at is None and not harness_alive():
         root.after(3000, root.destroy)

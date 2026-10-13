@@ -13,6 +13,7 @@
 
 ### Bug Fixes
 
+- **Vanilla sprite fallback**: a mod with missing or unloadable sprite files no longer crashes the game. A class override takes whatever it leaves out, or fails to load, from the vanilla class it replaces (a new class from the vanilla peasant); a fixed-mode cell entry with nothing usable falls back to the cell's normal sprites; and a sprite that does not exist is skipped when drawn. Each case is logged as a `[GNX-WARN]` naming the mod. Before, loading a save on a map where such a mod applied could crash on the first cell holding a peasant.
 - The pre-travel selector's buttons shared an id with the build menu's side toggle, so every +/- click also flipped which side the build menu opens on. Opening the selector from outside the raid map also opened the raid window on Cancel.
 
 All of these were in code that only runs when a map mod loads (map mods are deferred at boot), so they crashed the game the first time a player travelled to a map:
