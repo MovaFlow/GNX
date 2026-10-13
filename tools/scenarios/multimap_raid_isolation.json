@@ -1,0 +1,213 @@
+{
+  "about": "Raid progress belongs to each map. The rich village (fixture 'modded') wins a raid, which levels up and redraws the stage's encounters; map A (harness_map) must keep its own stage state and everything else, through travel both ways and a save/reload. Snapshot key 'stages' = per stage max/selected level + encounter class ids.",
+  "fixture": "modded",
+  "mods": [
+    "tools/scenarios/mods/harness_map"
+  ],
+  "seed": 6,
+  "timeout": 180,
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "do": {
+        "type": "add_floor"
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "snapshot": "map_a"
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "snapshot": "village_before"
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "raid_stage": 0
+    },
+    {
+      "wait": 10
+    },
+    {
+      "raid_clear_formation": true
+    },
+    {
+      "raid_formation": {
+        "front": [
+          [
+            0,
+            1200
+          ]
+        ],
+        "back": [
+          [
+            1,
+            800
+          ]
+        ]
+      }
+    },
+    {
+      "raid_go": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "raid_finish": 1200
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 0,
+      "cage_min": 1
+    },
+    {
+      "free_prison": 10
+    },
+    {
+      "press": {
+        "type": 47,
+        "num": 1
+      }
+    },
+    {
+      "press": {
+        "type": 47,
+        "num": 0
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "raid",
+      "cage": 0,
+      "loot": 0
+    },
+    {
+      "open_raid": false
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "village_before",
+      "keys": [
+        "stages"
+      ],
+      "differs": true,
+      "why": "a won raid levels the stage up / redraws its encounters"
+    },
+    {
+      "snapshot": "village_after"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "map_a",
+      "keys": [
+        "active_map",
+        "stages",
+        "floor",
+        "slots",
+        "cells",
+        "money",
+        "prisoners"
+      ],
+      "why": "the village's raid must not touch map A's stages or anything else"
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "village_after",
+      "keys": [
+        "active_map",
+        "stages",
+        "floor",
+        "slots",
+        "cells",
+        "prisoners"
+      ],
+      "why": "the village keeps its raid progress across travel"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "village_after",
+      "keys": [
+        "active_map",
+        "stages",
+        "floor",
+        "slots",
+        "cells",
+        "prisoners"
+      ]
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "same_as",
+      "snapshot": "map_a",
+      "keys": [
+        "active_map",
+        "stages",
+        "floor",
+        "slots",
+        "cells",
+        "money",
+        "prisoners"
+      ],
+      "why": "map A's state survives a save/reload made in the village"
+    }
+  ]
+}

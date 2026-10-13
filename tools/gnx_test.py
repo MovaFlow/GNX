@@ -674,6 +674,21 @@ def prepare_scenario(box, sc):
     for m in sc.get("mods", []):  # local-only mods (harness_game/test_mods) may be absent: SKIP under --all
         if not (REPO / m / "manifest.json").is_file():
             raise HarnessError(EXIT_PREFLIGHT, f"mod '{m}' missing")
+    if box.save_dir != SAVE_DIR:  # worker folders only: never the player's
+        for slot_file in SAVE_SLOTS.values():
+            (box.save_dir / slot_file).unlink(missing_ok=True)
+        for slot, spec in sc.get("player_slots", {}).items():
+            # {"player_slots": {"1": {"fixture": "modded", "on_map": "harness_map"}}}: what the load page lists
+            fsrc = box.out / "fixtures" / f"{spec['fixture']}.json"
+            if not fsrc.is_file():
+                raise HarnessError(EXIT_PREFLIGHT, f"fixture '{spec['fixture']}' missing ({fsrc})")
+            data = json.loads(fsrc.read_text(encoding="utf-8-sig"))
+            if spec.get("on_map"):
+                data["gnx_active_map"] = spec["on_map"]
+                data["gnx_maps"] = {"vanilla": "fresh"}
+            (box.save_dir / SAVE_SLOTS[slot]).write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+    elif sc.get("player_slots"):
+        raise HarnessError(EXIT_PREFLIGHT, "player_slots needs a worker (not --keep-open): it writes save slots")
     fx = sc.get("fixture")
     if fx:
         src = box.out / "fixtures" / f"{fx}.json"

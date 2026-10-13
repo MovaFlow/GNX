@@ -3538,8 +3538,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 09:21:07.749145900 +0200
-@@ -1,224 +1,16202 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-13 09:32:10.573359800 +0200
+@@ -1,224 +1,16271 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -13550,9 +13550,42 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        }
 +    }
 +
++    // raid progress: per stage max/selected level and the class ids of each level's encounter
++    var _stg = "";
++
++    for (var _si = 0; _si < array_length(global.val.stage_info); _si++)
++    {
++        var _sti = global.val.stage_info[_si];
++        _stg += string(_si) + ":";
++
++        if (_sti == -1)
++        {
++            _stg += "- ";
++            continue;
++        }
++
++        _stg += string(_sti.max_lvl) + "/" + string(global.val.stage_lvl_sel[_si]) + "[";
++
++        for (var _li = 0; _li < array_length(_sti.info); _li++)
++        {
++            if (!is_struct(_sti.info[_li]))
++                continue;
++
++            var _ul = _sti.info[_li].unit_list;
++
++            for (var _ui = 0; _ui < array_length(_ul); _ui++)
++                _stg += string(_ul[_ui].class) + ",";
++
++            _stg += "|";
++        }
++
++        _stg += "] ";
++    }
++
 +    return
 +    {
 +        active_map: global.gnx_active_map,
++        stages: _stg,
 +        floor: global.val.floor,
 +        slots: instance_number(obj_slot),
 +        cells: _hs,
@@ -13761,7 +13794,10 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +                    _diff += (_keys[_i] + ": " + string(_a) + " -> " + string(_b) + "; ");
 +            }
 +
-+            scr_gnx_scn_check("same_as", _diff == "", "'" + arg0.snapshot + "' " + ((_diff == "") ? string(array_length(_keys)) + " keys equal" : _diff));
++            if (variable_struct_exists(arg0, "differs") && arg0.differs)  // {"differs": true}: must have changed
++                scr_gnx_scn_check("same_as", _diff != "", "'" + arg0.snapshot + "' " + ((_diff == "") ? "unchanged (want a change)" : "changed: " + _diff));
++            else
++                scr_gnx_scn_check("same_as", _diff == "", "'" + arg0.snapshot + "' " + ((_diff == "") ? string(array_length(_keys)) + " keys equal" : _diff));
 +            break;
 +
 +        case "follow_sync":
@@ -13905,6 +13941,39 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            // {"assert": "global", "name": "build_side", "is": 0}: a global variable's value
 +            var _gv = variable_global_get(arg0.name);
 +            scr_gnx_scn_check("global", _gv == arg0.is, arg0.name + "=" + string(_gv) + " want " + string(arg0.is));
++            break;
++
++        case "load_label":
++            // {"assert": "load_label", "slot": 1, "label": "Harness Map"}: the load page (opened with
++            // {"call": "scr_create_menu_load_page"}) shows that map label next to the slot's title. Slots in
++            // page order: 0 = a (autosave), 1-3. "label": "" = no label (vanilla save or empty slot).
++            var _ll = [];
++
++            with (obj_window)
++            {
++                if (interact_type == 11 && variable_instance_exists(id, "load_data"))
++                    array_push(_ll, id);
++            }
++
++            for (var _si = 1; _si < array_length(_ll); _si++)  // page order = top to bottom
++            {
++                for (var _sj = _si; _sj > 0 && _ll[_sj - 1].y > _ll[_sj].y; _sj--)
++                {
++                    var _sw = _ll[_sj];
++                    _ll[_sj] = _ll[_sj - 1];
++                    _ll[_sj - 1] = _sw;
++                }
++            }
++
++            if (array_length(_ll) <= arg0.slot)
++            {
++                scr_gnx_scn_check("load_label", false, "load page not open (" + string(array_length(_ll)) + " slots)");
++                break;
++            }
++
++            var _ld = _ll[arg0.slot].load_data;
++            var _lab = (_ld != -1 && variable_struct_exists(_ld, "gnx_map_label")) ? _ld.gnx_map_label : "";
++            scr_gnx_scn_check("load_label", _lab == arg0.label, "slot " + string(arg0.slot) + " label '" + _lab + "' want '" + arg0.label + "'");
 +            break;
 +
 +        case "raid":
@@ -43505,7 +43574,7 @@ diff -uN gml_138/gml_GlobalScript_s_window_alpha.gml gml/gml_GlobalScript_s_wind
 -}
 diff -uN gml_138/gml_GlobalScript_scr_create_menu_button.gml gml/gml_GlobalScript_scr_create_menu_button.gml
 --- gml_138/gml_GlobalScript_scr_create_menu_button.gml	2026-09-02 08:45:16.120550900 +0200
-+++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-09-24 15:31:46.000000000 +0200
++++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-10-13 09:31:19.726990200 +0200
 @@ -42,6 +42,7 @@
                      m_timer: _time[1],
                      ver: _load_data.global_list.val.version
@@ -43559,16 +43628,18 @@ diff -uN gml_138/gml_GlobalScript_scr_create_menu_button.gml gml/gml_GlobalScrip
      load_data = _data;
      button_num = arg0;
      text_save = make_color_rgb(173, 99, 56);
-@@ -492,6 +510,14 @@
+@@ -492,6 +510,16 @@
          draw_text(x - 46, y - 17, _title);
          draw_set_color(text_save);
          draw_text(x - 45, y - 18, _title);
 +        
 +        if (variable_struct_exists(load_data, "gnx_map_label"))
 +        {
-+            var _ml_x = (x - 45) + string_width(_title + " ");
++            // left of the save panel, right-aligned on the title row: the title tab only fits "SAVE N"
++            draw_set_halign(fa_right);
 +            draw_set_color(make_color_rgb(130, 160, 195));
-+            draw_text(_ml_x, y - 18, load_data.gnx_map_label);
++            draw_text(x - 78, y - 18, load_data.gnx_map_label);
++            draw_set_halign(fa_left);
 +        }
 +        
          draw_set_color(c_white);

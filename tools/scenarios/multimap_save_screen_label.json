@@ -1,0 +1,19 @@
+{
+  "about": "The load page names the map a save was made on. The harness seeds the worker's own save slots (never the player's): slot 1 on harness_map (label = its map_button label), slot 2 in the village (no label), slot 3 on a map whose mod is not installed (label = the raw map id). The scenario opens the real load page and checks each slot's label.",
+  "mods": ["tools/scenarios/mods/harness_map"],
+  "player_slots": {
+    "1": {"fixture": "modded", "on_map": "harness_map"},
+    "2": {"fixture": "nest"},
+    "3": {"fixture": "modded", "on_map": "gone_map"}
+  },
+  "steps": [
+    {"wait": 30},
+    {"call": "scr_create_menu_load_page"},
+    {"wait": 3},
+    {"screenshot": "load_page"},
+    {"assert": "load_label", "slot": 0, "label": "", "why": "no autosave"},
+    {"assert": "load_label", "slot": 1, "label": "Harness Map"},
+    {"assert": "load_label", "slot": 2, "label": ""},
+    {"assert": "load_label", "slot": 3, "label": "gone_map", "why": "mod not installed: the raw map id"}
+  ]
+}
