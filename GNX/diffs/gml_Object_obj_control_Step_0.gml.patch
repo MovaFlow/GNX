@@ -1,6 +1,6 @@
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-14 08:44:22.352026800 +0200
-@@ -1 +1,134 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-14 09:41:12.025693800 +0200
+@@ -1 +1,128 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -72,7 +72,7 @@
 +
 +// Travel carry (pre-travel selector + shared day counter). Applied only once the destination map is in
 +// place, after its map_start: applying it before the map loads let the load / map_start overwrite it.
-+if (global.gnx_multimap_enabled && global.gnx_pending_map_start == "" && instance_exists(obj_slot) && !scr_gnx_travel_pending() && (global.gnx_carry_day != -1 || global.gnx_carry_gold > 0 || global.gnx_carry_food > 0 || global.gnx_carry_goblins > 0))
++if (global.gnx_multimap_enabled && global.gnx_pending_map_start == "" && instance_exists(obj_slot) && !scr_gnx_travel_pending() && (global.gnx_carry_day != -1 || global.gnx_carry_gold > 0 || global.gnx_carry_food > 0 || is_array(global.gnx_carry_troops) || is_array(global.gnx_carry_captives)))
 +{
 +    if (global.gnx_carry_day != -1)
 +    {
@@ -86,17 +86,11 @@
 +    if (global.gnx_carry_food > 0)
 +        global.val.food += global.gnx_carry_food;
 +    
-+    if (global.gnx_carry_goblins > 0)
-+    {
-+        scr_mon_num_edit(0, 0, global.gnx_carry_goblins, true);
-+        global.val.nest_num[0] = scr_all_mon_num_cal();
-+    }
-+    
++    scr_gnx_apply_carry_units(true);  // monsters and prisoners taken along
 +    global.gnx_carry_day = -1;
 +    global.gnx_carry_timer = -1;
 +    global.gnx_carry_gold = -1;
 +    global.gnx_carry_food = -1;
-+    global.gnx_carry_goblins = -1;
 +}
 +
 +// Unlocks are shared by every map: merged in once the destination is up (see scr_gnx_merge_unlocks)

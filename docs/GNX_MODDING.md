@@ -2176,6 +2176,7 @@ raid panel's world map, on every map; it lists every other map the player can re
 | `label` | no | The map's name in the travel menu and on the load page (e.g. "Outpost"). Default: the `map` identifier |
 | `map_sprite` | no | PNG in the mod's `sprites/` folder, drawn as the raid panel's world map while the player is on this map (133x91). Loaded via `sprite_add` at boot |
 | `return_label` | no | The village's name in the travel menu while on this map (default: "Return") |
+| `travel` | no | What the pre-travel selector offers for trips to or from this map: `"simple"` (default: gold, food, basic goblins), `"advanced"` (+ a TROOPS tab: goblins, hobgoblins and ogres by kind, chosen like a raid formation) or `"complex"` (+ a CAPTIVES tab: prisoners dragged into the destination's free prison slots; never more than it has). A trip between two maps uses the higher of their two settings |
 | `x`, `y` | no | Ignored since GNX 1.4.8 (they placed a per-map button on the world map; the travel menu replaced it) |
 | `unlock` | no | A condition, or an array of conditions (all must hold), in the quest condition format (`gold_gte`, `stage_cleared`, `state_equals`... see `docs/QUESTS_SCHEMA.md`). Until it holds the map is hidden, both from the world map and from the travel menu. The first time it holds, the map unlocks for good: it is saved, shared by every map, and announced with a short notice. `state_*` conditions read this mod's own state |
 

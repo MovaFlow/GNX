@@ -102,6 +102,8 @@ def check_map(manifest, mod_dir):
         if "x" in mb or "y" in mb:
             out.append(("WARN", "map_button.x / y are ignored since GNX 1.4.8: maps are reached from the travel "
                                 "menu (the map button in the world map's corner)"))
+        if "travel" in mb and mb["travel"] not in ("simple", "advanced", "complex"):
+            out.append(("ERROR", f"map_button.travel must be simple, advanced or complex, got {mb['travel']!r}"))
         if "map_sprite" in mb and not (mod_dir / "sprites" / mb["map_sprite"]).is_file():
             out.append(("WARN", f"map_button.map_sprite: sprites/{mb['map_sprite']} not found (the default button is used)"))
         if "unlock" in mb:
