@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-13 10:39:53.448072700 +0200
-@@ -1,735 +1,1433 @@
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-14 08:44:22.206966200 +0200
+@@ -1,735 +1,1448 @@
 -function scr_save_game(arg0)
 -{
 -    var _save_data = {};
@@ -994,6 +994,7 @@
 +    buffer_write(_buff, buffer_text, json_stringify(_save_data));
 +    buffer_save(_buff, _save_type);
 +    buffer_delete(_buff);
++    gnx_save_cache_clear();  // the menus re-read this save
 +}
 +
 +function scr_save_lang()
@@ -1015,6 +1016,8 @@
 +
 +function scr_load_slot()
 +{
++    gnx_save_cache_clear();  // the menus' parsed saves are not needed in game
++    var _gnx_pt0 = get_timer();  // load timing ([GNX-TIME] lines)
 +    var _load = false;
 +    var _load_type = -1;
 +    var _gnx_travel = variable_global_exists("gnx_travel_data") && global.gnx_travel_data != -1;
@@ -1072,18 +1075,20 @@
 +            
 +            if (is_string(_load_data) && _load_data == "fresh")
 +            {
-+                var _flog = file_text_open_append("gnx_debug.txt");
-+                file_text_write_string(_flog, "[GNX-MAP] fresh map: returning false for new-game path, active=" + global.gnx_active_map + "\n");
-+                file_text_close(_flog);
++                var _flog = gnx_log_open();
++                gnx_log_write(_flog, "[GNX-MAP] fresh map: returning false for new-game path, active=" + global.gnx_active_map + "\n");
++                gnx_log_close(_flog);
 +                return false;
 +            }
 +        }
 +        else
 +        {
++            var _gnx_lt0 = get_timer();
 +            var _buff = buffer_load(_load_type);
 +            var _json = buffer_read(_buff, buffer_text);
 +            _load_data = json_parse(_json);
 +            buffer_delete(_buff);
++            gnx_time_log("save read + parse (" + string(string_length(_json) div 1024) + " KB)", _gnx_lt0);
 +            global.gnx_loaded_mod_record = variable_struct_exists(_load_data, "gnx_mods") ? _load_data.gnx_mods : -1;
 +
 +            // Restore the save's map and load that map's deferred mods BEFORE the sanitizer runs,
@@ -1129,17 +1134,20 @@
 +                    variable_struct_remove(global.gnx_inactive_maps, "vanilla");
 +                    variable_struct_set(global.gnx_inactive_maps, _orphan_name, _orphan);
 +                    global.gnx_active_map = "vanilla";
-+                    var _olog = file_text_open_append("gnx_debug.txt");
-+                    file_text_write_string(_olog, "[GNX-MAP] save was on map '" + _orphan_name + "' but no installed mod declares it: loading the vanilla map, '" + _orphan_name + "' kept in the save\n");
-+                    file_text_close(_olog);
-+                    global.gnx_pending_notice = "Map '" + _orphan_name + "' isn't installed: back in your village. Its progress is kept.";
++                    var _olog = gnx_log_open();
++                    gnx_log_write(_olog, "[GNX-MAP] save was on map '" + _orphan_name + "' but no installed mod declares it: loading the vanilla map, '" + _orphan_name + "' kept in the save\n");
++                    gnx_log_close(_olog);
++                    global.gnx_pending_notice = gnx_map_display_name(_orphan_name, global.gnx_loaded_mod_record) + " is not available (its mod is off or not installed): back in your village. Its progress is kept.";
 +                }
 +            }
 +
 +            scr_gnx_load_deferred_map_mods();
 +        }
 +
++        _gnx_pt0 = get_timer();
 +        var _load_data = scr_patch_update_pre(_load_data);
++        gnx_time_log("sanitize pre-pass", _gnx_pt0);
++        _gnx_pt0 = get_timer();
 +        var _slot_list = _load_data.slot_list;
 +        var _start_x = -1;
 +        
@@ -1620,7 +1628,11 @@
 +        for (var i = 0; i < _num; i++)
 +            ds_list_add(global.back_row_save, _global.back_row_save[i]);
 +        
++        gnx_time_log("restore slots/units (load body)", _gnx_pt0);
++        _gnx_pt0 = get_timer();
 +        _load_data = scr_patch_update_post(_load_data);
++        gnx_time_log("sanitize post-pass", _gnx_pt0);
++        _gnx_pt0 = get_timer();
 +        scr_demo_to_full();
 +        
 +        if (variable_struct_exists(global.val, "gnx_mod_data"))
@@ -1753,10 +1765,10 @@
 +            if (!_ok)
 +            {
 +                if (_sweep_f == -1)
-+                    _sweep_f = file_text_open_append("gnx_debug.txt");
++                    _sweep_f = gnx_log_open();
 +
-+                file_text_write_string(_sweep_f, "[GNX] SWEEP detach mon=" + string(id) + " slot=" + string(mon_data.slot_id));
-+                file_text_writeln(_sweep_f);
++                gnx_log_write(_sweep_f, "[GNX] SWEEP detach mon=" + string(id) + " slot=" + string(mon_data.slot_id));
++                gnx_log_writeln(_sweep_f);
 +                gnx_mon_release_from_slot();
 +                _sweep_n++;
 +            }
@@ -1765,10 +1777,10 @@
 +                scr_set_mon_spr_data(mon_data.slot_id, -1);
 +
 +                if (_sweep_f == -1)
-+                    _sweep_f = file_text_open_append("gnx_debug.txt");
++                    _sweep_f = gnx_log_open();
 +
-+                file_text_write_string(_sweep_f, "[GNX] SWEEP repair mon=" + string(id) + " slot=" + string(mon_data.slot_id) + " state=" + string(mon_data.mon_state));
-+                file_text_writeln(_sweep_f);
++                gnx_log_write(_sweep_f, "[GNX] SWEEP repair mon=" + string(id) + " slot=" + string(mon_data.slot_id) + " state=" + string(mon_data.mon_state));
++                gnx_log_writeln(_sweep_f);
 +            }
 +        }
 +        else if (!_exists)
@@ -1781,10 +1793,10 @@
 +            // POPRAWKA: idzie do celi bez typu albo do malej/XL bez postaci - przy dojsciu kontakt czytalby nieistniejace dane.
 +            // CAGE (duza cela bez postaci) tu nie wpada, wiec hobgobliny noszace zostaja na miejscu.
 +            if (_sweep_f == -1)
-+                _sweep_f = file_text_open_append("gnx_debug.txt");
++                _sweep_f = gnx_log_open();
 +
-+            file_text_write_string(_sweep_f, "[GNX] SWEEP detach walker mon=" + string(id) + " slot=" + string(mon_data.slot_id));
-+            file_text_writeln(_sweep_f);
++            gnx_log_write(_sweep_f, "[GNX] SWEEP detach walker mon=" + string(id) + " slot=" + string(mon_data.slot_id));
++            gnx_log_writeln(_sweep_f);
 +            gnx_mon_release_from_slot();
 +            _sweep_n++;
 +        }
@@ -1842,10 +1854,10 @@
 +    if (_sweep_refs > 0)
 +    {
 +        if (_sweep_f == -1)
-+            _sweep_f = file_text_open_append("gnx_debug.txt");
++            _sweep_f = gnx_log_open();
 +
-+        file_text_write_string(_sweep_f, "[GNX] SWEEP cleared " + string(_sweep_refs) + " dead monster refs in cells");
-+        file_text_writeln(_sweep_f);
++        gnx_log_write(_sweep_f, "[GNX] SWEEP cleared " + string(_sweep_refs) + " dead monster refs in cells");
++        gnx_log_writeln(_sweep_f);
 +    }
 +
 +    // Transfer cages (h_type 17): a cage whose hobgoblin team survived the load (2+ live members) keeps its
@@ -1922,10 +1934,10 @@
 +    if (_cage_kept + _cage_reset > 0)
 +    {
 +        if (_sweep_f == -1)
-+            _sweep_f = file_text_open_append("gnx_debug.txt");
++            _sweep_f = gnx_log_open();
 +
-+        file_text_write_string(_sweep_f, "[GNX] SWEEP transfer cages: " + string(_cage_kept) + " kept, " + string(_cage_reset) + " restarted, " + string(_cage_dismissed) + " hobgoblin(s) dismissed");
-+        file_text_writeln(_sweep_f);
++        gnx_log_write(_sweep_f, "[GNX] SWEEP transfer cages: " + string(_cage_kept) + " kept, " + string(_cage_reset) + " restarted, " + string(_cage_dismissed) + " hobgoblin(s) dismissed");
++        gnx_log_writeln(_sweep_f);
 +    }
 +
 +    var _carry_active = ds_map_create();
@@ -1962,17 +1974,19 @@
 +    if (_carry_reset > 0)
 +    {
 +        if (_sweep_f == -1)
-+            _sweep_f = file_text_open_append("gnx_debug.txt");
++            _sweep_f = gnx_log_open();
 +
-+        file_text_write_string(_sweep_f, "[GNX] SWEEP reset stale carry/load flags on " + string(_carry_reset) + " slots");
-+        file_text_writeln(_sweep_f);
++        gnx_log_write(_sweep_f, "[GNX] SWEEP reset stale carry/load flags on " + string(_carry_reset) + " slots");
++        gnx_log_writeln(_sweep_f);
 +    }
 +
 +    if (_sweep_f != -1)
 +    {
-+        file_text_write_string(_sweep_f, "[GNX] SWEEP complete: " + string(_sweep_n) + " detached");
-+        file_text_writeln(_sweep_f);
-+        file_text_close(_sweep_f);
++        gnx_log_write(_sweep_f, "[GNX] SWEEP complete: " + string(_sweep_n) + " detached");
++        gnx_log_writeln(_sweep_f);
++        gnx_log_write(_sweep_f, "[GNX-TIME] after post-pass to end of load = " + string((get_timer() - _gnx_pt0) / 1000) + " ms");
++        gnx_log_writeln(_sweep_f);
++        gnx_log_close(_sweep_f);
 +    }
 +    
 +    return _load;
@@ -1980,6 +1994,7 @@
 +
 +function scr_delete_save(arg0)
 +{
++    gnx_save_cache_clear();
 +    var _load_type;
 +    
 +    switch (arg0)

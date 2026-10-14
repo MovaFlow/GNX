@@ -1,0 +1,86 @@
+{
+  "about": "Mod page states: a mod made for another game version shows 'not loaded' (not ON as if it worked), and leaving the page with unapplied changes asks first; DISCARD forgets them.",
+  "start": "menu",
+  "mods": [
+    "tools/scenarios/mods/harness_bad_version",
+    "tools/scenarios/mods/harness_req_base"
+  ],
+  "expect_dialog": "incompatible",
+  "timeout": 90,
+  "steps": [
+    {
+      "menu_continue": 600
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "mod_status",
+      "folder": "harness_bad_version",
+      "is": "error"
+    },
+    {
+      "press": {
+        "type": 9070
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "screenshot": "states"
+    },
+    {
+      "mod_toggle": "harness_req_base"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 9075
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "confirm",
+      "contains": "Leave without applying"
+    },
+    {
+      "screenshot": "leave_confirm"
+    },
+    {
+      "press": {
+        "type": 9077,
+        "num": 2
+      },
+      "why": "DISCARD"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "confirm",
+      "open": false
+    },
+    {
+      "press": {
+        "type": 9070
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_req_base",
+      "on": true,
+      "why": "the discarded change is gone"
+    }
+  ],
+  "allow_incompatible": true,
+  "check_boot_suite": false,
+  "why_no_boot_suite": "installs a mod for another game version on purpose; boot test T23 rightly reports it"
+}

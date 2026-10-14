@@ -392,7 +392,7 @@ def patch(game_dir, utmt):
     print(f"patched in {time.time() - t0:.1f}s", file=sys.stderr)
 
 
-def deploy_mods(game_dir, mods, accepted):
+def deploy_mods(game_dir, mods, accepted, allow_incompatible=False):
     dest = game_dir / "GNX_mods"
     if dest.exists():
         shutil.rmtree(dest)
@@ -403,7 +403,7 @@ def deploy_mods(game_dir, mods, accepted):
         if not man.is_file():
             raise HarnessError(EXIT_PREFLIGHT, f"no manifest.json in {mod}")
         vers = json.loads(man.read_text(encoding="utf-8-sig")).get("compatible_game_versions", [])
-        if not set(vers) & set(accepted):
+        if not set(vers) & set(accepted) and not allow_incompatible:
             raise HarnessError(EXIT_PREFLIGHT,
                                f"{mod.name}: compatible_game_versions {vers} matches none of {accepted}")
         shutil.copytree(mod, dest / mod.name)
@@ -848,7 +848,7 @@ def main(argv=None):
                         print(f"SCENARIO {name}: SKIP  {e}")  # --all: a missing fixture is not a failure
                     return
             run_mods = [REPO / m for m in sc["mods"]] if "mods" in sc else mods
-            deploy_mods(box.run_dir, run_mods, accepted)
+            deploy_mods(box.run_dir, run_mods, accepted, sc.get("allow_incompatible", False))
             for f in sc.get("local_files", []):
                 # {"local_files": [{"from": "harness_game/test_mods/x/sounds/a.ogg", "to": "my_mod/sounds/a.ogg"}]}
                 dst = box.run_dir / "GNX_mods" / f["to"]
@@ -891,8 +891,12 @@ def main(argv=None):
                     try:
                         run_one(box, name)
                     except HarnessError as e:
-                        failure.append(e)
-                        return
+                        # this run could not start: report it as failed and keep going with the others
+                        PROGRESS.result(box.wid, name, "FAIL", str(e)[:60])
+                        with out_lock:
+                            PROGRESS.clear()
+                            print(f"SCENARIO {name or 'boot'}: FAIL  could not run: {e}")
+                            results[name] = {"scenario": name, "verdict": EXIT_FAIL, "error": str(e)}
                     except Exception as e:  # keep the other workers' results; report this one
                         failure.append(HarnessError(EXIT_TIMEOUT, f"run '{name or 'boot'}': {type(e).__name__}: {e}"))
                         return

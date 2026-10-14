@@ -1,44 +1,92 @@
 --- gml_138/gml_GlobalScript_scr_create_menu_button.gml	2026-09-02 08:45:16.120550900 +0200
-+++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-10-13 10:43:31.868806300 +0200
-@@ -42,6 +42,7 @@
++++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-10-14 08:22:39.493553500 +0200
+@@ -25,9 +25,7 @@
+         case 0:
+             if (file_exists("save_file_a.json"))
+             {
+-                var _buff = buffer_load("save_file_a.json");
+-                var _json = buffer_read(_buff, buffer_text);
+-                var _load_data = json_parse(_json);
++                var _load_data = gnx_save_info_cached("save_file_a.json").data;  // parsed once per change, shared with the mod page
+                 var _time = time_convert(_load_data.global_list.val.day_timer);
+                 _data = 
+                 {
+@@ -42,7 +40,7 @@
                      m_timer: _time[1],
                      ver: _load_data.global_list.val.version
                  };
+-                buffer_delete(_buff);
 +                _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
-                 buffer_delete(_buff);
              }
              
-@@ -67,6 +68,7 @@
+             break;
+@@ -50,9 +48,7 @@
+         case 1:
+             if (file_exists("save_file_1.json"))
+             {
+-                var _buff = buffer_load("save_file_1.json");
+-                var _json = buffer_read(_buff, buffer_text);
+-                var _load_data = json_parse(_json);
++                var _load_data = gnx_save_info_cached("save_file_1.json").data;  // parsed once per change, shared with the mod page
+                 var _time = time_convert(_load_data.global_list.val.day_timer);
+                 _data = 
+                 {
+@@ -67,7 +63,7 @@
                      m_timer: _time[1],
                      ver: _load_data.global_list.val.version
                  };
+-                buffer_delete(_buff);
 +                _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
-                 buffer_delete(_buff);
              }
              
-@@ -92,6 +94,7 @@
+             break;
+@@ -75,9 +71,7 @@
+         case 2:
+             if (file_exists("save_file_2.json"))
+             {
+-                var _buff = buffer_load("save_file_2.json");
+-                var _json = buffer_read(_buff, buffer_text);
+-                var _load_data = json_parse(_json);
++                var _load_data = gnx_save_info_cached("save_file_2.json").data;  // parsed once per change, shared with the mod page
+                 var _time = time_convert(_load_data.global_list.val.day_timer);
+                 _data = 
+                 {
+@@ -92,7 +86,7 @@
                      m_timer: _time[1],
                      ver: _load_data.global_list.val.version
                  };
+-                buffer_delete(_buff);
 +                _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
-                 buffer_delete(_buff);
              }
              
-@@ -117,6 +120,7 @@
+             break;
+@@ -100,9 +94,7 @@
+         case 3:
+             if (file_exists("save_file_3.json"))
+             {
+-                var _buff = buffer_load("save_file_3.json");
+-                var _json = buffer_read(_buff, buffer_text);
+-                var _load_data = json_parse(_json);
++                var _load_data = gnx_save_info_cached("save_file_3.json").data;  // parsed once per change, shared with the mod page
+                 var _time = time_convert(_load_data.global_list.val.day_timer);
+                 _data = 
+                 {
+@@ -117,7 +109,7 @@
                      m_timer: _time[1],
                      ver: _load_data.global_list.val.version
                  };
+-                buffer_delete(_buff);
 +                _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
-                 buffer_delete(_buff);
              }
              
-@@ -129,6 +133,23 @@
+             break;
+@@ -129,6 +121,23 @@
          _data = -1;
      }
      
 +    if (_data != -1 && variable_struct_exists(_data, "gnx_map") && _data.gnx_map != "" && _data.gnx_map != "vanilla")
 +    {
-+        _data.gnx_map_label = _data.gnx_map;
++        _data.gnx_map_label = gnx_map_display_name(_data.gnx_map, variable_struct_exists(_load_data, "gnx_mods") ? _load_data.gnx_mods : -1);
 +        
 +        for (var _ti = 0; _ti < array_length(global.gnx_travel_locations); _ti++)
 +        {
@@ -56,7 +104,7 @@
      load_data = _data;
      button_num = arg0;
      text_save = make_color_rgb(173, 99, 56);
-@@ -492,6 +513,29 @@
+@@ -492,6 +501,29 @@
          draw_text(x - 46, y - 17, _title);
          draw_set_color(text_save);
          draw_text(x - 45, y - 18, _title);

@@ -1,6 +1,6 @@
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-13 09:46:08.571605000 +0200
-@@ -1 +1,132 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-14 08:44:22.352026800 +0200
+@@ -1 +1,134 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -38,7 +38,9 @@
 +    }
 +    
 +    global.gnx_in_travel = true;
++    var _gnx_it0 = get_timer();
 +    scr_create_initials();
++    gnx_time_log("travel: re-initialise (loader + boot tests)", _gnx_it0);
 +    global.gnx_in_travel = false;
 +    
 +    // carried day/gold/food/goblins are applied after the destination map has loaded (see below)
@@ -120,10 +122,10 @@
 +        var _md = global.gnx_perf_mons_drawn;
 +        var _mt = instance_number(obj_mon) * 120;
 +        var _pct = (_st > 0) ? string(round(((_st - _sd) / _st) * 100)) : "0";
-+        var _f = file_text_open_append("gnx_debug.txt");
-+        file_text_write_string(_f, "[GNX-PERF] slots=" + string(_sd) + "/" + string(_st) + " culled=" + _pct + "% mons=" + string(_md) + "/" + string(_mt) + " fps=" + string(fps) + " fps_real=" + string(fps_real) + " inst=" + string(instance_count) + " slot=" + string(instance_number(obj_slot)) + " mon=" + string(instance_number(obj_mon)) + " btn=" + string(instance_number(obj_button)) + " empty=" + string(instance_number(obj_empty)));
-+        file_text_writeln(_f);
-+        file_text_close(_f);
++        var _f = gnx_log_open();
++        gnx_log_write(_f, "[GNX-PERF] slots=" + string(_sd) + "/" + string(_st) + " culled=" + _pct + "% mons=" + string(_md) + "/" + string(_mt) + " fps=" + string(fps) + " fps_real=" + string(fps_real) + " inst=" + string(instance_count) + " slot=" + string(instance_number(obj_slot)) + " mon=" + string(instance_number(obj_mon)) + " btn=" + string(instance_number(obj_button)) + " empty=" + string(instance_number(obj_empty)));
++        gnx_log_writeln(_f);
++        gnx_log_close(_f);
 +        global.gnx_perf_slots_drawn = 0;
 +        global.gnx_perf_mons_drawn = 0;
 +        global.gnx_perf_frame = 0;
