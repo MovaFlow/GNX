@@ -1,0 +1,294 @@
+{
+  "about": "The mod menu, end to end from the main menu: MODS button, the mod page (save 1 uses harness_map), turning off a used mod asks first (cancel works), turning off a mod another one requires warns, APPLY re-initialises and the off mods are not loaded (the requiring one is skipped too), the load page lists the missing mod and asks before loading, MODS from that dialog, turning them back on, and the save loads with its content intact.",
+  "start": "menu",
+  "mods": [
+    "tools/scenarios/mods/harness_map",
+    "tools/scenarios/mods/harness_req_base",
+    "tools/scenarios/mods/harness_req_child"
+  ],
+  "player_slots": {
+    "1": {
+      "fixture": "with_harness_map"
+    }
+  },
+  "timeout": 120,
+  "steps": [
+    {
+      "menu_continue": 600
+    },
+    {
+      "wait": 5
+    },
+    {
+      "screenshot": "main_menu"
+    },
+    {
+      "press": {
+        "type": 9070
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "screenshot": "mod_page"
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_map",
+      "on": true,
+      "used": "S1",
+      "why": "save 1 was made on its map"
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_req_child",
+      "on": true
+    },
+    {
+      "mod_toggle": "harness_map"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "confirm",
+      "contains": "is used by save 1"
+    },
+    {
+      "screenshot": "confirm_used"
+    },
+    {
+      "press": {
+        "type": 9077,
+        "num": 1
+      },
+      "why": "cancel"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "confirm",
+      "open": false
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_map",
+      "on": true
+    },
+    {
+      "mod_toggle": "harness_req_base"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "confirm",
+      "contains": "needs it and will not load"
+    },
+    {
+      "press": {
+        "type": 9077,
+        "num": 0
+      },
+      "why": "turn it off"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_req_base",
+      "on": false
+    },
+    {
+      "mod_toggle": "harness_map"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 9077,
+        "num": 0
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_map",
+      "on": false
+    },
+    {
+      "screenshot": "pending"
+    },
+    {
+      "press": {
+        "type": 9074
+      },
+      "why": "APPLY: re-initialise, back to the menu"
+    },
+    {
+      "menu_continue": 600
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "mod_status",
+      "folder": "harness_map",
+      "is": "off"
+    },
+    {
+      "assert": "mod_status",
+      "folder": "harness_req_base",
+      "is": "off"
+    },
+    {
+      "assert": "mod_status",
+      "folder": "harness_req_child",
+      "is": "needs",
+      "why": "its required mod is off"
+    },
+    {
+      "assert": "cell_registered",
+      "name": "HARNESS WALL",
+      "is": false
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_map",
+      "on": false,
+      "why": "the menu reopened on the mod page"
+    },
+    {
+      "screenshot": "after_apply"
+    },
+    {
+      "press": {
+        "type": 9075
+      },
+      "why": "BACK"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "press": {
+        "type": 51,
+        "num": 1
+      },
+      "why": "CONTINUE: the load page"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "load_missing",
+      "slot": 1,
+      "has": "harness_map"
+    },
+    {
+      "screenshot": "load_page"
+    },
+    {
+      "load_page_press": 1
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "confirm",
+      "contains": "uses mods that are off or missing"
+    },
+    {
+      "screenshot": "load_confirm"
+    },
+    {
+      "press": {
+        "type": 9077,
+        "num": 2
+      },
+      "why": "MODS: straight to the mod page"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_map",
+      "on": false
+    },
+    {
+      "mod_toggle": "harness_map"
+    },
+    {
+      "mod_toggle": "harness_req_base"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "mod_row",
+      "folder": "harness_map",
+      "on": true
+    },
+    {
+      "press": {
+        "type": 9074
+      }
+    },
+    {
+      "menu_continue": 600
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "mod_status",
+      "folder": "harness_req_child",
+      "is": "on"
+    },
+    {
+      "press": {
+        "type": 9075
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "press": {
+        "type": 51,
+        "num": 1
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "load_missing",
+      "slot": 1,
+      "none": true
+    },
+    {
+      "load_page_press": 1,
+      "why": "nothing missing: loads straight away"
+    },
+    {
+      "wait": 40
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9001,
+      "why": "the save's content survived: it was never loaded while the mod was off"
+    }
+  ]
+}

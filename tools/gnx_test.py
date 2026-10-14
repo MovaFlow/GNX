@@ -680,6 +680,10 @@ def prepare_scenario(box, sc):
     if box.save_dir != SAVE_DIR:  # worker folders only: never the player's
         for slot_file in SAVE_SLOTS.values():
             (box.save_dir / slot_file).unlink(missing_ok=True)
+        # the mod menu's off-list (game-wide setting in the save folder): empty unless the scenario sets one
+        (box.save_dir / "gnx_mods_off.json").unlink(missing_ok=True)
+        if sc.get("mods_off"):
+            (box.save_dir / "gnx_mods_off.json").write_text(json.dumps(sc["mods_off"]), encoding="utf-8")
         for slot, spec in sc.get("player_slots", {}).items():
             # {"player_slots": {"1": {"fixture": "modded", "on_map": "harness_map"}}}: what the load page lists
             fsrc = box.out / "fixtures" / f"{spec['fixture']}.json"

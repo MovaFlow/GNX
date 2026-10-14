@@ -81,7 +81,8 @@ if they share a `class_id` or `h_type` (last writer wins).
 |-------|----------|-------|
 | `name` | yes | Display name (shown in load logs) |
 | `version` | yes | Semver string |
-| `mod_id` | no | Informational only  - not read by the loader. Conventionally set equal to the folder name |
+| `mod_id` | no | Conventionally equal to the folder name. Other mods' `requires` can name a mod by it (or by folder name) |
+| `requires` | no | Array of mods this mod needs (`mod_id` or folder name). If one is off in the mod menu, this mod is skipped too; if one is not installed, it is skipped and reported in the "Mod loading problem(s)" popup |
 | `compatible_game_versions` | yes | Array of game version strings. Must include the running game version or the mod is silently skipped |
 | `classes` | no | Path relative to mod folder; omit if no classes |
 | `cells` | no | Path relative to mod folder; omit if no cells |
@@ -93,6 +94,15 @@ if they share a `class_id` or `h_type` (last writer wins).
 | `map_button` | no | Travel button config (requires `map`). See [§20](#20-multi-map-travel) |
 | `map_start` | no | Starting state for first visit (requires `map`). See [§20](#20-multi-map-travel) |
 | `save_state` | no | Per-mod persistent state definition (see below) |
+
+**Mod menu.** Players can turn mods on and off from the main menu (MODS). It is a game-wide
+setting stored in the save folder (`gnx_mods_off.json`); the mods stay in `GNX_mods`. Saves
+record which mods they were made with and what they use from each (cells, characters, a map),
+so the mod menu shows which saves use a mod and warns before turning a used one off, and the
+load page warns before loading a save whose mods are off or not installed. Loading such a save
+is safe; saving it afterwards makes the clean-up permanent (cells rebuilt as basic cells,
+characters replaced by peasants). Turning a mod back on restores its content in saves that were
+not re-saved in between, because content IDs come from the mod folder and entry names.
 
 ### save_state
 

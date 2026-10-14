@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-12 15:03:18.494602400 +0200
-@@ -1,735 +1,1429 @@
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-13 10:39:53.448072700 +0200
+@@ -1,735 +1,1433 @@
 -function scr_save_game(arg0)
 -{
 -    var _save_data = {};
@@ -984,6 +984,9 @@
 +            _save_data.gnx_maps = global.gnx_inactive_maps;
 +    }
 +    
++    // which mods this save was made with, and what it uses from each (mod menu / load page warnings)
++    _save_data.gnx_mods = scr_gnx_save_mod_record(_save_data);
++    
 +    if (file_exists(_save_type))
 +        file_delete(_save_type);
 +    
@@ -1081,6 +1084,7 @@
 +            var _json = buffer_read(_buff, buffer_text);
 +            _load_data = json_parse(_json);
 +            buffer_delete(_buff);
++            global.gnx_loaded_mod_record = variable_struct_exists(_load_data, "gnx_mods") ? _load_data.gnx_mods : -1;
 +
 +            // Restore the save's map and load that map's deferred mods BEFORE the sanitizer runs,
 +            // otherwise scr_patch_update_pre sees their cells/classes as orphans and replaces them.
