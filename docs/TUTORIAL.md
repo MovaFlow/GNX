@@ -530,9 +530,17 @@ New folder `GNX_mods/my_map/manifest.json`:
 - `map_start` is the state of a first visit: one extra floor, some gold, food
   and goblins, and a WALL1 cell (vanilla `h_type` 1) on floor 1.
 
-To start the map with one of your own cells, give that cell a fixed `h_type`
-(e.g. `9100`) in `cells.json`: `map_start` takes numbers, not names. Check the
-manifest before playing:
+To start the map with one of your own cells, name it in `cells`
+(`{"h_type": "MY CELL", "floor": 1}`). `map_start` can also bring other monsters,
+captives and unlocked cells:
+
+```json
+"troops": [{"type": "hobgoblin", "num": 4}, {"type": "ogre", "num": 1}],
+"prisoners": [{"class": 3, "level": 2, "num": 2}],
+"unlock_cells": ["MY CELL", 2]
+```
+
+Check the manifest before playing:
 ```
 python tools/build_mod.py my_map <game_dir> --skip-pack
 --- Map mod checks ---

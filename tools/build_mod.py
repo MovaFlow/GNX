@@ -126,13 +126,29 @@ def check_map(manifest, mod_dir):
             if not isinstance(c, dict) or "h_type" not in c:
                 out.append(("ERROR", f"map_start.cells[{i}]: needs an h_type"))
                 continue
-            if not isinstance(c["h_type"], int):
-                out.append(("ERROR", f"map_start.cells[{i}].h_type must be a number (cell names are not "
-                                     f"resolved here), got {c['h_type']!r}"))
+            if not isinstance(c["h_type"], (int, str)):
+                out.append(("ERROR", f"map_start.cells[{i}].h_type must be a number or \"mod.CELL NAME\", "
+                                     f"got {c['h_type']!r}"))
             fl = c.get("floor", 0)
             if not isinstance(fl, int) or not 0 <= fl <= floors:
                 out.append(("ERROR", f"map_start.cells[{i}].floor {fl!r}: the map has floors 0..{floors} "
                                      f"(map_start.floors adds floors on top of floor 0); the cell is skipped"))
+        mon_types = ("goblin", "hobgoblin", "tentacle", "ogre")
+        for i, t in enumerate(ms.get("troops", [])):
+            if not isinstance(t, dict) or "type" not in t or "num" not in t:
+                out.append(("ERROR", f"map_start.troops[{i}]: needs a type and a num"))
+                continue
+            if t["type"] not in mon_types and t["type"] not in (0, 1, 2, 3):
+                out.append(("ERROR", f"map_start.troops[{i}].type {t['type']!r}: use {', '.join(mon_types)} "
+                                     f"(or 0-3); the entry is skipped"))
+            if not isinstance(t.get("kind", 0), int) or not 0 <= t.get("kind", 0) <= 3:
+                out.append(("ERROR", f"map_start.troops[{i}].kind {t.get('kind')!r}: 0-3"))
+        for i, p in enumerate(ms.get("prisoners", [])):
+            if not isinstance(p, dict) or "class" not in p:
+                out.append(("ERROR", f"map_start.prisoners[{i}]: needs a class (a number or \"mod.NAME\")"))
+        for i, u in enumerate(ms.get("unlock_cells", [])):
+            if not isinstance(u, (int, str)):
+                out.append(("ERROR", f"map_start.unlock_cells[{i}] must be an h_type or \"mod.CELL NAME\", got {u!r}"))
     return out
 
 

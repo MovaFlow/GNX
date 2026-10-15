@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 14:45:30.902468900 +0200
-@@ -1,224 +1,19720 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 14:50:00.658606400 +0200
+@@ -1,224 +1,19855 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -12108,12 +12108,73 @@
 +    instance_destroy();
 +}
 +
++// map_start helpers: a monster type given as a name or a number (-1 = unknown)
++function gnx_mon_type_ref(arg0)
++{
++    if (is_real(arg0))
++        return (arg0 >= 0 && arg0 <= 3) ? arg0 : -1;
++
++    switch (arg0)
++    {
++        case "goblin": return 0;
++        case "hobgoblin": return 1;
++        case "tentacle": return 2;
++        case "ogre": return 3;
++    }
++
++    return -1;
++}
++
++// is cell h_type arg0 in any build-menu unlock list (scenario checks, map_start)
++function gnx_cell_unlocked(arg0)
++{
++    var _cats = ["breed", "utility", "pleasure", "b_breed", "b_utility", "b_other", "t_breed", "t_utility", "xl_breed"];
++
++    for (var _i = 0; _i < array_length(_cats); _i++)
++    {
++        if (variable_struct_exists(global.unlock, _cats[_i]) && array_contains(variable_struct_get(global.unlock, _cats[_i]), arg0))
++            return true;
++    }
++
++    return false;
++}
++
++// a captive of class arg0 at level arg1 (clamped like the create_unit tool) into the first free prison place;
++// false when the prison is full
++function gnx_add_prisoner(arg0, arg1)
++{
++    var _lvl = arg1;
++    var _cr = ds_map_find_value(global.class_registry, arg0);
++
++    if (is_struct(_cr) && variable_struct_exists(_cr, "is_special") && _cr.is_special)
++    {
++        if (_lvl != 6 && _lvl != 7)
++            _lvl = 5;
++    }
++    else if (_lvl != 6 && _lvl > 4)
++    {
++        _lvl = 4;
++    }
++
++    for (var _ui = 0; _ui < ds_list_size(global.unit_list); _ui++)
++    {
++        if (ds_list_find_value(global.unit_list, _ui) == -1)
++        {
++            ds_list_set(global.unit_list, _ui, scr_create_unit_base(arg0, max(0, _lvl)));
++            return true;
++        }
++    }
++
++    return false;
++}
++
 +function scr_gnx_apply_map_start(arg0)
 +{
 +    if (!variable_struct_exists(global.gnx_map_start_decl, arg0))
 +        exit;
 +    
 +    var _ms = variable_struct_get(global.gnx_map_start_decl, arg0);
++    var _owner = variable_struct_exists(global.gnx_map_owner, arg0) ? variable_struct_get(global.gnx_map_owner, arg0) : "";  // for "Name" refs
 +    
 +    if (variable_struct_exists(_ms, "money"))
 +        global.val.money = _ms.money;
@@ -12149,6 +12210,11 @@
 +            
 +            if (!is_struct(_cd) || !variable_struct_exists(_cd, "h_type"))
 +                continue;
++
++            var _cht = gnx_tool_resolve_cell(_cd.h_type, _owner);  // a number, or "mod.CELL NAME"
++
++            if (_cht == -1)
++                continue;
 +            
 +            var _st = variable_struct_exists(_cd, "slot_type") ? _cd.slot_type : 0;
 +            var _fl = variable_struct_exists(_cd, "floor") ? _cd.floor : 0;
@@ -12165,7 +12231,7 @@
 +
 +            if (_slot != -1)
 +            {
-+                scr_set_slot_h_data(_slot, _cd.h_type);
++                scr_set_slot_h_data(_slot, _cht);
 +                _ncells++;
 +            }
 +        }
@@ -12179,8 +12245,77 @@
 +        global.val.nest_num[0] = scr_all_mon_num_cal();
 +    }
 +    
++    // troops: [{"type": "hobgoblin", "kind": 0, "num": 3}], type a name or 0-3, kind 0-3 (default 0)
++    var _ntroops = 0;
++
++    if (variable_struct_exists(_ms, "troops") && is_array(_ms.troops))
++    {
++        for (var _t = 0; _t < array_length(_ms.troops); _t++)
++        {
++            var _td = _ms.troops[_t];
++
++            if (!is_struct(_td) || !variable_struct_exists(_td, "type") || !variable_struct_exists(_td, "num"))
++                continue;
++
++            var _tt = gnx_mon_type_ref(_td.type);
++            var _tk = variable_struct_exists(_td, "kind") ? clamp(_td.kind, 0, 3) : 0;
++
++            if (_tt == -1 || _td.num <= 0)
++                continue;
++
++            gnx_add_mons(_tt, _tk, _td.num);
++            _ntroops += _td.num;
++        }
++    }
++
++    // prisoners: [{"class": 3 | "mod.NAME", "level": 2, "num": 1}] into free prison places
++    var _npris = 0;
++
++    if (variable_struct_exists(_ms, "prisoners") && is_array(_ms.prisoners))
++    {
++        for (var _p = 0; _p < array_length(_ms.prisoners); _p++)
++        {
++            var _pd = _ms.prisoners[_p];
++
++            if (!is_struct(_pd) || !variable_struct_exists(_pd, "class"))
++                continue;
++
++            var _pc = gnx_tool_resolve_class(_pd.class, _owner);
++
++            if (_pc < 0 || !ds_map_exists(global.class_registry, _pc))
++                continue;
++
++            var _pn = variable_struct_exists(_pd, "num") ? _pd.num : 1;
++
++            for (var _pi = 0; _pi < _pn; _pi++)
++            {
++                if (!gnx_add_prisoner(_pc, variable_struct_exists(_pd, "level") ? _pd.level : 0))
++                    break;
++
++                _npris++;
++            }
++        }
++    }
++
++    // unlock_cells: [h_type | "mod.CELL NAME"] added to the build menu (like a blueprint, without the notice)
++    var _nunl = 0;
++
++    if (variable_struct_exists(_ms, "unlock_cells") && is_array(_ms.unlock_cells))
++    {
++        for (var _u = 0; _u < array_length(_ms.unlock_cells); _u++)
++        {
++            var _uh = gnx_tool_resolve_cell(_ms.unlock_cells[_u], _owner);
++
++            if (_uh == -1 || !ds_map_exists(global.cell_registry, _uh) || gnx_cell_unlocked(_uh))
++                continue;
++
++            scr_add_new_slot_h_type(_uh, false);
++            _nunl++;
++        }
++    }
++
 +    var _log = gnx_log_open();
-+    gnx_log_write(_log, "[GNX-MAP] map_start applied for '" + arg0 + "' (floors+=" + string(_floors) + " cells=" + string(_ncells) + " goblins=" + string(_goblins) + ")\n");
++    gnx_log_write(_log, "[GNX-MAP] map_start applied for '" + arg0 + "' (floors+=" + string(_floors) + " cells=" + string(_ncells) + " goblins=" + string(_goblins) + " troops=" + string(_ntroops) + " prisoners=" + string(_npris) + " unlocked=" + string(_nunl) + ")\n");
 +    gnx_log_close(_log);
 +}
 +

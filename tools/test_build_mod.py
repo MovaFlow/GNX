@@ -20,7 +20,13 @@ assert not errs({"map": "m", "map_button": {"map_sprite": "nope.png"}}) and chec
 assert errs({"map": "m", "map_button": {"unlock": {"type": "gold_more_than", "value": 1}}})
 assert not errs({"map": "m", "map_button": {"unlock": [{"type": "gold_gte", "value": 1}, {"type": "floor_gte", "value": 2}]}})
 assert errs({"map": "m", "map_button": {}, "map_start": {"floors": 1, "cells": [{"h_type": 9001, "floor": 2}]}})
-assert errs({"map": "m", "map_button": {}, "map_start": {"cells": [{"h_type": "MY CELL"}]}})
+assert not errs({"map": "m", "map_button": {}, "map_start": {"cells": [{"h_type": "my_mod.MY CELL"}]}})
+assert errs({"map": "m", "map_button": {}, "map_start": {"cells": [{"h_type": [1]}]}})
+assert not errs({"map": "m", "map_button": {}, "map_start": {"troops": [{"type": "ogre", "kind": 1, "num": 2}],
+                 "prisoners": [{"class": "my_mod.WITCH", "level": 2}], "unlock_cells": [2, "my_mod.MY CELL"]}})
+assert errs({"map": "m", "map_button": {}, "map_start": {"troops": [{"type": "dragon", "num": 1}]}})
+assert errs({"map": "m", "map_button": {}, "map_start": {"troops": [{"type": "goblin"}]}})
+assert errs({"map": "m", "map_button": {}, "map_start": {"prisoners": [{"level": 2}]}})
 assert any("ignored" in msg for lvl, msg in check_map({"map": "m", "map_button": {"x": 150}}, here))
 print("ok")
 

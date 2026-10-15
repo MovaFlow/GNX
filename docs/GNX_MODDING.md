@@ -2304,7 +2304,10 @@ once (first visit); returning to a previously visited map restores the snapshot.
 | `food` | no | 0 | Starting food |
 | `mood` | no | 50 | Starting mood (0–100) |
 | `goblins` | no | 5 | Number of basic goblins to spawn. Set to 0 for no starting goblins |
-| `cells` | no | none | Cells built at the start: `{"h_type": N, "slot_type": 0, "floor": F}`. `h_type` must be a number (a cell's name is not resolved here; give your own cells a fixed `h_type`). `floor` from 0 to `floors`; others are skipped |
+| `cells` | no | none | Cells built at the start: `{"h_type": N, "slot_type": 0, "floor": F}`. `h_type` is a number or a cell's name (`"my_mod.MY CELL"`, or just `"MY CELL"` for this mod's own cells). `floor` from 0 to `floors`; others are skipped |
+| `troops` | no | none | Monsters besides the basic goblins: `[{"type": "hobgoblin", "kind": 0, "num": 4}]`. `type` is `goblin`, `hobgoblin`, `tentacle` or `ogre` (or 0–3); `kind` 0–3 picks the variant (default 0), so `{"type": "goblin", "kind": 2, "num": 6}` adds six goblins of the third kind |
+| `prisoners` | no | none | Captives in the prison: `[{"class": 3, "level": 2, "num": 2}]`. `class` is a class id or name (`"my_mod.WITCH"`); `level` 0–4 for normal classes (special classes are level 5). A new map's prison has 5 places; extra prisoners are skipped |
+| `unlock_cells` | no | none | Cells unlocked in the build menu from the start: `[2, "my_mod.MY CELL"]`. Works for `"locked": true` cells too. Unlocks are shared by all maps, so a vanilla cell unlocked here is also unlocked in the village once the player has been to this map; a map mod's own cells stay on its map |
 
 `python tools/build_mod.py <mod_dir> <game_dir>` checks all of the above before deploying (unknown
 condition types, cells on floors that do not exist, a missing `map_sprite` file) and deploys the
@@ -2363,8 +2366,6 @@ counter itself is shared, so arriving on a map continues the same timeline.
 
 - One map per mod. A map's nest uses the vanilla backgrounds and walls; only the
   raid panel's world map can be replaced (`map_sprite`).
-- `map_start` seeds basic goblins only (no hobgoblins, ogres or prisoners) and
-  cannot unlock cells.
 - Travel is free and instant: no cost, no days pass.
 
 A map mod's quests, tools, sounds and raid encounters already belong to its map:
