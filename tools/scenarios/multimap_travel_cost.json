@@ -1,0 +1,156 @@
+{
+  "about": "map_info.travel_cost: a trip to or from a map with a cost takes that gold and food on departure (it cannot be carried along) and makes its days pass; a trip that cannot be paid is refused with a notice and takes nothing. The selector's title shows the cost (screenshot, layout check).",
+  "mods": [
+    "tools/scenarios/mods/harness_map_cost"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "money",
+        "value": 200
+      }
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "food",
+        "value": 100
+      }
+    },
+    {
+      "do": {
+        "type": "set_day",
+        "value": 1
+      }
+    },
+    {
+      "open_selector": "harness_cost"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "layout_check": "cost_title"
+    },
+    {
+      "screenshot": "selector_cost"
+    },
+    {
+      "press_travel_button": {
+        "num": 20
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "travel_with": {
+        "to": "harness_cost",
+        "gold": 500,
+        "food": 5
+      },
+      "why": "asks for more gold than allowed: the trip's 50 cannot be taken along"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_cost"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 250,
+      "why": "map_start 100 + 150 carried (200 - the 50 trip cost)"
+    },
+    {
+      "assert": "val",
+      "key": "food",
+      "is": 25,
+      "why": "20 + 5"
+    },
+    {
+      "assert": "val",
+      "key": "day",
+      "is": 3,
+      "why": "two days passed"
+    },
+    {
+      "travel_with": {
+        "to": "vanilla"
+      }
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "vanilla"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 0,
+      "why": "the village paid 50 and sent 150"
+    },
+    {
+      "assert": "val",
+      "key": "food",
+      "is": 85,
+      "why": "100 - 10 - 5"
+    },
+    {
+      "assert": "val",
+      "key": "day",
+      "is": 5,
+      "why": "the trip back costs the map's days too"
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "money",
+        "value": 30
+      }
+    },
+    {
+      "travel_with": {
+        "to": "harness_cost"
+      },
+      "why": "30 gold does not pay a 50-gold trip"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "active_map",
+      "is": "vanilla"
+    },
+    {
+      "assert": "popup_shown",
+      "contains": "Not enough for the trip"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 30,
+      "why": "nothing was taken"
+    },
+    {
+      "press_travel_button": {
+        "num": 20
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "selector",
+      "open": false
+    }
+  ]
+}

@@ -106,6 +106,16 @@ def check_map(manifest, mod_dir):
         if "x" in mb or "y" in mb:
             out.append(("WARN", "map_info.x / y are ignored since GNX 1.4.8: maps are reached from the travel "
                                 "menu (the map button in the world map's corner)"))
+        tc = mb.get("travel_cost")
+        if tc is not None:
+            if not isinstance(tc, dict):
+                out.append(("ERROR", "map_info.travel_cost must be an object like {\"gold\": 50, \"food\": 10, \"days\": 1}"))
+            else:
+                for k, v in tc.items():
+                    if k not in ("gold", "food", "days"):
+                        out.append(("WARN", f"map_info.travel_cost.{k} is not used (gold, food, days)"))
+                    elif not isinstance(v, (int, float)) or v < 0:
+                        out.append(("ERROR", f"map_info.travel_cost.{k} must be a number >= 0, got {v!r}"))
         if "travel" in mb and mb["travel"] not in ("simple", "advanced", "complex"):
             out.append(("ERROR", f"map_info.travel must be simple, advanced or complex, got {mb['travel']!r}"))
         if "map_sprite" in mb and not (mod_dir / "sprites" / mb["map_sprite"]).is_file():

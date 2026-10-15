@@ -349,7 +349,8 @@ Omit `h_type` entirely and let GNX hash-assign one.
 
 **Building it in game:** modded cells are not in the vanilla SMALL/BIG/TENT/XL
 lists. Click an empty spot between cells, choose NEW, then **CUSTOM**: it lists
-every unlocked modded cell and builds the slot and the cell together.
+every unlocked modded cell and builds the slot and the cell together. An empty
+slot you already built has CUSTOM at the end of its own menu, for cells of its size.
 
 ---
 

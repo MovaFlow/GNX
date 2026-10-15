@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_slot_button.gml	2026-09-02 08:45:16.386592300 +0200
-+++ gml/gml_GlobalScript_s_slot_button.gml	2026-10-15 10:43:25.254472300 +0200
-@@ -1,161 +1,262 @@
++++ gml/gml_GlobalScript_s_slot_button.gml	2026-10-15 15:22:14.534512400 +0200
+@@ -1,161 +1,288 @@
 -function scr_create_slot_button()
 -{
 -    scr_create_button_slot(interact_type, button_num);
@@ -409,6 +409,32 @@
 +    }
 +
 +    return _out;
++}
++
++// unlocked mod cells that fit the empty slot arg0 (its slot_type: 0 small, 1 big, 2 tentacle, 6 XL), for the
++// CUSTOM entry of an empty slot's category menu (the cell goes into this slot; no new slot is built)
++function gnx_custom_cells_for_slot(arg0)
++{
++    var _out = [];
++
++    if (arg0 == -1 || !instance_exists(arg0))
++        return _out;
++
++    var _all = gnx_custom_cells_list(-1);
++
++    for (var i = 0; i < array_length(_all); i++)
++    {
++        if (gnx_custom_cell_slot_type(_all[i]) == arg0.slot_data.slot_type)
++            array_push(_out, _all[i]);
++    }
++
++    return _out;
++}
++
++// the empty slot's category menu: one more entry (CUSTOM) when mod cells fit it
++function gnx_slot_menu_extra(arg0)
++{
++    return (array_length(gnx_custom_cells_for_slot(arg0)) > 0) ? 1 : 0;
 +}
 +
 +// Mav (1.4.7.5): CUSTOM build list: a list button = the usual cell button (name, income info)

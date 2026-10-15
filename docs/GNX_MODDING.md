@@ -944,7 +944,9 @@ Build menu categories for the `category` field:
 Modded cells (`h_type` 43 and up) do not appear in these vanilla lists. They are
 all listed under **CUSTOM**, the 6th button of an empty spot's NEW menu, which
 builds a new slot of the right size with the cell in it (price: the slot plus the
-cell). An existing empty slot can only be given a vanilla cell type.
+cell). An existing empty slot's menu (BREED / UTILITY / ...) also ends with CUSTOM
+when a modded cell fits that slot's size; it puts the cell into that slot (price:
+the cell).
 
 ### mon_spr
 
@@ -2290,6 +2292,7 @@ raid panel's world map, on every map; it lists every other map the player can re
 | `map_sprite` | no | PNG in the mod's `sprites/` folder, drawn as the raid panel's world map while the player is on this map (133x91). Loaded via `sprite_add` at boot |
 | `return_label` | no | The village's name in the travel menu while on this map (default: "Return") |
 | `travel` | no | What the pre-travel selector offers for trips to or from this map: `"simple"` (default: gold, food, basic goblins), `"advanced"` (+ a TROOPS tab: goblins, hobgoblins, tentacles and ogres, one section per type, each kind's amount set with the game's number pad) or `"complex"` (+ a CAPTIVES tab: prisoners dragged into the destination's free prison slots; never more than it has). A trip between two maps uses the higher of their two settings |
+| `travel_cost` | no | What a trip to or from this map costs: `{"gold": 50, "food": 10, "days": 1}` (each optional, default 0). Paid from the map the player leaves, on departure; the selector shows it in its title and the gold and food it needs cannot be taken along; a trip that cannot be paid is refused with a notice. `days` pass on arrival. A trip between two maps uses the higher value of each |
 | `x`, `y` | no | Ignored since GNX 1.4.8 (they placed a per-map button on the world map; the travel menu replaced it) |
 | `unlock` | no | A condition, or an array of conditions (all must hold), in the quest condition format (`gold_gte`, `stage_cleared`, `state_equals`... see `docs/QUESTS_SCHEMA.md`). Until it holds the map is hidden, both from the world map and from the travel menu. The first time it holds, the map unlocks for good: it is saved, shared by every map, and announced with a short notice. `state_*` conditions read this mod's own state |
 
@@ -2368,7 +2371,6 @@ counter itself is shared, so arriving on a map continues the same timeline.
 
 - One map per mod. A map's nest uses the vanilla backgrounds and walls; only the
   raid panel's world map can be replaced (`map_sprite`).
-- Travel is free and instant: no cost, no days pass.
 
 A map mod's quests, tools, sounds and raid encounters already belong to its map:
 they load only while the player is there.

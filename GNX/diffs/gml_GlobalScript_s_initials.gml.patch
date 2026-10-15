@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 14:55:48.744480600 +0200
-@@ -1,224 +1,19864 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 15:22:45.476008600 +0200
+@@ -1,224 +1,20031 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -5443,6 +5443,7 @@
 +        global.gnx_carry_captives = -1;  // [{unit, from}] prisoners taken along
 +        global.gnx_carry_unlock = -1;
 +        global.gnx_carry_inv = -1;  // the inventory, moved to the destination on arrival (shared by every map)
++        global.gnx_trip_cost = -1;  // {gold, food, days} paid for the trip under way (refunded if it is refused)
 +        global.gnx_loaded_mod_record = -1;  // the mod record of the save last loaded (s_save_load)
 +    }
 +
@@ -6337,6 +6338,8 @@
 +            _tl.y = variable_struct_exists(_mb, "y") ? _mb.y : 70;
 +            _tl.mod_name = arg0;
 +            _tl.travel = variable_struct_exists(_mb, "travel") ? string(_mb.travel) : "simple";  // pre-travel selector tier
++            var _tc = (variable_struct_exists(_mb, "travel_cost") && is_struct(_mb.travel_cost)) ? _mb.travel_cost : {};
++            _tl.cost = { gold: variable_struct_exists(_tc, "gold") ? max(0, _tc.gold) : 0, food: variable_struct_exists(_tc, "food") ? max(0, _tc.food) : 0, days: variable_struct_exists(_tc, "days") ? max(0, floor(_tc.days)) : 0 };
 +            _tl.unlock = -1;
 +            
 +            if (variable_struct_exists(_mb, "unlock"))  // condition (or array of conditions, all needed) to show the map
@@ -8427,12 +8430,6 @@
 +                scr_gnx_fire_event(_q.gnx_next);
 +        }
 +    }
-+}
-+
-+function scr_gnx_claim_quest_reward(arg0)
-+{
-+    if (variable_struct_exists(arg0, "gnx_next") && arg0.gnx_next != undefined)
-+        scr_gnx_fire_event(arg0.gnx_next);
 +}
 +
 +function scr_gnx_save_quest_state()
@@ -10546,7 +10543,8 @@
 +        global.gnx_travel_data = -1;
 +    }
 +    
-+    global.gnx_carry_day = global.val.day;
++    global.gnx_carry_day = global.val.day + (is_struct(global.gnx_trip_cost) ? global.gnx_trip_cost.days : 0);  // travel_cost days pass
++    global.gnx_trip_cost = -1;
 +    global.gnx_carry_timer = global.val.day_timer;
 +    global.gnx_carry_unlock = json_parse(json_stringify(global.unlock));  // unlocks are shared by every map
 +    global.gnx_trigger_load = true;
@@ -10677,6 +10675,49 @@
 +// ---------------------------------------------------------------------------
 +
 +// 0 simple, 1 advanced, 2 complex: the highest tier of the map left and the map reached
++// what a trip to arg0 costs: map_info.travel_cost {gold, food, days} of the destination and of the map we are
++// on, the higher of each (like the selector tier); the village costs nothing
++function gnx_travel_cost(arg0)
++{
++    var _c = { gold: 0, food: 0, days: 0 };
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++
++        if ((_tl.target == arg0 || _tl.target == global.gnx_active_map) && _tl.target != "vanilla" && variable_struct_exists(_tl, "cost"))
++        {
++            _c.gold = max(_c.gold, _tl.cost.gold);
++            _c.food = max(_c.food, _tl.cost.food);
++            _c.days = max(_c.days, _tl.cost.days);
++        }
++    }
++
++    return _c;
++}
++
++// "Trip: 50 gold, 10 food, 1 day" ("" when free)
++function gnx_travel_cost_text(arg0)
++{
++    var _parts = [];
++
++    if (arg0.gold > 0)
++        array_push(_parts, gnx_short_num(arg0.gold) + " gold");
++
++    if (arg0.food > 0)
++        array_push(_parts, gnx_short_num(arg0.food) + " food");
++
++    if (arg0.days > 0)
++        array_push(_parts, string(arg0.days) + ((arg0.days == 1) ? " day" : " days"));
++
++    var _t = "";
++
++    for (var _i = 0; _i < array_length(_parts); _i++)
++        _t += ((_i > 0) ? ", " : "") + _parts[_i];
++
++    return (_t == "") ? "" : ("Trip: " + _t);
++}
++
 +function gnx_travel_tier(arg0)
 +{
 +    var _tier = 0;
@@ -10872,8 +10913,9 @@
 +        carry_gold = 0;
 +        carry_food = 0;
 +        carry_goblins = 0;  // simple tier: basic goblins (kind 0)
-+        max_gold = global.val.money;
-+        max_food = global.val.food;
++        cost = gnx_travel_cost(arg0.target);  // map_info.travel_cost: paid on departure, not available to take along
++        max_gold = max(0, global.val.money - cost.gold);
++        max_food = max(0, global.val.food - cost.food);
 +        max_goblins = gnx_mon_have(0, 0);
 +        party = [];
 +        captives = [];  // prison list indices taken along
@@ -11199,7 +11241,8 @@
 +    draw_set_font(fnt_base_font_eng);
 +    draw_set_halign(fa_center);
 +    draw_set_color(c_white);
-+    gnx_ui_text(240, _py + 4, "Travel to " + target_label);
++    var _cost_txt = gnx_travel_cost_text(cost);
++    gnx_ui_text(240, _py + 4, "Travel to " + target_label + ((_cost_txt != "") ? ("  -  " + _cost_txt) : ""));
 +    var _hint = "";
 +
 +    if (tab == 0)
@@ -11488,6 +11531,16 @@
 +{
 +    var _cg = carry_gold;
 +    var _cf = carry_food;
++
++    if (global.val.money < (cost.gold + _cg) || global.val.food < (cost.food + _cf))  // the trip itself costs this much
++    {
++        scr_gnx_pop_up_create("Not enough for the trip. " + gnx_travel_cost_text(cost) + ".");
++        exit;
++    }
++
++    global.val.money -= cost.gold;
++    global.val.food -= cost.food;
++    global.gnx_trip_cost = cost;
 +    var _target = target_mod;
 +    var _label = target_label;
 +    var _troops = [];
@@ -11655,6 +11708,13 @@
 +                    // refused at the last moment (scr_gnx_travel logged why): give back what the selector took
 +                    global.val.money += max(0, global.gnx_carry_gold);
 +                    global.val.food += max(0, global.gnx_carry_food);
++
++                    if (is_struct(global.gnx_trip_cost))  // the trip's own cost too
++                    {
++                        global.val.money += global.gnx_trip_cost.gold;
++                        global.val.food += global.gnx_trip_cost.food;
++                        global.gnx_trip_cost = -1;
++                    }
 +
 +                    scr_gnx_apply_carry_units(false);  // troops and prisoners back where they were
 +                    global.gnx_carry_day = -1;
@@ -13330,6 +13390,36 @@
 +            scr_gnx_scn_check("map_inv", _mi_n == arg0.count, arg0.map + " stores " + string(_mi_n) + " item(s), want " + string(arg0.count));
 +            break;
 +
++        case "quest":
++            // {"assert": "quest", "event": "mod.event_id", "is": "active" | "clear" | "none"}: a GNX quest in the quest list
++            var _qs_state = "none";
++
++            for (var _qi = 0; _qi < ds_list_size(global.quest_list); _qi++)
++            {
++                var _qq = ds_list_find_value(global.quest_list, _qi);
++
++                if (variable_struct_exists(_qq, "gnx_event_id") && _qq.gnx_event_id == arg0.event)
++                    _qs_state = _qq.quest_clear ? "clear" : "active";
++            }
++
++            scr_gnx_scn_check("quest", _qs_state == arg0.is, arg0.event + " is " + _qs_state + " want " + arg0.is + " (" + string(ds_list_size(global.quest_list)) + " quest(s))");
++            break;
++
++        case "noti":
++            // {"assert": "noti", "event": "mod.event_id", "is": true}: a GNX notification (dialog) waiting in the list
++            var _nt = false;
++
++            for (var _ni = 0; _ni < ds_list_size(global.noti_list); _ni++)
++            {
++                var _nn = ds_list_find_value(global.noti_list, _ni);
++
++                if (variable_struct_exists(_nn, "gnx_event_id") && _nn.gnx_event_id == arg0.event)
++                    _nt = true;
++            }
++
++            scr_gnx_scn_check("noti", _nt == arg0.is, arg0.event + " waiting=" + string(_nt) + " (" + string(ds_list_size(global.noti_list)) + " notification(s))");
++            break;
++
 +        case "selector":
 +            // {"assert": "selector", "open": true, "gold": n, "food": n, "goblins": n}: the open selector's chosen amounts
 +            var _sw = -1;
@@ -13399,7 +13489,7 @@
 +                    _hc++;
 +            }
 +
-+            scr_gnx_scn_check("has_cell", (variable_struct_exists(arg0, "is") && !arg0.is) ? (_hc == 0) : (_hc > 0), "h_type " + string(arg0.h_type) + " x" + string(_hc));
++            scr_gnx_scn_check("has_cell", variable_struct_exists(arg0, "count") ? (_hc == arg0.count) : ((variable_struct_exists(arg0, "is") && !arg0.is) ? (_hc == 0) : (_hc > 0)), "h_type " + string(arg0.h_type) + " x" + string(_hc));
 +            break;
 +
 +        case "registry_ok":
@@ -13995,6 +14085,83 @@
 +                scr_gnx_scn_check("moan_probe", _got == _want, "class " + string(gnx_scn_ref(_mo.class)) + " mon_type " + string(_mo.mon_type) + ": bank '" + string(_got) + "' want '" + string(_want) + "'");
 +            }
 +        }
++        else if (variable_struct_exists(_st, "transfer_probe"))
++        {
++            // {"transfer_probe": true}: a hobgoblin delivering from a cell whose unit is gone (carry_start_id -1,
++            // carry_end_id set, slot unit -1). The real scr_draw_hobgoblin_carry must not crash and the real
++            // scr_mon_state_carry must cancel the delivery and release the target. Two borrowed cells, all restored.
++            var _tp_from = gnx_scn_occupied_cell(-1);
++            var _tp_to = -1;
++
++            with (obj_slot)
++            {
++                if (_tp_to == -1 && id != _tp_from && slot_data.anim_struct != -1 && variable_struct_exists(slot_data, "h_type") && slot_data.slot_type == 0)
++                    _tp_to = id;
++            }
++
++            if (_tp_from == -1 || _tp_to == -1)
++            {
++                scr_gnx_scn_check("transfer_probe", false, "no cells to borrow");
++            }
++            else
++            {
++                var _tp_unit = _tp_from.unit_data;
++                var _tp_load = _tp_to.slot_data.load;
++                var _tp_carry = _tp_to.slot_data.carry;
++                var _tp_m = scr_create_mon(1, _tp_from.x, _tp_from.y, _tp_from.slot_data.slot_floor, -1, 0);
++
++                with (_tp_m)
++                {
++                    if (!variable_instance_exists(id, "carry_emitter"))
++                        carry_emitter = -1;
++
++                    mon_data.slot_id = _tp_from;
++                    mon_data.carry_start_id = -1;
++                    mon_data.carry_end_id = _tp_to;
++                    mon_data.carry_wait = 0;
++                    mon_data.ff = false;
++                }
++
++                _tp_to.slot_data.load = true;
++                _tp_to.slot_data.carry = true;
++                _tp_from.unit_data = -1;  // the unit left the cell mid-delivery
++
++                with (_tp_m)
++                {
++                    scr_draw_hobgoblin_carry();
++                    scr_mon_state_carry();
++                }
++
++                var _tp_end = _tp_m.mon_data.carry_end_id;
++                var _tp_ok = _tp_end == -1 && !_tp_to.slot_data.load && !_tp_to.slot_data.carry;
++                _tp_from.unit_data = _tp_unit;
++                _tp_to.slot_data.load = _tp_load;
++                _tp_to.slot_data.carry = _tp_carry;
++                instance_destroy(_tp_m);
++                scr_gnx_scn_check("transfer_probe", _tp_ok, "carry_end_id=" + string(_tp_end) + " target load/carry released=" + string(_tp_ok));
++            }
++        }
++        else if (variable_struct_exists(_st, "claim_quest"))
++        {
++            // {"claim_quest": "mod.event_id"}: what a click on a cleared quest does (vanilla scr_check_quest_click):
++            // its reward is added and it leaves the list
++            var _cq_done = false;
++
++            for (var _ci2 = 0; _ci2 < ds_list_size(global.quest_list); _ci2++)
++            {
++                var _cq = ds_list_find_value(global.quest_list, _ci2);
++
++                if (variable_struct_exists(_cq, "gnx_event_id") && _cq.gnx_event_id == _st.claim_quest && _cq.quest_clear)
++                {
++                    scr_add_item(_cq.quest_reward);
++                    ds_list_delete(global.quest_list, _ci2);
++                    _cq_done = true;
++                    break;
++                }
++            }
++
++            scr_gnx_scn_check("claim_quest", _cq_done, _st.claim_quest + ((_cq_done) ? " claimed" : " not claimable (absent or not cleared)"));
++        }
 +        else if (variable_struct_exists(_st, "open_build_menu"))
 +        {
 +            // {"open_build_menu": floor | -1}: the menu a click on a pillar between cells opens (vanilla s_mouse_action,
@@ -14044,7 +14211,7 @@
 +            if (_sm_slot == -1)
 +                scr_gnx_scn_check("open_slot_menu", false, "no empty small slot");
 +            else
-+                scr_create_window_button_list(_sm_slot, _sm_slot.x, _sm_slot.y, 3, 0, 3, scr_create_slot_category_button, true);
++                scr_create_window_button_list(_sm_slot, _sm_slot.x, _sm_slot.y, 3 + gnx_slot_menu_extra(_sm_slot), 0, 3, scr_create_slot_category_button, true);  // as s_mouse_action
 +
 +            gnx_scn_log("open_slot_menu " + ((_sm_slot == -1) ? "none" : "ok"));
 +        }

@@ -1,5 +1,5 @@
 {
-  "about": "Mav's CUSTOM build list (1.4.7.5), through the game's own buttons: a pillar's NEW menu has a CUSTOM button (6th, no price); the vanilla BREED list of an empty small slot no longer shows the modded cell; CUSTOM lists it (button type 95, button_num = h_type) and picking it builds a new slot with that cell. A fresh game with vanilla WALL 1 unlocked through the debug tool action (so the SMALL list exists), and the non-map test mod harness_cells (HARNESS CELL, h_type 9010). The price is taken by the mouse code, which the scenario's clicks skip.",
+  "about": "Mav's CUSTOM build list (1.4.7.5), through the game's own buttons: a pillar's NEW menu has a CUSTOM button (6th, no price); the vanilla BREED list of an empty small slot no longer shows the modded cell; CUSTOM lists it (button type 95, button_num = h_type) and picking it builds a new slot with that cell. An empty slot's own menu also has CUSTOM (mod cells that fit its size), which puts the cell into that slot. A fresh game with vanilla WALL 1 unlocked through the debug tool action (so the SMALL list exists), and the non-map test mod harness_cells (HARNESS CELL, h_type 9010). The price is taken by the mouse code, which the scenario's clicks skip.",
   "mods": [
     "tools/scenarios/mods/harness_cells"
   ],
@@ -96,6 +96,51 @@
       "why": "modded cells are only in CUSTOM"
     },
     {
+      "open_slot_menu": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "button_var",
+      "type": 3,
+      "num": 3,
+      "field": "button_text",
+      "is": "CUSTOM",
+      "why": "an empty small slot's menu offers CUSTOM when a mod cell fits it"
+    },
+    {
+      "press": {
+        "type": 3,
+        "num": 3
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "button_var",
+      "type": 96,
+      "num": 9010,
+      "field": "button_num",
+      "is": 9010
+    },
+    {
+      "press": {
+        "type": 96,
+        "num": 9010
+      },
+      "why": "the mod cell goes into this existing slot"
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9010,
+      "count": 1
+    },
+    {
       "screenshot": "small_list"
     },
     {
@@ -146,7 +191,8 @@
     },
     {
       "assert": "has_cell",
-      "h_type": 9010
+      "h_type": 9010,
+      "count": 2
     },
     {
       "screenshot": "built"
@@ -163,7 +209,8 @@
     {
       "assert": "has_cell",
       "h_type": 9010,
-      "why": "the built cell survives a save and reload"
+      "why": "the built cell survives a save and reload",
+      "count": 2
     }
   ]
 }

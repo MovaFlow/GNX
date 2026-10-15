@@ -55,3 +55,5 @@ with tempfile.TemporaryDirectory() as tmp:
         assert (dep / rel).is_file(), f"build_mod did not deploy {rel}"
     assert "OK - map 'harness_full'" in r.stdout, r.stdout
 print("deploy ok")
+assert not errs({"map": "m", "map_info": {"travel_cost": {"gold": 50, "food": 10, "days": 1}}})
+assert errs({"map": "m", "map_info": {"travel_cost": {"gold": -5}}}) and errs({"map": "m", "map_info": {"travel_cost": 50}})

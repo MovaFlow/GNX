@@ -1,0 +1,212 @@
+{
+  "about": "Quest runtime: a trigger with conditions (gold_gte + a state guard) fires a silent notification whose side effects (set_state, add_gold, unlock_cell) run at once and chain into a quest; the quest's frame-hook completion fires the next notification once; claiming adds the reward once; a dialog notification waits in the list; mod state and the waiting notification survive save/reload. Claiming mirrors vanilla's quest-window click (scr_check_quest_click).",
+  "mods": [
+    "tools/scenarios/mods/harness_quests"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "money",
+        "value": 0
+      }
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "food",
+        "value": 0
+      }
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_quests",
+        "stage"
+      ],
+      "is": 0,
+      "why": "save_state default"
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "cell_built"
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_quests",
+        "stage"
+      ],
+      "is": 0,
+      "why": "gold_gte 100 not met: the trigger does not fire"
+    },
+    {
+      "assert": "quest",
+      "event": "harness_quests.q_gold",
+      "is": "none"
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "money",
+        "value": 100
+      }
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "cell_built"
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_quests",
+        "stage"
+      ],
+      "is": 1,
+      "why": "trigger fired: q_intro's side effects ran"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 150,
+      "why": "side effect add_gold 50"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_unlocked",
+      "args": [
+        5
+      ],
+      "is": true,
+      "why": "side effect unlock_cell"
+    },
+    {
+      "assert": "quest",
+      "event": "harness_quests.q_gold",
+      "is": "active",
+      "why": "q_intro chained into the quest"
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "cell_built"
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 150,
+      "why": "a trigger fires at most once (and its state guard holds)"
+    },
+    {
+      "do": {
+        "type": "add_gold",
+        "amount": 900
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "quest",
+      "event": "harness_quests.q_gold",
+      "is": "clear",
+      "why": "gold_gte 1000 checked every frame"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_quests",
+        "stage"
+      ],
+      "is": 2,
+      "why": "completion fired q_done at once"
+    },
+    {
+      "assert": "val",
+      "key": "food",
+      "is": 30
+    },
+    {
+      "claim_quest": "harness_quests.q_gold"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 1250,
+      "why": "reward 200 added once"
+    },
+    {
+      "assert": "quest",
+      "event": "harness_quests.q_gold",
+      "is": "none",
+      "why": "claimed quests leave the list"
+    },
+    {
+      "assert": "val",
+      "key": "food",
+      "is": 30,
+      "why": "q_done ran only once"
+    },
+    {
+      "do": {
+        "type": "fire_event",
+        "event_id": "harness_quests.q_dialog"
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "noti",
+      "event": "harness_quests.q_dialog",
+      "is": true,
+      "why": "a dialog notification waits in the list"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_quests",
+        "stage"
+      ],
+      "is": 2,
+      "why": "mod state survives save/reload"
+    },
+    {
+      "assert": "noti",
+      "event": "harness_quests.q_dialog",
+      "is": true,
+      "why": "the waiting notification survives too"
+    }
+  ]
+}
