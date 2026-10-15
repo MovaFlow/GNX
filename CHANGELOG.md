@@ -2,17 +2,18 @@
 
 ## Unreleased
 
-**Game version:** 1.39
+**Game version:** 1.40
 
 ### New Features
 
+- **Game version 1.40**: GNX is rebased on Goblin Nest 1.40 and keeps the game's own fixes (tentacle cells' mood, the coin number on the shaman goblin). Mods made for 1.38 and 1.39 still load without manifest changes; new mods can declare `"1.40"`.
 - **Multi-map travel re-enabled**: `global.gnx_multimap_enabled` is on again. Mods declaring `map`, `map_button` and `map_start` in `manifest.json` get a travel button on the vanilla map.
 - **Travel menu**: a map button in the top-left corner of the raid panel's world map, on every map, opens a menu listing every other map, so you can travel from any map to any other (not just between the village and a map). Picking one opens the usual pre-travel selector. The per-map buttons on the world map are gone: the menu replaces them, and `map_button.x` / `y` are ignored.
 - **Mod menu** (main menu > MODS): turn mods on and off without touching `GNX_mods`, applied instantly. It is a game-wide setting. Saves now record the mods they were made with and what they use from each; the mod menu shows which saves use a mod and asks before turning a used one off, mods that saves use but are no longer installed are listed as missing, and the load page warns (and asks) before loading a save whose mods are off or missing. Saves from before this version get a count of content no installed mod owns instead.
 - **`requires`** in `manifest.json`: mods a mod needs. If one is off the mod is skipped with it; if one is not installed it is skipped and reported.
 - **Clearer travel and mod screens**: the pre-travel selector has ALL / NONE per row and shows what stays behind; the travel menu names the map you are on and marks each destination "new" or "last here day N"; the mod page names mods instead of folder ids, says "used by Save 1, autosave", shows details (author, what a mod adds, what it needs) for the mod under the mouse, lights APPLY up while changes are pending and asks before BACK discards them, and shows a mod that failed to load (e.g. made for another game version) as "not loaded" instead of ON. The main menu corner counts mods on and off.
 - **Guide entry**: RAIDING > TRAVEL explains travelling between maps (shown when map mods are installed).
-- **Pre-travel selector, three tiers** (`map_button.travel`): BASIC (gold, food; goblins on simple maps) with -100/-10/-1/+1/+10/+100, ALL and 0; TROOPS on advanced maps (goblins, hobgoblins and ogres by kind, picked like a raid formation with the game's number pad); CAPTIVES on complex maps (drag prisoners into the destination's free prison slots). Tabs, a "stays here" line and a warning when the map left would keep no food or no monsters. One layout for every tab: tabs in their own band, bordered panels, a single hint line and the warning above CANCEL / TRAVEL.
+- **Pre-travel selector, three tiers** (`map_button.travel`): BASIC (gold, food; goblins on simple maps) with -100/-10/-1/+1/+10/+100, ALL and 0; TROOPS on advanced maps (goblins, hobgoblins, tentacles and ogres, one section per type with every kind side by side; the number under a kind opens the game's number pad); CAPTIVES on complex maps (drag prisoners into the destination's free prison slots). Tabs, a "stays here" line and a warning when the map left would keep no food or no monsters. One layout for every tab: tabs in their own band, bordered panels, a single hint line and the warning above CANCEL / TRAVEL.
 - **Shared unlocks**: anything unlocked on one map (cells, raid, shop, timer...) is unlocked on every map, merged in on arrival. A map mod's own cells stay out of other maps' build menus, and boss progress stays with each map.
 - **Maps that unlock later**: `map_button.unlock` takes a quest-style condition (or an array of them). The map stays hidden from the world map and the travel menu until it holds once; then it unlocks for good on every map, with a notice.
 - **`build_mod.py` checks map mods**: map/map_button/map_start fields, unlock condition types, button positions, map_start cells on floors that do not exist, and the map image. It now also deploys a mod's quests, tools, sounds and props files, its map image, and its `atlas/`, `sounds/` and `portraits/` folders (it only copied classes, cells and strips before, so sound mods and portrait quests deployed broken).
@@ -20,8 +21,19 @@
 - **Travel transition**: travelling fades to black while a goblin with a backpack walks along a dotted route ("Travelling to ..."). It stops and waits while the map loads (the load freezes the picture for a moment, which then reads as a pause instead of a stutter), then walks off as the destination fades in ("Arrived at ...").
 - **`human_spr` is now optional on new cells**: omitting it gives `base+class` mode, with `base_body` picked from the cell kind (`b_*` categories / slot type 2 = `big`, `t_*` / slot type 3 = `tent`, otherwise `standard`). This matches what the docs already said.
 
+### Contributed by Mav (1.4.7.5)
+
+- **CUSTOM build list**: modded cells get their own CUSTOM button in an empty spot's NEW menu instead of mixing into the vanilla build lists. Picking one builds the slot and the cell together.
+- **Staged mod loading**: mods load in three phases (classes of every mod, then cells, then quests, tools, sounds and props), so a cell's `required_class` or a quest condition can name a class or cell from any mod, whatever the folder names. Conditions in `classes.json` that name cells are resolved once every cell exists. IDs and saves are unchanged.
+- **Modded classes go to their own cell**: TRANSFER, birth and milking send a modded class to any cell whose `required_class` lists it (like Lilith to the SHRINE or the cow to the DAIRY).
+- **Ogres with a line layer** on modded cells: an ogre given `alpha` + `line` sprites by the cell JSON is drawn like goblins (outline, monster transparency settings). Ogres without `line` keep the vanilla look.
+- **Shrine loop hands for modded classes**: `mon_spr_overrides.shrine_loop_hand` (and `shrine_loop_hand_c`) draws a modded class's hands during the LILITH SHRINE loop.
+- **Atlas fixes**: case-insensitive atlas lookup; folder-only sprite entries use the atlas; a JSON origin (`origin_from`, `xorig`/`yorig`) wins over uv.json without changing other entries; a missing atlas page no longer shifts later pages; rotated atlas sprites turn around their origin; atlas sprites now work for birth sprites, `carry_base_spr`, naked layers, raid boss icons, cell decoration buttons, the BIRTH infant prop and a carrying ogre after loading.
+- **Crash fix**: a hobgoblin delivering from a TRANSFER cell that lost its unit crashed (`skin not set before reading it`). The delivery is now cancelled.
+
 ### Bug Fixes
 
+- Loading a save from an older game version now runs the game's own save upgrade steps again: GNX's copy of them had stopped at 1.33.
 - The selector's Goblins row counted every kind of goblin but only took basic ones, so taking many could leave a negative count. It now counts basic goblins; other kinds travel through TROOPS.
 - **Load and map-change lag**: loading a save or changing maps with many mods took ~2 s, almost all of it writing the GNX debug log (each line re-opened the log file, ~20 ms a time, and the loader writes ~600 lines on every load and map change). The log is now buffered and written once per frame: the loader goes from ~1.9 s to ~0.1 s with 14 mods, a map change from ~2.3 s to ~0.45 s.
 - Load page and "map not available" notice: a map whose mod is off or gone is named after its mod (from the save's mod record) instead of its internal id.

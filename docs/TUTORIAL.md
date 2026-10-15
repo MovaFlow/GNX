@@ -1,6 +1,6 @@
 # GNX Modding Tutorial  - Building Your First Mod
 
-> **Compatibility:** GNX v1.4+ · Game version 1.39
+> **Compatibility:** GNX v1.4+ · Game version 1.40
 
 This is a hands-on walkthrough for a new modder. It builds up a mod step by
 step, from "hello world" to a custom class and a custom cell, using
@@ -495,7 +495,7 @@ New folder `GNX_mods/my_map/manifest.json`:
   "mod_id": "my_map",
   "name": "My Map",
   "version": "1.0.0",
-  "compatible_game_versions": ["1.39"],
+  "compatible_game_versions": ["1.40"],
   "map": "my_map",
   "map_button": {
     "label": "Old Mine",

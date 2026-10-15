@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_mon_data.gml	2026-09-02 08:45:16.386592300 +0200
-+++ gml/gml_GlobalScript_s_mon_data.gml	2026-10-14 08:44:22.111926600 +0200
++++ gml/gml_GlobalScript_s_mon_data.gml	2026-10-15 11:14:44.716786200 +0200
 @@ -1,20 +1,20 @@
  function scr_set_mon_range()
  {
@@ -2734,7 +2734,7 @@
                  }
                  
                  _mon_spr.hand_b = -1;
-@@ -1553,11 +2483,39 @@
+@@ -1553,11 +2483,44 @@
              break;
      }
      
@@ -2771,10 +2771,15 @@
 +            _mon_spr.hand_l = _gnx_hand_l;
 +    }
 +    
++    // Mav (1.4.7.5): an ogre (mon_type 3) on a mod cell whose JSON gives it "alpha" + "line".
++    // Vanilla draws the ogre as one opaque sprite (no line layer): this flag switches it
++    // in scr_draw_mon_slot to the goblin path: alpha + line + the monster transparency settings.
++    // Ogres with only "alpha" (older mods) keep the old path: the flag is false then.
++    mon_data.gnx_ogre_alpha = (_mon_type == 3 && is_struct(_gnx_ms) && _gnx_body_l != -1);
      if (_mon_spr.prop != -1)
      {
          switch (_mon_spr.prop)
-@@ -1602,20 +2560,42 @@
+@@ -1602,20 +2565,42 @@
      if (_enter != -1)
          arg0.slot_data.spr_enter = _enter;
      
@@ -2818,7 +2823,7 @@
  {
      var _line = -1;
      
-@@ -1961,36 +2941,21 @@
+@@ -1961,36 +2946,24 @@
      return _line;
  }
  
@@ -2855,6 +2860,9 @@
 -    Value_44,
 -    Value_45,
 -    Value_46
++    // Mav (1.4.7.5): an atlas sprite (a struct) has no asset name: the line then comes only from the *_line key
++    if (is_struct(arg0))
++        return -1;
 +    if (arg0 == -1)
 +        return -1;
 +    

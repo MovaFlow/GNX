@@ -1,0 +1,169 @@
+{
+  "about": "Mav's CUSTOM build list (1.4.7.5), through the game's own buttons: a pillar's NEW menu has a CUSTOM button (6th, no price); the vanilla BREED list of an empty small slot no longer shows the modded cell; CUSTOM lists it (button type 95, button_num = h_type) and picking it builds a new slot with that cell. A fresh game with vanilla WALL 1 unlocked through the debug tool action (so the SMALL list exists), and the non-map test mod harness_cells (HARNESS CELL, h_type 9010). The price is taken by the mouse code, which the scenario's clicks skip.",
+  "mods": [
+    "tools/scenarios/mods/harness_cells"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "unlock_cell",
+        "h_type": 1
+      },
+      "why": "a vanilla small cell, so the SMALL list exists"
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9010,
+      "is": false,
+      "why": "nothing built yet"
+    },
+    {
+      "open_build_menu": -1
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 0,
+        "num": 0
+      },
+      "why": "NEW"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "button_var",
+      "type": 1,
+      "num": 5,
+      "field": "button_text",
+      "is": "CUSTOM"
+    },
+    {
+      "assert": "button_var",
+      "type": 1,
+      "num": 5,
+      "field": "price",
+      "is": -1
+    },
+    {
+      "screenshot": "new_menu"
+    },
+    {
+      "press": {
+        "type": 1,
+        "num": 0
+      },
+      "why": "NEW > SMALL builds an empty small slot"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "open_slot_menu": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 3,
+        "num": 0
+      },
+      "why": "BREED list of the empty slot"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "button_var",
+      "type": 10,
+      "num": 1,
+      "field": "button_num",
+      "is": 1,
+      "why": "control: the SMALL list is open and lists vanilla cells"
+    },
+    {
+      "assert": "button_var",
+      "type": 10,
+      "num": 9010,
+      "field": "button_num",
+      "absent": true,
+      "why": "modded cells are only in CUSTOM"
+    },
+    {
+      "screenshot": "small_list"
+    },
+    {
+      "open_build_menu": -1
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 0,
+        "num": 0
+      },
+      "why": "NEW"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 1,
+        "num": 5
+      },
+      "why": "CUSTOM"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "button_var",
+      "type": 95,
+      "num": 9010,
+      "field": "button_num",
+      "is": 9010
+    },
+    {
+      "screenshot": "custom_list"
+    },
+    {
+      "press": {
+        "type": 95,
+        "num": 9010
+      },
+      "why": "build HARNESS CELL"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9010
+    },
+    {
+      "screenshot": "built"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9010,
+      "why": "the built cell survives a save and reload"
+    }
+  ]
+}

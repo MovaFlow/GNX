@@ -2,7 +2,7 @@
 
 # GNX  - Goblin Nest Extender
 
-> **Game version:** 1.39
+> **Game version:** 1.40
 
 GNX is a mod layer patched into `data.win` that lets you add custom content via JSON files: captive classes, dungeon cells, quest chains, raid encounters, boss mechanics, tool menus, and more. No GameMaker, no recompilation  - drop a folder into `GNX_mods/` and run.
 
@@ -102,7 +102,7 @@ GNX_mods/
 
 ## Compatibility
 
-GNX targets game version **1.39**. Mods declare which versions they support in `manifest.json`  - a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
+GNX targets game version **1.40** and still loads mods made for 1.38 and 1.39. Mods declare which versions they support in `manifest.json`  - a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
 
 ---
 

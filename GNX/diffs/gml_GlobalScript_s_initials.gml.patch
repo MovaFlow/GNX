@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-14 17:25:12.384149800 +0200
-@@ -1,224 +1,18941 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 11:14:44.716786200 +0200
+@@ -1,224 +1,19461 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -228,8 +228,8 @@
 +function scr_create_initials()
 +{
 +    randomize();
-+    global.gnx_version = "1.4.7";
-+    global.gnx_accepted_versions = ["1.38", "1.39"];
++    global.gnx_version = "1.4.8";
++    global.gnx_accepted_versions = ["1.38", "1.39", "1.40"];
 +    global.val = {};
 +    global.val.sfx_vol = 0.5;
 +    global.val.bgm_vol = 0.5;
@@ -268,7 +268,7 @@
 +    global.val.old_t_lvl = 0;
 +    global.val.ct_lvl = 0;
 +    global.val.demo = 0;
-+    global.val.version = 1.39;
++    global.val.version = 1.4;
 +    global.val.goblin = 
 +    {
 +        num: [0, -1, -1, -1],
@@ -3585,6 +3585,8 @@
 +    if (!variable_global_exists("gnx_current_loading_mod"))
 +        global.gnx_current_loading_mod = "";
 +    
++    global.gnx_staged_load = false;
++    global.gnx_staged_manifests = {};
 +    scr_gnx_init_encounter_pools();
 +    scr_gnx_load_mods();
 +    var _gnx_ak = ds_map_find_first(global.cell_registry);
@@ -3684,6 +3686,7 @@
 +    var _s = variable_struct_get(arg0, arg1);
 +    var _xo = (is_struct(_s) && variable_struct_exists(_s, "xorig")) ? _s.xorig : 0;
 +    var _yo = (is_struct(_s) && variable_struct_exists(_s, "yorig")) ? _s.yorig : 0;
++    var _gnx_org_from = false;
 +
 +    // POPRAWKA (GNX): "origin_from" = nazwa wanilowego sprite'a, z ktorego bierzemy xorig/yorig
 +    if (is_struct(_s) && variable_struct_exists(_s, "origin_from") && is_string(_s.origin_from))
@@ -3694,6 +3697,7 @@
 +        {
 +            _xo = sprite_get_xoffset(_ofs);
 +            _yo = sprite_get_yoffset(_ofs);
++            _gnx_org_from = true;
 +        }
 +        else
 +        {
@@ -3709,11 +3713,10 @@
 +        
 +        if (_atref != undefined)
 +        {
-+            if (_atref.xo == 0 && _atref.yo == 0 && (_xo != 0 || _yo != 0))
-+            {
-+                _atref.xo = _xo;
-+                _atref.yo = _yo;
-+            }
++            // Mav (1.4.7.5): the JSON origin (origin_from or a non-zero xorig/yorig) wins over uv.json.
++            // Returns a copy instead of overwriting the shared atlas entry (the first JSON entry using the file used to win).
++            if ((_gnx_org_from || _xo != 0 || _yo != 0) && (_atref.xo != _xo || _atref.yo != _yo))
++                return gnx_sprref_with_origin(_atref, _xo, _yo);
 +            
 +            return _atref;
 +        }
@@ -5439,8 +5442,14 @@
 +
 +    global.gnx_vmouse = -1;    // scenario stand-in mouse {x, y, down, pressed} (gnx_mx/gnx_my/gnx_mb)
 +    global.gnx_ui_rects = -1;  // an array while a scenario's layout_check records what GNX UI draws
++    global.gnx_draw_spy = -1;  // an array while a scenario probe records the sprites gnx_draw_sprite_ext draws
 +    global.gnx_runtime_sprites = [];
 +    global.gnx_mod_errors = [];
++    // Mav (1.4.7.5): destroy the name maps left by a previous load first, so they do not leak
++    if (variable_global_exists("gnx_class_name_to_id") && ds_exists(global.gnx_class_name_to_id, ds_type_map))
++        ds_map_destroy(global.gnx_class_name_to_id);
++    if (variable_global_exists("gnx_cell_name_to_id") && ds_exists(global.gnx_cell_name_to_id, ds_type_map))
++        ds_map_destroy(global.gnx_cell_name_to_id);
 +    global.gnx_class_name_to_id = ds_map_create();
 +    global.gnx_cell_name_to_id = ds_map_create();
 +    
@@ -5509,8 +5518,8 @@
 +            array_push(global.gnx_indexed_mods, global.gnx_mod_list[_mi].folder);
 +    }
 +    
-+    for (var _mi = 0; _mi < array_length(global.gnx_indexed_mods); _mi++)
-+        scr_gnx_load_mod(global.gnx_indexed_mods[_mi]);
++    // Mav (1.4.7.5): load in phases (classes -> cells -> the rest) instead of one whole mod at a time: folder order no longer matters
++    scr_gnx_load_mod_list(global.gnx_indexed_mods);
 +    
 +    // mod menu truth: a mod meant to load that did not (wrong game version, broken manifest) is "error";
 +    // a loaded one with problems keeps "on" with the first problem as its note
@@ -5556,7 +5565,12 @@
 +    {
 +        var _mid = _atlas_mods[_i];
 +        var _adata = ds_map_find_value(global.gnx_mod_atlases, _mid);
-+        var _n = array_length(_adata.atlas_sprites);
++        var _n = 0;
++        for (var _pg = 0; _pg < array_length(_adata.atlas_sprites); _pg++)
++        {
++            if (_adata.atlas_sprites[_pg] != -1)
++                _n++;
++        }
 +        _pages_atlas += _n;
 +        var _n_entries = array_length(variable_struct_get_names(_adata.sprrefs));
 +        var _log_p = gnx_log_open();
@@ -5605,8 +5619,7 @@
 +    gnx_log_write(_cp, "[GNX-TIME] cp2 after VRAM block = " + string((get_timer() - _gnx_boot_t0) / 1000) + " ms\n");
 +    gnx_log_close(_cp);
 +    scr_gnx_build_spawn_tools();
-+    ds_map_destroy(global.gnx_class_name_to_id);
-+    ds_map_destroy(global.gnx_cell_name_to_id);
++    // Mav (1.4.7.5): the name maps stay (mods loaded later for another map may reference these mods' classes and cells)
 +    scr_gnx_apply_unlocks();
 +    scr_gnx_apply_prop_unlocks();
 +    scr_gnx_register_goblin_sprites();
@@ -6144,6 +6157,69 @@
 +    global.gnx_runtime_sprites = [];
 +}
 +
++// Mav (1.4.7.5): loads a list of mods in three phases, so references between mods do not depend on folder names:
++// 1) manifest + classes of every mod, 2) cells of every mod, 3) quests, tools, sounds, props.
++// Mods that failed or are deferred to another map store no manifest, so phases 2-3 skip them.
++function scr_gnx_load_mod_list(arg0)
++{
++    global.gnx_staged_load = true;
++    global.gnx_staged_manifests = {};
++    for (var _i = 0; _i < array_length(arg0); _i++)
++        scr_gnx_load_mod(arg0[_i]);
++    global.gnx_staged_load = false;
++    // phase 2: cells of every mod
++    for (var _j = 0; _j < array_length(arg0); _j++)
++    {
++        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_j]))
++            scr_gnx_load_mod_stage(arg0[_j], variable_struct_get(global.gnx_staged_manifests, arg0[_j]), 2);
++    }
++    // conditions in classes.json may name cells ("h_type": "Mod.Cell"): every cell exists now
++    scr_gnx_reresolve_class_conditions();
++    // phase 3: quests, tools, sounds, props of every mod
++    for (var _k = 0; _k < array_length(arg0); _k++)
++    {
++        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_k]))
++            scr_gnx_load_mod_stage(arg0[_k], variable_struct_get(global.gnx_staged_manifests, arg0[_k]), 3);
++    }
++    global.gnx_staged_manifests = {};
++}
++// Mav (1.4.7.5): re-resolves names in classes.json conditions (raid_spawns, cage_escape, tower_boss_condition).
++// No cell existed yet while classes loaded, so "h_type": "Mod.Cell" stayed a string.
++// Already resolved values (numbers) are skipped, so it is safe to call more than once.
++function scr_gnx_reresolve_class_conditions()
++{
++    if (variable_global_exists("gnx_encounter_pools") && ds_exists(global.gnx_encounter_pools, ds_type_map))
++    {
++        var _pk = ds_map_find_first(global.gnx_encounter_pools);
++        while (!is_undefined(_pk))
++        {
++            var _pool = ds_map_find_value(global.gnx_encounter_pools, _pk);
++            if (!is_undefined(_pool) && ds_exists(_pool, ds_type_list))
++            {
++                for (var _pi = 0; _pi < ds_list_size(_pool); _pi++)
++                {
++                    var _pe = ds_list_find_value(_pool, _pi);
++                    if (is_struct(_pe) && variable_struct_exists(_pe, "condition") && is_struct(_pe.condition) && variable_struct_exists(_pe, "mod_name"))
++                        scr_gnx_resolve_condition_refs(_pe.condition, _pe.mod_name);
++                }
++            }
++            _pk = ds_map_find_next(global.gnx_encounter_pools, _pk);
++        }
++    }
++    var _ck = ds_map_find_first(global.class_registry);
++    while (!is_undefined(_ck))
++    {
++        var _rc = ds_map_find_value(global.class_registry, _ck);
++        if (is_struct(_rc) && variable_struct_exists(_rc, "mod_name"))
++        {
++            if (variable_struct_exists(_rc, "post_raid") && is_struct(_rc.post_raid) && variable_struct_exists(_rc.post_raid, "cage_escape") && is_struct(_rc.post_raid.cage_escape) && variable_struct_exists(_rc.post_raid.cage_escape, "condition") && is_struct(_rc.post_raid.cage_escape.condition))
++                scr_gnx_resolve_condition_refs(_rc.post_raid.cage_escape.condition, _rc.mod_name);
++            if (variable_struct_exists(_rc, "tower_boss_condition") && is_struct(_rc.tower_boss_condition))
++                scr_gnx_resolve_condition_refs(_rc.tower_boss_condition, _rc.mod_name);
++        }
++        _ck = ds_map_find_next(global.class_registry, _ck);
++    }
++}
 +function scr_gnx_load_mod(arg0)
 +{
 +    var _manifest_path = global.gnx_mods_root + arg0 + "/manifest.json";
@@ -6323,14 +6399,38 @@
 +    gnx_log_close(_tmp_lg);
 +    _tmp_t0 = get_timer();
 +    
-+    if (variable_struct_exists(_manifest, "cells"))
-+        scr_gnx_load_cells(arg0, _manifest.cells);
++    // Mav (1.4.7.5): in a staged load (scr_gnx_load_mod_list) phase 1 (manifest + classes) ends here.
++    // The manifest is kept; scr_gnx_load_mod_stage loads cells and the rest once ALL mods' classes are known.
++    if (variable_global_exists("gnx_staged_load") && global.gnx_staged_load)
++    {
++        variable_struct_set(global.gnx_staged_manifests, arg0, _manifest);
++        exit;
++    }
++    // one mod on its own (old path): phases 2 and 3 right away
++    scr_gnx_load_mod_stage(arg0, _manifest, 2);
++    scr_gnx_load_mod_stage(arg0, _manifest, 3);
++}
++// Mav (1.4.7.5): phase 2 or 3 of loading mod arg0 with manifest arg1.
++// arg2 == 2: cells.json; arg2 == 3: quests, tools, sounds, props (+ warnings and the loaded-mods entry).
++function scr_gnx_load_mod_stage(arg0, arg1, arg2)
++{
++    var _manifest = arg1;
++    var _tmp_t0 = get_timer();
++    var _tmp_lg, _log;
++    // sprites and the atlas look in the "currently loading" mod: set it again for each phase
++    global.gnx_current_loading_mod = arg0;
++    if (arg2 == 2)
++    {
++        if (variable_struct_exists(_manifest, "cells"))
++            scr_gnx_load_cells(arg0, _manifest.cells);
 +    
-+    _tmp_lg = gnx_log_open();
-+    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " cells = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
-+    gnx_log_close(_tmp_lg);
-+    _tmp_t0 = get_timer();
++        _tmp_lg = gnx_log_open();
++        gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " cells = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++        gnx_log_close(_tmp_lg);
++        _tmp_t0 = get_timer();
 +    
++        exit;
++    }
 +    if (variable_struct_exists(_manifest, "quests"))
 +        scr_gnx_load_quests(arg0, _manifest.quests);
 +    
@@ -9151,6 +9251,53 @@
 +    return _out;
 +}
 +
++// Mav (1.4.7.5): is cell type arg0 class arg1's own cell (like DAIRY for the cow)?
++// Vanilla classes: the game's fixed mapping (Lilith 39, Morrigan 38, cow 36).
++// Mod classes (ID >= 14): any cell whose required_class lists the class (e.g. DAIRY with "Damona.DAMONA").
++function gnx_cell_is_home(arg0, arg1)
++{
++    switch (arg1)
++    {
++        case 8:
++            return arg0 == 39;
++        case 12:
++            return arg0 == 38;
++        case 9:
++            return arg0 == 36;
++    }
++    if (arg1 < 14 || !ds_map_exists(global.cell_registry, arg0))
++        return false;
++    var _rp = ds_map_find_value(global.cell_registry, arg0).physical;
++    if (!variable_struct_exists(_rp, "required_class"))
++        return false;
++    var _req = _rp.required_class;
++    if (is_array(_req))
++    {
++        for (var _ri = 0; _ri < array_length(_req); _ri++)
++        {
++            if (_req[_ri] == arg1)
++                return true;
++        }
++        return false;
++    }
++    return _req == arg1;
++}
++// Mav (1.4.7.5): does class arg0 have any own cell? Only then does TRANSFER look for one.
++function gnx_class_has_home_cell(arg0)
++{
++    if (arg0 == 8 || arg0 == 9 || arg0 == 12)
++        return true;
++    if (arg0 < 14)
++        return false;
++    var _k = ds_map_find_first(global.cell_registry);
++    while (!is_undefined(_k))
++    {
++        if (gnx_cell_is_home(_k, arg0))
++            return true;
++        _k = ds_map_find_next(global.cell_registry, _k);
++    }
++    return false;
++}
 +function scr_gnx_carry_class_ok(arg0, arg1)
 +{
 +    // POPRAWKA (GNX): klasa z "only_listed_cells" nie trafia do celi, ktora jej nie wymienia
@@ -9307,7 +9454,8 @@
 +    
 +    var _cbs = _rc.carry_base_spr;
 +    
-+    if (is_struct(_cbs))
++    // Mav (1.4.7.5): an atlas sprite is a struct too: a leg map is a struct that is NOT a sprite
++    if (is_struct(_cbs) && !is_sprref(_cbs))
 +    {
 +        var _k = (arg1 == 0) ? "leg_0" : ((arg1 == 2) ? "leg_2" : "leg_1");
 +        
@@ -10643,7 +10791,6 @@
 +        target_label = (arg0.label == arg0.target) ? gnx_map_display_name(arg0.target, -1) : arg0.label;
 +        tier = gnx_travel_tier(arg0.target);
 +        tab = 0;
-+        cat = 0;
 +        carry_gold = 0;
 +        carry_food = 0;
 +        carry_goblins = 0;  // simple tier: basic goblins (kind 0)
@@ -10764,30 +10911,21 @@
 +    }
 +    else if (tab == 1)
 +    {
++        // one section per monster type, one column per kind; the button shows how many travel
 +        for (var _ty = 0; _ty < 4; _ty++)
 +        {
-+            if (global.val.mon_num[_ty] > 0)
++            var _ar = scr_mon_type_construct(_ty);
++            var _sec = gnx_troop_sec(_ty);
++
++            for (var _c = 0; _c < min(4, array_length(_ar.num)); _c++)
 +            {
-+                var _cb = gnx_sel_button(-182, -73 + (_ty * 30), spr_mon_cat, 60 + _ty, "");
-+                _cb.image_index = (_ty == cat) ? 0 : 1;
-+                _cb.scr_button_draw = scr_gnx_draw_travel_cat_button;
++                if (_ar.num[_c] <= 0)
++                    continue;
++
++                var _n = gnx_party_num(party, _ty, _c);
++                var _tk = gnx_sel_button((_sec[0] + 23 + (_c * 44)) - 240, (_sec[1] + 55) - 135, spr_button_sure, 70 + (_ty * 4) + _c, string(_n));
++                _tk.image_index = (_n > 0) ? 0 : 1;
 +            }
-+        }
-+
-+        var _ar = scr_mon_type_construct(cat);
-+
-+        for (var _c = 0; _c < min(4, array_length(_ar.num)); _c++)
-+        {
-+            if (_ar.num[_c] == -1)
-+                continue;
-+
-+            var _tk = gnx_sel_button(-52, -60 + (_c * 30), spr_button_sure, 70 + _c, string(gnx_party_num(party, cat, _c)));
-+        }
-+
-+        for (var _i = 0; _i < min(8, array_length(party)); _i++)
-+        {
-+            var _pe = gnx_sel_button(0 + ((_i mod 4) * 46), -37 + (floor(_i / 4) * 42), spr_mon_icon_head, 80 + _i, "");
-+            _pe.image_index = (party[_i].type * 4) + party[_i].class;
 +        }
 +    }
 +    else if (tab == 2)
@@ -10874,6 +11012,12 @@
 +
 +        gnx_ui_rect("leaf", _x0, arg1, _x0 + _w, arg1 + string_height(arg2), arg2);
 +    }
++}
++
++// troops tab: top-left corner of a monster type's section (2 x 2, each 179 x 65)
++function gnx_troop_sec(arg0)
++{
++    return [58 + ((arg0 mod 2) * 183), 62 + (floor(arg0 / 2) * 69)];
 +}
 +
 +// captives tab: where prisoner k of the page is drawn (absolute GUI), and slot k of the destination strip
@@ -11019,40 +11163,45 @@
 +    }
 +    else if (tab == 1)
 +    {
-+        var _ar = scr_mon_type_construct(cat);
++        var _type_names = ["GOBLINS", "HOBGOBLINS", "TENTACLES", "OGRES"];
 +
-+        for (var _c = 0; _c < min(4, array_length(_ar.num)); _c++)
++        for (var _ty = 0; _ty < 4; _ty++)
 +        {
-+            if (_ar.num[_c] == -1)
-+                continue;
-+
-+            var _top = 62 + (_c * 30);
-+            gnx_sel_section(86, _top, 206, _top + 26, "");
-+            gnx_ui_spr("leaf", spr_mon_icon_head, (cat * 4) + _c, 100, _top + 13, "kind head " + string(_c));
-+            draw_set_halign(fa_left);
-+            draw_set_color(_dim);
-+            gnx_ui_text(114, _top + 3, "have " + gnx_short_num(_ar.num[_c]));
-+            draw_set_color(c_white);
-+            gnx_ui_text(114, _top + 14, "take");
-+        }
-+
-+        gnx_sel_section(214, 62, 420, 196, "TRAVEL PARTY  (" + string(gnx_party_total(party)) + ")");
-+        draw_set_halign(fa_center);
-+        draw_set_color(c_white);
-+
-+        for (var _i = 0; _i < min(8, array_length(party)); _i++)
-+            gnx_ui_text(240 + ((_i mod 4) * 46), 110 + (floor(_i / 4) * 42), "x" + string(party[_i].num));
-+
-+        if (array_length(party) == 0)
-+        {
++            var _ar = scr_mon_type_construct(_ty);
++            var _sec = gnx_troop_sec(_ty);
++            var _shown = 0;
++            gnx_sel_section(_sec[0], _sec[1], _sec[0] + 179, _sec[1] + 65, _type_names[_ty]);
++            draw_set_halign(fa_right);
 +            draw_set_color(_faint);
-+            gnx_ui_text(317, 125, "Nothing chosen yet.");
-+            _hint = "Pick a kind on the left, then how many to take.";
++            gnx_ui_text(_sec[0] + 173, _sec[1] + 3, gnx_short_num(global.val.mon_num[_ty]));
++            draw_set_halign(fa_center);
++
++            for (var _c = 0; _c < min(4, array_length(_ar.num)); _c++)
++            {
++                if (_ar.num[_c] == -1)  // kind not unlocked
++                    continue;
++
++                var _cx = _sec[0] + 23 + (_c * 44);
++
++                if (_ar.num[_c] == 0)
++                    draw_set_alpha(0.35);
++
++                gnx_ui_spr("leaf", spr_mon_icon_head, (_ty * 4) + _c, _cx, _sec[1] + 26, "head " + string(_ty) + "/" + string(_c));
++                draw_set_alpha(1);
++                draw_set_color(_dim);
++                gnx_ui_text(_cx, _sec[1] + 37, (_ar.num[_c] == 0) ? "none" : ("of " + gnx_short_num(_ar.num[_c])));
++                _shown++;
++            }
++
++            if (_shown == 0)
++            {
++                draw_set_color(_faint);
++                gnx_ui_text(_sec[0] + 90, _sec[1] + 30, "none here");
++            }
 +        }
-+        else
-+        {
-+            _hint = "Click a troop in the party to leave it here.";
-+        }
++
++        var _tot = gnx_party_total(party);
++        _hint = (_tot == 0) ? "Click the number under a kind to choose how many travel." : ("Taking " + string(_tot) + " troop" + ((_tot == 1) ? "" : "s") + ". Click a number to change it.");
 +    }
 +    else if (tab == 2)
 +    {
@@ -11224,32 +11373,12 @@
 +        exit;
 +    }
 +
-+    if (button_num >= 60 && button_num <= 63)  // monster category
++    if (button_num >= 70 && button_num <= 85)  // take n of a kind (70 + type * 4 + class): the game's number pad
 +    {
-+        _w.cat = button_num - 60;
-+
-+        with (_w)
-+            scr_gnx_travel_selector_buttons();
-+
-+        exit;
-+    }
-+
-+    if (button_num >= 70 && button_num <= 73)  // take n of a kind: the game's number pad
-+    {
-+        var _cls = button_num - 70;
-+        var _info = { save_num: gnx_party_num(_w.party, _w.cat, _cls), max_num: gnx_mon_have(_w.cat, _cls), sel: _w, type: _w.cat, class: _cls };
++        var _typ = floor((button_num - 70) / 4);
++        var _cls = (button_num - 70) mod 4;
++        var _info = { save_num: gnx_party_num(_w.party, _typ, _cls), max_num: gnx_mon_have(_typ, _cls), sel: _w, type: _typ, class: _cls };
 +        scr_create_window_num_sel(x, y - 35, id, _w.depth - 50, true, _info, -1, scr_gnx_travel_num_enter, -1);
-+        exit;
-+    }
-+
-+    if (button_num >= 80 && button_num <= 87)  // a party entry: out
-+    {
-+        var _e = _w.party[button_num - 80];
-+        gnx_party_set(_w, _e.type, _e.class, 0);
-+
-+        with (_w)
-+            scr_gnx_travel_selector_buttons();
-+
 +        exit;
 +    }
 +
@@ -11275,26 +11404,6 @@
 +    }
 +
 +    instance_destroy();
-+}
-+
-+// TROOPS: a monster category box (frame 0 = selected), its icon and how many there are
-+function scr_gnx_draw_travel_cat_button()
-+{
-+    draw_sprite(spr_mon_cat, image_index, x, y);
-+    gnx_ui_rect("box", bbox_left, bbox_top, bbox_right, bbox_bottom, "category " + string(button_num - 60));
-+    draw_sprite(spr_mon_icon, (button_num - 60) + 1, x + 11, y + 10);
-+    draw_set_font(fnt_base_font_eng);
-+    draw_set_halign(fa_left);
-+    draw_set_color(c_white);
-+    gnx_ui_text(x + 2, y + 15, string(global.val.mon_num[button_num - 60]));
-+    
-+    if (hover != -1 && hover && !trigger)
-+    {
-+        draw_set_alpha(0.25);
-+        draw_rectangle_color(x, y - 1, x + 22, y + 22, c_white, c_white, c_white, c_white, false);
-+        draw_set_alpha(1);
-+        hover = false;
-+    }
 +}
 +
 +function scr_gnx_travel_selector_enter()
@@ -11832,9 +11941,13 @@
 +    var _log = gnx_log_open();
 +    gnx_log_write(_log, "[GNX-MAP] deferred load: active_map='" + global.gnx_active_map + "', " + string(array_length(global.gnx_map_deferred_mods)) + " deferred mod(s)\n");
 +    gnx_log_close(_log);
++    // Mav (1.4.7.5): the name maps from boot stay: create them only if missing
++    if (!variable_global_exists("gnx_class_name_to_id") || !ds_exists(global.gnx_class_name_to_id, ds_type_map))
 +    global.gnx_class_name_to_id = ds_map_create();
++    if (!variable_global_exists("gnx_cell_name_to_id") || !ds_exists(global.gnx_cell_name_to_id, ds_type_map))
 +    global.gnx_cell_name_to_id = ds_map_create();
 +    var _loaded = 0;
++    var _gnx_dlist = [];
 +    
 +    for (var _i = 0; _i < array_length(global.gnx_map_deferred_mods); _i++)
 +    {
@@ -11843,11 +11956,13 @@
 +        
 +        if (_mod_map == global.gnx_active_map || _mod_map == "all")
 +        {
-+            scr_gnx_load_mod(_mod_name);
++            array_push(_gnx_dlist, _mod_name);
 +            _loaded++;
 +        }
 +    }
 +    
++    // Mav (1.4.7.5): these mods load in phases too (classes -> cells -> the rest)
++    scr_gnx_load_mod_list(_gnx_dlist);
 +    _log = gnx_log_open();
 +    gnx_log_write(_log, "[GNX-MAP] deferred load: " + string(_loaded) + " mod(s) loaded\n");
 +    gnx_log_close(_log);
@@ -11861,8 +11976,7 @@
 +        scr_gnx_register_goblin_sprites();
 +    }
 +    
-+    ds_map_destroy(global.gnx_class_name_to_id);
-+    ds_map_destroy(global.gnx_cell_name_to_id);
++    // Mav (1.4.7.5): the name maps stay for later trips
 +    var _rx = 200;
 +    var _ry = 80;
 +    var _rl = "Return";
@@ -12660,6 +12774,9 @@
 +                }
 +            }
 +
++            if (variable_struct_exists(arg0, "absent") && arg0.absent)  // {"absent": true}: no such button
++                _bv_ok = _bv_got == "<no button>";
++
 +            scr_gnx_scn_check("button_var", _bv_ok, "button " + string(arg0.type) + "/" + string(arg0.num) + " " + arg0.field + "=" + _bv_got);
 +            break;
 +
@@ -12918,6 +13035,62 @@
 +            scr_gnx_scn_check("raid", _r_ok, "state=" + string(_rd.raid_state) + " troops=" + string(_troops) + " stage=" + string(_rd.stage) + " cage=" + string(_cage_n) + " loot=" + string(ds_list_size(global.raid_inv_list)) + " cage_classes=[" + _cage_cls + "] prison_free=" + string(gnx_scn_prison_free()) + " stages(max/sel)=[" + _stg + "]");
 +            break;
 +
++        case "fn":
++            // {"assert": "fn", "name": "gnx_cell_is_home", "args": [39, {"class": "mod.NAME"}], "is": true}:
++            // a function's return value (args may name classes / cells, see gnx_scn_ref)
++            var _fn_i = gnx_resolve_script(arg0.name);
++            var _fn_a = [];
++
++            for (var _fa = 0; _fa < array_length(arg0.args); _fa++)
++                array_push(_fn_a, gnx_scn_ref(arg0.args[_fa]));
++
++            var _fn_r = undefined;
++
++            if (_fn_i >= 0)
++            {
++                switch (array_length(_fn_a))
++                {
++                    case 0: _fn_r = script_execute(_fn_i); break;
++                    case 1: _fn_r = script_execute(_fn_i, _fn_a[0]); break;
++                    case 2: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1]); break;
++                    default: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2]); break;
++                }
++            }
++
++            scr_gnx_scn_check("fn", _fn_i >= 0 && _fn_r == arg0.is, arg0.name + json_stringify(_fn_a) + " = " + string(_fn_r) + " want " + string(arg0.is));
++            break;
++
++        case "mso":
++            // {"assert": "mso", "class": {"class": "mod.NAME"}, "key": "k", "sprref": true, "xo": n, "yo": n, "exists": true, "page": n}:
++            // a class's mon_spr_overrides sprite (atlas sprites are sprrefs)
++            var _ms_v = gnx_scn_mso(arg0.class, arg0.key);
++            var _ms_ok = !(is_real(_ms_v) && _ms_v == -1);
++            var _ms_sr = is_sprref(_ms_v);
++            var _ms_txt = "sprref=" + string(_ms_sr);
++
++            if (variable_struct_exists(arg0, "sprref"))
++                _ms_ok = _ms_ok && (_ms_sr == arg0.sprref);
++
++            if (_ms_sr)
++            {
++                _ms_txt += " xo=" + string(_ms_v.xo) + " yo=" + string(_ms_v.yo) + " page=" + string(_ms_v.frames[0].atlas) + " exists=" + string(gnx_sprite_exists(_ms_v));
++
++                if (variable_struct_exists(arg0, "xo"))
++                    _ms_ok = _ms_ok && _ms_v.xo == arg0.xo;
++
++                if (variable_struct_exists(arg0, "yo"))
++                    _ms_ok = _ms_ok && _ms_v.yo == arg0.yo;
++
++                if (variable_struct_exists(arg0, "page"))
++                    _ms_ok = _ms_ok && _ms_v.frames[0].atlas == arg0.page;
++
++                if (variable_struct_exists(arg0, "exists"))
++                    _ms_ok = _ms_ok && (gnx_sprite_exists(_ms_v) == arg0.exists);
++            }
++
++            scr_gnx_scn_check("mso", _ms_ok, string(arg0.key) + " " + _ms_txt);
++            break;
++
 +        case "selector":
 +            // {"assert": "selector", "open": true, "gold": n, "food": n, "goblins": n}: the open selector's chosen amounts
 +            var _sw = -1;
@@ -12987,7 +13160,7 @@
 +                    _hc++;
 +            }
 +
-+            scr_gnx_scn_check("has_cell", _hc > 0, "h_type " + string(arg0.h_type) + " x" + string(_hc));
++            scr_gnx_scn_check("has_cell", (variable_struct_exists(arg0, "is") && !arg0.is) ? (_hc == 0) : (_hc > 0), "h_type " + string(arg0.h_type) + " x" + string(_hc));
 +            break;
 +
 +        case "registry_ok":
@@ -13126,6 +13299,48 @@
 +}
 +
 +// Called at the end of scr_main_end_step, i.e. once per frame in rm_game after the load finished
++// a scenario argument: {"class": "mod_folder.NAME"} -> class id, {"cell": "mod_folder.NAME"} -> h_type, else as is
++function gnx_scn_ref(arg0)
++{
++    if (is_struct(arg0))
++    {
++        if (variable_struct_exists(arg0, "class"))
++        {
++            var _cv = ds_map_find_value(global.gnx_class_name_to_id, arg0.class);
++            return is_undefined(_cv) ? -999 : _cv;
++        }
++
++        if (variable_struct_exists(arg0, "cell"))
++        {
++            var _hv = ds_map_find_value(global.gnx_cell_name_to_id, arg0.cell);
++            return is_undefined(_hv) ? -999 : _hv;
++        }
++    }
++
++    return arg0;
++}
++
++// a class's mon_spr_overrides entry (or -1)
++function gnx_scn_mso(arg0, arg1)
++{
++    var _m = gnx_get_mso(gnx_scn_ref(arg0));
++    return (is_struct(_m) && variable_struct_exists(_m, arg1)) ? variable_struct_get(_m, arg1) : -1;
++}
++
++// an occupied cell to borrow for a probe: small (arg0 == -1) or of h_type arg0
++function gnx_scn_occupied_cell(arg0)
++{
++    var _c = -1;
++
++    with (obj_slot)
++    {
++        if (_c == -1 && slot_data.anim_struct != -1 && is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && ((arg0 == -1) ? (slot_data.slot_type == 0) : (slot_data.h_type == arg0)))
++            _c = id;
++    }
++
++    return _c;
++}
++
 +// a scenario mouse target: [x, y] or {"captive": k} / {"slot": k} on the travel selector's captives tab
 +function gnx_scn_point(arg0)
 +{
@@ -13337,6 +13552,189 @@
 +            obj_np.gnx_scn_old = true;
 +            _s.awaiting = true;
 +            exit;
++        }
++        else if (variable_struct_exists(_st, "atlas_draw_parity"))
++        {
++            // {"atlas_draw_parity": {"class": {...}, "key": "k", "angle": 90}}: an atlas sprite drawn with gnx_draw_sprite_ext
++            // must cover the same pixels as its baked copy (gnx_sprref_bake) drawn with draw_sprite_ext (same origin, angle)
++            var _ap = _st.atlas_draw_parity;
++            var _as = gnx_scn_mso(_ap.class, _ap.key);
++            var _ab = is_sprref(_as) ? gnx_sprref_bake(_as) : -1;
++            var _ab_ok = _ab != -1 && sprite_exists(_ab) && sprite_get_number(_ab) == array_length(_as.frames) && sprite_get_xoffset(_ab) == _as.xo && sprite_get_yoffset(_ab) == _as.yo;
++            scr_gnx_scn_check("atlas_bake", _ab_ok, string(_ap.key) + " baked=" + string(_ab));
++
++            if (_ab_ok)
++            {
++                var _bufs = [];
++
++                for (var _pass = 0; _pass < 2; _pass++)
++                {
++                    var _sf = surface_create(48, 48);
++                    surface_set_target(_sf);
++                    draw_clear_alpha(c_black, 0);
++
++                    if (_pass == 0)
++                        gnx_draw_sprite_ext(_as, 0, 24, 24, 1, 1, _ap.angle, c_white, 1);
++                    else
++                        draw_sprite_ext(_ab, 0, 24, 24, 1, 1, _ap.angle, c_white, 1);
++
++                    surface_reset_target();
++                    var _bf = buffer_create(48 * 48 * 4, buffer_fixed, 1);
++                    buffer_get_surface(_bf, _sf, 0);
++                    surface_free(_sf);
++                    array_push(_bufs, _bf);
++                }
++
++                var _diff = 0;
++                var _lit = 0;
++
++                for (var _o = 0; _o < 48 * 48 * 4; _o += 4)
++                {
++                    var _a0 = buffer_peek(_bufs[0], _o + 3, buffer_u8);
++                    var _a1 = buffer_peek(_bufs[1], _o + 3, buffer_u8);
++
++                    if (_a1 > 0)
++                        _lit++;
++
++                    if ((_a0 > 0) != (_a1 > 0))
++                        _diff++;
++                }
++
++                buffer_delete(_bufs[0]);
++                buffer_delete(_bufs[1]);
++                scr_gnx_scn_check("atlas_draw_parity", _lit > 0 && _diff == 0, string(_ap.key) + " angle " + string(_ap.angle) + ": " + string(_diff) + " pixel(s) differ of " + string(_lit));
++            }
++        }
++        else if (variable_struct_exists(_st, "mon_spr_probe"))
++        {
++            // {"mon_spr_probe": {"cell": {...}, "mon_type": 3, "phase": 1, "ogre_alpha": true}}: the real
++            // scr_set_mon_spr_data for a monster in that cell type (an occupied small cell is borrowed, then put back)
++            var _mp = _st.mon_spr_probe;
++            var _mc = gnx_scn_occupied_cell(-1);
++
++            if (_mc == -1)
++            {
++                scr_gnx_scn_check("mon_spr_probe", false, "no occupied small cell to borrow");
++            }
++            else
++            {
++                var _old_h = _mc.slot_data.h_type;
++                _mc.slot_data.h_type = gnx_scn_ref(_mp.cell);
++                var _mm = scr_create_mon(_mp.mon_type, _mc.x, _mc.y, _mc.slot_data.slot_floor, -1, 0);
++                var _flag = undefined;
++                var _bl = -1;
++
++                with (_mm)
++                {
++                    mon_data.slot_id = _mc;
++                    scr_set_mon_spr_data(_mc, _mp.phase);
++                    _flag = variable_struct_exists(mon_data, "gnx_ogre_alpha") ? mon_data.gnx_ogre_alpha : undefined;
++                    _bl = mon_spr.body_l;
++                    instance_destroy();
++                }
++
++                _mc.slot_data.h_type = _old_h;
++                scr_gnx_scn_check("mon_spr_probe", _flag == _mp.ogre_alpha, "h_type " + string(gnx_scn_ref(_mp.cell)) + " mon_type " + string(_mp.mon_type) + " gnx_ogre_alpha=" + string(_flag) + " body_l=" + string(_bl));
++            }
++        }
++        else if (variable_struct_exists(_st, "shrine_hand_probe"))
++        {
++            // {"shrine_hand_probe": {"class": {...}, "sprite": "spr_name", "drawn": true}}: run the real LILITH SHRINE
++            // draw (scr_draw_slot_l_shrine) in its loop for a borrowed occupied shrine whose unit is given that class;
++            // the class's shrine_loop_hand must be among the sprites drawn (everything is put back afterwards)
++            var _sp = _st.shrine_hand_probe;
++            var _sc = gnx_scn_occupied_cell(39);
++
++            if (_sc == -1)
++            {
++                scr_gnx_scn_check("shrine_hand_probe", false, "no occupied LILITH SHRINE to borrow");
++            }
++            else
++            {
++                var _o_cls = _sc.unit_data.class;
++                var _o_step = _sc.slot_data.h_step;
++                var _o_pl = _sc.slot_data.mon_placement[0];
++                _sc.unit_data.class = gnx_scn_ref(_sp.class);
++                _sc.slot_data.h_step = 2;
++
++                var _tmp_mon = -1;
++
++                if (is_real(_o_pl) && _o_pl == -1)  // the loop needs a monster in place 0: a temporary goblin
++                {
++                    _tmp_mon = scr_create_mon(0, _sc.x, _sc.y, _sc.slot_data.slot_floor, -1, 0);
++                    _tmp_mon.mon_data.slot_id = _sc;
++                    _sc.slot_data.mon_placement[0] = _tmp_mon;
++                }
++
++                global.gnx_draw_spy = [];
++
++                with (_sc)
++                    scr_draw_slot_l_shrine();
++
++                var _seen = array_contains(global.gnx_draw_spy, asset_get_index(_sp.sprite));
++                var _n_drawn = array_length(global.gnx_draw_spy);
++                global.gnx_draw_spy = -1;
++                _sc.unit_data.class = _o_cls;
++                _sc.slot_data.h_step = _o_step;
++                _sc.slot_data.mon_placement[0] = _o_pl;
++
++                if (_tmp_mon != -1)
++                    instance_destroy(_tmp_mon);
++                scr_gnx_scn_check("shrine_hand_probe", _seen == _sp.drawn, _sp.sprite + " drawn=" + string(_seen) + " (" + string(_n_drawn) + " sprites drawn)");
++            }
++        }
++        else if (variable_struct_exists(_st, "open_build_menu"))
++        {
++            // {"open_build_menu": floor | -1}: the menu a click on a pillar between cells opens (vanilla s_mouse_action,
++            // slot_type 4/5): its button 0 is NEW (type 0 -> the type 1 list with CUSTOM as button 5). NEW removes
++            // itself when the floor has no room, so -1 tries pillars until one offers NEW.
++            var _bm_pillars = [];
++
++            with (obj_slot)
++            {
++                if ((slot_data.slot_type == 4 || slot_data.slot_type == 5) && (_st.open_build_menu == -1 || slot_data.slot_floor == _st.open_build_menu))
++                    array_push(_bm_pillars, id);
++            }
++
++            var _bm_ok = false;
++
++            for (var _bi = 0; _bi < array_length(_bm_pillars) && !_bm_ok; _bi++)
++            {
++                var _bm_slot = _bm_pillars[_bi];
++                var _bm_n = (_bm_slot.slot_data.slot_type == 5) ? (2 + (2 * max(0, sign(global.val.floor)))) : (2 + (2 * max(0, sign(global.val.floor - 4))));
++                scr_create_window_button_list(_bm_slot, _bm_slot.x, _bm_slot.y, _bm_n, 0, 0, scr_create_between_button, false);
++
++                with (obj_button)
++                {
++                    if (interact_type == 0 && button_num == 0)
++                        _bm_ok = true;
++                }
++
++                if (_bm_ok)
++                    gnx_scn_log("open_build_menu floor " + string(_bm_slot.slot_data.slot_floor) + " pillar slot_type " + string(_bm_slot.slot_data.slot_type));
++            }
++
++            if (!_bm_ok)
++                scr_gnx_scn_check("open_build_menu", false, string(array_length(_bm_pillars)) + " pillar(s), none offers NEW");
++        }
++        else if (variable_struct_exists(_st, "open_slot_menu"))
++        {
++            // {"open_slot_menu": true}: the menu a click on an empty small slot opens (vanilla s_mouse_action):
++            // categories as type 3 buttons; button 0 opens the breed list (type 10, button_num = h_type)
++            var _sm_slot = -1;
++
++            with (obj_slot)
++            {
++                if (_sm_slot == -1 && slot_data.slot_type == 0 && slot_data.anim_struct == -1)
++                    _sm_slot = id;
++            }
++
++            if (_sm_slot == -1)
++                scr_gnx_scn_check("open_slot_menu", false, "no empty small slot");
++            else
++                scr_create_window_button_list(_sm_slot, _sm_slot.x, _sm_slot.y, 3, 0, 3, scr_create_slot_category_button, true);
++
++            gnx_scn_log("open_slot_menu " + ((_sm_slot == -1) ? "none" : "ok"));
 +        }
 +        else if (variable_struct_exists(_st, "open_selector"))
 +        {
@@ -15201,7 +15599,7 @@
 +            {
 +                var _bv = variable_struct_get(_bs58, _bkeys58[_j58]);
 +                
-+                if (is_struct(_bv))
++                if (is_struct(_bv) && !is_sprref(_bv))
 +                {
 +                    var _subk = variable_struct_get_names(_bv);
 +                    
@@ -18426,6 +18824,77 @@
 +    return is_struct(arg0) && variable_struct_exists(arg0, "kind") && (arg0.kind == "legacy" || arg0.kind == "atlas");
 +}
 +
++// Mav (1.4.7.5): a copy of an atlas sprite with another origin. The shared atlas entry is left alone,
++// so two JSON entries using the same file with different origins no longer clash.
++function gnx_sprref_with_origin(arg0, arg1, arg2)
++{
++    var _c =
++    {
++        kind: "atlas",
++        atlas: arg0.atlas,
++        frames: arg0.frames,
++        xo: arg1,
++        yo: arg2
++    };
++    if (variable_struct_exists(arg0, "multi"))
++    {
++        _c.atlas_sprites = arg0.atlas_sprites;
++        _c.multi = true;
++    }
++    return _c;
++}
++// Mav (1.4.7.5): turns an atlas sprite into a normal GameMaker sprite (frames copied through a surface).
++// Needed where the game requires a real sprite: sprite_index, click mask, frame count.
++// The result is cached in "baked", so each sprite is baked once. -1 = failed.
++function gnx_sprref_bake(arg0)
++{
++    if (!is_sprref(arg0))
++        return arg0;
++    if (arg0.kind == "legacy")
++        return arg0.spr;
++    if (variable_struct_exists(arg0, "baked") && sprite_exists(arg0.baked))
++        return arg0.baked;
++    var _n = array_length(arg0.frames);
++    if (_n == 0)
++        return -1;
++    var _w = 1;
++    var _h = 1;
++    for (var _i = 0; _i < _n; _i++)
++    {
++        _w = max(_w, arg0.frames[_i].w);
++        _h = max(_h, arg0.frames[_i].h);
++    }
++    var _surf = surface_create(_w, _h);
++    if (!surface_exists(_surf))
++        return -1;
++    var _spr = -1;
++    gpu_push_state();
++    // bm_one, bm_zero: copy pixels with their alpha, no blending
++    gpu_set_blendmode_ext(bm_one, bm_zero);
++    for (var _i = 0; _i < _n; _i++)
++    {
++        var _f = arg0.frames[_i];
++        var _aspr = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        surface_set_target(_surf);
++        draw_clear_alpha(c_black, 0);
++        // the _ext version with white and alpha 1, so draw_set_alpha from other events cannot leak in
++        if (sprite_exists(_aspr) && _f.w > 0 && _f.h > 0)
++            draw_sprite_part_ext(_aspr, 0, _f.x, _f.y, _f.w, _f.h, 0, 0, 1, 1, c_white, 1);
++        surface_reset_target();
++        if (_spr == -1)
++            _spr = sprite_create_from_surface(_surf, 0, 0, _w, _h, false, false, arg0.xo, arg0.yo);
++        else
++            sprite_add_from_surface(_spr, _surf, 0, 0, _w, _h, false, false);
++    }
++    gpu_pop_state();
++    surface_free(_surf);
++    if (_spr != -1)
++    {
++        array_push(global.gnx_runtime_sprites, _spr);
++        arg0.baked = _spr;
++    }
++    return _spr;
++}
 +function gnx_birth_spr_lookup(arg0, arg1, arg2)
 +{
 +    if (!variable_struct_exists(arg0, arg1))
@@ -18433,7 +18902,8 @@
 +    
 +    var _sub = variable_struct_get(arg0, arg1);
 +    
-+    if (!is_struct(_sub))
++    // Mav (1.4.7.5): an atlas sprite is a struct, but a ready sprite, not a species map
++    if (!is_struct(_sub) || is_sprref(_sub))
 +        return _sub;
 +    
 +    var _species = ["goblin", "hobgoblin", "tentacle", "ogre"];
@@ -18448,7 +18918,14 @@
 +function gnx_sprite_exists(arg0)
 +{
 +    if (is_sprref(arg0))
-+        return (arg0.kind == "legacy") ? sprite_exists(arg0.spr) : sprite_exists(arg0.atlas);
++    {
++        if (arg0.kind == "legacy")
++            return sprite_exists(arg0.spr);
++        // Mav (1.4.7.5): with several pages, the page of the first frame counts
++        if (variable_struct_exists(arg0, "multi") && array_length(arg0.frames) > 0)
++            return sprite_exists(arg0.atlas_sprites[arg0.frames[0].atlas]);
++        return sprite_exists(arg0.atlas);
++    }
 +    
 +    return sprite_exists(arg0);
 +}
@@ -18507,6 +18984,9 @@
 +
 +function gnx_draw_sprite_ext(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
 +{
++    if (is_array(global.gnx_draw_spy))
++        array_push(global.gnx_draw_spy, arg0);
++
 +    if (is_sprref(arg0))
 +    {
 +        if (arg0.kind == "legacy")
@@ -18531,13 +19011,28 @@
 +            exit;
 +        
 +        var _atlas_spr = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        // Mav (1.4.7.5): an atlas page that failed to load draws nothing
++        if (!sprite_exists(_atlas_spr))
++            exit;
 +        var _dx = arg2 - (arg0.xo * arg4);
 +        var _dy = arg3 - (arg0.yo * arg5);
 +        
 +        if (arg6 == 0)
++        {
 +            draw_sprite_part_ext(_atlas_spr, 0, _f.x, _f.y, _f.w, _f.h, _dx, _dy, arg4, arg5, arg7, arg8);
++        }
 +        else
++        {
++            // Mav (1.4.7.5): draw_sprite_general rotates around the part's top-left corner, draw_sprite_ext around the origin.
++            // Move the corner so the rotation is around the origin (dcos/dsin = cos/sin in degrees).
++            var _vx = -arg0.xo * arg4;
++            var _vy = -arg0.yo * arg5;
++            var _ca = dcos(arg6);
++            var _sa = dsin(arg6);
++            _dx = arg2 + (_vx * _ca) + (_vy * _sa);
++            _dy = (arg3 - (_vx * _sa)) + (_vy * _ca);
 +            draw_sprite_general(_atlas_spr, 0, _f.x, _f.y, _f.w, _f.h, _dx, _dy, arg4, arg5, arg6, arg7, arg7, arg7, arg7, arg8);
++        }
 +        
 +        exit;
 +    }
@@ -18593,6 +19088,8 @@
 +            exit;
 +        
 +        var _atlas_spr = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        if (!sprite_exists(_atlas_spr))
++            exit;
 +        var _al = clamp(arg2, 0, _f.w);
 +        var _at = clamp(arg3, 0, _f.h);
 +        var _aw = clamp(arg4, 0, _f.w - _al);
@@ -18633,6 +19130,8 @@
 +            _stem = arg1.path;
 +        else if (variable_struct_exists(arg1, "frames") && is_array(arg1.frames) && array_length(arg1.frames) > 0)
 +            _stem = arg1.frames[0];
++        else if (variable_struct_exists(arg1, "folder"))
++            _stem = string(arg1.folder); // Mav (1.4.7.5): a "folder"-only entry can be in the atlas too
 +        else
 +            return undefined;
 +    }
@@ -18643,10 +19142,18 @@
 +    
 +    _stem = filename_change_ext(filename_name(_stem), "");
 +    
-+    if (!variable_struct_exists(_atlas.sprrefs, _stem))
-+        return undefined;
 +    
++    if (variable_struct_exists(_atlas.sprrefs, _stem))
 +    return variable_struct_get(_atlas.sprrefs, _stem);
++    // Mav (1.4.7.5): file names on Windows ignore case, struct keys do not.
++    // "spr_h_Jezebel_x" in the JSON and "spr_h_jezebel_x" in uv.json are the same file.
++    if (variable_struct_exists(_atlas, "sprrefs_lower"))
++    {
++        var _ls = string_lower(_stem);
++        if (variable_struct_exists(_atlas.sprrefs_lower, _ls))
++            return variable_struct_get(_atlas.sprrefs_lower, _ls);
++    }
++    return undefined;
 +}
 +
 +function gnx_load_atlas_mod(arg0, arg1)
@@ -18704,6 +19211,11 @@
 +        if (_spr == -1)
 +        {
 +            show_debug_message("[GNX-ATLAS] failed to load " + _atlas_path);
++            // Mav (1.4.7.5): keep a placeholder instead of skipping the page: frames on later pages would point at the wrong page
++            array_push(_atlas_sprites, -1);
++            var _ef2 = gnx_log_open();
++            gnx_log_write(_ef2, "[GNX-ATLAS] ERROR: " + arg1 + ": failed to load " + _files[_i] + "\n");
++            gnx_log_close(_ef2);
 +        }
 +        else
 +        {
@@ -18717,6 +19229,7 @@
 +    
 +    var _t_build = get_timer();
 +    var _sprrefs = {};
++    var _sprrefs_lower = {};
 +    var _entries = _uv.entries;
 +    var _keys = variable_struct_get_names(_entries);
 +    
@@ -18744,6 +19257,10 @@
 +        var _yo = variable_struct_exists(_entry, "yo") ? _entry.yo : 0;
 +        var _sref = sprref_atlas_multi(_atlas_sprites, _frames, _xo, _yo);
 +        variable_struct_set(_sprrefs, _key, _sref);
++        // lowercase index for case-insensitive lookups (the first entry wins)
++        var _lkey = string_lower(_key);
++        if (!variable_struct_exists(_sprrefs_lower, _lkey))
++            variable_struct_set(_sprrefs_lower, _lkey, _sref);
 +    }
 +    
 +    var _tl_b = gnx_log_open();
@@ -18753,7 +19270,8 @@
 +    return 
 +    {
 +        atlas_sprites: _atlas_sprites,
-+        sprrefs: _sprrefs
++        sprrefs: _sprrefs,
++        sprrefs_lower: _sprrefs_lower
 +    };
 +}
 +
@@ -18777,6 +19295,8 @@
 +            exit;
 +        
 +        var _atlas_spr = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        if (!sprite_exists(_atlas_spr))
++            exit;
 +        var _al = clamp(arg2, 0, _f.w);
 +        var _at = clamp(arg3, 0, _f.h);
 +        var _aw = clamp(arg4, 0, _f.w - _al);

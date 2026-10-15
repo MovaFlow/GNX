@@ -1,0 +1,426 @@
+--- gml_138/gml_GlobalScript_s_slot_button.gml	2026-09-02 08:45:16.386592300 +0200
++++ gml/gml_GlobalScript_s_slot_button.gml	2026-10-15 10:43:25.254472300 +0200
+@@ -1,161 +1,262 @@
+-function scr_create_slot_button()
+-{
+-    scr_create_button_slot(interact_type, button_num);
+-    var _data = scr_slot_type_price_data(button_num);
+-    button_text = _data.button_text;
+-    price = _data.price;
+-}
+-
+-function scr_create_slot_type_button()
+-{
+-    scr_create_button_slot(interact_type, button_num);
+-    var _data = scr_h_slot_text_data(button_num);
+-    
+-    if (global.val.language != UnknownEnum.Value_0)
+-        _data.text_type = scr_lang_slot_text(button_num);
+-    
+-    button_text = _data.text_type;
+-    price = _data.price;
+-    
+-    if (_data.spawn_info != -1)
+-    {
+-        var _button = scr_create_button(-26, 0, depth + 1, spr_button_arrow, UnknownEnum.Value_18, id, scr_create_slot_info_button, -1, scr_draw_slot_info_button, button_num, button_num);
+-        
+-        with (_button)
+-        {
+-            coin_val = _data.spawn_info.coin;
+-            mood_val = _data.spawn_info.mood;
+-            coin_mul = _data.spawn_info.coin_mul;
+-            mood_mul = _data.spawn_info.mood_mul;
+-        }
+-    }
+-}
+-
+-function scr_button_list_step()
+-{
+-    scr_lerp();
+-    
+-    if (price != -1)
+-        scr_price_button_step();
+-    
+-    if (y == yto && hover == -1)
+-        hover = false;
+-}
+-
+-function scr_create_price_button()
+-{
+-    activate = false;
+-    scr_empty_step = scr_price_id_step;
+-    scr_empty_draw = scr_draw_price;
+-    xto = x + 22;
+-    other.price_id = id;
+-    price = other.price;
+-    text_length = 3 + (4 * string_length(price));
+-}
+-
+-function scr_button_text_draw()
+-{
+-    scr_draw_hover_button();
+-    draw_set_halign(text_halign);
+-    
+-    if (image_index == 1)
+-        draw_set_alpha(0.5);
+-    
+-    var _lang_pos = scr_change_lang();
+-    draw_text(x + text_x + _lang_pos[0], y + text_y + _lang_pos[1], button_text);
+-    draw_set_font(fnt_base_font_eng);
+-    draw_set_alpha(1);
+-    
+-    if (spr_new_sel != -1)
+-    {
+-        draw_sprite(spr_new_sel, 0, x + new_x, y + new_y);
+-        depth += 0;
+-    }
+-}
+-
+-function scr_price_button_step()
+-{
+-    if (hover && y == yto)
+-    {
+-        if (price_id == -1)
+-            scr_create_button(-12, -5, depth + 1, -1, -1, source_id, scr_create_price_button, scr_price_id_step, scr_draw_price, 0, 0);
+-        else
+-            price_id.xto = x + 22;
+-    }
+-    else if (price_id != -1)
+-    {
+-        price_id.xto = x - 12;
+-    }
+-}
+-
+-function scr_price_id_step()
+-{
+-    if (x != xto)
+-    {
+-        x = lerp(x, xto, 0.3);
+-        
+-        if (abs(xto - x) < 0.3)
+-            x = xto;
+-    }
+-}
+-
+-function scr_draw_price()
+-{
+-    var _x = x;
+-    var _y = y;
+-    draw_sprite(spr_price_tag, 0, _x, _y);
+-    draw_sprite_ext(spr_price_tag_mid, 0, _x + 4, _y, text_length, image_yscale, image_angle, image_blend, image_alpha);
+-    draw_sprite(spr_price_tag, 1, _x + 4 + text_length, _y);
+-    draw_set_halign(fa_left);
+-    draw_text(_x + 6, _y + 3, price);
+-}
+-
+-function scr_create_slot_info_button()
+-{
+-    hover = false;
+-    follow = true;
+-}
+-
+-function scr_draw_slot_info_button()
+-{
+-    if (hover)
+-    {
+-        draw_sprite(spr_button_arrow, 1, x - 1, y);
+-        var _x = x - 20;
+-        var _y = y + 4;
+-        draw_sprite(spr_slot_desc_window, 0, x - 2, y);
+-        var _num = coin_val;
+-        
+-        for (var i = 0; i < _num; i++)
+-            draw_sprite(spr_icon_mul, min(1, (_num * 2) - 1), (_x - 8 - (i * 3)) + (max(1, _num) * 3 * 0.5), _y - (coin_mul * 2));
+-        
+-        _num = mood_val;
+-        
+-        for (var i = 0; i < _num; i++)
+-            draw_sprite(spr_icon_mul, min(1, (_num * 2) - 1) + 2, ((_x + 7) - (i * 3)) + (max(1, _num) * 3 * 0.5), _y - (mood_mul * 2));
+-        
+-        if (coin_mul)
+-        {
+-            draw_sprite(spr_x, 0, _x - 1 - 8, _y);
+-            draw_sprite(spr_star_icon, 0, ((_x - 1) + 5) - 8, _y);
+-        }
+-        
+-        if (mood_mul)
+-        {
+-            draw_sprite(spr_x, 0, (_x - 1) + 7, _y);
+-            draw_sprite(spr_star_icon, 0, (_x - 1) + 5 + 7, _y);
+-        }
+-    }
+-    else
+-    {
+-        draw_self();
+-    }
+-    
+-    hover = false;
+-}
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_18 = 18
+-}
++function scr_create_slot_button()
++{
++    scr_create_button_slot(interact_type, button_num);
++
++    // Mav (1.4.7.5): CUSTOM build list: the NEW menu's 6th button only opens the list, so it has no price (-1)
++    if (button_num == 5)
++    {
++        button_text = "CUSTOM";
++        price = -1;
++        exit;
++    }
++
++    var _data = scr_slot_type_price_data(button_num);
++    button_text = _data.button_text;
++    price = _data.price;
++}
++
++function scr_create_slot_type_button()
++{
++    scr_create_button_slot(interact_type, button_num);
++    var _data = scr_h_slot_text_data(button_num);
++    
++    if (global.val.language != UnknownEnum.Value_0)
++        _data.text_type = scr_lang_slot_text(button_num);
++    
++    button_text = _data.text_type;
++    price = _data.price;
++    
++    if (_data.spawn_info != -1)
++    {
++        var _button = scr_create_button(-26, 0, depth + 1, spr_button_arrow, UnknownEnum.Value_18, id, scr_create_slot_info_button, -1, scr_draw_slot_info_button, button_num, button_num);
++        
++        with (_button)
++        {
++            coin_val = _data.spawn_info.coin;
++            mood_val = _data.spawn_info.mood;
++            coin_mul = _data.spawn_info.coin_mul;
++            mood_mul = _data.spawn_info.mood_mul;
++        }
++    }
++}
++
++function scr_button_list_step()
++{
++    scr_lerp();
++    
++    if (price != -1)
++        scr_price_button_step();
++    
++    if (y == yto && hover == -1)
++        hover = false;
++}
++
++function scr_create_price_button()
++{
++    activate = false;
++    scr_empty_step = scr_price_id_step;
++    scr_empty_draw = scr_draw_price;
++    xto = x + 22;
++    other.price_id = id;
++    price = other.price;
++    text_length = 3 + (4 * string_length(price));
++}
++
++function scr_button_text_draw()
++{
++    scr_draw_hover_button();
++    draw_set_halign(text_halign);
++    
++    if (image_index == 1)
++        draw_set_alpha(0.5);
++    
++    var _lang_pos = scr_change_lang();
++    draw_text(x + text_x + _lang_pos[0], y + text_y + _lang_pos[1], button_text);
++    draw_set_font(fnt_base_font_eng);
++    draw_set_alpha(1);
++    
++    if (spr_new_sel != -1)
++    {
++        draw_sprite(spr_new_sel, 0, x + new_x, y + new_y);
++        depth += 0;
++    }
++}
++
++function scr_price_button_step()
++{
++    if (hover && y == yto)
++    {
++        if (price_id == -1)
++            scr_create_button(-12, -5, depth + 1, -1, -1, source_id, scr_create_price_button, scr_price_id_step, scr_draw_price, 0, 0);
++        else
++            price_id.xto = x + 22;
++    }
++    else if (price_id != -1)
++    {
++        price_id.xto = x - 12;
++    }
++}
++
++function scr_price_id_step()
++{
++    if (x != xto)
++    {
++        x = lerp(x, xto, 0.3);
++        
++        if (abs(xto - x) < 0.3)
++            x = xto;
++    }
++}
++
++function scr_draw_price()
++{
++    var _x = x;
++    var _y = y;
++    draw_sprite(spr_price_tag, 0, _x, _y);
++    draw_sprite_ext(spr_price_tag_mid, 0, _x + 4, _y, text_length, image_yscale, image_angle, image_blend, image_alpha);
++    draw_sprite(spr_price_tag, 1, _x + 4 + text_length, _y);
++    draw_set_halign(fa_left);
++    draw_text(_x + 6, _y + 3, price);
++}
++
++function scr_create_slot_info_button()
++{
++    hover = false;
++    follow = true;
++}
++
++function scr_draw_slot_info_button()
++{
++    if (hover)
++    {
++        draw_sprite(spr_button_arrow, 1, x - 1, y);
++        var _x = x - 20;
++        var _y = y + 4;
++        draw_sprite(spr_slot_desc_window, 0, x - 2, y);
++        var _num = coin_val;
++        
++        for (var i = 0; i < _num; i++)
++            draw_sprite(spr_icon_mul, min(1, (_num * 2) - 1), (_x - 8 - (i * 3)) + (max(1, _num) * 3 * 0.5), _y - (coin_mul * 2));
++        
++        _num = mood_val;
++        
++        for (var i = 0; i < _num; i++)
++            draw_sprite(spr_icon_mul, min(1, (_num * 2) - 1) + 2, ((_x + 7) - (i * 3)) + (max(1, _num) * 3 * 0.5), _y - (mood_mul * 2));
++        
++        if (coin_mul)
++        {
++            draw_sprite(spr_x, 0, _x - 1 - 8, _y);
++            draw_sprite(spr_star_icon, 0, ((_x - 1) + 5) - 8, _y);
++        }
++        
++        if (mood_mul)
++        {
++            draw_sprite(spr_x, 0, (_x - 1) + 7, _y);
++            draw_sprite(spr_star_icon, 0, (_x - 1) + 5 + 7, _y);
++        }
++    }
++    else
++    {
++        draw_self();
++    }
++    
++    hover = false;
++}
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_18 = 18
++}
++
++
++// Mav (1.4.7.5): CUSTOM build list: is the cell from a mod (vanilla cells are 1-42)
++function gnx_is_mod_cell(arg0)
++{
++    return is_real(arg0) && arg0 > 42;
++}
++
++// Mav (1.4.7.5): CUSTOM build list: copy of an unlock list without mod cells (those are only in CUSTOM)
++function gnx_unlock_vanilla(arg0)
++{
++    var _out = [];
++
++    if (!is_array(arg0))
++        return _out;
++
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        if (!gnx_is_mod_cell(arg0[i]))
++            array_push(_out, arg0[i]);
++    }
++
++    return _out;
++}
++
++// Mav (1.4.7.5): CUSTOM build list: slot size for a cell: 0 small, 1 big, 2 tentacle, 6 XL, -1 = not unlocked
++function gnx_custom_cell_slot_type(arg0)
++{
++    var _u = global.unlock;
++
++    if (array_contains(_u.breed, arg0) || array_contains(_u.utility, arg0) || array_contains(_u.pleasure, arg0))
++        return 0;
++
++    if (array_contains(_u.b_breed, arg0) || array_contains(_u.b_utility, arg0) || array_contains(_u.b_other, arg0))
++        return 1;
++
++    if (array_contains(_u.t_breed, arg0) || array_contains(_u.t_utility, arg0))
++        return 2;
++
++    if (array_contains(_u.xl_breed, arg0))
++        return 6;
++
++    return -1;
++}
++
++// Mav (1.4.7.5): CUSTOM build list: unlocked mod cells (small, big, tentacle, XL, in that order).
++// arg0 = the pillar the menu was opened from; XL cells are left out when the floor has no room for one
++function gnx_custom_cells_list(arg0)
++{
++    var _u = global.unlock;
++    var _src = [_u.breed, _u.utility, _u.pleasure, _u.b_breed, _u.b_utility, _u.b_other, _u.t_breed, _u.t_utility, _u.xl_breed];
++    var _xl_room = true;
++
++    if (arg0 != -1 && instance_exists(arg0))
++        _xl_room = (global.slot_x[arg0.slot_data.slot_floor] + 162) <= room_width;
++
++    var _out = [];
++
++    for (var a = 0; a < array_length(_src); a++)
++    {
++        var _arr = _src[a];
++
++        for (var i = 0; i < array_length(_arr); i++)
++        {
++            var _h = _arr[i];
++
++            if (!gnx_is_mod_cell(_h) || array_contains(_out, _h))
++                continue;
++
++            if (a == 8 && !_xl_room)
++                continue;
++
++            array_push(_out, _h);
++        }
++    }
++
++    return _out;
++}
++
++// Mav (1.4.7.5): CUSTOM build list: a list button = the usual cell button (name, income info)
++// + the price of a slot of its size, because the cell is built together with a new slot
++function scr_create_gnx_custom_cell_button()
++{
++    scr_create_slot_type_button();
++    var _st = gnx_custom_cell_slot_type(button_num);
++
++    if (_st != -1)
++    {
++        var _sd = scr_slot_type_price_data(_st);
++        price += _sd.price;
++    }
++}

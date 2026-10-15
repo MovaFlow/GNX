@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-09-02 08:45:16.434590200 +0200
-+++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-14 08:44:22.242968300 +0200
++++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-15 11:14:44.717786100 +0200
 @@ -2,27 +2,31 @@
  {
      switch (slot_data.slot_type)
@@ -2160,7 +2160,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          var _handc_pos = 0;
                          
-@@ -1805,74 +1924,74 @@
+@@ -1805,74 +1924,88 @@
                          
                          if (!_replace)
                          {
@@ -2183,6 +2183,20 @@
                  
 -                case UnknownEnum.Value_6:
 +                case 6:
++                    // Mav (1.4.7.5): shrine loop hands for mod classes.
++                    // In the loop vanilla draws spr_h_lilith_shrine_loop_hand in this layer and adds the breast on top
++                    // only for Lilith (class == 8). A mod class gives its hands as "shrine_loop_hand" in mon_spr_overrides
++                    // (optional "shrine_loop_hand_c" for the clothed version): drawn here, under the breast, as in vanilla.
++                    // The condition "mon_placement[0] != -1 && h_step > 1" (a monster is there and the loop runs) is vanilla's.
++                    if (_gnx_shrine_mso != undefined && _index != -1 && slot_data.mon_placement[0] != -1 && slot_data.h_step > 1)
++                    {
++                        var _gnx_loop_hand = variable_struct_exists(_gnx_shrine_mso, "shrine_loop_hand") ? _gnx_shrine_mso.shrine_loop_hand : -1;
++                        // _index == 0 and _c_spr != -1: the layer currently shows its clothed version
++                        if (_index == 0 && _c_spr != -1 && variable_struct_exists(_gnx_shrine_mso, "shrine_loop_hand_c"))
++                            _gnx_loop_hand = _gnx_shrine_mso.shrine_loop_hand_c;
++                        if (_gnx_loop_hand != -1)
++                            gnx_draw_sprite(_gnx_loop_hand, _final_index, x, y);
++                    }
                      if (_index != -1 && !_replace)
                      {
 -                        draw_sprite(_spr, _final_index, x, y);
@@ -2260,7 +2274,7 @@
                      }
                      
                      break;
-@@ -1883,12 +2002,12 @@
+@@ -1883,12 +2016,12 @@
      if (slot_data.anim_struct.sp_state != -1)
      {
          if (slot_data.mon_placement[0] != -1 && slot_data.h_step == 0)
@@ -2276,7 +2290,7 @@
  }
  
  function scr_draw_ogre_behind()
-@@ -1896,28 +2015,28 @@
+@@ -1896,28 +2029,28 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -2311,7 +2325,7 @@
                  
                  break;
          }
-@@ -1931,7 +2050,7 @@
+@@ -1931,7 +2064,7 @@
          
          for (var i = 0; i < array_length(h_unit_list); i++)
          {
@@ -2320,7 +2334,7 @@
                  _unit = h_unit_list[i];
          }
          
-@@ -1943,22 +2062,22 @@
+@@ -1943,22 +2076,22 @@
              _final_index = _row_index + slot_data.anim_struct.index;
              
              if (_spr != -1)
@@ -2347,7 +2361,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1970,71 +2089,71 @@
+@@ -1970,71 +2103,71 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2438,7 +2452,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2042,7 +2161,7 @@
+@@ -2042,7 +2175,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -2447,7 +2461,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2060,60 +2179,60 @@
+@@ -2060,60 +2193,60 @@
                          
                          if (!_replace)
                          {
@@ -2527,7 +2541,7 @@
                      
                      break;
              }
-@@ -2121,7 +2240,7 @@
+@@ -2121,7 +2254,7 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -2536,7 +2550,7 @@
  }
  
  function scr_draw_ogre_front()
-@@ -2129,28 +2248,28 @@
+@@ -2129,28 +2262,28 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -2571,7 +2585,7 @@
                  
                  break;
          }
-@@ -2160,11 +2279,11 @@
+@@ -2160,11 +2293,11 @@
      
      if (unit_data != -1)
      {
@@ -2585,7 +2599,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -2176,71 +2295,71 @@
+@@ -2176,71 +2309,71 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2676,7 +2690,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2248,7 +2367,7 @@
+@@ -2248,7 +2381,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -2685,7 +2699,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2266,60 +2385,60 @@
+@@ -2266,60 +2399,60 @@
                          
                          if (!_replace)
                          {
@@ -2765,7 +2779,7 @@
                      
                      break;
              }
-@@ -2327,7 +2446,7 @@
+@@ -2327,7 +2460,7 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -2774,7 +2788,7 @@
  }
  
  function scr_draw_slot_gb_3()
-@@ -2340,7 +2459,7 @@
+@@ -2340,7 +2473,7 @@
          var _final_index = _row_index + slot_data.anim_struct.index;
          
          if (_spr != -1)
@@ -2783,7 +2797,7 @@
      }
      
      scr_draw_slot_parts();
-@@ -2349,14 +2468,14 @@
+@@ -2349,14 +2482,14 @@
  function scr_draw_slot_clone()
  {
      if (spr_base != -1)
@@ -2801,7 +2815,7 @@
          
          var _index = slot_data.mod_index[1];
          
-@@ -2364,12 +2483,12 @@
+@@ -2364,12 +2497,12 @@
          {
              var _mod_sign = _index;
              var _scale_sign = ((_mod_sign * 2) - 1) * -1;
@@ -2816,7 +2830,7 @@
  }
  
  function scr_draw_slot_chain()
-@@ -2378,18 +2497,26 @@
+@@ -2378,18 +2511,26 @@
      
      if (unit_data != -1)
      {
@@ -2846,7 +2860,7 @@
      }
      
      var _num = array_length(spr_slot);
-@@ -2397,67 +2524,67 @@
+@@ -2397,67 +2538,67 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2933,7 +2947,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2465,7 +2592,7 @@
+@@ -2465,7 +2606,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -2942,7 +2956,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2483,74 +2610,74 @@
+@@ -2483,74 +2624,74 @@
                          
                          if (!_replace)
                          {
@@ -3038,7 +3052,7 @@
                      }
                      
                      break;
-@@ -2566,11 +2693,11 @@
+@@ -2566,11 +2707,11 @@
              
              switch (slot_data.anim_struct.char_state)
              {
@@ -3053,7 +3067,7 @@
                      var _sp_y = 0;
                      var _sp_x = 0;
                      
-@@ -2590,20 +2717,23 @@
+@@ -2590,20 +2731,23 @@
                              break;
                      }
                      
@@ -3080,7 +3094,7 @@
          }
      }
      
-@@ -2613,24 +2743,225 @@
+@@ -2613,24 +2757,225 @@
      {
          var _mod_sign = _index;
          var _scale_sign = ((_mod_sign * 2) - 1) * -1;

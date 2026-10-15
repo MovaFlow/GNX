@@ -1,0 +1,248 @@
+{
+  "about": "Mav's 1.4.7.5 changes, one check each, on the rich 'modded' save: staged mod loading (a cell in harness_stage_a requires a class from harness_stage_z, which sorts later), modded classes' own cells (gnx_cell_is_home / gnx_class_has_home_cell, vanilla mapping unchanged), ogres with a line layer (the real scr_set_mon_spr_data on a borrowed cell), shrine loop hands (the real LILITH SHRINE draw on a borrowed shrine, sprites recorded) and the atlas fixes (case-insensitive key, folder-only entry, JSON origin, missing page, baking, rotation compared pixel by pixel with the baked sprite).",
+  "fixture": "modded",
+  "timeout": 120,
+  "mods": [
+    "tools/scenarios/mods/harness_stage_a",
+    "tools/scenarios/mods/harness_stage_z",
+    "tools/scenarios/mods/harness_atlas"
+  ],
+  "check_boot_suite": false,
+  "why_no_boot_suite": "the test classes ship no sprite files, so the boot suite's class sprite checks fail by design",
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_is_home",
+      "args": [
+        {
+          "cell": "harness_stage_a.HOME CELL"
+        },
+        {
+          "class": "harness_stage_z.STAGE CLASS"
+        }
+      ],
+      "is": true,
+      "why": "staged loading: HOME CELL (harness_stage_a) requires STAGE CLASS from harness_stage_z, whose folder sorts later"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_class_has_home_cell",
+      "args": [
+        {
+          "class": "harness_stage_z.STAGE CLASS"
+        }
+      ],
+      "is": true,
+      "why": "a modded class with a cell listing it in required_class has an own cell"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_class_has_home_cell",
+      "args": [
+        {
+          "class": "harness_atlas.ATLAS CLASS"
+        }
+      ],
+      "is": false,
+      "why": "no cell lists ATLAS CLASS"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_is_home",
+      "args": [
+        39,
+        8
+      ],
+      "is": true,
+      "why": "vanilla: Lilith -> LILITH SHRINE"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_is_home",
+      "args": [
+        36,
+        9
+      ],
+      "is": true,
+      "why": "vanilla: cow -> DAIRY"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_is_home",
+      "args": [
+        38,
+        12
+      ],
+      "is": true,
+      "why": "vanilla: Morrigan -> CHAINS"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_is_home",
+      "args": [
+        39,
+        9
+      ],
+      "is": false
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_is_home",
+      "args": [
+        {
+          "cell": "harness_stage_a.HOME CELL"
+        },
+        8
+      ],
+      "is": false,
+      "why": "vanilla classes keep the fixed mapping"
+    },
+    {
+      "mon_spr_probe": {
+        "cell": {
+          "cell": "harness_stage_a.HOME CELL"
+        },
+        "mon_type": 3,
+        "phase": 1,
+        "ogre_alpha": true
+      },
+      "why": "ogre with alpha + line from the cell JSON takes the goblin draw path"
+    },
+    {
+      "mon_spr_probe": {
+        "cell": {
+          "cell": "harness_stage_a.ALPHA ONLY"
+        },
+        "mon_type": 3,
+        "phase": 1,
+        "ogre_alpha": false
+      },
+      "why": "control: alpha only keeps the vanilla ogre path"
+    },
+    {
+      "mon_spr_probe": {
+        "cell": {
+          "cell": "harness_stage_a.HOME CELL"
+        },
+        "mon_type": 0,
+        "phase": 1,
+        "ogre_alpha": false
+      },
+      "why": "control: goblins never get the flag"
+    },
+    {
+      "shrine_hand_probe": {
+        "class": {
+          "class": "harness_stage_z.STAGE CLASS"
+        },
+        "sprite": "spr_ogre_walk",
+        "drawn": true
+      },
+      "why": "STAGE CLASS's shrine_loop_hand is drawn in the shrine loop"
+    },
+    {
+      "shrine_hand_probe": {
+        "class": 8,
+        "sprite": "spr_ogre_walk",
+        "drawn": false
+      },
+      "why": "control: Lilith has no override"
+    },
+    {
+      "assert": "mso",
+      "class": {
+        "class": "harness_atlas.ATLAS CLASS"
+      },
+      "key": "case_key",
+      "sprref": true,
+      "exists": true,
+      "xo": 1,
+      "yo": 6,
+      "why": "strips/spr_Atlas_CASE.png finds uv.json key spr_atlas_case"
+    },
+    {
+      "assert": "mso",
+      "class": {
+        "class": "harness_atlas.ATLAS CLASS"
+      },
+      "key": "folder_key",
+      "sprref": true,
+      "exists": true,
+      "why": "a folder-only entry uses the atlas"
+    },
+    {
+      "assert": "mso",
+      "class": {
+        "class": "harness_atlas.ATLAS CLASS"
+      },
+      "key": "origin_json",
+      "xo": 2,
+      "yo": 3,
+      "why": "the JSON origin wins over uv.json"
+    },
+    {
+      "assert": "mso",
+      "class": {
+        "class": "harness_atlas.ATLAS CLASS"
+      },
+      "key": "origin_uv",
+      "xo": 0,
+      "yo": 0,
+      "why": "another entry on the same file keeps uv.json's origin (the shared entry is not changed)"
+    },
+    {
+      "assert": "mso",
+      "class": {
+        "class": "harness_atlas.ATLAS CLASS"
+      },
+      "key": "page1_key",
+      "page": 1,
+      "exists": false,
+      "why": "its page failed to load"
+    },
+    {
+      "assert": "mso",
+      "class": {
+        "class": "harness_atlas.ATLAS CLASS"
+      },
+      "key": "page2_key",
+      "page": 2,
+      "exists": true,
+      "why": "a missing page 1 does not shift page 2"
+    },
+    {
+      "atlas_draw_parity": {
+        "class": {
+          "class": "harness_atlas.ATLAS CLASS"
+        },
+        "key": "case_key",
+        "angle": 0
+      }
+    },
+    {
+      "atlas_draw_parity": {
+        "class": {
+          "class": "harness_atlas.ATLAS CLASS"
+        },
+        "key": "case_key",
+        "angle": 90
+      },
+      "why": "rotation turns around the origin, like draw_sprite_ext"
+    },
+    {
+      "atlas_draw_parity": {
+        "class": {
+          "class": "harness_atlas.ATLAS CLASS"
+        },
+        "key": "case_key",
+        "angle": 45
+      }
+    },
+    {
+      "assert": "registry_ok"
+    }
+  ]
+}

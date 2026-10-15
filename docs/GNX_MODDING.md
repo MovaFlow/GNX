@@ -65,7 +65,7 @@ if they share a `class_id` or `h_type` (last writer wins).
   "mod_id": "my_mod",
   "name": "My Mod",
   "version": "1.0.0",
-  "compatible_game_versions": ["1.39"],
+  "compatible_game_versions": ["1.40"],
   "classes": "classes.json",
   "cells": "cells.json"
 }
@@ -83,7 +83,7 @@ if they share a `class_id` or `h_type` (last writer wins).
 | `version` | yes | Semver string |
 | `mod_id` | no | Conventionally equal to the folder name. Other mods' `requires` can name a mod by it (or by folder name) |
 | `requires` | no | Array of mods this mod needs (`mod_id` or folder name). If one is off in the mod menu, this mod is skipped too; if one is not installed, it is skipped and reported in the "Mod loading problem(s)" popup |
-| `compatible_game_versions` | yes | Array of game version strings. Must include the running game version or the mod is silently skipped |
+| `compatible_game_versions` | yes | Array of game version strings. Must include a version GNX accepts (`"1.40"`; `"1.38"` and `"1.39"` still load) or the mod is skipped with an error in the log |
 | `classes` | no | Path relative to mod folder; omit if no classes |
 | `cells` | no | Path relative to mod folder; omit if no cells |
 | `quests` | no | Path relative to mod folder; omit if no quests/events |
@@ -1811,7 +1811,7 @@ Manifest for this example:
   "mod_id": "my_mod",
   "name": "My Mod",
   "version": "1.0.0",
-  "compatible_game_versions": ["1.39"],
+  "compatible_game_versions": ["1.40"],
   "tools": "tools.json",
   "save_state": {
     "version": 1,
@@ -2138,7 +2138,7 @@ Add three fields to `manifest.json`:
 {
   "name": "Outpost Mod",
   "version": "1.0",
-  "compatible_game_versions": ["1.39"],
+  "compatible_game_versions": ["1.40"],
   "map": "outpost_mod",
   "map_button": {
     "label": "Outpost",
