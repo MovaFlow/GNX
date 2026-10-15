@@ -33,6 +33,7 @@
 
 ### Bug Fixes
 
+- Clicking a newborn in a cell where it was not the last prop (seen in DRINK cells) crashed with `Variable Index [1] out of range [1]` in `scr_mouse_click`. A vanilla bug: the game deleted props while walking the list forwards.
 - Loading a save from an older game version now runs the game's own save upgrade steps again: GNX's copy of them had stopped at 1.33.
 - The selector's Goblins row counted every kind of goblin but only took basic ones, so taking many could leave a negative count. It now counts basic goblins; other kinds travel through TROOPS.
 - **Load and map-change lag**: loading a save or changing maps with many mods took ~2 s, almost all of it writing the GNX debug log (each line re-opened the log file, ~20 ms a time, and the loader writes ~600 lines on every load and map change). The log is now buffered and written once per frame: the loader goes from ~1.9 s to ~0.1 s with 14 mods, a map change from ~2.3 s to ~0.45 s.

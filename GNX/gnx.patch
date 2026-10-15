@@ -3886,8 +3886,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 11:14:44.716786200 +0200
-@@ -1,224 +1,19461 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 11:28:23.150801800 +0200
+@@ -1,224 +1,19473 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -17186,6 +17186,18 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +}
 +
 +// Called at the end of scr_main_end_step, i.e. once per frame in rm_game after the load finished
++// removes every prop of type arg1 from the prop array arg0 (in place, back to front); returns how many are left
++function gnx_prop_array_remove_type(arg0, arg1)
++{
++    for (var _i = array_length(arg0) - 1; _i >= 0; _i--)
++    {
++        if (arg0[_i].prop_type == arg1)
++            array_delete(arg0, _i, 1);
++    }
++
++    return array_length(arg0);
++}
++
 +// a scenario argument: {"class": "mod_folder.NAME"} -> class id, {"cell": "mod_folder.NAME"} -> h_type, else as is
 +function gnx_scn_ref(arg0)
 +{
@@ -28142,7 +28154,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_state.gml gml/gml_GlobalScript_s_mon_sta
          mon_data.ff = false;
 diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mouse_action.gml
 --- gml_138/gml_GlobalScript_s_mouse_action.gml	2026-09-02 08:45:16.155545700 +0200
-+++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-15 10:43:25.213471500 +0200
++++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-15 11:28:23.148799200 +0200
 @@ -1,6 +1,7 @@
  function scr_mouse_control()
  {
@@ -28193,7 +28205,24 @@ diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mous
                                                  var _shift_min, _shift_max;
                                                  
                                                  switch (_mod_type)
-@@ -1565,20 +1582,23 @@
+@@ -1208,13 +1225,9 @@
+                                     
+                                     with (slot_id)
+                                     {
+-                                        var _num = array_length(slot_data.prop);
+-                                        
+-                                        for (var i = 0; i < _num; i++)
+-                                        {
+-                                            if (slot_data.prop[i].prop_type == UnknownEnum.Value_40)
+-                                                array_delete(slot_data.prop, i, 1);
+-                                        }
++                                        // GNX fix: vanilla deleted while walking forwards with a fixed length, so an infant
++                                        // that was not the cell's last prop crashed the click ("index out of range")
++                                        gnx_prop_array_remove_type(slot_data.prop, UnknownEnum.Value_40);
+                                         
+                                         if (slot_data.anim_struct.char_state != UnknownEnum.Value_0)
+                                         {
+@@ -1565,20 +1578,23 @@
                                          {
                                              if (mon_data.mon_type == UnknownEnum.Value_1 && mon_data.task == UnknownEnum.Value_3 && variable_struct_exists(mon_data, "carry_start_id") && mon_data.carry_start_id == other.id)
                                              {
