@@ -28,6 +28,11 @@ assert errs({"map": "m", "map_button": {}, "map_start": {"troops": [{"type": "dr
 assert errs({"map": "m", "map_button": {}, "map_start": {"troops": [{"type": "goblin"}]}})
 assert errs({"map": "m", "map_button": {}, "map_start": {"prisoners": [{"level": 2}]}})
 assert any("ignored" in msg for lvl, msg in check_map({"map": "m", "map_button": {"x": 150}}, here))
+# map_info is the current name; map_button (old name) is still read; both = warning, map_info wins
+assert errs({"map": "m", "map_info": {"travel": "huge"}}) and not errs({"map": "m", "map_info": {"travel": "complex"}})
+assert not [p for p in check_map({"map": "m", "map_info": {}}, here) if "no map_info" in p[1]]
+assert any("both" in msg for lvl, msg in check_map({"map": "m", "map_info": {}, "map_button": {}}, here))
+assert not errs({"map": "m", "map_info": {"travel": "simple"}, "map_button": {"travel": "huge"}})
 print("ok")
 
 # deploy: every file a mod can use reaches GNX_mods/<mod_id>/ (json files from the manifest, the map image,

@@ -508,7 +508,7 @@ New folder `GNX_mods/my_map/manifest.json`:
   "version": "1.0.0",
   "compatible_game_versions": ["1.40"],
   "map": "my_map",
-  "map_button": {
+  "map_info": {
     "label": "Old Mine",
     "return_label": "Village",
     "unlock": {"type": "gold_gte", "value": 2000}
@@ -524,7 +524,7 @@ New folder `GNX_mods/my_map/manifest.json`:
 ```
 - `map` makes this a **map mod**: everything it adds (classes, cells, quests...)
   loads only while the player is on that map. Other maps never see it.
-- `map_button` lists "Old Mine" in the travel menu (the round map button in the
+- `map_info` lists "Old Mine" in the travel menu (the round map button in the
   top-left corner of the raid panel's world map, on every map). `unlock` keeps it
   hidden until the player has had 2000 gold once.
 - `map_start` is the state of a first visit: one extra floor, some gold, food

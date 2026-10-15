@@ -94,7 +94,7 @@ two mods share a `class_id` or `h_type`, the one whose folder sorts later wins.
 | `sounds` | no | Path relative to mod folder; omit if no custom sounds. See [§17](#17-sound-system--soundsjson) |
 | `props` | no | Path relative to mod folder; omit if no custom props. See [§18](#18-custom-props--propsjson) |
 | `map` | no | Unique map identifier for multi-map travel. See [§20](#20-multi-map-travel) |
-| `map_button` | no | Travel button config (requires `map`). See [§20](#20-multi-map-travel) |
+| `map_info` | no | The map's settings: name, world-map picture, travel tier, unlock condition (requires `map`). `map_button` is its old name and still works. See [§20](#20-multi-map-travel) |
 | `map_start` | no | Starting state for first visit (requires `map`). See [§20](#20-multi-map-travel) |
 | `save_state` | no | Per-mod persistent state definition (see below) |
 
@@ -2251,7 +2251,7 @@ Add three fields to `manifest.json`:
   "version": "1.0",
   "compatible_game_versions": ["1.40"],
   "map": "outpost_mod",
-  "map_button": {
+  "map_info": {
     "label": "Outpost",
     "map_sprite": "map_gray.png",
     "return_label": "Village",
@@ -2277,7 +2277,9 @@ Add three fields to `manifest.json`:
 A mod with a `map` field is **deferred** at boot: its classes, cells, quests,
 sounds, and props are only loaded when the player travels to that map.
 
-#### `map_button`
+#### `map_info`
+
+`map_info` was called `map_button` before GNX 1.4.9; the old name is still read (if a mod has both, `map_info` is used and the clash is reported).
 
 How the map appears in the travel menu (the round map button in the top-left corner of the
 raid panel's world map, on every map; it lists every other map the player can reach).
@@ -2341,10 +2343,10 @@ map image from `sprites/`.
 
 - Different maps: each mod with its own `map` gets its own entry in the travel menu,
   its own `map_start`, and its content loads only on its map.
-- Sharing a map: a mod can declare another mod's `map` **without** `map_button` /
+- Sharing a map: a mod can declare another mod's `map` **without** `map_info` /
   `map_start` to add content (cells, classes…) to that map only.
 - Ownership: the first mod in load order (alphabetical by folder) that declares a
-  `map_button` or `map_start` for a map owns it. A later mod declaring either for the
+  `map_info` or `map_start` for a map owns it. A later mod declaring either for the
   same map has them ignored (its content still loads there), and the conflict is
   listed in the "Mod loading problem(s)" popup.
 

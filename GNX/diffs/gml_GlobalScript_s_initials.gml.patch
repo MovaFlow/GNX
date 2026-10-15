@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 14:50:00.658606400 +0200
-@@ -1,224 +1,19855 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 14:55:48.744480600 +0200
+@@ -1,224 +1,19864 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -6255,6 +6255,15 @@
 +        exit;
 +    }
 +    
++    // "map_info" is the map's settings (name, picture, travel tier, unlock); "map_button" is its old name, still read
++    if (variable_struct_exists(_manifest, "map_info"))
++    {
++        if (variable_struct_exists(_manifest, "map_button"))
++            gnx_report_mod_error("Mod '" + arg0 + "' declares both map_info and map_button (its old name): map_info is used");
++
++        _manifest.map_button = _manifest.map_info;
++    }
++
 +    var _versions = variable_struct_exists(_manifest, "compatible_game_versions") ? _manifest.compatible_game_versions : [];
 +    var _game_ver = string(global.val.version);
 +    var _ok = false;
@@ -6313,7 +6322,7 @@
 +            else if (variable_struct_get(global.gnx_map_owner, _mod_map) != arg0)
 +            {
 +                _not_owner = true;
-+                gnx_report_mod_error("Mod '" + arg0 + "' also declares map '" + _mod_map + "' (already owned by '" + variable_struct_get(global.gnx_map_owner, _mod_map) + "'); its travel button and map_start are ignored");
++                gnx_report_mod_error("Mod '" + arg0 + "' also declares map '" + _mod_map + "' (already owned by '" + variable_struct_get(global.gnx_map_owner, _mod_map) + "'); its map_info and map_start are ignored");
 +            }
 +        }
 +        

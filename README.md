@@ -30,7 +30,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Performance**  - off-screen draw culling on slots, monsters, buttons, and empty cells (~3x fps on large saves; 12 to 35-38 FPS on a 74-floor endless tower), throttled ambient speaker scans, runtime sprite caching for fast reloads.
 
-**Multi-Map Travel**  - map mods add whole new nests (`map`, `map_button`, `map_start` in `manifest.json`). A map button on the raid window's world map opens a travel menu; a pre-travel selector takes gold, food, troops and prisoners along, depending on the map's tier. Each map keeps its own state; unlocks are shared; maps can unlock later through a condition.
+**Multi-Map Travel**  - map mods add whole new nests (`map`, `map_info`, `map_start` in `manifest.json`). A map button on the raid window's world map opens a travel menu; a pre-travel selector takes gold, food, troops and prisoners along, depending on the map's tier. Each map keeps its own state; unlocks are shared; maps can unlock later through a condition.
 
 **Mod Menu**  - a MODS button on the main menu turns installed mods on and off (with `requires` dependencies between mods). Saves remember the mods they were made with, and the load page warns when one is missing.
 

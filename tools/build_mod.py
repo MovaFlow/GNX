@@ -80,39 +80,43 @@ CONDITION_TYPES = {"state_equals", "state_gte", "state_lte", "stage_discovered",
 
 
 def check_map(manifest, mod_dir):
-    """Problems in a map mod's manifest (map / map_button / map_start), as (level, message); level ERROR means
+    """Problems in a map mod's manifest (map / map_info / map_start), as (level, message); level ERROR means
     the loader ignores or rejects the part, WARN means it loads but probably not as intended."""
     out = []
+    if "map_info" in manifest and "map_button" in manifest:
+        out.append(("WARN", "both map_info and map_button (its old name): map_info is used"))
+    if "map_info" in manifest or "map_button" in manifest:  # map_button = the old name of map_info, still read
+        manifest = dict(manifest, map_button=manifest.get("map_info", manifest.get("map_button")))
     has_btn, has_start = "map_button" in manifest, "map_start" in manifest
     mp = manifest.get("map")
     if not (has_btn or has_start or mp):
         return out
     if (has_btn or has_start) and not mp:
-        return [("ERROR", "map_button / map_start need a \"map\" id; without it the mod is not a map mod")]
+        return [("ERROR", "map_info / map_start need a \"map\" id; without it the mod is not a map mod")]
     if not isinstance(mp, str) or not mp:
         return [("ERROR", f"map must be a non-empty string, got {mp!r}")]
     if mp in ("vanilla", "all") and (has_btn or has_start):
-        out.append(("ERROR", f"map '{mp}' is reserved: map_button / map_start are ignored for it"))
+        out.append(("ERROR", f"map '{mp}' is reserved: map_info / map_start are ignored for it"))
     if mp not in ("vanilla", "all") and not has_btn:
-        out.append(("WARN", f"map '{mp}' has no map_button: players can only reach it if another mod adds one"))
+        out.append(("WARN", f"map '{mp}' has no map_info: players can only reach it if another mod adds one"))
     mb = manifest.get("map_button", {})
     if has_btn:
         if not isinstance(mb, dict):
-            return out + [("ERROR", "map_button must be an object")]
+            return out + [("ERROR", "map_info must be an object")]
         if "x" in mb or "y" in mb:
-            out.append(("WARN", "map_button.x / y are ignored since GNX 1.4.8: maps are reached from the travel "
+            out.append(("WARN", "map_info.x / y are ignored since GNX 1.4.8: maps are reached from the travel "
                                 "menu (the map button in the world map's corner)"))
         if "travel" in mb and mb["travel"] not in ("simple", "advanced", "complex"):
-            out.append(("ERROR", f"map_button.travel must be simple, advanced or complex, got {mb['travel']!r}"))
+            out.append(("ERROR", f"map_info.travel must be simple, advanced or complex, got {mb['travel']!r}"))
         if "map_sprite" in mb and not (mod_dir / "sprites" / mb["map_sprite"]).is_file():
-            out.append(("WARN", f"map_button.map_sprite: sprites/{mb['map_sprite']} not found (the default button is used)"))
+            out.append(("WARN", f"map_info.map_sprite: sprites/{mb['map_sprite']} not found (the default button is used)"))
         if "unlock" in mb:
             conds = mb["unlock"] if isinstance(mb["unlock"], list) else [mb["unlock"]]
             for c in conds:
                 if not isinstance(c, dict) or "type" not in c:
-                    out.append(("ERROR", f"map_button.unlock: each condition needs a \"type\", got {c!r}"))
+                    out.append(("ERROR", f"map_info.unlock: each condition needs a \"type\", got {c!r}"))
                 elif c["type"] not in CONDITION_TYPES:
-                    out.append(("ERROR", f"map_button.unlock: unknown condition type '{c['type']}' "
+                    out.append(("ERROR", f"map_info.unlock: unknown condition type '{c['type']}' "
                                          f"(known: {', '.join(sorted(CONDITION_TYPES))})"))
     ms = manifest.get("map_start")
     if has_start:
@@ -258,7 +262,8 @@ def main():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
             print(f"  copied: {f}")
-        ms_name = manifest.get("map_button", {}).get("map_sprite") if isinstance(manifest.get("map_button"), dict) else None
+        mi = manifest.get("map_info", manifest.get("map_button"))  # map_button = old name of map_info
+        ms_name = mi.get("map_sprite") if isinstance(mi, dict) else None
         if ms_name and (mod_dir / "sprites" / ms_name).is_file():  # the world-map image is loaded from sprites/
             (dest / "sprites").mkdir(exist_ok=True)
             shutil.copy2(mod_dir / "sprites" / ms_name, dest / "sprites" / ms_name)

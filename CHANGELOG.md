@@ -7,6 +7,7 @@
 ### New Features
 
 - **Shared inventory across maps**: items (milk, blueprints and their torn pieces, bells, orbs) travel with the player on every trip and join the destination's inventory, so pieces found on different maps can complete a blueprint. Saves that already hold separate inventories per map merge them on the next trip.
+- **`map_info`**: the manifest key `map_button` is renamed `map_info`, since it now holds the map's settings (name, picture, travel tier, unlock) rather than a button. `map_button` still works; a mod declaring both gets `map_info` and a warning.
 - **Richer `map_start`**: `troops` (hobgoblins, tentacles, ogres and any goblin kind), `prisoners` (captives by class and level) and `unlock_cells`; `cells` and `unlock_cells` accept cell names (`"my_mod.MY CELL"`) as well as numbers. `build_mod.py` checks the new fields.
 
 ### Bug Fixes
