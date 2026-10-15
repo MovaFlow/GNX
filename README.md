@@ -30,9 +30,13 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Performance**  - off-screen draw culling on slots, monsters, buttons, and empty cells (~3x fps on large saves; 12 to 35-38 FPS on a 74-floor endless tower), throttled ambient speaker scans, runtime sprite caching for fast reloads.
 
+**Multi-Map Travel**  - map mods add whole new nests (`map`, `map_button`, `map_start` in `manifest.json`). A map button on the raid window's world map opens a travel menu; a pre-travel selector takes gold, food, troops and prisoners along, depending on the map's tier. Each map keeps its own state; unlocks are shared; maps can unlock later through a condition.
+
+**Mod Menu**  - a MODS button on the main menu turns installed mods on and off (with `requires` dependencies between mods). Saves remember the mods they were made with, and the load page warns when one is missing.
+
 **Atlas Packing**  - optional texture atlas system (`gnx_atlas_pack.py`) packs sprite strips into large atlas PNGs, cutting texture pages from hundreds to single digits, VRAM by ~45%, and boot time from 94s to 1.8s. Fully backwards-compatible: mods work with or without atlas.
 
-**Self-Testing**  - 84-test suite plus a dispatch-routing check runs at boot, logs results to `gnx_debug.txt`.
+**Self-Testing**  - a self-test suite plus a dispatch-routing check runs at boot and logs results to `gnx_debug.txt`.
 
 ---
 
@@ -126,7 +130,7 @@ The diffs are on the github under GNX\diffs for all modified files.
 All credit goes to @BadColor for making this game. Go support the developer:
 [Steam](https://store.steampowered.com/app/3782910/Goblin_Nest/) | [Itch.io](https://badcolor.itch.io/goblin-nest) | [Discord](https://discord.gg/7HEAnEmyW2)
 
-GNX is built with contributions from @Mav, @nevereverever, @kazull, @Jadwick, and @Radeonix.
+GNX is built with contributions from @Mav, @nevereverever, @kazull, @Jadwick, @Radeonix, and @Sokarg.
 See [CREDITS.md](CREDITS.md) for full details.
 
 ## Coffee

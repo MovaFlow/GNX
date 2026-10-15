@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_sfx.gml	2026-09-02 08:45:16.524590500 +0200
-+++ gml/gml_GlobalScript_s_sfx.gml	2026-10-14 08:44:22.211966300 +0200
-@@ -1,14 +1,139 @@
++++ gml/gml_GlobalScript_s_sfx.gml	2026-10-15 11:43:28.017463700 +0200
+@@ -1,14 +1,175 @@
 +function scr_play_moan_sfx()
 +{
 +    if (!global.gnx_has_sounds)
@@ -57,6 +57,18 @@
 +            exit;
 +        
 +        var _bank_name = _ud.moan_voice;
++        // GNX: the class can voice her differently per monster using the cell (voice.by_mon_type / voice_map)
++        var _by_mon = gnx_voice_for_mon(variable_struct_exists(_ud, "class") ? _ud.class : 0, gnx_cell_mon_type(id));
++
++        if (is_struct(_by_mon))
++        {
++            _bank_name = _by_mon.bank;
++
++            if (_by_mon.pitch != -1)
++                _pitch = _by_mon.pitch;
++        }
++
++        global.gnx_last_moan_bank = _bank_name;  // scenario moan_probe
 +        var _bank = ds_map_find_value(global.gnx_voice_banks, _bank_name);
 +        
 +        if (!is_array(_bank) || array_length(_bank) == 0)
@@ -108,10 +120,34 @@
 +    }
 +    else
 +    {
-+        if (array_length(global.gnx_sfx_orgasm) == 0)
-+            exit;
-+        
-+        _sfx = global.gnx_sfx_orgasm[irandom(array_length(global.gnx_sfx_orgasm) - 1)];
++        // GNX: her voice bank (by the monster in the cell, see gnx_voice_for_mon) may bring its own orgasm clips
++        var _org_bank = variable_struct_exists(_ud, "moan_voice") ? _ud.moan_voice : -1;
++        var _org_by = gnx_voice_for_mon(variable_struct_exists(_ud, "class") ? _ud.class : 0, gnx_cell_mon_type(id));
++
++        if (is_struct(_org_by))
++        {
++            _org_bank = _org_by.bank;
++
++            if (_org_by.pitch != -1)
++                _pitch = _org_by.pitch;
++        }
++
++        var _org_pool = ds_map_find_value(global.gnx_voice_orgasm, _org_bank);
++
++        if (is_array(_org_pool) && array_length(_org_pool) > 0)
++        {
++            _sfx = _org_pool[irandom(array_length(_org_pool) - 1)];
++            global.gnx_last_orgasm_src = _org_bank;  // scenario moan_probe
++        }
++        else
++        {
++            if (array_length(global.gnx_sfx_orgasm) == 0)
++                exit;
++
++            _sfx = global.gnx_sfx_orgasm[irandom(array_length(global.gnx_sfx_orgasm) - 1)];
++            global.gnx_last_orgasm_src = "shared";
++        }
++
 +        _pitch += 0.05;
 +    }
 +    
@@ -142,7 +178,7 @@
      }
  }
  
-@@ -23,25 +148,29 @@
+@@ -23,25 +184,29 @@
  {
      if (floor(slot_data.anim_struct.index) == arg0)
      {
@@ -176,7 +212,7 @@
  }
  
  function scr_play_milk_sfx()
-@@ -352,6 +481,430 @@
+@@ -352,6 +517,430 @@
      }
  }
  

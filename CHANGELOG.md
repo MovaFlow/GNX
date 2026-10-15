@@ -21,6 +21,8 @@
 - **Travel transition**: travelling fades to black while a goblin with a backpack walks along a dotted route ("Travelling to ..."). It stops and waits while the map loads (the load freezes the picture for a moment, which then reads as a pause instead of a stutter), then walks off as the destination fades in ("Arrived at ...").
 - **`human_spr` is now optional on new cells**: omitting it gives `base+class` mode, with `base_body` picked from the cell kind (`b_*` categories / slot type 2 = `big`, `t_*` / slot type 3 = `tent`, otherwise `standard`). This matches what the docs already said.
 
+- **Voice by monster type**: `by_mon_type` in a class's `voice` (or a `sounds.json` `voice_map` entry) picks the moan bank from the monster using her cell: goblin, hobgoblin, tentacle or ogre, each with an optional pitch. Unlisted types keep her usual voice; captured bosses use it too. Voice banks can also carry their own `orgasm` clips, which follow the same choice (banks without them use the shared orgasm pool).
+
 ### Contributed by Mav (1.4.7.5)
 
 - **CUSTOM build list**: modded cells get their own CUSTOM button in an empty spot's NEW menu instead of mixing into the vanilla build lists. Picking one builds the slot and the cell together.

@@ -3886,8 +3886,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 11:28:23.150801800 +0200
-@@ -1,224 +1,19473 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 11:43:41.138514500 +0200
+@@ -1,224 +1,19637 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -4063,54 +4063,6 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 -    
 -    if (room == rm_init)
 -        room_goto(rm_logo);
--}
--
--enum UnknownEnum
--{
--    Value_0,
--    Value_1,
--    Value_2,
--    Value_3,
--    Value_4,
--    Value_5,
--    Value_6,
--    Value_7,
--    Value_8,
--    Value_9,
--    Value_10,
--    Value_11,
--    Value_12,
--    Value_13,
--    Value_14,
--    Value_15,
--    Value_16,
--    Value_17,
--    Value_18,
--    Value_19,
--    Value_20,
--    Value_21,
--    Value_22,
--    Value_23,
--    Value_24,
--    Value_25,
--    Value_26,
--    Value_27,
--    Value_28,
--    Value_29,
--    Value_30,
--    Value_31,
--    Value_32,
--    Value_33,
--    Value_34,
--    Value_35,
--    Value_36,
--    Value_37,
--    Value_38,
--    Value_39,
--    Value_40,
--    Value_41,
--    Value_42,
--    Value_47 = 47
 -}
 +function scr_create_initials()
 +{
@@ -7423,6 +7375,11 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        ds_map_destroy(global.gnx_voice_banks);
 +    
 +    global.gnx_voice_banks = ds_map_create();
++
++    if (variable_global_exists("gnx_voice_orgasm") && ds_exists(global.gnx_voice_orgasm, ds_type_map))
++        ds_map_destroy(global.gnx_voice_orgasm);
++
++    global.gnx_voice_orgasm = ds_map_create();  // voice bank -> its own orgasm clips (voice_banks "orgasm")
 +    global.gnx_voice_bank_names = [];
 +    
 +    if (variable_global_exists("gnx_voice_class_map") && ds_exists(global.gnx_voice_class_map, ds_type_map))
@@ -13457,7 +13414,8 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        carry_head_spr: gnx_resolve_layer_sprite("gnx:carry_head", _sprites, _base_dir),
 +        carry_hair_spr: gnx_resolve_layer_sprite("gnx:carry_hair", _sprites, _base_dir),
 +        voice_bank: -1,
-+        voice_pitch: -1
++        voice_pitch: -1,
++        voice_by_mon: -1
 +    };
 +    
 +    if (variable_struct_exists(arg0, "voice"))
@@ -13469,6 +13427,9 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        
 +        if (variable_struct_exists(_vc, "pitch"))
 +            _rclass.voice_pitch = _vc.pitch;
++
++        if (variable_struct_exists(_vc, "by_mon_type"))  // voice by the monster using her cell (gnx_voice_for_mon)
++            _rclass.voice_by_mon = gnx_parse_voice_by_mon(_vc.by_mon_type, arg1);
 +    }
 +    
 +    var _log = gnx_log_open();
@@ -13882,6 +13843,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        {
 +            _prov.voice_bank = true;
 +            _prov.voice_pitch = true;
++            _prov.voice_by_mon = true;
 +        }
 +        
 +        if (variable_struct_exists(arg0, "sprites"))
@@ -17580,6 +17542,114 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +                if (_tmp_mon != -1)
 +                    instance_destroy(_tmp_mon);
 +                scr_gnx_scn_check("shrine_hand_probe", _seen == _sp.drawn, _sp.sprite + " drawn=" + string(_seen) + " (" + string(_n_drawn) + " sprites drawn)");
++            }
++        }
++        else if (variable_struct_exists(_st, "moan_probe"))
++        {
++            // {"moan_probe": {"class": {...}, "mon_type": 1, "bank": "mod.bank" | "usual"}}: run the real scr_play_moan_sfx
++            // in a borrowed occupied small cell (not oral) whose captive gets that class and a temporary monster of that
++            // type in place 0; moan frequency forced to 100 for the call. Everything is put back.
++            var _mo = _st.moan_probe;
++            var _mc2 = -1;
++
++            with (obj_slot)
++            {
++                if (_mc2 == -1 && slot_data.slot_type == 0 && slot_data.anim_struct != -1 && is_struct(unit_data) && !scr_gnx_is_bj_cell(slot_data))
++                    _mc2 = id;
++            }
++
++            if (_mc2 == -1)
++            {
++                scr_gnx_scn_check("moan_probe", false, "no occupied small cell to borrow");
++            }
++            else
++            {
++                var _o_cls2 = _mc2.unit_data.class;
++                var _o_pl2 = _mc2.slot_data.mon_placement[0];
++                var _o_frq = global.val.moan_frq;
++                _mc2.unit_data.class = gnx_scn_ref(_mo.class);
++                var _tm = scr_create_mon(_mo.mon_type, _mc2.x, _mc2.y, _mc2.slot_data.slot_floor, -1, 0);
++                _tm.mon_data.slot_id = _mc2;
++                _mc2.slot_data.mon_placement[0] = _tm;
++                global.val.moan_frq = 100;
++                global.gnx_last_moan_bank = "<none>";
++                scr_gnx_check_voice(_mc2.unit_data);
++                var _usual = _mc2.unit_data.moan_voice;
++
++                with (_mc2)
++                    scr_play_moan_sfx();
++
++                var _got = global.gnx_last_moan_bank;
++                global.val.moan_frq = _o_frq;
++                var _got_org = "";
++
++                if (variable_struct_exists(_mo, "orgasm"))  // "orgasm": "mod.bank" | "shared": where the climax clip came from
++                {
++                    var _o_ofrq = global.val.orgasm_frq;
++                    global.val.orgasm_frq = 100;
++                    global.gnx_last_orgasm_src = "<none>";
++
++                    with (_mc2)
++                        scr_play_orgasm_sfx();
++
++                    _got_org = global.gnx_last_orgasm_src;
++                    global.val.orgasm_frq = _o_ofrq;
++                }
++                _mc2.slot_data.mon_placement[0] = _o_pl2;
++                _mc2.unit_data.class = _o_cls2;
++                instance_destroy(_tm);
++                var _want = (_mo.bank == "usual") ? _usual : _mo.bank;
++                if (variable_struct_exists(_mo, "orgasm"))
++                    scr_gnx_scn_check("orgasm_probe", _got_org == _mo.orgasm, "class " + string(gnx_scn_ref(_mo.class)) + " mon_type " + string(_mo.mon_type) + ": orgasm from '" + string(_got_org) + "' want '" + _mo.orgasm + "'");
+ 
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_10,
+-    Value_11,
+-    Value_12,
+-    Value_13,
+-    Value_14,
+-    Value_15,
+-    Value_16,
+-    Value_17,
+-    Value_18,
+-    Value_19,
+-    Value_20,
+-    Value_21,
+-    Value_22,
+-    Value_23,
+-    Value_24,
+-    Value_25,
+-    Value_26,
+-    Value_27,
+-    Value_28,
+-    Value_29,
+-    Value_30,
+-    Value_31,
+-    Value_32,
+-    Value_33,
+-    Value_34,
+-    Value_35,
+-    Value_36,
+-    Value_37,
+-    Value_38,
+-    Value_39,
+-    Value_40,
+-    Value_41,
+-    Value_42,
+-    Value_47 = 47
+-}
++                scr_gnx_scn_check("moan_probe", _got == _want, "class " + string(gnx_scn_ref(_mo.class)) + " mon_type " + string(_mo.mon_type) + ": bank '" + string(_got) + "' want '" + string(_want) + "'");
 +            }
 +        }
 +        else if (variable_struct_exists(_st, "open_build_menu"))
@@ -22359,6 +22429,22 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +                ds_map_set(global.gnx_voice_banks, _bank_name, _snd_arr);
 +                array_push(global.gnx_voice_bank_names, _bank_name);
 +            }
++
++            if (variable_struct_exists(_bank_def, "orgasm") && is_array(_bank_def.orgasm))  // the bank's own orgasm clips
++            {
++                var _org_arr = [];
++
++                for (var _oi = 0; _oi < array_length(_bank_def.orgasm); _oi++)
++                {
++                    var _osnd = gnx_resolve_sound(_base_dir, _bank_def.orgasm[_oi]);
++
++                    if (_osnd != -1)
++                        array_push(_org_arr, _osnd);
++                }
++
++                if (array_length(_org_arr) > 0)
++                    ds_map_set(global.gnx_voice_orgasm, _bank_name, _org_arr);
++            }
 +            
 +            _log = gnx_log_open();
 +            gnx_log_write(_log, "[GNX-SOUND] bank '" + _bank_name + "' clips=" + string(array_length(_snd_arr)) + "\n");
@@ -22377,17 +22463,18 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            var _cls_id = real(_cls_key);
 +            var _entry = variable_struct_get(_vm, _cls_key);
 +            
-+            if (!variable_struct_exists(_entry, "bank"))
++            if (!variable_struct_exists(_entry, "bank") && !variable_struct_exists(_entry, "by_mon_type"))
 +                continue;
 +            
 +            var _mapped = 
 +            {
-+                bank: arg0 + "." + _entry.bank,
-+                pitch: variable_struct_exists(_entry, "pitch") ? _entry.pitch : -1
++                bank: variable_struct_exists(_entry, "bank") ? (arg0 + "." + _entry.bank) : -1,
++                pitch: variable_struct_exists(_entry, "pitch") ? _entry.pitch : -1,
++                by_mon: variable_struct_exists(_entry, "by_mon_type") ? gnx_parse_voice_by_mon(_entry.by_mon_type, arg0) : -1
 +            };
 +            ds_map_set(global.gnx_voice_class_map, _cls_id, _mapped);
 +            _log = gnx_log_open();
-+            gnx_log_write(_log, "[GNX-SOUND] voice_map class=" + string(_cls_id) + " bank='" + _mapped.bank + "' pitch=" + string(_mapped.pitch) + "\n");
++            gnx_log_write(_log, "[GNX-SOUND] voice_map class=" + string(_cls_id) + " bank='" + string(_mapped.bank) + "' by_mon_type=" + string(is_array(_mapped.by_mon)) + " pitch=" + string(_mapped.pitch) + "\n");
 +            gnx_log_close(_log);
 +        }
 +    }
@@ -22534,6 +22621,82 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    _log = gnx_log_open();
 +    gnx_log_write(_log, "[GNX-SOUND] mod '" + arg0 + "' sounds loaded (moan=" + string(_has_moan_content) + " ambience=" + string(global.gnx_has_ambience) + ")\n");
 +    gnx_log_close(_log);
++}
++
++// voice by monster type: {"goblin": "bank" | {"bank", "pitch"}, "hobgoblin": ..., "tentacle": ..., "ogre": ...}
++// -> [4] of -1 or {bank, pitch} (bank names prefixed with the mod id arg1, like the class / voice_map banks)
++function gnx_parse_voice_by_mon(arg0, arg1)
++{
++    var _out = [-1, -1, -1, -1];
++    var _names = ["goblin", "hobgoblin", "tentacle", "ogre"];
++
++    if (!is_struct(arg0))
++        return _out;
++
++    for (var _t = 0; _t < 4; _t++)
++    {
++        if (!variable_struct_exists(arg0, _names[_t]))
++            continue;
++
++        var _e = variable_struct_get(arg0, _names[_t]);
++
++        if (is_string(_e))
++            _out[_t] = { bank: arg1 + "." + _e, pitch: -1 };
++        else if (is_struct(_e) && variable_struct_exists(_e, "bank"))
++            _out[_t] = { bank: arg1 + "." + _e.bank, pitch: variable_struct_exists(_e, "pitch") ? _e.pitch : -1 };
++    }
++
++    return _out;
++}
++
++// the voice a captive of class arg0 uses with monster type arg1 (0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre):
++// {bank, pitch} from sounds.json voice_map, else from the class's voice.by_mon_type; -1 = her usual voice
++function gnx_voice_for_mon(arg0, arg1)
++{
++    if (arg1 < 0 || arg1 > 3)
++        return -1;
++
++    if (ds_map_exists(global.gnx_voice_class_map, arg0))
++    {
++        var _vm = ds_map_find_value(global.gnx_voice_class_map, arg0);
++
++        if (variable_struct_exists(_vm, "by_mon") && is_array(_vm.by_mon) && is_struct(_vm.by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _vm.by_mon[arg1].bank))
++            return _vm.by_mon[arg1];
++    }
++
++    if (ds_map_exists(global.class_registry, arg0))
++    {
++        var _rc = ds_map_find_value(global.class_registry, arg0);
++
++        if (is_struct(_rc) && variable_struct_exists(_rc, "voice_by_mon") && is_array(_rc.voice_by_mon) && is_struct(_rc.voice_by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _rc.voice_by_mon[arg1].bank))
++            return _rc.voice_by_mon[arg1];
++    }
++
++    return -1;
++}
++
++// bank name for gnx_voice_for_mon, "" when she keeps her usual voice (scenario checks)
++function gnx_voice_bank_for_mon(arg0, arg1)
++{
++    var _v = gnx_voice_for_mon(arg0, arg1);
++    return is_struct(_v) ? _v.bank : "";
++}
++
++// monster type using the cell arg0 now: the first monster in its places, tentacle cells = 2, -1 = none
++function gnx_cell_mon_type(arg0)
++{
++    if (variable_struct_exists(arg0.slot_data, "mon_placement") && is_array(arg0.slot_data.mon_placement))
++    {
++        for (var _i = 0; _i < array_length(arg0.slot_data.mon_placement); _i++)
++        {
++            var _m = arg0.slot_data.mon_placement[_i];
++
++            if (gnx_is_live_inst(_m) && variable_instance_exists(_m, "mon_data") && is_struct(_m.mon_data))
++                return _m.mon_data.mon_type;
++        }
++    }
++
++    return (arg0.slot_data.slot_type == 2) ? 2 : -1;
 +}
 +
 +function scr_gnx_generate_voice(arg0)
@@ -32992,8 +33155,8 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +}
 diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 --- gml_138/gml_GlobalScript_s_sfx.gml	2026-09-02 08:45:16.524590500 +0200
-+++ gml/gml_GlobalScript_s_sfx.gml	2026-10-14 08:44:22.211966300 +0200
-@@ -1,14 +1,139 @@
++++ gml/gml_GlobalScript_s_sfx.gml	2026-10-15 11:43:28.017463700 +0200
+@@ -1,14 +1,175 @@
 +function scr_play_moan_sfx()
 +{
 +    if (!global.gnx_has_sounds)
@@ -33050,6 +33213,18 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +            exit;
 +        
 +        var _bank_name = _ud.moan_voice;
++        // GNX: the class can voice her differently per monster using the cell (voice.by_mon_type / voice_map)
++        var _by_mon = gnx_voice_for_mon(variable_struct_exists(_ud, "class") ? _ud.class : 0, gnx_cell_mon_type(id));
++
++        if (is_struct(_by_mon))
++        {
++            _bank_name = _by_mon.bank;
++
++            if (_by_mon.pitch != -1)
++                _pitch = _by_mon.pitch;
++        }
++
++        global.gnx_last_moan_bank = _bank_name;  // scenario moan_probe
 +        var _bank = ds_map_find_value(global.gnx_voice_banks, _bank_name);
 +        
 +        if (!is_array(_bank) || array_length(_bank) == 0)
@@ -33101,10 +33276,34 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +    }
 +    else
 +    {
-+        if (array_length(global.gnx_sfx_orgasm) == 0)
-+            exit;
-+        
-+        _sfx = global.gnx_sfx_orgasm[irandom(array_length(global.gnx_sfx_orgasm) - 1)];
++        // GNX: her voice bank (by the monster in the cell, see gnx_voice_for_mon) may bring its own orgasm clips
++        var _org_bank = variable_struct_exists(_ud, "moan_voice") ? _ud.moan_voice : -1;
++        var _org_by = gnx_voice_for_mon(variable_struct_exists(_ud, "class") ? _ud.class : 0, gnx_cell_mon_type(id));
++
++        if (is_struct(_org_by))
++        {
++            _org_bank = _org_by.bank;
++
++            if (_org_by.pitch != -1)
++                _pitch = _org_by.pitch;
++        }
++
++        var _org_pool = ds_map_find_value(global.gnx_voice_orgasm, _org_bank);
++
++        if (is_array(_org_pool) && array_length(_org_pool) > 0)
++        {
++            _sfx = _org_pool[irandom(array_length(_org_pool) - 1)];
++            global.gnx_last_orgasm_src = _org_bank;  // scenario moan_probe
++        }
++        else
++        {
++            if (array_length(global.gnx_sfx_orgasm) == 0)
++                exit;
++
++            _sfx = global.gnx_sfx_orgasm[irandom(array_length(global.gnx_sfx_orgasm) - 1)];
++            global.gnx_last_orgasm_src = "shared";
++        }
++
 +        _pitch += 0.05;
 +    }
 +    
@@ -33135,7 +33334,7 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
      }
  }
  
-@@ -23,25 +148,29 @@
+@@ -23,25 +184,29 @@
  {
      if (floor(slot_data.anim_struct.index) == arg0)
      {
@@ -33169,7 +33368,7 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
  }
  
  function scr_play_milk_sfx()
-@@ -352,6 +481,430 @@
+@@ -352,6 +517,430 @@
      }
  }
  

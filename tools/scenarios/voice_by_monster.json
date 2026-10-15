@@ -1,0 +1,121 @@
+{
+  "about": "Voice banks per monster type: a class's voice.by_mon_type (and sounds.json voice_map's, for vanilla classes) picks the moan bank from the monster using her cell. The real scr_play_moan_sfx runs in a borrowed cell of the rich 'modded' save with a temporary monster of each type. Types not listed keep her usual voice. A bank may bring its own orgasm clips (the 'hob' bank here); banks without them use the shared orgasm pool.",
+  "fixture": "modded",
+  "timeout": 120,
+  "mods": [
+    "tools/scenarios/mods/harness_voice"
+  ],
+  "local_files": [
+    {
+      "from": "harness_game/test_mods/moan_mod/sounds/snd_fmoan0_1.ogg",
+      "to": "harness_voice/sounds/clip.ogg"
+    }
+  ],
+  "check_boot_suite": false,
+  "why_no_boot_suite": "VOICE CLASS ships no sprite files, so the boot suite's class sprite checks fail by design",
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_voice_bank_for_mon",
+      "args": [
+        {
+          "class": "harness_voice.VOICE CLASS"
+        },
+        1
+      ],
+      "is": "harness_voice.hob"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_voice_bank_for_mon",
+      "args": [
+        {
+          "class": "harness_voice.VOICE CLASS"
+        },
+        3
+      ],
+      "is": "harness_voice.ogre"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_voice_bank_for_mon",
+      "args": [
+        {
+          "class": "harness_voice.VOICE CLASS"
+        },
+        0
+      ],
+      "is": "",
+      "why": "goblin is not listed: her usual voice"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_voice_bank_for_mon",
+      "args": [
+        8,
+        0
+      ],
+      "is": "harness_voice.gob",
+      "why": "voice_map by_mon_type for a vanilla class (Lilith) without a fixed bank"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_voice_bank_for_mon",
+      "args": [
+        8,
+        1
+      ],
+      "is": ""
+    },
+    {
+      "moan_probe": {
+        "class": {
+          "class": "harness_voice.VOICE CLASS"
+        },
+        "mon_type": 1,
+        "bank": "harness_voice.hob",
+        "orgasm": "harness_voice.hob"
+      },
+      "why": "hobgoblin in her cell"
+    },
+    {
+      "moan_probe": {
+        "class": {
+          "class": "harness_voice.VOICE CLASS"
+        },
+        "mon_type": 3,
+        "bank": "harness_voice.ogre",
+        "orgasm": "shared"
+      },
+      "why": "ogre in her cell"
+    },
+    {
+      "moan_probe": {
+        "class": {
+          "class": "harness_voice.VOICE CLASS"
+        },
+        "mon_type": 0,
+        "bank": "usual"
+      },
+      "why": "goblin: not listed"
+    },
+    {
+      "moan_probe": {
+        "class": 8,
+        "mon_type": 0,
+        "bank": "harness_voice.gob"
+      }
+    },
+    {
+      "moan_probe": {
+        "class": 0,
+        "mon_type": 1,
+        "bank": "usual"
+      },
+      "why": "classes without by_mon_type are unchanged"
+    }
+  ]
+}

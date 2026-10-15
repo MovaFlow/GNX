@@ -53,8 +53,11 @@ into `GNX_mods/` and run.
 
 GNX auto-discovers mods: any direct subfolder of `GNX_mods/` that contains a
 `manifest.json` is loaded. No index file needed  - just drop the folder in.
-Load order is alphabetical by folder name. Later mods can override earlier ones
-if they share a `class_id` or `h_type` (last writer wins).
+Mods load in three phases: first the manifest and classes of every mod, then
+the cells of every mod, then quests, tools, sounds and props. Within each phase
+the order is alphabetical by folder name. So a cell's `required_class` or a quest
+condition can name a class or cell from any mod, whatever the folder names. When
+two mods share a `class_id` or `h_type`, the one whose folder sorts later wins.
 
 ---
 
@@ -633,7 +636,7 @@ These are GNX-only  - vanilla cells do not have them.
 
 | Field | Notes |
 |-------|-------|
-| `required_class` | Class restriction for this cell. Can be a single class ID (`14`) or an array of class IDs (`[0, 14]`). Omit = any class allowed. String refs (`"mod_id.ClassName"`) are supported alongside integer IDs. Also overrides vanilla hardcoded class locks (cow/giant/morrigan/lilith) |
+| `required_class` | Class restriction for this cell. Can be a single class ID (`14`) or an array of class IDs (`[0, 14]`). Omit = any class allowed. String refs (`"mod_id.ClassName"`) are supported alongside integer IDs. Also overrides vanilla hardcoded class locks (cow/giant/morrigan/lilith). A modded class (ID 14+) listed here treats the cell as its own: TRANSFER, birth and milking send it there first, the way vanilla sends Lilith to the LILITH SHRINE or the cow to the DAIRY. With no free one in range, the unit goes to a regular cell |
 | `range_draw_func` | Script to draw the range indicator. Omit = default |
 | `scr_unoccupy` | Script called when a unit is removed. Use `"scr_gnx_unoccupy_log"` for logging-only |
 
@@ -938,6 +941,11 @@ Build menu categories for the `category` field:
 | `t_breed` | Tent breed |
 | `t_utility` | Tent utility |
 
+Modded cells (`h_type` 43 and up) do not appear in these vanilla lists. They are
+all listed under **CUSTOM**, the 6th button of an empty spot's NEW menu, which
+builds a new slot of the right size with the cell in it (price: the slot plus the
+cell). An existing empty slot can only be given a vanilla cell type.
+
 ### mon_spr
 
 Defines goblin sprites per animation phase. All sprite values use `"gnx:key"`
@@ -974,6 +982,11 @@ or a vanilla sprite name.
   }
 }
 ```
+
+**Ogres:** vanilla draws an ogre as one opaque sprite. If a cell's `mon_spr_ogr`
+gives the ogre body both an `alpha` and a `line` sprite, the ogre is drawn like
+goblins and hobgoblins instead (fill + linework, following the player's monster
+transparency settings). With `alpha` only, it keeps the vanilla look.
 
 **Goblin sprite pairs:** every fill (`_alpha`) sprite must have a matching
 linework (`_line`) sprite. The `_line` variant is used in color modes 1 and 2.
@@ -1348,6 +1361,15 @@ Declare sprites in `sprites` and reference them with `gnx:` keys.
 | `ogre_wall_body_start` | body_b | OGRE WALL start |
 | `ogre_wall_body_loop` | body_b | OGRE WALL loop |
 | `ogre_chain_body` | body | CHAINS |
+
+**LILITH SHRINE loop hands:**
+
+| Key | Target | Cell |
+|-----|--------|------|
+| `shrine_loop_hand` | the class's hands, drawn under the breast during the shrine loop (vanilla does this for Lilith only) | LILITH SHRINE loop |
+| `shrine_loop_hand_c` | clothed variant, used while that layer shows clothes (falls back to `shrine_loop_hand`) | LILITH SHRINE loop |
+
+Use a full-canvas strip with the same origin and frame count as the shrine loop breast.
 
 **Shrine keys (goblin):**
 
@@ -1879,9 +1901,49 @@ plays as her moan. Bank names are auto-prefixed with the mod id internally
 (`my_mod.soft`) so two mods can't collide. All values are filenames inside
 `sounds/`.
 
+A bank can also bring its own climax clips with an `orgasm` list:
+
+```json
+"voice_banks": {
+  "soft": { "clips": ["soft_moan_1.ogg"], "orgasm": ["soft_climax_1.ogg"] },
+  "deep": { "clips": ["deep_moan_1.ogg"], "orgasm": ["deep_climax_1.ogg"] }
+}
+```
+
+When a captive climaxes on a normal cell, her bank's `orgasm` clips play; a bank
+without them uses the shared `sfx.orgasm` pool. `clips` is still required.
+
 Assignment order for a unit: `voice_map` (fixed per class) → the class's
 `classes.json` `voice.bank` → a random bank. Units at **level 6 or 7** (captured
 bosses) always get a random voice regardless of the maps.
+
+### Voice by monster type (`by_mon_type`)
+
+A captive can sound different depending on which monster uses her cell. Add
+`by_mon_type` to a class's `voice` (classes.json) or to a `voice_map` entry:
+
+```json
+"voice": {
+  "bank": "soft",
+  "pitch": 1.0,
+  "by_mon_type": {
+    "hobgoblin": "rough",
+    "ogre": { "bank": "deep", "pitch": 0.9 }
+  }
+}
+```
+
+- Keys: `goblin`, `hobgoblin`, `tentacle`, `ogre`. A value is a bank name, or
+  `{bank, pitch}`. Bank names are prefixed with the declaring mod's id, like
+  `voice.bank` and `voice_map` banks.
+- Checked on every moan: the monster in the cell's first place decides (tentacle
+  cells count as `tentacle`). A type that is not listed, or a bank that is not
+  loaded, uses her usual voice. Without a `pitch`, she keeps her own pitch.
+- `voice_map` entries may hold only `by_mon_type` (no `bank`): the class keeps its
+  normal voice assignment and changes only for the listed types.
+- Applies to captured bosses too (their base voice is still random).
+- Moans and climaxes: the chosen bank's `orgasm` clips play when it has some
+  (else the shared pool). Oral cells keep the bj pools. Nothing is stored in saves.
 
 ### sfx pools
 
@@ -1906,6 +1968,39 @@ a `classes.json` override  - overriding a vanilla class just to set a voice is
 unnecessary here, and `voice_map` needs no class registration at all. `pitch` is
 optional (default random 0.9–1.15).
 
+### ambience (goblin voices)
+
+Goblins, hobgoblins and ogres can speak on their own (originally Goblin Ambience by @Sokarg). A `sounds.json` may add an
+`ambience` block:
+
+```json
+"ambience": {
+  "variants": ["balanced", "three_lane", "individual"],
+  "species": {
+    "goblin":    { "ambient": ["gob_idle_1.ogg"], "breeding": ["gob_breed_1.ogg"],
+                   "victory": ["gob_win_1.ogg"],  "defeat":   ["gob_lose_1.ogg"] },
+    "hobgoblin": { "ambient": ["hob_idle_1.ogg"] },
+    "ogre":      { "ambient": ["ogre_idle_1.ogg"], "victory": ["ogre_win_1.ogg"] }
+  }
+}
+```
+
+| Pool | When it plays |
+|------|---------------|
+| `ambient` | monsters on screen talk now and then |
+| `breeding` | mixed into the same chatter (about half the time when the pool has clips) |
+| `victory` / `defeat` | when a raid's result comes in; the species is picked by weight from the troops in the formation |
+
+- Species: `goblin`, `hobgoblin`, `ogre` (tentacles have no voices). Any pool can be
+  left out; clips are filenames inside `sounds/`, OGG Vorbis like every GNX sound.
+  Pools from several mods are merged.
+- The player picks the style in Settings → SOUND (with an ambience volume slider):
+  **Off**, **balanced** (each species on its own timer), **three_lane** (three shared
+  timers, any species) or **individual** (each monster on its own timer). `variants`
+  lists which styles your mod offers (default: all three).
+- Only monsters on screen speak. Nothing is stored in saves except the player's
+  style and volume.
+
 ### settings_defaults
 
 Initial slider values, applied the first time a sound mod loads (first mod
@@ -1921,7 +2016,8 @@ A mod class can pin its own voice inline instead of via `voice_map`:
 ```
 
 `bank` refers to a voice bank from any loaded `sounds.json` (prefixed with this
-mod's id). See [§3 Core fields](#core-fields).
+mod's id). See [§3 Core fields](#core-fields). Add `by_mon_type` to change her
+voice per monster type, see [Voice by monster type](#voice-by-monster-type-by_mon_type).
 
 ### cells.json sfx_type
 
@@ -2114,6 +2210,21 @@ draw time.
 5. All GNX draw calls use `gnx_draw_sprite_ext` which handles both SprRef
    kinds transparently
 
+### Matching rules
+
+- A `sprites` entry finds its atlas entry by file name without extension, ignoring
+  case: `strips/spr_h_Jezebel_x.png` matches the uv.json key `spr_h_jezebel_x`.
+- An entry with only `"folder"` (no `strip`, `path` or `frames` list) is looked up
+  by the folder name.
+- Origin: an `origin_from` or a non-zero `xorig`/`yorig` in the JSON wins over the
+  uv.json `xo`/`yo`, for that entry only (other entries using the same file keep
+  theirs). No origin in the JSON, or 0/0, uses uv.json.
+- An atlas page that fails to load is reported in `gnx_debug.txt`; sprites on it do
+  not draw, and sprites on the other pages are unaffected.
+- Atlas sprites work everywhere strips do, including birth sprites, `carry_base_spr`,
+  naked layers, class icons and the BIRTH infant prop (baked once into a normal
+  sprite where the game needs one).
+
 ### Notes
 
 - Ship `strips/` alongside `atlas/` so modders who fork your mod can re-pack
@@ -2176,7 +2287,7 @@ raid panel's world map, on every map; it lists every other map the player can re
 | `label` | no | The map's name in the travel menu and on the load page (e.g. "Outpost"). Default: the `map` identifier |
 | `map_sprite` | no | PNG in the mod's `sprites/` folder, drawn as the raid panel's world map while the player is on this map (133x91). Loaded via `sprite_add` at boot |
 | `return_label` | no | The village's name in the travel menu while on this map (default: "Return") |
-| `travel` | no | What the pre-travel selector offers for trips to or from this map: `"simple"` (default: gold, food, basic goblins), `"advanced"` (+ a TROOPS tab: goblins, hobgoblins and ogres by kind, chosen like a raid formation) or `"complex"` (+ a CAPTIVES tab: prisoners dragged into the destination's free prison slots; never more than it has). A trip between two maps uses the higher of their two settings |
+| `travel` | no | What the pre-travel selector offers for trips to or from this map: `"simple"` (default: gold, food, basic goblins), `"advanced"` (+ a TROOPS tab: goblins, hobgoblins, tentacles and ogres, one section per type, each kind's amount set with the game's number pad) or `"complex"` (+ a CAPTIVES tab: prisoners dragged into the destination's free prison slots; never more than it has). A trip between two maps uses the higher of their two settings |
 | `x`, `y` | no | Ignored since GNX 1.4.8 (they placed a per-map button on the world map; the travel menu replaced it) |
 | `unlock` | no | A condition, or an array of conditions (all must hold), in the quest condition format (`gold_gte`, `stage_cleared`, `state_equals`... see `docs/QUESTS_SCHEMA.md`). Until it holds the map is hidden, both from the world map and from the travel menu. The first time it holds, the map unlocks for good: it is saved, shared by every map, and announced with a short notice. `state_*` conditions read this mod's own state |
 

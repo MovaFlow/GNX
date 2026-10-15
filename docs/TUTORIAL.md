@@ -326,7 +326,8 @@ sprite folders it lists, add your art, then pack (§3).
   phase falls back silently.
 - `required_class`: restrict the cell to your custom class(es)  - e.g. `[14]`
   to make it Witch-only. Accepts integer IDs or `"mod_id.ClassName"` string
-  refs.
+  refs, from any mod. A custom class listed here also treats the cell as its
+  own: TRANSFER, birth and milking send it there first.
 - `mon_spr`: per-phase goblin sprite assignment (`start`/`loop`, each with
   `body`, `hand`, `pen`, `touch`, optional `head`/`enter`). Every `_alpha`
   (fill) sprite needs a matching `_line` sprite  - the linework overlay drawn
@@ -346,6 +347,10 @@ you'll instead get `[GNX] patched h=<N> by mod=...` and only the fields you
 specified are applied on top  - usually not what you want for a brand-new cell.
 Omit `h_type` entirely and let GNX hash-assign one.
 
+**Building it in game:** modded cells are not in the vanilla SMALL/BIG/TENT/XL
+lists. Click an empty spot between cells, choose NEW, then **CUSTOM**: it lists
+every unlocked modded cell and builds the slot and the cell together.
+
 ---
 
 ## 6. Test, debug, iterate
@@ -362,6 +367,12 @@ It's at `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt`  - cleared on every launch.
 [GNX] registered N cell(s)
 [GNX] loader done
 ```
+
+**Turning mods on and off:** the main menu's MODS button lists every installed
+mod with an ON/OFF toggle (APPLY reloads the game with your choice). Use it to
+test your mod alone, or against others, without moving folders around. Saves
+remember which mods they were made with, and the load page warns when one is
+missing.
 
 **Self-test section**  - runs automatically after loading:
 ```

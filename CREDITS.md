@@ -25,6 +25,7 @@ Go support the developer:
 - `gnx_mso_pick()` helper for MSO sprite resolution with vanilla fallback.
 - Off-screen culling rework for `obj_slot` Step event with `gnx_cull_sleep` flag.
 - Code refactoring: `s_food`, `s_general`, `s_draw_button`, `s_pop_up`, `s_raid_button` split from monolithic files.
+- GNX 1.4.8 (his 1.4.7.5 set): the CUSTOM build list for modded cells; staged mod loading (classes, then cells, then the rest, so references between mods no longer depend on folder names); modded classes going to their own cell through `required_class`; ogres with a line layer on modded cells; `shrine_loop_hand` for modded classes; atlas fixes (case-insensitive lookup, folder-only entries, JSON origin, missing pages, rotation, baking); and a TRANSFER carry crash fix.
 
 ### @nevereverever
 
@@ -43,3 +44,7 @@ Go support the developer:
 ### @Radeonix
 
 - Bug reports and fixes that improved GNX stability.
+
+### @Sokarg
+
+- Goblin Ambience: goblins, hobgoblins and ogres speaking on their own (ambient and breeding chatter from monsters on screen, victory and defeat clips at raid results) with the balanced, three-lane and individual styles. Now part of GNX's sound system (`sounds.json` `ambience`).
