@@ -6,6 +6,19 @@
 
 ### New Features
 
+- **Shared inventory across maps**: items (milk, blueprints and their torn pieces, bells, orbs) travel with the player on every trip and join the destination's inventory, so pieces found on different maps can complete a blueprint. Saves that already hold separate inventories per map merge them on the next trip.
+
+### Bug Fixes
+
+- The `give_item` and `give_blueprint` tool actions gave nothing: they never passed the item to the game.
+- Extra-large (XL) cell unlocks are synced between maps with the same check as the other categories, so a map mod's XL cell no longer reaches the village's build lists.
+
+## v1.4.8
+
+**Game version:** 1.40
+
+### New Features
+
 - **Game version 1.40**: GNX is rebased on Goblin Nest 1.40 and keeps the game's own fixes (tentacle cells' mood, the coin number on the shaman goblin). Mods made for 1.38 and 1.39 still load without manifest changes; new mods can declare `"1.40"`.
 - **Multi-map travel re-enabled**: `global.gnx_multimap_enabled` is on again. Mods declaring `map`, `map_button` and `map_start` in `manifest.json` get a travel button on the vanilla map.
 - **Travel menu**: a map button in the top-left corner of the raid panel's world map, on every map, opens a menu listing every other map, so you can travel from any map to any other (not just between the village and a map). Picking one opens the usual pre-travel selector. The per-map buttons on the world map are gone: the menu replaces them, and `map_button.x` / `y` are ignored.

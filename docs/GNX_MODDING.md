@@ -2315,7 +2315,8 @@ map image from `sprites/`.
 1. Player clicks the map button in the top-left corner of the raid panel's world map
    (on every map) and picks a destination from the travel menu, which lists every other
    map (village included), so any map can be reached from any other. This opens the
-   pre-travel selector (gold, food and goblins to take along)
+   pre-travel selector (gold and food to take along, plus troops and prisoners on
+   `advanced` / `complex` maps)
 2. The current map's full state is **snapshot** (val, slots, monsters, raid,
    quests, ds_lists) and stored in `global.gnx_inactive_maps`
 3. The game reinitializes via `scr_create_initials`
@@ -2360,6 +2361,11 @@ counter itself is shared, so arriving on a map continues the same timeline.
 
 ### Limitations (current)
 
-- Inventory does not travel between maps (gold, food and goblins do, via the
-  pre-travel selector)
-- Map-specific quests and encounter pools are not yet implemented
+- One map per mod. A map's nest uses the vanilla backgrounds and walls; only the
+  raid panel's world map can be replaced (`map_sprite`).
+- `map_start` seeds basic goblins only (no hobgoblins, ogres or prisoners) and
+  cannot unlock cells.
+- Travel is free and instant: no cost, no days pass.
+
+A map mod's quests, tools, sounds and raid encounters already belong to its map:
+they load only while the player is there.

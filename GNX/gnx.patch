@@ -3886,8 +3886,8 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 11:43:41.138514500 +0200
-@@ -1,224 +1,19637 @@
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-15 14:45:30.902468900 +0200
+@@ -1,224 +1,19720 @@
 -function scr_create_initials()
 -{
 -    randomize();
@@ -4063,6 +4063,54 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 -    
 -    if (room == rm_init)
 -        room_goto(rm_logo);
+-}
+-
+-enum UnknownEnum
+-{
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_6,
+-    Value_7,
+-    Value_8,
+-    Value_9,
+-    Value_10,
+-    Value_11,
+-    Value_12,
+-    Value_13,
+-    Value_14,
+-    Value_15,
+-    Value_16,
+-    Value_17,
+-    Value_18,
+-    Value_19,
+-    Value_20,
+-    Value_21,
+-    Value_22,
+-    Value_23,
+-    Value_24,
+-    Value_25,
+-    Value_26,
+-    Value_27,
+-    Value_28,
+-    Value_29,
+-    Value_30,
+-    Value_31,
+-    Value_32,
+-    Value_33,
+-    Value_34,
+-    Value_35,
+-    Value_36,
+-    Value_37,
+-    Value_38,
+-    Value_39,
+-    Value_40,
+-    Value_41,
+-    Value_42,
+-    Value_47 = 47
 -}
 +function scr_create_initials()
 +{
@@ -9281,6 +9329,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        global.gnx_carry_troops = -1;    // [{type, class, num}] monsters taken along
 +        global.gnx_carry_captives = -1;  // [{unit, from}] prisoners taken along
 +        global.gnx_carry_unlock = -1;
++        global.gnx_carry_inv = -1;  // the inventory, moved to the destination on arrival (shared by every map)
 +        global.gnx_loaded_mod_record = -1;  // the mod record of the save last loaded (s_save_load)
 +    }
 +
@@ -14351,6 +14400,13 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    gnx_log_write(_log, "[GNX-MAP] travel: " + global.gnx_active_map + " -> " + arg0 + "\n");
 +    gnx_log_close(_log);
 +    var _gnx_st0 = get_timer();
++    // the inventory is shared: it leaves with the player, so the map left keeps none (merged on arrival)
++    global.gnx_carry_inv = [];
++
++    for (var _ii = 0; _ii < ds_list_size(global.inv_list); _ii++)
++        array_push(global.gnx_carry_inv, ds_list_find_value(global.inv_list, _ii));
++
++    ds_list_clear(global.inv_list);
 +    var _snapshot = scr_gnx_snapshot_map();
 +    if (variable_global_exists("gnx_scn") && global.gnx_scn != -1)
 +        gnx_scn_log("TIME travel snapshot = " + string((get_timer() - _gnx_st0) / 1000) + " ms");
@@ -14375,6 +14431,57 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    return true;
 +}
 +
++// The inventory is shared by every map: the items carried from the map we left (an array) are added to this
++// map's. Milk stacks by grade, torn blueprint pieces go through the game's own combine (pieces found on two maps
++// complete a blueprint), other items stack by type like scr_add_item. Returns how many entries were merged.
++function gnx_merge_inventory(arg0)
++{
++    if (!is_array(arg0))
++        return 0;
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        var _it = arg0[_i];
++
++        if (!is_struct(_it) || !variable_struct_exists(_it, "item_type"))
++            continue;
++
++        if (_it.item_type == 4)
++        {
++            scr_add_item(_it);
++        }
++        else if (_it.item_type == 5)
++        {
++            scr_combine_print(_it);
++        }
++        else
++        {
++            var _found = false;
++
++            for (var _j = 0; _j < ds_list_size(global.inv_list); _j++)
++            {
++                var _have = ds_list_find_value(global.inv_list, _j);
++
++                if (_have.item_type == _it.item_type)
++                {
++                    _have.num += _it.num;
++                    _have.num_draw = _have.num;
++                    _found = true;
++                    break;
++                }
++            }
++
++            if (!_found)
++                ds_list_add(global.inv_list, _it);
++        }
++    }
++
++    with (obj_np.obj_raid)
++        extra_row_num = scr_set_inventory_row();
++
++    return array_length(arg0);
++}
++
 +// Unlocks are shared by all maps: merge the map we came from into the one we arrived on (obj_control step,
 +// once the destination is up). Cell lists: union, but only cells that exist on this map (a map mod's cell
 +// must not reach the village's build menu). Feature flags: OR. boss[] stays per map (story progress tied to
@@ -14383,7 +14490,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +{
 +    var _n = 0;
 +    var _keys = variable_struct_get_names(arg0);
-+    var _cells = ["breed", "utility", "pleasure", "b_breed", "b_utility", "b_other", "t_breed", "t_utility"];
++    var _cells = ["breed", "utility", "pleasure", "b_breed", "b_utility", "b_other", "t_breed", "t_utility", "xl_breed"];
 +    
 +    for (var _i = 0; _i < array_length(_keys); _i++)
 +    {
@@ -15570,7 +15677,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +{
 +    scr_text("Travel", 41, "Your mods add other maps. Open the raid window: the round map button in the top-left corner of the world map lists every map you can travel to.");
 +    scr_text("Travel", 41, "Each map is a nest of its own, with its own floors, goblins and prisoners. A map you leave waits for you, frozen, until you come back.");
-+    scr_text("Travel", 41, "Before leaving you choose the gold, food and goblins to take along. Unlocks are shared by all your maps.");
++    scr_text("Travel", 41, "Before leaving you choose what comes along: gold and food, and on some maps troops and prisoners. Unlocks are shared by all your maps.");
 +    scr_text("Travel", 41, "You can't travel while a raid is out. Some maps only appear once you meet their condition: you get a notice when one does.");
 +}
 +
@@ -16940,6 +17047,32 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            scr_gnx_scn_check("mso", _ms_ok, string(arg0.key) + " " + _ms_txt);
 +            break;
 +
++        case "inv":
++            // {"assert": "inv", "item_type": 4, "count": n, "total": n}: entries of that type in the inventory, and their summed num
++            var _iv_c = 0;
++            var _iv_t = 0;
++
++            for (var _iv = 0; _iv < ds_list_size(global.inv_list); _iv++)
++            {
++                var _ivi = ds_list_find_value(global.inv_list, _iv);
++
++                if (_ivi.item_type == arg0.item_type)
++                {
++                    _iv_c++;
++                    _iv_t += _ivi.num;
++                }
++            }
++
++            scr_gnx_scn_check("inv", (!variable_struct_exists(arg0, "count") || _iv_c == arg0.count) && (!variable_struct_exists(arg0, "total") || _iv_t == arg0.total), "type " + string(arg0.item_type) + ": " + string(_iv_c) + " entr(ies), total " + string(_iv_t) + " (inventory size " + string(ds_list_size(global.inv_list)) + ")");
++            break;
++
++        case "map_inv":
++            // {"assert": "map_inv", "map": "vanilla", "count": 0}: inventory size stored with a map the player is not on
++            var _mi_s = variable_struct_exists(global.gnx_inactive_maps, arg0.map) ? variable_struct_get(global.gnx_inactive_maps, arg0.map) : undefined;
++            var _mi_n = (is_struct(_mi_s) && variable_struct_exists(_mi_s, "global_list") && variable_struct_exists(_mi_s.global_list, "inv_list")) ? array_length(_mi_s.global_list.inv_list) : -1;
++            scr_gnx_scn_check("map_inv", _mi_n == arg0.count, arg0.map + " stores " + string(_mi_n) + " item(s), want " + string(arg0.count));
++            break;
++
 +        case "selector":
 +            // {"assert": "selector", "open": true, "gold": n, "food": n, "goblins": n}: the open selector's chosen amounts
 +            var _sw = -1;
@@ -17601,54 +17734,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +                var _want = (_mo.bank == "usual") ? _usual : _mo.bank;
 +                if (variable_struct_exists(_mo, "orgasm"))
 +                    scr_gnx_scn_check("orgasm_probe", _got_org == _mo.orgasm, "class " + string(gnx_scn_ref(_mo.class)) + " mon_type " + string(_mo.mon_type) + ": orgasm from '" + string(_got_org) + "' want '" + _mo.orgasm + "'");
- 
--enum UnknownEnum
--{
--    Value_0,
--    Value_1,
--    Value_2,
--    Value_3,
--    Value_4,
--    Value_5,
--    Value_6,
--    Value_7,
--    Value_8,
--    Value_9,
--    Value_10,
--    Value_11,
--    Value_12,
--    Value_13,
--    Value_14,
--    Value_15,
--    Value_16,
--    Value_17,
--    Value_18,
--    Value_19,
--    Value_20,
--    Value_21,
--    Value_22,
--    Value_23,
--    Value_24,
--    Value_25,
--    Value_26,
--    Value_27,
--    Value_28,
--    Value_29,
--    Value_30,
--    Value_31,
--    Value_32,
--    Value_33,
--    Value_34,
--    Value_35,
--    Value_36,
--    Value_37,
--    Value_38,
--    Value_39,
--    Value_40,
--    Value_41,
--    Value_42,
--    Value_47 = 47
--}
++
 +                scr_gnx_scn_check("moan_probe", _got == _want, "class " + string(gnx_scn_ref(_mo.class)) + " mon_type " + string(_mo.mon_type) + ": bank '" + string(_got) + "' want '" + string(_want) + "'");
 +            }
 +        }
@@ -21115,8 +21201,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            break;
 +        
 +        case "give_item":
-+            scr_set_item_data(arg0.item_type, arg0.data, arg0.level);
-+            scr_add_item();
++            scr_add_item(scr_set_item_data(arg0.item_type, arg0.data, arg0.level));  // GNX fix: the item was never passed
 +            break;
 +        
 +        case "give_blueprint":
@@ -21130,8 +21215,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            }
 +            var _frag = variable_struct_exists(arg0, "fragment") ? arg0.fragment : false;
 +            var _lvl = _frag ? (variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1) : 3;
-+            scr_set_item_data(5, _ht, _lvl);
-+            scr_add_item();
++            scr_add_item(scr_set_item_data(5, _ht, _lvl));  // GNX fix: the item was never passed
 +            break;
 +        
 +        case "give_prop":
@@ -48302,8 +48386,8 @@ diff -uN gml_138/gml_GlobalScript_Vector3.gml gml/gml_GlobalScript_Vector3.gml
 +}
 diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_Step_0.gml
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-14 09:41:12.025693800 +0200
-@@ -1 +1,128 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-15 14:44:43.644601900 +0200
+@@ -1 +1,130 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -48401,6 +48485,8 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 +{
 +    scr_gnx_merge_unlocks(global.gnx_carry_unlock);
 +    global.gnx_carry_unlock = -1;
++    gnx_merge_inventory(global.gnx_carry_inv);  // the inventory is shared too
++    global.gnx_carry_inv = -1;
 +}
 +
 +global.gnx_map_unlock_tick++;

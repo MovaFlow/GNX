@@ -1,0 +1,30 @@
+{
+  "about": "The inventory is shared by every map: items leave with the player on every trip and are added to the destination's on arrival, so the map left keeps none (no duplicates). Milk stacks by grade; torn blueprint pieces go through the game's combine, so pieces held on two maps (saves from before this change) complete a blueprint when they meet. Also covers the give_item / give_blueprint tool actions, which never passed their item before.",
+  "mods": ["tools/scenarios/mods/harness_map"],
+  "steps": [
+    {"wait": 30},
+    {"do": {"type": "add_milk", "rarity": 0, "amount": 3}},
+    {"do": {"type": "give_blueprint", "h_type": 2, "fragment": true, "lvl": 1}, "why": "a torn piece of a blueprint"},
+    {"assert": "inv", "item_type": 4, "count": 1, "total": 3},
+    {"assert": "inv", "item_type": 5, "count": 1, "why": "give_blueprint works (it lost its item before)"},
+    {"travel": "harness_map"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_map"},
+    {"assert": "inv", "item_type": 4, "count": 1, "total": 3, "why": "the milk came along"},
+    {"assert": "inv", "item_type": 5, "count": 1, "why": "the piece came along"},
+    {"assert": "map_inv", "map": "vanilla", "count": 0, "why": "the village keeps no copy"},
+    {"do": {"type": "add_milk", "rarity": 0, "amount": 2}},
+    {"travel": "vanilla"},
+    {"wait": 30},
+    {"assert": "inv", "item_type": 4, "count": 1, "total": 5, "why": "milk stacks across maps"},
+    {"assert": "map_inv", "map": "harness_map", "count": 0},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 30},
+    {"assert": "inv", "item_type": 4, "total": 5, "why": "survives a save and reload"},
+    {"do": {"type": "give_blueprint", "h_type": 2, "fragment": true, "lvl": 1}},
+    {"assert": "inv", "item_type": 5, "count": 2},
+    {"call": "gnx_merge_inventory", "args": [[{"item_type": 5, "num": 2, "lvl": 1, "index": 1}]], "why": "a third piece arriving from another map (as in a save from before this change)"},
+    {"assert": "inv", "item_type": 5, "count": 0, "why": "three pieces met: the blueprint is complete"}
+  ]
+}
