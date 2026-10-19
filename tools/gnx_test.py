@@ -26,7 +26,7 @@ Run times are kept in <game-dir>/durations.json to schedule the longest runs fir
 
 Scenarios (tools/scenarios/*.json) are played in-game by scr_gnx_scn_step. They use
 save slots 9 / 8 in the worker's own save folder; player saves are never read or written. A
-scenario with "fixture": "NAME" starts from harness_game/fixtures/NAME.json:
+scenario with "fixture": "NAME" starts from harness_game/fixtures/NAME.json (else the tracked tools/scenarios/fixtures/NAME.json):
     python tools/gnx_test.py --capture-fixture 2 nest   # copies save_file_2.json
 
 Exit codes: 0 all pass | 1 test failures | 2 patch failed | 3 preflight | 4 timeout/crash
@@ -51,6 +51,7 @@ DEFAULT_UTMT = REPO / "UTMT_CLI_v0.9.2.0-Windows" / "UndertaleModCli.exe"
 DEFAULT_MODS = [GNX_SRC / "example_mod"]
 SAVE_DIR = Path(os.environ.get("LOCALAPPDATA", "")) / "goblin_nest"  # the player's saves (and --keep-open runs)
 SCENARIOS = REPO / "tools" / "scenarios"
+TRACKED_FIXTURES = SCENARIOS / "fixtures"  # fixtures shipped with the repo (harness_game/fixtures wins)
 SAVE_SLOTS = {"a": "save_file_a.json", "1": "save_file_1.json", "2": "save_file_2.json", "3": "save_file_3.json"}
 EXE = "GoblinNest.exe"
 VANILLA = "data.vanilla.win"
@@ -643,6 +644,12 @@ def restore_player_saves(guard):
     return touched
 
 
+def fixture_path(box, name):
+    """harness_game/fixtures/NAME.json (local captures), else the repo's tools/scenarios/fixtures/NAME.json."""
+    local = box.out / "fixtures" / f"{name}.json"
+    return local if local.is_file() or not (TRACKED_FIXTURES / f"{name}.json").is_file() else TRACKED_FIXTURES / f"{name}.json"
+
+
 def capture_fixture(game_dir, slot, name, strip=False):
     """slot: a/1/2/3, or a file name in the save folder (e.g. a backup copy).
     The player's save is only read, never modified."""
@@ -686,7 +693,7 @@ def prepare_scenario(box, sc):
             (box.save_dir / "gnx_mods_off.json").write_text(json.dumps(sc["mods_off"]), encoding="utf-8")
         for slot, spec in sc.get("player_slots", {}).items():
             # {"player_slots": {"1": {"fixture": "modded", "on_map": "harness_map"}}}: what the load page lists
-            fsrc = box.out / "fixtures" / f"{spec['fixture']}.json"
+            fsrc = fixture_path(box, spec['fixture'])
             if not fsrc.is_file():
                 raise HarnessError(EXIT_PREFLIGHT, f"fixture '{spec['fixture']}' missing ({fsrc})")
             data = json.loads(fsrc.read_text(encoding="utf-8-sig"))
@@ -698,7 +705,7 @@ def prepare_scenario(box, sc):
         raise HarnessError(EXIT_PREFLIGHT, "player_slots needs a worker (not --keep-open): it writes save slots")
     fx = sc.get("fixture")
     if fx:
-        src = box.out / "fixtures" / f"{fx}.json"
+        src = fixture_path(box, fx)
         if not src.is_file():
             raise HarnessError(EXIT_PREFLIGHT, f"fixture '{fx}' missing ({src}); "
                                                f"create it with --capture-fixture <slot> {fx}")
