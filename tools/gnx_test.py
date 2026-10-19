@@ -746,8 +746,9 @@ def main(argv=None):
     ap.add_argument("--no-window", action="store_true", help="no progress window (the terminal line still shows)")
     ap.add_argument("--scenario", help="comma-separated scenario names from tools/scenarios/")
     ap.add_argument("--all", action="store_true", help="boot tests, then every scenario")
-    ap.add_argument("-j", "--jobs", type=int, default=max(1, min(4, (os.cpu_count() or 2) // 2)),
-                    help="games run at once, each in its own copy and save folder (default: half the CPUs, max 4)")
+    ap.add_argument("-j", "--jobs", type=int, default=max(1, min(8, os.cpu_count() or 2)),
+                    help="games run at once, each in its own copy and save folder (default: one per CPU thread, max 8; "
+                         "the games are CPU-bound, so more than the thread count only slows each one down)")
     ap.add_argument("--quick", action="store_true", help="skip scenarios marked \"slow\": true")
     ap.add_argument("--capture-fixture", nargs=2, metavar=("SLOT", "NAME"),
                     help="copy save slot (a/1/2/3) or a save-folder file name to "

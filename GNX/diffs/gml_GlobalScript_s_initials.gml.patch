@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 10:59:50.228016700 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 11:57:38.869611300 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -93,7 +93,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,19905 @@
+@@ -167,12 +184,19919 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -13481,6 +13481,10 @@
 +        _s.vm_queue = -1;
 +    }
 +
++    // nothing is looked at during a wait: skip the draw events (most of a busy nest's frame time) and turn them
++    // back on 2 frames before it ends, so screenshots and layout checks see a fresh frame
++    draw_enable_drawevent(_s.wait <= 2);
++
 +    if (_s.wait > 0)
 +    {
 +        _s.wait--;
@@ -13498,6 +13502,16 @@
 +            var _pf = file_text_open_write("gnx_scn_progress.txt");
 +            file_text_write_string(_pf, string(_s.idx) + "/" + string(array_length(_s.steps)));
 +            file_text_close(_pf);
++
++            // TIME lines: steps that took over 250 ms of real time (waits, travel and reload included)
++            var _tnow = get_timer();
++
++            if (variable_struct_exists(_s, "t_last") && (_tnow - _s.t_last) > 250000)
++                gnx_scn_log("TIME " + string(floor((_tnow - _s.t_last) / 1000)) + " ms step " + string(_s.t_idx) + " " + _s.t_label);
++
++            _s.t_last = _tnow;
++            _s.t_idx = _s.idx;
++            _s.t_label = string_copy(json_stringify(_st), 1, 70);
 +        }
 +
 +        if (variable_struct_exists(_st, "wait"))
@@ -20001,7 +20015,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +20093,166 @@
+@@ -183,42 +20107,166 @@
      Value_3,
      Value_4,
      Value_5,
