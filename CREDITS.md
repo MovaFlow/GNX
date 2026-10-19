@@ -26,6 +26,7 @@ Go support the developer:
 - Off-screen culling rework for `obj_slot` Step event with `gnx_cull_sleep` flag.
 - Code refactoring: `s_food`, `s_general`, `s_draw_button`, `s_pop_up`, `s_raid_button` split from monolithic files.
 - GNX 1.4.8 (his 1.4.7.5 set): the CUSTOM build list for modded cells; staged mod loading (classes, then cells, then the rest, so references between mods no longer depend on folder names); modded classes going to their own cell through `required_class`; ogres with a line layer on modded cells; `shrine_loop_hand` for modded classes; atlas fixes (case-insensitive lookup, folder-only entries, JSON origin, missing pages, rotation, baking); and a TRANSFER carry crash fix.
+- The GNX Modding Guide (`docs/GNX_MODDING.md`), rewritten from scratch for beginners and checked against the source, and the review of GNX 1.4.8 that found the issues fixed in 1.4.9.
 
 ### @nevereverever
 

@@ -145,7 +145,7 @@ Add `my_mod/cells.json`:
 This is the second entry in `example_mod/cells.json`. `h_type: 1` is a
 **vanilla** cell ID (0–42), so GNX treats this as a *patch*: only
 `physical.layers` is replaced, everything else about the cell (price, income,
-h-scene logic) stays vanilla. See [GNX_MODDING.md §10](GNX_MODDING.md#10-vanilla-patches).
+h-scene logic) stays vanilla. See [GNX_MODDING.md §12](GNX_MODDING.md#12-patching-vanilla-cells-and-classes).
 
 Relaunch and check `gnx_debug.txt`:
 ```
@@ -254,7 +254,7 @@ with in cells.
      entirely.
 3. **Declare every sprite your cells will need** in the `sprites` dict. The
    minimum set depends on which cell types your class will be placed in  -
-   see [GNX_MODDING.md Quick-Reference](GNX_MODDING.md#quick-reference-sprite-keys-by-cell-type):
+   see [GNX_MODDING.md §7.1](GNX_MODDING.md#71-which-map-is-used-in-which-cell):
    - Standard cells (slot_type 0): `hand`, `idle_*`, `loop_*` (head/breast/leg_1/leg_2/legp).
    - Large cells (slot_type 2): `big_start_*`, `big_idle_*`, `big_loop_*`.
    - Tent cells (slot_type 3): `tent_idle_*`, `tent_loop_*`, `tent_birth_*`.
@@ -265,7 +265,7 @@ with in cells.
    `clothing_tent`, using `"gnx:<key>"` references back into your `sprites`
    dict. Every `leg_1`/`leg_2` variant needs its own entry; use `-1` for
    slots you don't have (e.g. `hair: -1` if `has_hair: false`).
-5. Optional fields, all documented in GNX_MODDING.md §3 and §11: `fap_mul`,
+5. Optional fields, all documented in GNX_MODDING.md §6 and §14: `fap_mul`,
    `bap_mul`, `preg_c_override`, `preg_mon_type_override`, `raid_spawns`,
    `trade_stage`, `birth_class`.
 
@@ -277,7 +277,7 @@ Each sprite line should show `strip frames=N idx=ref sprite <N>` with frame
 counts matching what the cell-type table expects (e.g. 90 = 3 skins × 30
 frames for `idle_*`, 225 = 3 skins × 75 frames for `loop_*`). A frame-count
 mismatch won't error here, but will desync animations in-game  - double-check
-against [GNX_MODDING.md §4](GNX_MODDING.md#4-sprite-strips).
+against [GNX_MODDING.md §5](GNX_MODDING.md#5-sprites).
 
 You can test a new class immediately by giving it `raid_spawns` (so it
 appears in raid encounters)  - no custom cell required, since it can occupy
@@ -318,7 +318,7 @@ sprite folders it lists, add your art, then pack (§3).
 **Key fields** (full reference: first entry in `example_mod/cells.json`, "RITUAL"):
 
 - `physical.layers`: background/foreground sprite layers  - see
-  [GNX_MODDING.md §7](GNX_MODDING.md#7-cell-physical-block).
+  [GNX_MODDING.md §9](GNX_MODDING.md#9-the-physical-block-how-a-cell-behaves).
 - `physical.scr_idle` / `physical.scr_h`: state-machine script names.
   **These must already exist in the game's code**  - GNX cells reuse existing
   scripts (e.g. `scr_slot_h_base_*`), they don't let you inject new GML. If
@@ -422,34 +422,34 @@ quick confirmation the menu is dispatching your clicks.
 
 Once the basics above work, GNX_MODDING.md covers the rest:
 
-- [§8 Cell Sprite Blocks](GNX_MODDING.md#8-cell-sprite-blocks)  - three cell
+- [§10 Cell sprites](GNX_MODDING.md#10-cell-sprites-human_spr-and-mon_spr)  - three cell
   dispatch modes: `base+class` (default, class clothing system), `fixed`
   (cell-controlled sprites, all classes render the same), and `class_map`
   (per-class sprites with a default fallback, solves multi-mod sprite
   conflicts). Read this if you're building a cell that needs different sprites
   per class without the clothing strip system.
 
-- [§5 Clothing Maps](GNX_MODDING.md#5-clothing-maps)  - the full structure of
+- [§7 Clothing maps](GNX_MODDING.md#7-clothing-maps-how-a-class-looks-in-each-cell)  - the full structure of
   `clothing_standard`/`big`/`tent`, including how leg variants, shared sprites,
   and the `leg_any` fallback key work. Read this when your class's sprites
   aren't rendering or are rendering for the wrong leg types.
 
-- [§9 Raid Spawns](GNX_MODDING.md#9-raid-spawns)  - how to add your class to
+- [§13 Raid spawns and the trade shop](GNX_MODDING.md#13-raid-spawns-and-the-trade-shop)  - how to add your class to
   enemy encounter pools, control spawn rates per stage, and weight the trader
   pool. The fastest way to see your new class in-game without building a custom
   cell first.
 
-- [§11 Trade Shop & Birth Class Mapping](GNX_MODDING.md#11-trade-shop--birth-class-mapping)  -
+- [§13.5 trade_stage](GNX_MODDING.md#135-trade_stage) and [§14 Pregnancy and birth](GNX_MODDING.md#14-pregnancy-and-birth)  -
   `trade_stage` controls whether units of your class appear in the raid trader.
   `birth_class` controls how offspring of your class map to goblin troop
   types (0-3) per species. Both are optional but matter once your mod ships
   to users with existing saves.
 
-- [§13 Post-Raid Cage Escape](GNX_MODDING.md#13-post-raid-cage-escape)  -
+- [§15 Bosses: cage escape and tower](GNX_MODDING.md#15-bosses-cage-escape-and-tower)  -
   boss-style characters that escape from the cage after capture, with
   configurable escape chance, popups, and event chains.
 
-- [§14 Tower Boss Condition](GNX_MODDING.md#14-tower-boss-condition)  -
+- [§15.3 tower_boss_condition](GNX_MODDING.md#153-tower_boss_condition)  -
   add your modded class to the endgame tower boss pool. Pair with
   `post_raid.cage_escape` for the full boss experience: escape, recapture,
   then appear in the tower.
@@ -468,7 +468,7 @@ Once the basics above work, GNX_MODDING.md covers the rest:
   nest `by_mon_type` per monster species. See the RITUAL cell in
   `example_mod/cells.json`.
 
-- [§15 Special Class Features](GNX_MODDING.md#15-special-class-features)  -
+- [§16 Special classes](GNX_MODDING.md#16-special-classes-and-monster-sprite-overrides)  -
   `max_row`, `gb1_breast_d2`, and `mon_spr_overrides` for `is_special`
   classes (Nyx/Lilith-tier) that need custom sprite handling.
 
@@ -486,7 +486,7 @@ Once the basics above work, GNX_MODDING.md covers the rest:
 - **Sound system**  - add moan voice banks and h-scene SFX via `sounds.json`
   (declare `"sounds": "sounds.json"`). Clips must be **OGG Vorbis**. Adds a
   SOUND settings page; supports per-class voices (`voice` / `voice_map`) and
-  oral-cell SFX (`sfx_type`). See [§16](GNX_MODDING.md#16-sound-system--soundsjson).
+  oral-cell SFX (`sfx_type`). See [§18](GNX_MODDING.md#18-sounds-soundsjson).
 
 - **Multi-mod setups:** mods load in alphabetical folder-name order. A later
   mod can patch/override an earlier one's `h_type` or `class_id` (last-writer-
@@ -557,7 +557,7 @@ food, goblins), and travel. Things to know:
 - Unlocks are shared: a cell unlocked on one map is unlocked on all of them.
 - A save remembers which map you were on; the load page shows its name.
 
-Full reference: [GNX_MODDING.md §20](GNX_MODDING.md#20-multi-map-travel).
+Full reference: [GNX_MODDING.md §21](GNX_MODDING.md#21-multi-map-travel).
 
 ---
 
@@ -711,7 +711,7 @@ Two modes:
 Writes a standalone `cell_<slug>.json` (or `patch_h<N>.json`). Paste the
 resulting object into your mod's `cells.json` array. Advanced physical fields
 (DAIRY/DRINK/tent/shrine-style mechanics) are not covered  - add those by hand
-if needed; see [GNX_MODDING.md §7](GNX_MODDING.md#7-cell-physical-block).
+if needed; see [GNX_MODDING.md §9](GNX_MODDING.md#9-the-physical-block-how-a-cell-behaves).
 
 ---
 

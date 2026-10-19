@@ -3961,7 +3961,7 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 11:57:38.869611300 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 14:25:28.046343100 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -4055,7 +4055,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,19919 @@
+@@ -167,12 +184,19977 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -9529,6 +9529,41 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    }
 +}
 +
++// a mod's manifest "map": one map ID ("vanilla", "all", a map) or a list of them
++function gnx_map_decl_list(arg0)
++{
++    return is_array(arg0) ? arg0 : [arg0];
++}
++
++// does a mod declared for arg0 load on map arg1
++function gnx_map_decl_has(arg0, arg1)
++{
++    var _l = gnx_map_decl_list(arg0);
++
++    for (var _i = 0; _i < array_length(_l); _i++)
++    {
++        if (_l[_i] == arg1 || _l[_i] == "all")
++            return true;
++    }
++
++    return false;
++}
++
++// the mod maps (not "vanilla" / "all") a declaration names
++function gnx_map_decl_mod_maps(arg0)
++{
++    var _out = [];
++    var _l = gnx_map_decl_list(arg0);
++
++    for (var _i = 0; _i < array_length(_l); _i++)
++    {
++        if (is_string(_l[_i]) && _l[_i] != "vanilla" && _l[_i] != "all" && _l[_i] != "")
++            array_push(_out, _l[_i]);
++    }
++
++    return _out;
++}
++
 +function scr_gnx_sanitize_maps()
 +{
 +    var _valid_maps = {};
@@ -9537,10 +9572,10 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    
 +    for (var _i = 0; _i < array_length(_decl_keys); _i++)
 +    {
-+        var _map_val = variable_struct_get(global.gnx_mod_map_decl, _decl_keys[_i]);
-+        
-+        if (_map_val != "all")
-+            variable_struct_set(_valid_maps, _map_val, true);
++        var _map_val = gnx_map_decl_mod_maps(variable_struct_get(global.gnx_mod_map_decl, _decl_keys[_i]));
++
++        for (var _j = 0; _j < array_length(_map_val); _j++)
++            variable_struct_set(_valid_maps, _map_val[_j], true);
 +    }
 +    
 +    var _inactive_keys = variable_struct_get_names(global.gnx_inactive_maps);
@@ -9959,35 +9994,49 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            ds_map_add(global.gnx_mod_atlases, arg0, _atref);
 +    }
 +    
-+    var _mod_map = variable_struct_exists(_manifest, "map") ? _manifest.map : "vanilla";
++    var _mod_map = variable_struct_exists(_manifest, "map") ? _manifest.map : "vanilla";  // one map ID or a list of them
++
++    if (is_array(_mod_map) && array_length(_mod_map) == 0)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': 'map' is an empty list, so it would load on no map; it is treated as the village");
++        _mod_map = "vanilla";
++    }
 +    variable_struct_set(global.gnx_mod_map_decl, arg0, _mod_map);
-+    
++    var _own_maps = gnx_map_decl_mod_maps(_mod_map);
++    var _own_map = (array_length(_own_maps) == 1) ? _own_maps[0] : "";  // the map map_info/map_start describe
++
 +    if (global.gnx_multimap_enabled)
 +    {
 +        // The first mod (load order) to declare a button or map_start for a map owns it. A later one is
 +        // treated as content for that map only: its button/map_start are ignored and reported.
 +        var _not_owner = false;
-+        
-+        if ((variable_struct_exists(_manifest, "map_button") || variable_struct_exists(_manifest, "map_start")) && _mod_map != "vanilla" && _mod_map != "all")
++        var _declares = variable_struct_exists(_manifest, "map_button") || variable_struct_exists(_manifest, "map_start");
++
++        if (_declares && array_length(_own_maps) > 1)  // a list may name several mod maps, but then it owns none
 +        {
-+            if (!variable_struct_exists(global.gnx_map_owner, _mod_map))
++            _not_owner = true;
++            gnx_report_mod_error("Mod '" + arg0 + "' lists " + string(array_length(_own_maps)) + " mod maps in 'map': map_info and map_start need exactly one, so they are ignored");
++        }
++        else if (_declares && _own_map != "")
++        {
++            if (!variable_struct_exists(global.gnx_map_owner, _own_map))
 +            {
-+                variable_struct_set(global.gnx_map_owner, _mod_map, arg0);
++                variable_struct_set(global.gnx_map_owner, _own_map, arg0);
 +            }
-+            else if (variable_struct_get(global.gnx_map_owner, _mod_map) != arg0)
++            else if (variable_struct_get(global.gnx_map_owner, _own_map) != arg0)
 +            {
 +                _not_owner = true;
-+                gnx_report_mod_error("Mod '" + arg0 + "' also declares map '" + _mod_map + "' (already owned by '" + variable_struct_get(global.gnx_map_owner, _mod_map) + "'); its map_info and map_start are ignored");
++                gnx_report_mod_error("Mod '" + arg0 + "' also declares map '" + _own_map + "' (already owned by '" + variable_struct_get(global.gnx_map_owner, _own_map) + "'); its map_info and map_start are ignored");
 +            }
 +        }
-+        
-+        if (variable_struct_exists(_manifest, "map_button") && _mod_map != "vanilla" && _mod_map != "all" && !_not_owner)
++
++        if (variable_struct_exists(_manifest, "map_button") && _own_map != "" && !_not_owner)
 +        {
 +            var _mb = _manifest.map_button;
 +            var _tl = {};
-+            _tl.target = _mod_map;
++            _tl.target = _own_map;
 +            _tl.show_on = "vanilla";
-+            _tl.label = variable_struct_exists(_mb, "label") ? _mb.label : _mod_map;
++            _tl.label = variable_struct_exists(_mb, "label") ? _mb.label : _own_map;
 +            _tl.x = variable_struct_exists(_mb, "x") ? _mb.x : 210;
 +            _tl.y = variable_struct_exists(_mb, "y") ? _mb.y : 70;
 +            _tl.mod_name = arg0;
@@ -10044,13 +10093,13 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            gnx_log_close(_log);
 +        }
 +        
-+        if (variable_struct_exists(_manifest, "map_start") && _mod_map != "vanilla" && _mod_map != "all" && !_not_owner)
-+            variable_struct_set(global.gnx_map_start_decl, _mod_map, _manifest.map_start);
-+        
-+        if (_mod_map != "all" && _mod_map != global.gnx_active_map)
++        if (variable_struct_exists(_manifest, "map_start") && _own_map != "" && !_not_owner)
++            variable_struct_set(global.gnx_map_start_decl, _own_map, _manifest.map_start);
++
++        if (!gnx_map_decl_has(_mod_map, global.gnx_active_map))
 +        {
 +            _log = gnx_log_open();
-+            gnx_log_write(_log, "[GNX] mod '" + arg0 + "' deferred (map='" + _mod_map + "', active='" + global.gnx_active_map + "')\n");
++            gnx_log_write(_log, "[GNX] mod '" + arg0 + "' deferred (map=" + string(_mod_map) + ", active='" + global.gnx_active_map + "')\n");
 +            gnx_log_close(_log);
 +            
 +            if (is_array(global.gnx_loaded_mods))
@@ -15746,7 +15795,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        var _mod_name = global.gnx_map_deferred_mods[_i];
 +        var _mod_map = variable_struct_get(global.gnx_mod_map_decl, _mod_name);
 +        
-+        if (_mod_map == global.gnx_active_map || _mod_map == "all")
++        if (gnx_map_decl_has(_mod_map, global.gnx_active_map))
 +        {
 +            array_push(_gnx_dlist, _mod_name);
 +            _loaded++;
@@ -19887,10 +19936,10 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        
 +        for (var _di56 = 0; _di56 < array_length(_dk56); _di56++)
 +        {
-+            var _mv56 = variable_struct_get(global.gnx_mod_map_decl, _dk56[_di56]);
-+            
-+            if (_mv56 != "all")
-+                variable_struct_set(_valid56, _mv56, true);
++            var _mv56 = gnx_map_decl_mod_maps(variable_struct_get(global.gnx_mod_map_decl, _dk56[_di56]));
++
++            for (var _dj56 = 0; _dj56 < array_length(_mv56); _dj56++)
++                variable_struct_set(_valid56, _mv56[_dj56], true);
 +        }
 +        
 +        var _bad56 = "";
@@ -20161,7 +20210,16 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +            {
 +                var _dv62 = variable_struct_get(global.gnx_mod_map_decl, _dm62);
 +                
-+                if (!is_string(_dv62) || _dv62 == "")
++                var _dl62 = gnx_map_decl_list(_dv62);
++                var _ok62 = array_length(_dl62) > 0;
++
++                for (var _dj62 = 0; _dj62 < array_length(_dl62); _dj62++)
++                {
++                    if (!is_string(_dl62[_dj62]) || _dl62[_dj62] == "")
++                        _ok62 = false;
++                }
++
++                if (!_ok62)
 +                    _bad62 += (_dm62 + "(bad_map=" + string(_dv62) + ") ");
 +            }
 +        }
@@ -23977,7 +24035,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +20107,166 @@
+@@ -183,42 +20165,166 @@
      Value_3,
      Value_4,
      Value_5,

@@ -89,16 +89,20 @@ def check_map(manifest, mod_dir):
         manifest = dict(manifest, map_button=manifest.get("map_info", manifest.get("map_button")))
     has_btn, has_start = "map_button" in manifest, "map_start" in manifest
     mp = manifest.get("map")
-    if not (has_btn or has_start or mp):
+    if not (has_btn or has_start or "map" in manifest):
         return out
-    if (has_btn or has_start) and not mp:
+    if (has_btn or has_start) and "map" not in manifest:
         return [("ERROR", "map_info / map_start need a \"map\" id; without it the mod is not a map mod")]
-    if not isinstance(mp, str) or not mp:
-        return [("ERROR", f"map must be a non-empty string, got {mp!r}")]
-    if mp in ("vanilla", "all") and (has_btn or has_start):
-        out.append(("ERROR", f"map '{mp}' is reserved: map_info / map_start are ignored for it"))
-    if mp not in ("vanilla", "all") and not has_btn:
-        out.append(("WARN", f"map '{mp}' has no map_info: players can only reach it if another mod adds one"))
+    maps = mp if isinstance(mp, list) else [mp]  # one map id, or a list (the mod loads on each)
+    if not maps or any(not isinstance(m, str) or not m for m in maps):
+        return [("ERROR", f"map must be a non-empty string or a list of them, got {mp!r}")]
+    own = [m for m in maps if m not in ("vanilla", "all")]
+    if (has_btn or has_start) and not own:
+        out.append(("ERROR", f"map {mp!r} names no mod map: map_info / map_start are ignored for it"))
+    if (has_btn or has_start) and len(own) > 1:
+        out.append(("ERROR", f"map lists {len(own)} mod maps: map_info / map_start need exactly one, so they are ignored"))
+    if len(own) == 1 and not has_btn and not isinstance(mp, list):
+        out.append(("WARN", f"map '{own[0]}' has no map_info: players can only reach it if another mod adds one"))
     mb = manifest.get("map_button", {})
     if has_btn:
         if not isinstance(mb, dict):
@@ -241,7 +245,7 @@ def main():
         for level, msg in probs:
             print(f"{level}: {msg}")
         if not probs:
-            print(f"OK - map '{manifest['map']}'")
+            print(f"OK - map {manifest['map']!r}")
         print()
 
     # 3. Deploy

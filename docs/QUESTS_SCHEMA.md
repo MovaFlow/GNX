@@ -47,7 +47,7 @@ Map of popup key → text string. Creates vanilla-style toast notifications.
 ```
 
 Referenced by `post_raid.cage_escape.popup` (see
-[GNX_MODDING.md §13](GNX_MODDING.md#13-post-raid-cage-escape)) and by
+[GNX_MODDING.md §15](GNX_MODDING.md#15-bosses-cage-escape-and-tower)) and by
 the `popup` side effect type.
 
 ### events

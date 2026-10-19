@@ -13,6 +13,12 @@ for mod in ("tools/scenarios/mods/harness_map", "tools/scenarios/mods/harness_ma
 here = ROOT / "tools/scenarios/mods/harness_map"
 errs = lambda m: [msg for lvl, msg in check_map(m, here) if lvl == "ERROR"]
 assert check_map({"name": "plain content mod"}, here) == []
+# "map" as a list: content for each listed map; map_info needs exactly one mod map in it
+assert check_map({"map": ["vanilla", "harness_map"]}, here) == []
+assert not errs({"map": ["vanilla", "harness_map"], "map_info": {"label": "X"}})
+assert errs({"map": ["harness_map", "harness_map_b"], "map_info": {"label": "X"}})
+assert errs({"map": ["vanilla", "all"], "map_start": {}})
+assert errs({"map": []}) and errs({"map": ["vanilla", 3]})
 assert errs({"map": "m", "map_button": {"travel": "huge"}}) and not errs({"map": "m", "map_button": {"travel": "complex"}})
 assert errs({"map_button": {}}) and "need a" in errs({"map_button": {}})[0]
 assert errs({"map": "vanilla", "map_start": {}})
