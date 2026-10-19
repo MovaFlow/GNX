@@ -23,6 +23,7 @@
 - Removed `scr_gnx_claim_quest_reward`, never called: wiring it up would have fired a quest's next event twice (completion already fires it).
 - The `give_item` and `give_blueprint` tool actions gave nothing: they never passed the item to the game.
 - Extra-large (XL) cell unlocks are synced between maps with the same check as the other categories, so a map mod's XL cell no longer reaches the village's build lists.
+- **Modded cells missing from the build menu** (reported by players after 1.4.8): cells whose `h_type` is hash-assigned (no `h_type` in `cells.json`, the usual case) were left out of the NEW > CUSTOM list, so only cells with a fixed `h_type` could be built. Hash-assigned class, cell and prop IDs were stored as 64-bit integers, which the CUSTOM list's check rejected; they are plain numbers again.
 - Fixes from Mav's review of 1.4.8:
   - Overriding another mod's class now replaces its `carry_head` / `carry_hair` sprites; the old ones used to stay.
   - `physical.mon_positions` in a patch of a vanilla cell now moves its monsters. It was stored where nothing read it.

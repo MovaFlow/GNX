@@ -1,0 +1,76 @@
+{
+  "about": "A modded cell whose h_type is hash-assigned (no h_type in cells.json) appears in the pillar's NEW > CUSTOM list and can be built from it. Regression: hash IDs were int64 values, gnx_is_mod_cell's is_real() check rejected them, and every hash-ID modded cell was missing from CUSTOM (only cells with a fixed h_type were listed).",
+  "mods": [
+    "tools/scenarios/mods/harness_cells_hashed"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_is_mod_cell",
+      "args": [
+        9926
+      ],
+      "is": true,
+      "why": "control: the hash ID the loader gives it"
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9926,
+      "is": false
+    },
+    {
+      "open_build_menu": -1
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 0,
+        "num": 0
+      },
+      "why": "NEW"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 1,
+        "num": 5
+      },
+      "why": "CUSTOM"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "button_var",
+      "type": 95,
+      "num": 9926,
+      "field": "button_num",
+      "is": 9926,
+      "why": "the hash-ID cell is listed"
+    },
+    {
+      "screenshot": "custom_list"
+    },
+    {
+      "press": {
+        "type": 95,
+        "num": 9926
+      }
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9926,
+      "count": 1
+    }
+  ]
+}
