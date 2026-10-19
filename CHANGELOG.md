@@ -8,7 +8,7 @@
 
 - **Shared inventory across maps**: items (milk, blueprints and their torn pieces, bells, orbs) travel with the player on every trip and join the destination's inventory, so pieces found on different maps can complete a blueprint. Saves that already hold separate inventories per map merge them on the next trip.
 - **Modded cells in existing slots**: an empty slot's menu ends with CUSTOM when a modded cell fits its size, so a modded cell can go into a slot already built (the NEW menu's CUSTOM still builds slot and cell together).
-- **Travel cost and time** (`map_info.travel_cost`): a map can make trips to or from it cost gold and food and take days. The selector shows the cost; a trip that cannot be paid is refused.
+- **Travel cost and time** (`map_info.travel_cost`): a map can make trips to or from it cost gold and food and take days. The selector shows the cost; a trip that cannot be paid is refused, and the selector's warning line says why.
 - **`map_info`**: the manifest key `map_button` is renamed `map_info`, since it now holds the map's settings (name, picture, travel tier, unlock) rather than a button. `map_button` still works; a mod declaring both gets `map_info` and a warning.
 - **Richer `map_start`**: `troops` (hobgoblins, tentacles, ogres and any goblin kind), `prisoners` (captives by class and level) and `unlock_cells`; `cells` and `unlock_cells` accept cell names (`"my_mod.MY CELL"`) as well as numbers. `build_mod.py` checks the new fields.
 
@@ -17,6 +17,14 @@
 - Removed `scr_gnx_claim_quest_reward`, never called: wiring it up would have fired a quest's next event twice (completion already fires it).
 - The `give_item` and `give_blueprint` tool actions gave nothing: they never passed the item to the game.
 - Extra-large (XL) cell unlocks are synced between maps with the same check as the other categories, so a map mod's XL cell no longer reaches the village's build lists.
+- Fixes from Mav's review of 1.4.8:
+  - Overriding another mod's class now replaces its `carry_head` / `carry_hair` sprites; the old ones used to stay.
+  - `physical.mon_positions` in a patch of a vanilla cell now moves its monsters. It was stored where nothing read it.
+  - Two sprite entries using the same PNG with different `frames` or origins are now two sprites; both used to get the settings of the first one loaded.
+  - The `unlock_all_cells` tool action now unlocks XL cells too.
+  - Fixed a rare crash (`.skin not set`) when a hobgoblin carries a captive whose data is incomplete.
+  - Fixed an error when an infant in BIRTH 2 or in a tentacle birth cell is restored from a save without its mother (BIRTH 1 already handled it).
+  - The quest log and inventory scroll bars no longer break with many quests (22 or more) or item types (about 75 or more): the bar keeps a minimum size and still scrolls to the last row.
 
 ## v1.4.8
 

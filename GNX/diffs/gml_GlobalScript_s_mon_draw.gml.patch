@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_mon_draw.gml	2026-09-02 08:45:16.397589900 +0200
-+++ gml/gml_GlobalScript_s_mon_draw.gml	2026-10-15 15:01:18.916236000 +0200
++++ gml/gml_GlobalScript_s_mon_draw.gml	2026-10-19 10:48:58.461761300 +0200
 @@ -1,13 +1,37 @@
  function scr_draw_mon_slot(arg0)
  {
@@ -36,7 +36,7 @@
 -        if (_spr_data.h_type == UnknownEnum.Value_18 || _spr_data.h_type == UnknownEnum.Value_19 || _spr_data.h_type == UnknownEnum.Value_38)
 +        if (_spr_data.h_type == 18 || _spr_data.h_type == 19 || _spr_data.h_type == 38)
 +            _row_type = mon_data.placement_num;
-+        else if (ds_map_exists(global.cell_registry, _spr_data.h_type) && variable_struct_exists(ds_map_find_value(global.cell_registry, _spr_data.h_type), "gnx_mon_positions"))
++        else if (_spr_data.h_type >= 100 && ds_map_exists(global.cell_registry, _spr_data.h_type) && variable_struct_exists(ds_map_find_value(global.cell_registry, _spr_data.h_type), "gnx_mon_positions"))
              _row_type = mon_data.placement_num;
          else
              _row_type = _spr_data.h_type - _spr_data.spr_row_pos - 1;
@@ -224,7 +224,7 @@
          var _unit_data = mon_data.slot_id.unit_data;
 +        // Mav (1.4.7.5): the TRANSFER cell lost its unit during the carry: without this, ".skin not set" crash
 +        // (-1 = no unit)
-+        if (!is_struct(_unit_data))
++        if (!is_struct(_unit_data) || !variable_struct_exists(_unit_data, "skin") || !variable_struct_exists(_unit_data, "hair"))  // GNX: a half-built unit too
 +            exit;
          var _final_index = max(0, _unit_data.skin) * 2;
          var _hair_index = max(0, _unit_data.hair) * 2;

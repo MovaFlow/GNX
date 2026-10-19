@@ -1,0 +1,117 @@
+{
+  "about": "Regressions for the 1.4.8 review: an override of another mod's class replaces its carry_head; one PNG used by two sprite entries with different frame counts or origins gives two sprites; unlock_all_cells unlocks XL cells; physical.mon_positions in a patch of a vanilla cell shifts its monsters; a hobgoblin carrying a half-built unit (no skin/hair) does not crash; a BIRTH 2 or BIND infant without its mother does not crash; the quest log and inventory scroll bars stay usable with many quests and reach the last row. Rich 'modded' save, test mods harness_fix_a (class 9020, XL cell 9011, standard cells 1-15 patched) and harness_fix_z (overrides class 9020).",
+  "fixture": "modded",
+  "timeout": 120,
+  "mods": [
+    "tools/scenarios/mods/harness_fix_a",
+    "tools/scenarios/mods/harness_fix_z"
+  ],
+  "check_boot_suite": false,
+  "why_no_boot_suite": "FIX CLASS has no clothing maps, so the boot suite's class checks fail by design",
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "class_spr",
+      "class": 9020,
+      "field": "carry_head_spr",
+      "width": 20,
+      "frames": 24,
+      "why": "harness_fix_z's carry_head (20 px frames), not harness_fix_a's (10 px)"
+    },
+    {
+      "assert": "class_spr",
+      "class": 9020,
+      "field": "icon_spr",
+      "width": 10,
+      "frames": 3,
+      "why": "icon.png as 3 frames"
+    },
+    {
+      "assert": "class_spr",
+      "class": 9020,
+      "field": "icon_hair_spr",
+      "width": 30,
+      "frames": 1,
+      "why": "the same icon.png as 1 frame"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_unlocked",
+      "args": [
+        9011
+      ],
+      "is": false,
+      "why": "control: the XL cell starts locked"
+    },
+    {
+      "do": {
+        "type": "unlock_all_cells"
+      }
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_unlocked",
+      "args": [
+        9011
+      ],
+      "is": true
+    },
+    {
+      "mon_pos_probe": {
+        "h_type": -1
+      },
+      "why": "any occupied patched standard cell"
+    },
+    {
+      "transfer_probe": "half"
+    },
+    {
+      "birth_probe": {
+        "h_type": 12
+      },
+      "why": "BIRTH 2"
+    },
+    {
+      "birth_probe": {
+        "h_type": 27
+      },
+      "why": "BIND 1"
+    },
+    {
+      "birth_probe": {
+        "h_type": 5
+      },
+      "why": "BIRTH 1 (vanilla already checked)"
+    },
+    {
+      "quest_slider_probe": 25
+    },
+    {
+      "quest_slider_probe": 4,
+      "why": "few quests: vanilla behaviour unchanged"
+    },
+    {
+      "open_raid": true,
+      "why": "the inventory lives on the raid window (deactivated while closed)"
+    },
+    {
+      "wait": 5
+    },
+    {
+      "inv_slider_probe": 120,
+      "why": "18 rows of items: the bar stays usable"
+    },
+    {
+      "inv_slider_probe": 30,
+      "why": "few items: vanilla behaviour unchanged"
+    },
+    {
+      "open_raid": false
+    },
+    {
+      "wait": 5
+    }
+  ]
+}
