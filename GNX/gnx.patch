@@ -3961,7 +3961,7 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 14:25:28.046343100 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 14:58:14.891719200 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -4055,7 +4055,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,19977 @@
+@@ -167,12 +184,20058 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -11719,6 +11719,15 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        case "floor_gte":
 +            return global.val.floor >= arg0.value;
 +        
++        case "on_map":  // {"type": "on_map", "map": "outpost"}: the player is on that map ("vanilla" = the village)
++            return global.gnx_active_map == arg0.map;
++
++        case "map_visited":  // {"type": "map_visited", "map": "outpost"}: the player has been there (or is there now)
++            return gnx_map_visited(arg0.map);
++
++        case "map_unlocked":  // {"type": "map_unlocked", "map": "outpost"}: the map can be travelled to
++            return gnx_map_is_unlocked(arg0.map);
++
 +        case "cell_count":
 +            _h = arg0.h_type;
 +            _need = variable_struct_exists(arg0, "value") ? arg0.value : 1;
@@ -12012,6 +12021,10 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        {
 +            case "set_state":
 +                scr_gnx_set_state(arg1, _se.key, _se.value);
++                break;
++            
++            case "unlock_map":  // {"type": "unlock_map", "map": "outpost"}: opens that map in the travel menu for good
++                gnx_unlock_map(_se.map);
 +                break;
 +            
 +            case "add_gold":
@@ -15496,6 +15509,74 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    draw_text(240, 70, ((phase == 2) ? "Arrived at " : "Travelling to ") + label + ((phase == 2) ? "" : "..."));
 +    draw_set_halign(fa_left);
 +    draw_set_alpha(1);
++}
++
++// has the player been on map arg0 (it is the current map, or a snapshot of it is kept)
++function gnx_map_visited(arg0)
++{
++    if (global.gnx_active_map == arg0)
++        return true;
++
++    return is_struct(global.gnx_inactive_maps) && variable_struct_exists(global.gnx_inactive_maps, arg0) && is_struct(variable_struct_get(global.gnx_inactive_maps, arg0));
++}
++
++// can map arg0 be travelled to: the village always; a mod map when it has a travel entry whose unlock
++// condition held once (or that has none). Reads only, never announces (see scr_gnx_map_unlocked).
++function gnx_map_is_unlocked(arg0)
++{
++    if (arg0 == "vanilla")
++        return true;
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++
++        if (_tl.target != arg0)
++            continue;
++
++        if (!variable_struct_exists(_tl, "unlock") || (!is_struct(_tl.unlock) && !is_array(_tl.unlock)))
++            return true;
++
++        return variable_struct_exists(global.unlock, "gnx_maps") && array_contains(global.unlock.gnx_maps, arg0);
++    }
++
++    return false;
++}
++
++// quest side effect unlock_map: unlocks map arg0 for good, like its map_info.unlock condition would (saved,
++// shared by every map, announced once). Unknown maps are logged and ignored.
++function gnx_unlock_map(arg0)
++{
++    var _tl = -1;
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        if (global.gnx_travel_locations[_i].target == arg0)
++            _tl = global.gnx_travel_locations[_i];
++    }
++
++    var _l = gnx_log_open();
++
++    if (!is_struct(_tl))
++    {
++        gnx_log_write(_l, "[GNX-WARN] unlock_map: no travel entry for map '" + string(arg0) + "' (map_info missing, or its mod is off)" + chr(10));
++        gnx_log_close(_l);
++        return;
++    }
++
++    gnx_log_close(_l);
++
++    if (!variable_struct_exists(global.unlock, "gnx_maps"))
++        global.unlock.gnx_maps = [];
++
++    if (array_contains(global.unlock.gnx_maps, arg0))
++        return;
++
++    array_push(global.unlock.gnx_maps, arg0);
++    _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-MAP] map unlocked by a quest: " + arg0 + chr(10));
++    gnx_log_close(_l);
++    scr_gnx_pop_up_create("New map: " + _tl.label + " (travel from the world map)");
 +}
 +
 +// A map with a map_button "unlock" condition stays hidden (travel menu, world map) until the condition holds
@@ -24035,7 +24116,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +20165,166 @@
+@@ -183,42 +20246,166 @@
      Value_3,
      Value_4,
      Value_5,
@@ -24262,7 +24343,7 @@ diff -uN gml_138/gml_GlobalScript_s_macro.gml gml/gml_GlobalScript_s_macro.gml
 +#macro GNX_LOG "gnx_debug.txt"
 diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_main_room_step.gml
 --- gml_138/gml_GlobalScript_s_main_room_step.gml	2026-09-02 08:45:16.123548000 +0200
-+++ gml/gml_GlobalScript_s_main_room_step.gml	2026-10-14 08:44:44.201826000 +0200
++++ gml/gml_GlobalScript_s_main_room_step.gml	2026-10-19 14:53:33.420234700 +0200
 @@ -41,6 +41,23 @@
                  var _bgm = global.val.bgm_vol;
                  var _load = scr_load_slot();
@@ -28942,7 +29023,7 @@ diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mous
                                      }
 diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_patch_updates.gml
 --- gml_138/gml_GlobalScript_s_patch_updates.gml	2026-09-02 08:45:16.165546100 +0200
-+++ gml/gml_GlobalScript_s_patch_updates.gml	2026-10-15 10:26:14.562713700 +0200
++++ gml/gml_GlobalScript_s_patch_updates.gml	2026-10-19 14:55:09.528675300 +0200
 @@ -2,7 +2,7 @@
  {
      var _var = arg0.global_list.val.version;
@@ -29820,7 +29901,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_button.gml gml/gml_GlobalScript_s_raid_
  function scr_reset_mon_cat_head(arg0, arg1, arg2)
 diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_raid_cal_stat.gml
 --- gml_138/gml_GlobalScript_s_raid_cal_stat.gml	2026-09-02 08:45:16.522590500 +0200
-+++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-09-24 15:31:46.000000000 +0200
++++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-19 14:55:34.638527400 +0200
 @@ -282,8 +282,9 @@
              {
                  var _a = irandom_range(0, _list_num - 1);
@@ -31523,7 +31604,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
 -}
 diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_load.gml
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-15 10:43:25.240472800 +0200
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-19 14:59:37.582862900 +0200
 @@ -1,735 +1,1444 @@
 -function scr_save_game(arg0)
 -{
@@ -32638,7 +32719,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +
 +                for (var _di = 0; _di < array_length(_decl); _di++)
 +                {
-+                    if (variable_struct_get(global.gnx_mod_map_decl, _decl[_di]) == global.gnx_active_map)
++                    if (array_contains(gnx_map_decl_mod_maps(variable_struct_get(global.gnx_mod_map_decl, _decl[_di])), global.gnx_active_map))  // "map" may be a list
 +                        _declared = true;
 +                }
 +
@@ -34352,7 +34433,7 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
      Value_0,
 diff -uN gml_138/gml_GlobalScript_s_slot_button.gml gml/gml_GlobalScript_s_slot_button.gml
 --- gml_138/gml_GlobalScript_s_slot_button.gml	2026-09-02 08:45:16.386592300 +0200
-+++ gml/gml_GlobalScript_s_slot_button.gml	2026-10-15 15:22:14.534512400 +0200
++++ gml/gml_GlobalScript_s_slot_button.gml	2026-10-19 14:49:01.197589100 +0200
 @@ -1,161 +1,288 @@
 -function scr_create_slot_button()
 -{
@@ -48996,8 +49077,8 @@ diff -uN gml_138/gml_GlobalScript_Vector3.gml gml/gml_GlobalScript_Vector3.gml
 +}
 diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_Step_0.gml
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-15 14:44:43.644601900 +0200
-@@ -1 +1,130 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-19 14:56:40.930502600 +0200
+@@ -1 +1,131 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -49097,6 +49178,7 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 +    global.gnx_carry_unlock = -1;
 +    gnx_merge_inventory(global.gnx_carry_inv);  // the inventory is shared too
 +    global.gnx_carry_inv = -1;
++    scr_gnx_check_triggers("map_arrive");  // quest triggers on arrival (conditions: on_map, map_visited...)
 +}
 +
 +global.gnx_map_unlock_tick++;

@@ -728,7 +728,9 @@ def plan_jobs(runs, scns):
     producer = {scns[n]["save_fixture_as"]: n for n in runs if n and scns[n].get("save_fixture_as")}
     job_of, jobs = {}, []
     for n in runs:
-        dep = producer.get(scns[n].get("fixture")) if n else None
+        # fixtures it reads: "fixture", and those seeded into save slots through "player_slots"
+        used = [scns[n].get("fixture")] + [v.get("fixture") for v in scns[n].get("player_slots", {}).values()] if n else []
+        dep = next((producer[f] for f in used if f in producer), None)
         if dep is not None and dep in job_of:  # (None is the boot run, never a producer)
             job_of[n] = job_of[dep]
             job_of[n].append(n)

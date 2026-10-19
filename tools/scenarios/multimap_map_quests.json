@@ -1,0 +1,315 @@
+{
+  "about": "Map-aware quests: the map_arrive trigger hook, the on_map / map_visited / map_unlocked conditions and the unlock_map side effect, through test mod harness_map_quests (on the village and harness_map). Mod state is kept per map, like the rest of a map's game state: the village's copy and harness_map's copy are checked separately.",
+  "mods": [
+    "tools/scenarios/mods/harness_map",
+    "tools/scenarios/mods/harness_map_gated",
+    "tools/scenarios/mods/harness_map_quests"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_map_visited",
+      "args": [
+        "harness_map"
+      ],
+      "is": false,
+      "why": "not been there yet"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_map_visited",
+      "args": [
+        "vanilla"
+      ],
+      "is": true
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_map_is_unlocked",
+      "args": [
+        "harness_map"
+      ],
+      "is": true,
+      "why": "no unlock condition"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_map_is_unlocked",
+      "args": [
+        "harness_gated"
+      ],
+      "is": false,
+      "why": "its 5000-gold condition does not hold"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "on_map",
+          "map": "vanilla"
+        },
+        "harness_map_quests"
+      ],
+      "is": true
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "on_map",
+          "map": "harness_map"
+        },
+        "harness_map_quests"
+      ],
+      "is": false
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "map_unlocked",
+          "map": "harness_gated"
+        },
+        "harness_map_quests"
+      ],
+      "is": false
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "travel_menu",
+      "targets": [
+        "harness_map"
+      ],
+      "why": "control: the gated map is hidden"
+    },
+    {
+      "press_travel_menu": "close"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "open_raid": false
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_map_quests",
+        "arrived_map"
+      ],
+      "is": 0
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_map_quests",
+        "arrived_map"
+      ],
+      "is": 1,
+      "why": "map_arrive + on_map harness_map fired on arrival"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_map_quests",
+        "back_home"
+      ],
+      "is": 0,
+      "why": "on_map vanilla does not hold here"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "map_visited",
+          "map": "harness_map"
+        },
+        "harness_map_quests"
+      ],
+      "is": true
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "vanilla"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_map_quests",
+        "back_home"
+      ],
+      "is": 1,
+      "why": "on_map vanilla + map_visited harness_map fired on the way back"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_map_quests",
+        "arrived_map"
+      ],
+      "is": 0,
+      "why": "the village keeps its own copy of the mod state"
+    },
+    {
+      "assert": "popup_shown",
+      "contains": "New map: Gated Map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_map_is_unlocked",
+      "args": [
+        "harness_gated"
+      ],
+      "is": true,
+      "why": "unlock_map side effect"
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "travel_menu",
+      "targets": [
+        "harness_map",
+        "harness_gated"
+      ],
+      "why": "the gated map is now listed"
+    },
+    {
+      "press_travel_menu": "close"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "open_raid": false
+    },
+    {
+      "wait": 3
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_map_is_unlocked",
+      "args": [
+        "harness_gated"
+      ],
+      "is": true,
+      "why": "the quest unlock is saved"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_map_is_unlocked",
+      "args": [
+        "harness_gated"
+      ],
+      "is": true,
+      "why": "map unlocks are shared by every map"
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "wait": 3
+    },
+    {
+      "press_travel_menu": "harness_gated",
+      "why": "the real travel menu: only lists unlocked maps"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "press_travel_button": {
+        "num": 21,
+        "no_wait": true
+      },
+      "why": "TRAVEL in the selector"
+    },
+    {
+      "await_travel": true
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_gated",
+      "why": "reachable through the quest unlock"
+    }
+  ]
+}

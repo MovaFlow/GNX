@@ -76,7 +76,8 @@ def run_pack_strips(mod_dir: Path, dry_run: bool, force: bool):
 
 
 CONDITION_TYPES = {"state_equals", "state_gte", "state_lte", "stage_discovered", "stage_cleared", "boss_captured",
-                   "cell_built", "cell_occupied", "unit_count", "raid_won", "gold_gte", "floor_gte", "cell_count"}
+                   "cell_built", "cell_occupied", "unit_count", "raid_won", "gold_gte", "floor_gte", "cell_count",
+                   "on_map", "map_visited", "map_unlocked"}
 
 
 def check_map(manifest, mod_dir):

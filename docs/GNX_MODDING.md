@@ -3565,6 +3565,7 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 - **Saves** store every visited map. If the current map's mod is no longer installed, the player goes back to the village with a short notice; the map stays in the save and returns when the mod is reinstalled.
 - **Several map mods:** each map gets its own travel entry. If two mods declare `map_info` or `map_start` for the same map, the first in load order owns it and the other is reported in the `Mod loading problem(s)` box; its content still loads on that map.
 - **Tool action** `travel_map` with `"target": "<map ID>"` opens the selector for that map ([§17](#17-tools-toolsjson)).
+- **Quests** can follow the player between maps (new in 1.4.9): the trigger hook `map_arrive` runs once after every trip, the conditions `on_map`, `map_visited` and `map_unlocked` tell where the player is and has been, and the side effect `unlock_map` opens a map from a quest. A mod's save state is kept per map, so a storyline that spans maps reads `map_visited` / `map_unlocked` instead of state keys. Details: [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md).
 - **Limits:** one map per mod. A map's nest uses the vanilla backgrounds and walls; only the raid panel's world map can be replaced (`map_sprite`).
 
 ---

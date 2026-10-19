@@ -1,10 +1,11 @@
 {
-  "about": "A mod's 'map' can be a list. harness_map_list ([\"vanilla\", \"harness_map\"]) is on the village and harness_map, not on harness_map_b. harness_map_list_two lists two mod maps with a map_info: the map_info is ignored and reported, its content still loads on both maps, and it adds no travel entry.",
+  "about": "A mod's 'map' can be a list. harness_map_list ([\"vanilla\", \"harness_map\"]) is on the village and harness_map, not on harness_map_b. harness_map_list_two lists two mod maps with a map_info: the map_info is ignored and reported, its content still loads on both maps, and it adds no travel entry. harness_map_list_own owns its map through a list: a save made there reloads there (it is not taken for an orphan map).",
   "mods": [
     "tools/scenarios/mods/harness_map",
     "tools/scenarios/mods/harness_map_b",
     "tools/scenarios/mods/harness_map_list",
-    "tools/scenarios/mods/harness_map_list_two"
+    "tools/scenarios/mods/harness_map_list_two",
+    "tools/scenarios/mods/harness_map_list_own"
   ],
   "expect_dialog": "lists 2 mod maps in 'map'",
   "steps": [
@@ -47,7 +48,8 @@
       "assert": "travel_menu",
       "targets": [
         "harness_map",
-        "harness_map_b"
+        "harness_map_b",
+        "harness_list_own"
       ],
       "why": "the two-map list's map_info adds no entry"
     },
@@ -120,6 +122,36 @@
       "assert": "cell_registered",
       "name": "LIST TWO CELL",
       "is": false
+    },
+    {
+      "travel": "harness_list_own"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_list_own"
+    },
+    {
+      "assert": "val",
+      "key": "money",
+      "is": 2468,
+      "why": "its map_start"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_list_own",
+      "why": "not taken for an orphan map"
     }
   ]
 }

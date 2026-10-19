@@ -139,6 +139,9 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `stage_cleared` | `stage`, `min_level` | `stage_info[stage].max_lvl >= min_level` |
 | `boss_captured` | `class` (string ref or int) | unit with that class exists in cage |
 | `raid_won` | (none) | always true (only meaningful at post_raid_win hook) |
+| `on_map` | `map` | the player is on that map (`"vanilla"` = the village) |
+| `map_visited` | `map` | the player has been on that map (or is on it now) |
+| `map_unlocked` | `map` | that map can be travelled to: the village always; a mod map once its `map_info.unlock` held or `unlock_map` opened it (or when it has no `unlock`) |
 
 String refs (`"mod_id.ClassName"`) are pre-resolved to integer IDs at load
 time. You can use string refs or integer IDs interchangeably in `class` and
@@ -153,6 +156,7 @@ time. You can use string refs or integer IDs interchangeably in `class` and
 | `add_food` | `amount` | adds food |
 | `unlock_cell` | `h_type` (string ref or int) | unlocks cell in build menu |
 | `unlock_class` | `class` (string ref or int) | adds class to raid encounter pools |
+| `unlock_map` | `map` | opens a mod map in the travel menu for good, as its `map_info.unlock` would (saved, shared by every map, announced with `New map: <label>`). A map without a travel entry (its mod is off) is logged and ignored |
 
 Side effects are applied **immediately** (synchronous) when a notification
 event fires, before the dialog is displayed.
@@ -174,6 +178,13 @@ event fires, before the dialog is displayed.
 | `post_raid` | after any raid return | stage-based quest completions |
 | `post_raid_loss` | after losing a raid | loss-specific events |
 | `cell_built` | when any cell is placed via build menu | construction-gated triggers |
+| `map_arrive` | once after every trip, when the destination is up (after its `map_start` and what was taken along) | map storylines: combine with `on_map` / `map_visited`, and guard with a state key for once-only events |
+
+A mod's triggers only run on the maps the mod loads on (its manifest `map`), and
+its save state is kept **per map**, like the rest of a map's game state: a
+`set_state` on the Outpost is not seen in the village. A storyline that spans
+maps reads where the player has been with `map_visited` / `map_unlocked`, which
+are shared, rather than with state keys.
 
 ## Completion hooks (for quest events)
 

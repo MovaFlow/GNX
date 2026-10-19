@@ -107,3 +107,6 @@ assert p.results == [["raid_all_stages", "FAIL", "1/2"]]
 sc = {"a": {"save_fixture_as": "fx"}, "b": {"fixture": "fx", "save_fixture_as": "fx2"}, "c": {"fixture": "fx2"},
       "d": {"fixture": "nest"}}
 assert plan_jobs([None, "a", "b", "c", "d"], sc) == [[None], ["a", "b", "c"], ["d"]]
+# a fixture used through player_slots chains too (mod_menu_b_walkthrough reads mod_menu_a_setup's save that way)
+sc = {"m_a": {"save_fixture_as": "fx"}, "m_b": {"player_slots": {"1": {"fixture": "fx"}}}, "z": {}}
+assert plan_jobs([None, "m_a", "m_b", "z"], sc) == [[None], ["m_a", "m_b"], ["z"]]

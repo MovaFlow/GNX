@@ -10,6 +10,7 @@
 - **Modded cells in existing slots**: an empty slot's menu ends with CUSTOM when a modded cell fits its size, so a modded cell can go into a slot already built (the NEW menu's CUSTOM still builds slot and cell together).
 - **Travel cost and time** (`map_info.travel_cost`): a map can make trips to or from it cost gold and food and take days. The selector shows the cost; a trip that cannot be paid is refused, and the selector's warning line says why.
 - **`map_info`**: the manifest key `map_button` is renamed `map_info`, since it now holds the map's settings (name, picture, travel tier, unlock) rather than a button. `map_button` still works; a mod declaring both gets `map_info` and a warning.
+- **Map-aware quests**: trigger hook `map_arrive` (once after every trip), conditions `on_map`, `map_visited` and `map_unlocked`, and side effect `unlock_map` (opens a map from a quest, saved and shared like a `map_info.unlock`). `build_mod.py` knows the new conditions.
 - **`map` can be a list**: `"map": ["vanilla", "outpost"]` loads a mod on each listed map and nowhere else; its classes and cells keep their hash IDs across those maps. `map_info` / `map_start` need exactly one mod map in the list.
 - **Richer `map_start`**: `troops` (hobgoblins, tentacles, ogres and any goblin kind), `prisoners` (captives by class and level) and `unlock_cells`; `cells` and `unlock_cells` accept cell names (`"my_mod.MY CELL"`) as well as numbers. `build_mod.py` checks the new fields.
 
