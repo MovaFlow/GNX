@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.4.9
 
 **Game version:** 1.40
 
