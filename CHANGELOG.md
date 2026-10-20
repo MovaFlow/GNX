@@ -24,6 +24,9 @@
 - The `give_item` and `give_blueprint` tool actions gave nothing: they never passed the item to the game.
 - Extra-large (XL) cell unlocks are synced between maps with the same check as the other categories, so a map mod's XL cell no longer reaches the village's build lists.
 - **Modded cells missing from the build menu** (reported by players after 1.4.8): cells whose `h_type` is hash-assigned (no `h_type` in `cells.json`, the usual case) were left out of the NEW > CUSTOM list, so only cells with a fixed `h_type` could be built. Hash-assigned class, cell and prop IDs were stored as 64-bit integers, which the CUSTOM list's check rejected; they are plain numbers again.
+- Fixed a crash (`scr_ogre_spd_b`: `slot_data` not set) when a patrolling ogre passes an idle transfer hobgoblin whose cell no longer exists.
+- Fixed a crash on load or when a captive enters a cell (`scr_set_slot_spr_part`: "trying to index a variable which is not an array", or index out of range) when a mod cell's `spr_array` / `spr_c_array` is not a list or has fewer than 7 places. Missing places now draw nothing.
+- Fixed the frame rate dropping the longer the game stays open, worst in big nests: drips and +/- pop-ups spawned by off-screen cells never finished, so they piled up (about one per frame). They now only pause off-screen when cell culling is turned on, like the cells themselves.
 - Fixes from Mav's review of 1.4.8:
   - Overriding another mod's class now replaces its `carry_head` / `carry_hair` sprites; the old ones used to stay.
   - `physical.mon_positions` in a patch of a vanilla cell now moves its monsters. It was stored where nothing read it.

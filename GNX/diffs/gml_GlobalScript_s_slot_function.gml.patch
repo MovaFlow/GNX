@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_slot_function.gml	2026-09-02 08:45:16.550128500 +0200
-+++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-15 10:43:45.305982400 +0200
++++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-19 16:05:38.273961000 +0200
 @@ -3,7 +3,7 @@
      var _list = global.slot_list[arg1];
      var _x;
@@ -409,7 +409,24 @@
                      {
                          if (source_id == arg0)
                          {
-@@ -499,71 +550,105 @@
+@@ -494,76 +545,129 @@
+     }
+ }
+ 
++// a copy of sprite list arg0 with at least 7 places (missing ones -1); -1 when arg0 is not a list
++function gnx_spr_list7(arg0)
++{
++    if (!is_array(arg0))
++        return -1;
++
++    var _n = max(7, array_length(arg0));
++    var _out = array_create(_n, -1);
++    array_copy(_out, 0, arg0, 0, array_length(arg0));
++    return _out;
++}
++
+ function scr_set_slot_spr_part(arg0)
+ {
      var _unit_stat = unit_data;
      slot_data.anim_struct.spr_type = arg0;
      var _spr = scr_set_class_spr_data(_unit_stat, arg0, scr_slot_draw_special);
@@ -422,6 +439,13 @@
      
 +    if (!is_array(_spr_c_array))
 +        exit;
++
++    // GNX: a mod's spr_array / spr_c_array may be shorter than the 7 places read below (or not a list at all):
++    // missing places draw nothing instead of crashing
++    _spr_c_array = gnx_spr_list7(_spr_c_array);
++
++    if (_spr_array != -1)
++        _spr_array = gnx_spr_list7(_spr_array);
 +    
      if (_spr_array != -1)
      {
@@ -542,7 +566,7 @@
          {
              if (array_length(h_unit_list) == 0)
              {
-@@ -578,7 +663,7 @@
+@@ -578,7 +682,7 @@
                      spr_type = spr_h_tent_mon;
                  }
              }
@@ -551,7 +575,7 @@
              {
                  with (h_unit_list[0])
                      spr_type = spr_h_tent_ej_mon;
-@@ -602,22 +687,42 @@
+@@ -602,22 +706,42 @@
  
  function scr_slot_state()
  {
@@ -598,7 +622,7 @@
              script_execute(scr_slot.none);
              break;
      }
-@@ -654,7 +759,7 @@
+@@ -654,7 +778,7 @@
              {
                  array_push(global.unlock.breed, arg0);
                  _base_array = global.unlock.breed;
@@ -607,7 +631,7 @@
                  _set = true;
              }
          }
-@@ -670,7 +775,7 @@
+@@ -670,7 +794,7 @@
              {
                  array_push(global.unlock.utility, arg0);
                  _base_array = global.unlock.utility;
@@ -616,7 +640,7 @@
                  _set = true;
              }
          }
-@@ -686,7 +791,7 @@
+@@ -686,7 +810,7 @@
              {
                  array_push(global.unlock.pleasure, arg0);
                  _base_array = global.unlock.pleasure;
@@ -625,7 +649,7 @@
                  _set = true;
              }
          }
-@@ -702,7 +807,7 @@
+@@ -702,7 +826,7 @@
              {
                  array_push(global.unlock.b_breed, arg0);
                  _base_array = global.unlock.b_breed;
@@ -634,7 +658,7 @@
                  _set = true;
              }
          }
-@@ -718,7 +823,7 @@
+@@ -718,7 +842,7 @@
              {
                  array_push(global.unlock.b_utility, arg0);
                  _base_array = global.unlock.b_utility;
@@ -643,7 +667,7 @@
                  _set = true;
              }
          }
-@@ -734,7 +839,7 @@
+@@ -734,7 +858,7 @@
              {
                  array_push(global.unlock.b_other, arg0);
                  _base_array = global.unlock.b_other;
@@ -652,7 +676,7 @@
                  _set = true;
              }
          }
-@@ -750,7 +855,7 @@
+@@ -750,7 +874,7 @@
              {
                  array_push(global.unlock.t_breed, arg0);
                  _base_array = global.unlock.t_breed;
@@ -661,7 +685,7 @@
                  _set = true;
              }
          }
-@@ -766,14 +871,40 @@
+@@ -766,14 +890,40 @@
              {
                  array_push(global.unlock.t_utility, arg0);
                  _base_array = global.unlock.t_utility;
@@ -704,7 +728,7 @@
      {
          slot_type: arg0,
          prop_type: -1,
-@@ -783,9 +914,10 @@
+@@ -783,9 +933,10 @@
      scr_check_add_guide(arg0);
      
      if (arg1)
@@ -718,7 +742,7 @@
  }
  
  function scr_add_new_prop_type(arg0, arg1)
-@@ -803,7 +935,7 @@
+@@ -803,7 +954,7 @@
              _set = true;
              array_push(global.unlock.edit_top, arg0);
              _base_array = global.unlock.edit_top;
@@ -727,7 +751,7 @@
          }
      }
      
-@@ -820,7 +952,7 @@
+@@ -820,7 +971,7 @@
              _set = true;
              array_push(global.unlock.edit_mid, arg0);
              _base_array = global.unlock.edit_mid;
@@ -736,7 +760,7 @@
          }
      }
      
-@@ -837,7 +969,7 @@
+@@ -837,7 +988,7 @@
              _set = true;
              array_push(global.unlock.edit_bot, arg0);
              _base_array = global.unlock.edit_bot;
@@ -745,7 +769,7 @@
          }
      }
      
-@@ -853,9 +985,9 @@
+@@ -853,9 +1004,9 @@
      ds_list_add(global.new_button_list, _data);
      
      if (arg1)
@@ -757,7 +781,7 @@
  }
  
  function scr_add_new_between_type(arg0, arg1)
-@@ -868,12 +1000,12 @@
+@@ -868,12 +1019,12 @@
      {
          if (arg0 == _order_array[i])
          {
@@ -773,7 +797,7 @@
              _set = true;
          }
      }
-@@ -888,9 +1020,9 @@
+@@ -888,9 +1039,9 @@
      ds_list_add(global.new_button_list, _data);
      
      if (arg1)
@@ -785,7 +809,7 @@
  }
  
  function scr_rearrange_buttons(arg0, arg1, arg2)
-@@ -915,51 +1047,56 @@
+@@ -915,51 +1066,56 @@
      
      switch (arg0)
      {
@@ -854,7 +878,7 @@
              global.unlock.edit_bot = _array;
              break;
      }
-@@ -986,173 +1123,246 @@
+@@ -986,173 +1142,246 @@
      {
          switch (slot_data.slot_type)
          {
@@ -1161,7 +1185,7 @@
      return _result;
  }
  
-@@ -1170,7 +1380,7 @@
+@@ -1170,7 +1399,7 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[arg2], _c_pos);
          
@@ -1170,7 +1194,7 @@
          {
              if (abs(arg0 - _c_pos) < _slot_dist)
              {
-@@ -1203,6 +1413,13 @@
+@@ -1203,6 +1432,13 @@
          {
              var _c_slot_id = id;
              
@@ -1184,7 +1208,7 @@
              if (unit_data.preg != -1)
              {
                  for (var i = 0; i < _count; i++)
-@@ -1211,7 +1428,7 @@
+@@ -1211,7 +1447,7 @@
                      _flip *= -1;
                      var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                      
@@ -1193,7 +1217,7 @@
                      {
                          i = _count;
                          _set_mon = true;
-@@ -1229,7 +1446,7 @@
+@@ -1229,7 +1465,7 @@
                          _flip *= -1;
                          var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                          
@@ -1202,7 +1226,7 @@
                          {
                              i = _count;
                              _set_mon = true;
-@@ -1246,7 +1463,7 @@
+@@ -1246,7 +1482,7 @@
                          _flip *= -1;
                          var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                          
@@ -1211,7 +1235,7 @@
                          {
                              i = _count;
                              _set_mon = true;
-@@ -1259,19 +1476,23 @@
+@@ -1259,19 +1495,23 @@
                  {
                      switch (unit_data.class)
                      {
@@ -1241,7 +1265,7 @@
                      if (_cell_spe != -1)
                      {
                          for (var i = 0; i < _count; i++)
-@@ -1280,7 +1501,7 @@
+@@ -1280,7 +1520,7 @@
                              _flip *= -1;
                              var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                              
@@ -1250,7 +1274,7 @@
                              {
                                  i = _count;
                                  _set_mon = true;
-@@ -1297,7 +1518,7 @@
+@@ -1297,7 +1537,7 @@
                              _flip *= -1;
                              var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                              
@@ -1259,7 +1283,7 @@
                              {
                                  i = _count;
                                  _set_mon = true;
-@@ -1332,7 +1553,7 @@
+@@ -1332,7 +1572,7 @@
                  _flip *= -1;
                  var _c_slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
                  
@@ -1268,7 +1292,7 @@
                  {
                      if (_c_slot_id.slot_data.allow_preg)
                      {
-@@ -1359,7 +1580,7 @@
+@@ -1359,7 +1599,7 @@
                                          }
                                      }
                                      
@@ -1277,7 +1301,7 @@
                                      {
                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                          
-@@ -1387,22 +1608,25 @@
+@@ -1387,22 +1627,25 @@
                          
                          switch (_c_slot_id.unit_data.class)
                          {
@@ -1310,7 +1334,7 @@
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1428,7 +1652,7 @@
+@@ -1428,7 +1671,7 @@
                                                      }
                                                  }
                                                  
@@ -1319,7 +1343,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1465,7 +1689,7 @@
+@@ -1465,7 +1708,7 @@
                                                      }
                                                  }
                                                  
@@ -1328,7 +1352,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1489,7 +1713,7 @@
+@@ -1489,7 +1732,7 @@
                                  
                                  break;
                              
@@ -1337,7 +1361,7 @@
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1515,7 +1739,7 @@
+@@ -1515,7 +1758,7 @@
                                                      }
                                                  }
                                                  
@@ -1346,7 +1370,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1552,7 +1776,7 @@
+@@ -1552,7 +1795,7 @@
                                                      }
                                                  }
                                                  
@@ -1355,7 +1379,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1576,8 +1800,8 @@
+@@ -1576,8 +1819,8 @@
                                  
                                  break;
                              
@@ -1366,7 +1390,7 @@
                                  {
                                      if (_c_slot_id.unit_data.milk)
                                      {
-@@ -1602,7 +1826,7 @@
+@@ -1602,7 +1845,7 @@
                                                      }
                                                  }
                                                  
@@ -1375,7 +1399,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1646,7 +1870,7 @@
+@@ -1646,7 +1889,7 @@
                                                      }
                                                  }
                                                  
@@ -1384,7 +1408,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1692,7 +1916,7 @@
+@@ -1692,7 +1935,7 @@
                                                          }
                                                      }
                                                      
@@ -1393,7 +1417,7 @@
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1729,7 +1953,7 @@
+@@ -1729,7 +1972,7 @@
                                                          }
                                                      }
                                                      
@@ -1402,7 +1426,7 @@
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1753,8 +1977,8 @@
+@@ -1753,8 +1996,8 @@
                                  
                                  break;
                              
@@ -1413,7 +1437,7 @@
                                  {
                                      if (_c_slot_id.unit_data.milk)
                                      {
-@@ -1779,7 +2003,7 @@
+@@ -1779,7 +2022,7 @@
                                                      }
                                                  }
                                                  
@@ -1422,7 +1446,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1823,7 +2047,7 @@
+@@ -1823,7 +2066,7 @@
                                                      }
                                                  }
                                                  
@@ -1431,7 +1455,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1869,7 +2093,7 @@
+@@ -1869,7 +2112,7 @@
                                                          }
                                                      }
                                                      
@@ -1440,7 +1464,7 @@
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1906,7 +2130,7 @@
+@@ -1906,7 +2149,7 @@
                                                          }
                                                      }
                                                      
@@ -1449,7 +1473,7 @@
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1930,7 +2154,7 @@
+@@ -1930,7 +2173,7 @@
                                  
                                  break;
                              
@@ -1458,7 +1482,7 @@
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1956,7 +2180,7 @@
+@@ -1956,7 +2199,7 @@
                                                      }
                                                  }
                                                  
@@ -1467,7 +1491,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1993,7 +2217,7 @@
+@@ -1993,7 +2236,7 @@
                                                      }
                                                  }
                                                  
@@ -1476,7 +1500,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -2022,12 +2246,29 @@
+@@ -2022,12 +2265,29 @@
              }
          }
      }
@@ -1507,7 +1531,7 @@
      }
      
      return _carry_exe;
-@@ -2037,13 +2278,27 @@
+@@ -2037,13 +2297,27 @@
  {
      var _carry = scr_check_carry_slot_range(arg0);
      
@@ -1536,7 +1560,7 @@
          if (_door != -1)
          {
              _x = _door.x + floor(_door.image_xscale * 0.5);
-@@ -2051,15 +2306,24 @@
+@@ -2051,15 +2325,24 @@
              var _slot_pos = ds_list_find_index(global.slot_list[_floor], id);
              var _c_slot_id = _carry[0];
              var _t_slot_id = _carry[1];
@@ -1563,7 +1587,7 @@
                  mon_data.mood_timer = 180;
                  scr_mood_value_set(-0.25);
              }
-@@ -2081,7 +2345,7 @@
+@@ -2081,7 +2364,7 @@
                  scr_create_slot_head(false, id);
              }
              
@@ -1572,7 +1596,7 @@
              slot_data.anim_struct.ff = true;
          }
      }
-@@ -2102,14 +2366,17 @@
+@@ -2102,14 +2385,17 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
@@ -1592,7 +1616,7 @@
                  
                  clean_id = instance_create_depth(x + _shift_x, y, -761, obj_clean);
                  
-@@ -2119,8 +2386,10 @@
+@@ -2119,8 +2405,10 @@
                      shift_x = _shift_x;
                      var _width;
                      
@@ -1604,7 +1628,7 @@
                      else
                          _width = 77;
                      
-@@ -2158,35 +2427,35 @@
+@@ -2158,35 +2446,35 @@
  
  function scr_mon_find_placement()
  {
@@ -1651,7 +1675,7 @@
              var _hob = true;
              var _slot_ar = [false, false, false];
              var _ar = [];
-@@ -2206,12 +2475,12 @@
+@@ -2206,12 +2494,12 @@
                  _place = choose(0, 1);
              
              if (_place != 0)
@@ -1667,7 +1691,7 @@
              var _slot_ar = [false, false];
              var _ar = [];
              
-@@ -2227,8 +2496,8 @@
+@@ -2227,8 +2515,8 @@
              _place = _ar[irandom_range(0, array_length(_ar) - 1)];
              break;
          
@@ -1678,7 +1702,7 @@
              var _slot_ar = [false, false];
              var _ar = [];
              
-@@ -2244,13 +2513,13 @@
+@@ -2244,13 +2532,13 @@
              _place = _ar[irandom_range(0, array_length(_ar) - 1)];
              break;
          
@@ -1694,7 +1718,7 @@
                  _place = 0;
              }
              else if (slot_data.mon_placement[0] == -1)
-@@ -2264,24 +2533,63 @@
+@@ -2264,24 +2552,63 @@
              
              break;
          
@@ -1702,32 +1726,32 @@
 -            _type_ar = [UnknownEnum.Value_3];
 +        case 21:
 +            _type_ar = [3];
-+            break;
-+        
-+        case 22:
-+            _type_ar = [3];
              break;
          
 -        case UnknownEnum.Value_22:
 -            _type_ar = [UnknownEnum.Value_3];
-+        case 20:
++        case 22:
 +            _type_ar = [3];
              break;
          
 -        case UnknownEnum.Value_20:
 -            _type_ar = [UnknownEnum.Value_3];
-+        case 39:
-+            _type_ar = [0, 1, 3];
++        case 20:
++            _type_ar = [3];
              break;
          
 -        case UnknownEnum.Value_39:
 -            _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1, UnknownEnum.Value_3];
-+        case 37:
++        case 39:
 +            _type_ar = [0, 1, 3];
              break;
          
 -        case UnknownEnum.Value_37:
 -            _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1, UnknownEnum.Value_3];
++        case 37:
++            _type_ar = [0, 1, 3];
++            break;
++        
 +        default:
 +            if (ds_map_exists(global.cell_registry, slot_data.h_type))
 +            {
@@ -1768,7 +1792,7 @@
              break;
      }
      
-@@ -2297,8 +2605,103 @@
+@@ -2297,8 +2624,103 @@
      }
  }
  
@@ -1872,7 +1896,7 @@
      var _num = array_length(h_unit_list);
      
      if (_num < slot_data.max_mon_num && !slot_data.carry)
-@@ -2322,13 +2725,22 @@
+@@ -2322,13 +2744,22 @@
                  {
                      with (obj_mon)
                      {
@@ -1897,7 +1921,7 @@
                              break;
                          }
                      }
-@@ -2340,7 +2752,7 @@
+@@ -2340,7 +2771,7 @@
                      var _y = y;
                      var _door = -1;
                      
@@ -1906,7 +1930,7 @@
                      {
                          _door = scr_find_nearest_door(_x, _y, _floor);
                      }
-@@ -2421,14 +2833,15 @@
+@@ -2421,14 +2852,15 @@
          if (unit_data.scr_wait >= 240)
          {
              scr_add_milk_item(1, 1);
@@ -1924,7 +1948,7 @@
  {
      arg1 += global.val.add_range;
      var _floor = arg0.slot_data.slot_floor;
-@@ -2446,8 +2859,13 @@
+@@ -2446,8 +2878,13 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
@@ -1939,7 +1963,7 @@
              var _num = array_length(_slot_id.h_unit_list);
              
              if (abs(_pos - _c_pos) < _slot_dist)
-@@ -2456,7 +2874,7 @@
+@@ -2456,7 +2893,7 @@
                  
                  switch (_slot_id.slot_data.h_type)
                  {
@@ -1948,7 +1972,7 @@
                          _check = true;
                          
                          if (_num == 1)
-@@ -2467,10 +2885,10 @@
+@@ -2467,10 +2904,10 @@
                          
                          break;
                      
@@ -1961,7 +1985,7 @@
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2478,10 +2896,10 @@
+@@ -2478,10 +2915,10 @@
                          
                          break;
                      
@@ -1974,7 +1998,7 @@
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2509,7 +2927,7 @@
+@@ -2509,7 +2946,7 @@
  {
      var _exists = false;
      
@@ -1983,7 +2007,7 @@
          _exists = true;
      
      if (_exists)
-@@ -2527,7 +2945,7 @@
+@@ -2527,7 +2964,7 @@
      
      switch (arg0)
      {
@@ -1992,7 +2016,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2535,7 +2953,7 @@
+@@ -2535,7 +2972,7 @@
              
              break;
          
@@ -2001,7 +2025,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2543,7 +2961,7 @@
+@@ -2543,7 +2980,7 @@
              
              break;
          
@@ -2010,7 +2034,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2558,7 +2976,7 @@
+@@ -2558,7 +2995,7 @@
              
              break;
          
@@ -2019,7 +2043,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2573,7 +2991,7 @@
+@@ -2573,7 +3010,7 @@
              
              break;
          
@@ -2028,7 +2052,7 @@
              _slot = true;
              _scr_check = scr_check_type_n_preg;
              break;
-@@ -2602,7 +3020,7 @@
+@@ -2602,7 +3039,7 @@
              var _c_pos = _start_pos + i;
              var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
              
@@ -2037,7 +2061,7 @@
              {
                  i = _dist;
                  _frog = true;
-@@ -2623,8 +3041,8 @@
+@@ -2623,8 +3060,8 @@
                  ds_list_set(global.unit_list, _swap_pos, -1);
                  scr_insert_unit_to_list(_unit_data, _swap_pos, -1);
                  var _button = scr_reset_single_unit_window(_swap_pos);
@@ -2048,7 +2072,7 @@
                  scr_create_slot_head(true, id);
                  scr_swap_emitter(x + round(image_xscale * 0.5), y - 30, false);
                  scr_swap_emitter(_button.x, _button.y, true);
-@@ -2641,7 +3059,7 @@
+@@ -2641,7 +3078,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -2057,7 +2081,7 @@
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2662,14 +3080,14 @@
+@@ -2662,14 +3099,14 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -2074,7 +2098,7 @@
      return _swap_pos;
  }
  
-@@ -2682,17 +3100,17 @@
+@@ -2682,17 +3119,17 @@
      var _same_check = false;
      var _tent = false;
      
@@ -2095,7 +2119,7 @@
          {
              _swap_pos = i;
              i = _num;
-@@ -2700,13 +3118,13 @@
+@@ -2700,13 +3137,13 @@
          }
      }
      
@@ -2111,7 +2135,7 @@
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2725,7 +3143,7 @@
+@@ -2725,7 +3162,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -2120,7 +2144,7 @@
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2746,7 +3164,7 @@
+@@ -2746,7 +3183,7 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -2129,7 +2153,7 @@
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2773,23 +3191,30 @@
+@@ -2773,23 +3210,30 @@
          }
          else
          {
@@ -2166,7 +2190,7 @@
          }
      }
      
-@@ -2804,23 +3229,30 @@
+@@ -2804,23 +3248,30 @@
          }
          else
          {
@@ -2203,7 +2227,7 @@
          }
      }
  }
-@@ -2832,67 +3264,94 @@
+@@ -2832,67 +3283,94 @@
      
      switch (arg0.slot_data.slot_type)
      {
@@ -2280,8 +2304,9 @@
 -        case UnknownEnum.Value_2:
 +        // POPRAWKA: sciany celi XL
 +        case 6:
-+            switch (arg1)
-+            {
+             switch (arg1)
+             {
+-                case UnknownEnum.Value_4:
 +                case 0:
 +                    _spr = spr_xl_slot_back;
 +                    _base_type = 0;
@@ -2306,9 +2331,8 @@
 +            break;
 +
 +        case 2:
-             switch (arg1)
-             {
--                case UnknownEnum.Value_4:
++            switch (arg1)
++            {
 +                case 4:
                      _spr = spr_tent_back_full;
 -                    _base_type = UnknownEnum.Value_5;
@@ -2320,7 +2344,7 @@
              break;
      }
      
-@@ -2978,49 +3437,3 @@
+@@ -2978,49 +3456,3 @@
              bar_glow_rep = 0;
      }
  }

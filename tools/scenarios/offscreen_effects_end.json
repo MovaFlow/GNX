@@ -1,0 +1,14 @@
+{
+  "about": "Effects spawned off-screen (sperm drips, icon pop-ups: obj_empty) run their step and end while culling is off (the default), like the cells that spawn them. Regression: obj_empty's step skipped off-screen instances regardless of the culling toggle, so every drip and pop-up from an off-screen cell stayed forever; a big nest gained ~1 instance per frame and its frame time grew for hours. One of each is created far below the view with the game's own functions; both must be gone after their lifetime (pop-up 60 frames, landed drip at most 600).",
+  "steps": [
+    {"wait": 30},
+    {"camera_y": 0},
+    {"assert": "instances", "object": "obj_empty", "is": 0, "why": "control: a fresh nest has none"},
+    {"call": "scr_icon_pop_up_create", "args": [300, 20000, 5, 0, false]},
+    {"call": "scr_create_sp_drip_pos", "args": [0, 20000, {"slot_floor": 0}, -100, false]},
+    {"wait": 5},
+    {"assert": "instances", "object": "obj_empty", "is": 2, "why": "control: both were created"},
+    {"wait": 700},
+    {"assert": "instances", "object": "obj_empty", "is": 0}
+  ]
+}

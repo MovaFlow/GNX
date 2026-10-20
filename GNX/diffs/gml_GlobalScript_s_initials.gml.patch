@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 15:16:04.252433200 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 18:07:30.212471700 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -93,7 +93,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,20058 @@
+@@ -167,12 +184,20256 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -12362,7 +12362,9 @@
 +        until_left: -1,
 +        pass: 0,
 +        fail: 0,
-+        snaps: {}
++        snaps: {},
++        frame_n: 0,
++        draw_always: variable_struct_exists(_data, "draw_always") && _data.draw_always
 +    };
 +    gnx_scn_log("START " + arg0 + " steps=" + string(array_length(_data.steps)));
 +
@@ -13312,6 +13314,14 @@
 +            scr_gnx_scn_check("inactive_map", is_struct(global.gnx_inactive_maps) && variable_struct_exists(global.gnx_inactive_maps, arg0.name), "'" + arg0.name + "' stored=" + string(is_struct(global.gnx_inactive_maps) && variable_struct_exists(global.gnx_inactive_maps, arg0.name)));
 +            break;
 +
++        case "instances":
++            // {"assert": "instances", "object": "obj_empty", "is": n | "max": n}: live instances of an object
++            var _in_o = asset_get_index(arg0.object);
++            var _in_n = object_exists(_in_o) ? instance_number(_in_o) : -1;
++            var _in_ok = (_in_n >= 0) && (variable_struct_exists(arg0, "max") ? (_in_n <= arg0.max) : (_in_n == arg0.is));
++            scr_gnx_scn_check("instances", _in_ok, arg0.object + " x" + string(_in_n) + (variable_struct_exists(arg0, "max") ? " max " + string(arg0.max) : " want " + string(arg0.is)));
++            break;
++
 +        case "has_cell":
 +            // {"assert": "has_cell", "h_type": 9001}: at least one built cell of that type exists
 +            var _hc = 0;
@@ -13595,6 +13605,8 @@
 +        gnx_scn_log("loaded (map '" + global.gnx_active_map + "')");
 +    }
 +
++    _s.frame_n++;
++
 +    // stand-in mouse: one queued frame per step event (GNX UI reads it through gnx_mx/gnx_my/gnx_mb)
 +    if (variable_struct_exists(_s, "vm_queue") && is_array(_s.vm_queue))
 +    {
@@ -13613,7 +13625,8 @@
 +
 +    // nothing is looked at during a wait: skip the draw events (most of a busy nest's frame time) and turn them
 +    // back on 2 frames before it ends, so screenshots and layout checks see a fresh frame
-+    draw_enable_drawevent(_s.wait <= 2);
++    // ("draw_always": true keeps them on: soak runs that must include draw-side costs)
++    draw_enable_drawevent(_s.draw_always || _s.wait <= 2);
 +
 +    if (_s.wait > 0)
 +    {
@@ -13675,7 +13688,8 @@
 +                    case 1: script_execute(_fn, _a[0]); break;
 +                    case 2: script_execute(_fn, _a[0], _a[1]); break;
 +                    case 3: script_execute(_fn, _a[0], _a[1], _a[2]); break;
-+                    default: script_execute(_fn, _a[0], _a[1], _a[2], _a[3]); break;
++                    case 4: script_execute(_fn, _a[0], _a[1], _a[2], _a[3]); break;
++                    default: script_execute(_fn, _a[0], _a[1], _a[2], _a[3], _a[4]); break;
 +                }
 +            }
 +        }
@@ -13685,6 +13699,13 @@
 +                y = _st.camera_y;
 +
 +            gnx_scn_log("camera_y " + string(_st.camera_y));
++        }
++        else if (variable_struct_exists(_st, "camera_x"))
++        {
++            with (obj_camera)
++                x = _st.camera_x;
++
++            gnx_scn_log("camera_x " + string(_st.camera_x));
 +        }
 +        else if (variable_struct_exists(_st, "assert"))  // before "snapshot": same_as asserts carry a snapshot key
 +        {
@@ -14002,6 +14023,82 @@
 +                _tp_to.slot_data.carry = _tp_carry;
 +                instance_destroy(_tp_m);
 +                scr_gnx_scn_check("transfer_probe", _tp_ok, _tp_half ? "unit without skin/hair: carry drawn, no crash" : ("carry_end_id=" + string(_tp_end) + " target load/carry released=" + string(_tp_ok)));
++            }
++        }
++        else if (variable_struct_exists(_st, "spr_part_probe"))
++        {
++            // {"spr_part_probe": {"h_type": 9030, "phases": [1, 2]}}: the real scr_set_slot_spr_part on a borrowed
++            // occupied cell posing as that cell type (one with malformed sprite lists). Must not crash. Restored.
++            var _sp_c = gnx_scn_occupied_cell(-1);
++
++            if (_sp_c == -1)
++            {
++                scr_gnx_scn_check("spr_part_probe", false, "no occupied cell to borrow");
++            }
++            else
++            {
++                var _sp_h0 = _sp_c.slot_data.h_type;
++                var _sp_t0 = _sp_c.slot_data.anim_struct.spr_type;
++                var _sp_ph = _st.spr_part_probe.phases;
++                _sp_c.slot_data.h_type = _st.spr_part_probe.h_type;
++
++                with (_sp_c)
++                {
++                    for (var _spi = 0; _spi < array_length(_sp_ph); _spi++)
++                        scr_set_slot_spr_part(_sp_ph[_spi]);
++                }
++
++                _sp_c.slot_data.h_type = _sp_h0;
++
++                with (_sp_c)
++                    scr_set_slot_spr_part(_sp_t0);
++
++                scr_gnx_scn_check("spr_part_probe", true, "h=" + string(_st.spr_part_probe.h_type) + " phases " + string(_sp_ph) + " drawn without a crash");
++            }
++        }
++        else if (variable_struct_exists(_st, "ogre_spd_probe"))
++        {
++            // {"ogre_spd_probe": true}: an ogre's real scr_ogre_spd_b next to an idle transfer hobgoblin whose
++            // cell is gone (slot_id -1). Must not crash. Both monsters are removed afterwards.
++            var _og_c = gnx_scn_occupied_cell(-1);
++
++            if (_og_c == -1)
++            {
++                scr_gnx_scn_check("ogre_spd_probe", false, "no cell to stand next to");
++            }
++            else
++            {
++                var _og = scr_create_mon(3, _og_c.x, _og_c.y, _og_c.slot_data.slot_floor, -1, 0);
++                var _hb = scr_create_mon(1, _og_c.x, _og_c.y, _og_c.slot_data.slot_floor, -1, 0);
++
++                _og.mask_index = spr_button_guide;  // new monsters have no mask before their first step
++                with (_hb)
++                {
++                    mask_index = spr_button_guide;
++                    x = _og.x;
++                    y = _og.y;
++                    mon_data.task = 3;
++                    mon_data.placement_num = 0;
++                    mon_data.carry_start_id = -1;
++                    mon_data.carry_end_id = -1;
++                    mon_data.slot_id = -1;
++                }
++
++                var _og_n = 0;
++
++                with (_og)
++                {
++                    var _ogl = ds_list_create();
++                    _og_n = instance_place_list(x, y, obj_mon, _ogl, false);
++                    ds_list_destroy(_ogl);
++                }
++
++                with (_og)
++                    scr_ogre_spd_b();
++
++                instance_destroy(_hb);
++                instance_destroy(_og);
++                scr_gnx_scn_check("ogre_spd_probe", _og_n > 0, "monsters overlapping the ogre: " + string(_og_n) + " (the hobgoblin must be one), no crash");
 +            }
 +        }
 +        else if (variable_struct_exists(_st, "mon_pos_probe"))
@@ -14637,6 +14734,107 @@
 +            
 +            scr_reset_unit_window(-1);
 +            gnx_scn_log("free_prison free=" + string(gnx_scn_prison_free()));
++        }
++        else if (variable_struct_exists(_st, "leak_sample"))
++        {
++            // {"leak_sample": "label"}: one LEAK line for long soak runs: mean frame time since the last sample,
++            // live instances (total + every object over 20), the next free id of each dynamic resource (a create +
++            // destroy probe: the runtime reuses freed ids, so a rising id means handles are piling up), and the
++            // sizes of GNX's growing containers
++            var _lk_t = get_timer();
++            var _lk_f = variable_struct_exists(_s, "lk_frame") ? (_s.frame_n - _s.lk_frame) : 0;
++            var _lk_ms = (_lk_f > 0) ? ((_lk_t - _s.lk_t) / 1000 / _lk_f) : 0;
++            _s.lk_t = _lk_t;
++            _s.lk_frame = _s.frame_n;
++            var _lk = "LEAK " + string(_st.leak_sample) + " frame=" + string(_s.frame_n) + " ms/frame=" + string_format(_lk_ms, 1, 2) + " fps_real=" + string(floor(fps_real)) + " inst=" + string(instance_count);
++            var _lk_l = ds_list_create(); ds_list_destroy(_lk_l);
++            var _lk_m = ds_map_create(); ds_map_destroy(_lk_m);
++            var _lk_g = ds_grid_create(1, 1); ds_grid_destroy(_lk_g);
++            var _lk_p = ds_priority_create(); ds_priority_destroy(_lk_p);
++            var _lk_b = buffer_create(1, buffer_fixed, 1); buffer_delete(_lk_b);
++            var _lk_su = surface_create(1, 1); surface_free(_lk_su);
++            var _lk_ps = part_system_create(); part_system_destroy(_lk_ps);
++            var _lk_pt = part_type_create(); part_type_destroy(_lk_pt);
++            _lk += " ids: list=" + string(real(_lk_l)) + " map=" + string(real(_lk_m)) + " grid=" + string(real(_lk_g)) + " prio=" + string(real(_lk_p)) + " buf=" + string(real(_lk_b)) + " surf=" + string(real(_lk_su)) + " psys=" + string(real(_lk_ps)) + " ptype=" + string(real(_lk_pt));
++            var _lk_sl = 0;
++
++            for (var _lki = 0; _lki < real(_lk_su); _lki++)
++                _lk_sl += surface_exists(_lki);
++
++            var _lk_lf = file_bin_open("gnx_debug.txt", 0);
++            _lk += " surf_live=" + string(_lk_sl) + " debug_log_kb=" + string((_lk_lf < 0) ? -1 : floor(file_bin_size(_lk_lf) / 1024));
++
++            if (_lk_lf >= 0)
++                file_bin_close(_lk_lf);
++
++            var _lk_snd = 0;
++
++            for (var _lki = 0; _lki < array_length(global.gnx_runtime_sounds); _lki++)
++                _lk_snd += audio_is_playing(global.gnx_runtime_sounds[_lki]);
++
++            _lk += " gnx: spr=" + string(array_length(global.gnx_runtime_sprites)) + " snd=" + string(array_length(global.gnx_runtime_sounds)) + " snd_playing=" + string(_lk_snd) + " popups=" + string(ds_map_size(global.gnx_popups));
++            _lk += " lists: unit=" + string(ds_list_size(global.unit_list)) + " inv=" + string(ds_list_size(global.inv_list)) + " quest=" + string(ds_list_size(global.quest_list)) + " noti=" + string(ds_list_size(global.noti_list));
++            var _lk_hul = 0;
++
++            with (obj_slot)
++                _lk_hul += is_array(h_unit_list) ? array_length(h_unit_list) : 0;
++
++            _lk += " h_unit_list=" + string(_lk_hul) + " objs:";
++
++            for (var _lko = 0; object_exists(_lko); _lko++)
++            {
++                var _lkn = instance_number(_lko);
++
++                if (_lkn > 20)
++                    _lk += " " + object_get_name(_lko) + "=" + string(_lkn);
++            }
++
++            // obj_empty is the game's catch-all effect object: break it down by sprite + step script (top 6)
++            var _lk_e = ds_map_create();
++
++            with (obj_empty)
++            {
++                var _lk_k = (sprite_exists(sprite_index) ? sprite_get_name(sprite_index) : "nospr") + "/" + ((variable_instance_exists(id, "scr_empty_step") && is_method(scr_empty_step) == false && script_exists(scr_empty_step)) ? script_get_name(scr_empty_step) : "?");
++                ds_map_set(_lk_e, _lk_k, (ds_map_exists(_lk_e, _lk_k) ? ds_map_find_value(_lk_e, _lk_k) : 0) + 1);
++            }
++
++            _lk += " empty:";
++            var _lk_ek = ds_map_find_first(_lk_e);
++
++            while (_lk_ek != undefined)
++            {
++                if (ds_map_find_value(_lk_e, _lk_ek) > 10)
++                    _lk += " " + _lk_ek + "=" + string(ds_map_find_value(_lk_e, _lk_ek));
++
++                _lk_ek = ds_map_find_next(_lk_e, _lk_ek);
++            }
++
++            ds_map_destroy(_lk_e);
++            gnx_scn_log(_lk);
++        }
++        else if (variable_struct_exists(_st, "occupy"))
++        {
++            // {"occupy": {"h_type": h | {"cell": "folder.NAME"}, "class": c | {"class": "folder.NAME"}, "level": n}}:
++            // a new unit of that class put into the first empty built cell of that type (the drop's scr_occupy_slot)
++            var _oc_h = gnx_scn_ref(_st.occupy.h_type);
++            var _oc_cls = gnx_scn_ref(_st.occupy.class);
++            var _oc_c = -1;
++
++            with (obj_slot)
++            {
++                if (_oc_c == -1 && slot_data.anim_struct != -1 && !is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == _oc_h)
++                    _oc_c = id;
++            }
++
++            if (_oc_c == -1 || !ds_map_exists(global.class_registry, _oc_cls))
++            {
++                scr_gnx_scn_check("occupy", false, "no empty cell h=" + string(_oc_h) + " or unknown class " + string(_oc_cls));
++            }
++            else
++            {
++                scr_occupy_slot(_oc_c, scr_create_unit_base(_oc_cls, variable_struct_exists(_st.occupy, "level") ? _st.occupy.level : 1), false, 1);
++                gnx_scn_log("occupy h=" + string(_oc_h) + " class=" + string(_oc_cls) + " cell " + string(_oc_c));
++            }
 +        }
 +        else if (variable_struct_exists(_st, "raid_go"))
 +        {
@@ -20154,7 +20352,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +20246,166 @@
+@@ -183,42 +20444,166 @@
      Value_3,
      Value_4,
      Value_5,
