@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-20 08:49:57.145850800 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-20 09:27:13.644597800 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -93,7 +93,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,20323 @@
+@@ -167,12 +184,20476 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -14856,6 +14856,98 @@
 +            ds_map_destroy(_lk_e);
 +            gnx_scn_log(_lk);
 +        }
++        else if (variable_struct_exists(_st, "pinned_walker_probe"))
++        {
++            // {"pinned_walker_probe": n}: n new goblins put on their way into idle occupied small cells, the way some saves hold
++            // them: walking (state 6) but with "follow" still on, which pins them to the cell's left edge
++            var _pw_n = 0;
++
++            with (obj_slot)
++            {
++                if (_pw_n >= _st.pinned_walker_probe || !variable_struct_exists(slot_data, "h_type") || slot_data.slot_type != 0 || !is_struct(unit_data) || slot_data.anim_struct == -1 || slot_data.anim_struct.char_state != 0 || !is_array(h_unit_list) || array_length(h_unit_list) != 0 || slot_data.max_mon_num != 1)
++                    continue;
++
++                var _pw_cell = id;
++                var _pw_m = scr_create_mon(0, x, y, slot_data.slot_floor, -1, 0);
++
++                with (_pw_m)
++                {
++                    mon_data.slot_id = _pw_cell;
++                    mon_data.mon_floor = _pw_cell.slot_data.slot_floor;
++                    mon_data.placement_num = 0;
++                    mon_data.mon_state = 6;
++                    mon_data.ff = false;
++                    mon_data.follow = true;
++                    mon_data.x_shift = 0;
++                    mon_data.y_shift = 0;
++                    x = _pw_cell.x;
++                    y = _pw_cell.y;
++                }
++
++                h_unit_list = [_pw_m];
++                _pw_n++;
++            }
++
++            var _pw_cells = 0;
++
++            with (obj_slot)
++                _pw_cells += (variable_struct_exists(slot_data, "h_type") && slot_data.slot_type == 0 && is_struct(unit_data) && slot_data.anim_struct != -1 && slot_data.anim_struct.char_state == 0 && is_array(h_unit_list) && array_length(h_unit_list) == 0);
++
++            scr_gnx_scn_check("pinned_walker_probe", _pw_n == _st.pinned_walker_probe, string(_pw_n) + " pinned walker(s) set up (idle free small cells " + string(_pw_cells) + ")");
++        }
++        else if (variable_struct_exists(_st, "stuck_scan"))
++        {
++            // {"stuck_scan": "label"}: monsters in a cell's h_unit_list, kept across scans (first frame seen in that cell);
++            // logs every monster held by the same idle cell for "min_frames" (default 3000) with the cell's type and its
++            // captive's state, and how many there are per cell type. For long soaks hunting goblins stuck in cells.
++            if (!variable_struct_exists(_s, "stuck_seen"))
++                _s.stuck_seen = ds_map_create();
++
++            var _sk_min = variable_struct_exists(_st, "min_frames") ? _st.min_frames : 3000;
++            var _sk_now = ds_map_create();
++            var _sk_lines = "";
++            var _sk_n = 0;
++            var _sk_by = {};
++
++            with (obj_slot)
++            {
++                if (!is_array(h_unit_list) || !variable_struct_exists(slot_data, "h_type"))
++                    continue;
++
++                for (var _ski = 0; _ski < array_length(h_unit_list); _ski++)
++                {
++                    var _skm = h_unit_list[_ski];
++
++                    if (!instance_exists(_skm) || !variable_instance_exists(_skm, "mon_data") || !is_struct(_skm.mon_data) || !variable_struct_exists(_skm.mon_data, "mon_state") || _skm.mon_data.mon_state == 10)  // patrols stay with their cell by design
++                        continue;
++
++                    var _skk = string(real(_skm)) + "@" + string(real(id));
++                    var _sk_first = ds_map_exists(_s.stuck_seen, _skk) ? ds_map_find_value(_s.stuck_seen, _skk) : _s.frame_n;
++                    ds_map_set(_sk_now, _skk, _sk_first);
++
++                    // stuck = held that long by a cell that is not running (a long DAIRY / G.BANG session is not)
++                    if ((_s.frame_n - _sk_first) >= _sk_min && slot_data.anim_struct != -1 && slot_data.anim_struct.char_state == 0)
++                    {
++                        _sk_n++;
++                        var _skh = string(slot_data.h_type);
++                        variable_struct_set(_sk_by, _skh, (variable_struct_exists(_sk_by, _skh) ? variable_struct_get(_sk_by, _skh) : 0) + 1);
++
++                        if (_sk_n <= 12)
++                        {
++                            var _sku = is_struct(unit_data) ? ("class=" + string(unit_data.class) + " preg=" + string(unit_data.preg) + " milk=" + string(variable_struct_exists(unit_data, "milk") ? unit_data.milk : "-") + " tired=" + string(floor(unit_data.tired_c))) : "no captive";
++                            _sk_lines += "\n    mon " + string(real(_skm)) + " type=" + string(_skm.mon_data.mon_type) + " task=" + string(_skm.mon_data.task) + " state=" + string(_skm.mon_data.mon_state) + " slot_id=" + ((_skm.mon_data.slot_id == id) ? "this" : string(_skm.mon_data.slot_id)) + " spd=" + string(_skm.mon_data.spd) + " spd_b=" + string(_skm.spd_b) + " cell_w=" + string(image_xscale) + " ff=" + string(_skm.mon_data.ff) + " follow=" + string(_skm.mon_data.follow) + " dx=" + string(floor(_skm.x - x)) + " dy=" + string(floor(_skm.y - y)) + " placement=" + string(_skm.mon_data.placement_num) + " in h=" + _skh + " floor=" + string(slot_data.slot_floor) + " for " + string(_s.frame_n - _sk_first) + "f | cell char_state=" + string(slot_data.anim_struct != -1 ? slot_data.anim_struct.char_state : -1) + " h_step=" + string(slot_data.h_step) + " units=" + string(array_length(h_unit_list)) + "/" + string(slot_data.max_mon_num) + " drink=" + string(variable_struct_exists(slot_data, "drink_num") ? slot_data.drink_num : "-") + " | " + _sku;
++                        }
++                    }
++                }
++            }
++
++            ds_map_destroy(_s.stuck_seen);
++            _s.stuck_seen = _sk_now;
++            if (variable_struct_exists(_st, "max"))
++                scr_gnx_scn_check("stuck_scan", _sk_n <= _st.max, string(_sk_n) + " monster(s) in the same cell for " + string(_sk_min) + "+ frames, max " + string(_st.max));
++
++            gnx_scn_log("STUCK " + string(_st.stuck_scan) + " frame=" + string(_s.frame_n) + " in cells=" + string(ds_map_size(_sk_now)) + " same cell >= " + string(_sk_min) + "f: " + string(_sk_n) + " by h_type " + json_stringify(_sk_by) + _sk_lines);
++        }
 +        else if (variable_struct_exists(_st, "swap_unit"))
 +        {
 +            // {"swap_unit": {"h_type": h, "class": c, "level": n}}: the prison-to-cell drag swap (s_mouse_action): the first
@@ -15088,6 +15180,67 @@
 +            gnx_scn_log("reload slot " + string(_rslot));
 +            room_goto(rm_game);
 +            exit;
++        }
++        else if (variable_struct_exists(_st, "cell_state"))
++        {
++            // {"cell_state": h_type}: logs the first occupied cell of that type: state, step, sprite phase, monsters in it
++            var _cs_c = gnx_scn_occupied_cell(gnx_scn_ref(_st.cell_state));
++
++            if (_cs_c == -1)
++                gnx_scn_log("cell_state h=" + string(_st.cell_state) + ": none occupied");
++            else
++            {
++                var _cs_m = "";
++
++                if (array_length(_cs_c.h_unit_list) > 0 && instance_exists(_cs_c.h_unit_list[0]) && is_struct(_cs_c.h_unit_list[0].mon_data.spr_data))
++                {
++                    var _cs_sd = _cs_c.h_unit_list[0].mon_data.spr_data;
++                    var _cs_k = variable_struct_get_names(_cs_sd);
++
++                    for (var _csi = 0; _csi < array_length(_cs_k); _csi++)
++                    {
++                        var _cs_v = variable_struct_get(_cs_sd, _cs_k[_csi]);
++                        var _cs_t = string_copy(string(_cs_v), 1, 40);
++
++                        if (is_struct(_cs_v) && variable_struct_exists(_cs_v, "is_sprref"))
++                            _cs_t = "sprref";
++                        else if (!is_struct(_cs_v) && !is_array(_cs_v) && !is_string(_cs_v) && !is_undefined(_cs_v) && !is_bool(_cs_v) && sprite_exists(_cs_v))
++                            _cs_t = sprite_get_name(_cs_v);
++
++                        _cs_m += " " + _cs_k[_csi] + "=" + _cs_t;
++                    }
++                }
++
++                var _cs_near = "";
++
++                with (obj_mon)
++                {
++                    if (abs(x - (_cs_c.x + _cs_c.image_xscale * 0.5)) < 60 && abs(y - _cs_c.y) < 20)
++                        _cs_near += " [mon " + string(real(id)) + " type=" + string(mon_data.mon_type) + " state=" + string(variable_struct_exists(mon_data, "mon_state") ? mon_data.mon_state : -9) + " in_list=" + string(array_contains(_cs_c.h_unit_list, id)) + " spr=" + (sprite_exists(sprite_index) ? sprite_get_name(sprite_index) : "-") + " draw=" + string(scr_mon_draw) + " dx=" + string(floor(x - _cs_c.x)) + "]";
++                }
++
++                var _cs_cov = "";
++                var _cs_ck = ds_map_find_first(global.gnx_cov);
++
++                while (_cs_ck != undefined)
++                {
++                    _cs_cov += " " + string(_cs_ck) + "=" + string(ds_map_find_value(global.gnx_cov, _cs_ck));
++                    _cs_ck = ds_map_find_next(global.gnx_cov, _cs_ck);
++                }
++
++                gnx_scn_log("cell_state cov:" + _cs_cov);
++                gnx_scn_log("cell_state h=" + string(_st.cell_state) + " near:" + _cs_near);
++
++                if (variable_struct_exists(_st, "hide_mons") && _st.hide_mons)  // screenshot without the cell's monsters
++                {
++                    for (var _csh = 0; _csh < array_length(_cs_c.h_unit_list); _csh++)
++                    {
++                        if (instance_exists(_cs_c.h_unit_list[_csh]))
++                            _cs_c.h_unit_list[_csh].visible = false;
++                    }
++                }
++                gnx_scn_log("cell_state h=" + string(_st.cell_state) + " char_state=" + string(_cs_c.slot_data.anim_struct.char_state) + " h_step=" + string(_cs_c.slot_data.h_step) + " spr_type=" + string(_cs_c.slot_data.anim_struct.spr_type) + " index=" + string_format(_cs_c.slot_data.anim_struct.index, 1, 2) + " mons=" + string(array_length(_cs_c.h_unit_list)) + " class=" + string(_cs_c.unit_data.class) + " leg=" + string(_cs_c.unit_data.leg) + " cov body.miss=" + string(ds_map_exists(global.gnx_cov, "body.miss") ? ds_map_find_value(global.gnx_cov, "body.miss") : 0) + " body.leg=" + string(ds_map_exists(global.gnx_cov, "body.leg") ? ds_map_find_value(global.gnx_cov, "body.leg") : 0) + " body.cls=" + string(ds_map_exists(global.gnx_cov, "body.cls") ? ds_map_find_value(global.gnx_cov, "body.cls") : 0));
++            }
 +        }
 +        else if (variable_struct_exists(_st, "log"))
 +        {
@@ -20419,7 +20572,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +20511,166 @@
+@@ -183,42 +20664,166 @@
      Value_3,
      Value_4,
      Value_5,

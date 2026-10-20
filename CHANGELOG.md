@@ -27,6 +27,7 @@
 - Fixed a crash (`scr_ogre_spd_b`: `slot_data` not set) when a patrolling ogre passes an idle transfer hobgoblin whose cell no longer exists.
 - Fixed a crash on load or when a captive enters a cell (`scr_set_slot_spr_part`: "trying to index a variable which is not an array", or index out of range) when a mod cell's `spr_array` / `spr_c_array` is not a list or has fewer than 7 places. Missing places now draw nothing.
 - Fixed the frame rate dropping the longer the game stays open, worst in big nests: drips and +/- pop-ups spawned by off-screen cells never finished, so they piled up (about one per frame). They now only pause off-screen when cell culling is turned on, like the cells themselves.
+- Fixed goblins getting stuck in a cell after loading a save (pacing in a birth or service cell until the captive is removed, mood dropping). A goblin saved on its way into a cell was put straight inside it on load without the cell starting, so both waited forever. It now finishes walking in and the cell starts normally, and saves already in that state are repaired on load.
 - Fixes from Mav's review of 1.4.8:
   - Overriding another mod's class now replaces its `carry_head` / `carry_hair` sprites; the old ones used to stay.
   - `physical.mon_positions` in a patch of a vanilla cell now moves its monsters. It was stored where nothing read it.
