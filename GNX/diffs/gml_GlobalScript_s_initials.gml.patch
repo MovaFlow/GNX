@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-19 18:07:30.212471700 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-20 08:49:57.145850800 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -93,7 +93,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,20256 @@
+@@ -167,12 +184,20323 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -13314,6 +13314,50 @@
 +            scr_gnx_scn_check("inactive_map", is_struct(global.gnx_inactive_maps) && variable_struct_exists(global.gnx_inactive_maps, arg0.name), "'" + arg0.name + "' stored=" + string(is_struct(global.gnx_inactive_maps) && variable_struct_exists(global.gnx_inactive_maps, arg0.name)));
 +            break;
 +
++        case "infants":
++            // {"assert": "infants", "is": n}: live infant props (no "is": consistency only) (obj_prop type 40); also fails on a cell whose prop list
++            // names an infant that no longer exists, or an infant whose cell does not list it. "h_type": only cells of that type
++            var _if_h = variable_struct_exists(arg0, "h_type") ? arg0.h_type : -1;
++            var _if_n = 0;
++            var _if_bad = 0;
++
++            with (obj_prop)
++            {
++                if (prop_data.prop_type == 40 && (_if_h == -1 || (instance_exists(slot_id) && variable_struct_exists(slot_id.slot_data, "h_type") && slot_id.slot_data.h_type == _if_h)))
++                {
++                    _if_n++;
++                    var _if_listed = false;
++
++                    if (instance_exists(slot_id))
++                    {
++                        for (var _ifi = 0; _ifi < array_length(slot_id.slot_data.prop); _ifi++)
++                            _if_listed |= (slot_id.slot_data.prop[_ifi].prop_id == id);
++                    }
++
++                    _if_bad += !_if_listed;
++
++                    // an infant in an empty cell never finishes (only BIRTH 1 keeps a born infant for pickup)
++                    if (instance_exists(slot_id) && slot_id.unit_data == -1 && slot_id.slot_data.h_type != 5)
++                        _if_bad++;
++                }
++            }
++
++            with (obj_slot)
++            {
++                var _if_here = 0;
++
++                for (var _ifk = 0; _ifk < array_length(slot_data.prop); _ifk++)
++                    _if_here += (slot_data.prop[_ifk].prop_type == 40);
++
++                _if_bad += (_if_here > 1);  // one cell, one birth at a time
++
++                for (var _ifj = 0; _ifj < array_length(slot_data.prop); _ifj++)
++                    _if_bad += ((_if_h == -1 || (variable_struct_exists(slot_data, "h_type") && slot_data.h_type == _if_h)) && slot_data.prop[_ifj].prop_type == 40 && !instance_exists(slot_data.prop[_ifj].prop_id));
++            }
++
++            scr_gnx_scn_check("infants", (!variable_struct_exists(arg0, "is") || _if_n == arg0.is) && _if_bad == 0, "infants x" + string(_if_n) + " want " + (variable_struct_exists(arg0, "is") ? string(arg0.is) : "any") + ", bad (unlisted, stale, in an empty cell, two in one cell) " + string(_if_bad));
++            break;
++
 +        case "instances":
 +            // {"assert": "instances", "object": "obj_empty", "is": n | "max": n}: live instances of an object
 +            var _in_o = asset_get_index(arg0.object);
@@ -14812,6 +14856,24 @@
 +            ds_map_destroy(_lk_e);
 +            gnx_scn_log(_lk);
 +        }
++        else if (variable_struct_exists(_st, "swap_unit"))
++        {
++            // {"swap_unit": {"h_type": h, "class": c, "level": n}}: the prison-to-cell drag swap (s_mouse_action): the first
++            // occupied cell of that type is emptied, then a new unit of that class is put in
++            var _sw_h = gnx_scn_ref(_st.swap_unit.h_type);
++            var _sw_c = gnx_scn_occupied_cell(_sw_h);
++
++            if (_sw_c == -1)
++            {
++                scr_gnx_scn_check("swap_unit", false, "no occupied cell h=" + string(_sw_h));
++            }
++            else
++            {
++                scr_occupy_slot(_sw_c, -1, false, 1);
++                scr_occupy_slot(_sw_c, scr_create_unit_base(gnx_scn_ref(_st.swap_unit.class), variable_struct_exists(_st.swap_unit, "level") ? _st.swap_unit.level : 1), false, 1);
++                gnx_scn_log("swap_unit h=" + string(_sw_h) + " cell " + string(_sw_c));
++            }
++        }
 +        else if (variable_struct_exists(_st, "occupy"))
 +        {
 +            // {"occupy": {"h_type": h | {"cell": "folder.NAME"}, "class": c | {"class": "folder.NAME"}, "level": n}}:
@@ -14832,7 +14894,12 @@
 +            }
 +            else
 +            {
-+                scr_occupy_slot(_oc_c, scr_create_unit_base(_oc_cls, variable_struct_exists(_st.occupy, "level") ? _st.occupy.level : 1), false, 1);
++                var _oc_u = scr_create_unit_base(_oc_cls, variable_struct_exists(_st.occupy, "level") ? _st.occupy.level : 1);
++
++                if (variable_struct_exists(_st.occupy, "preg"))  // "preg": mon type she carries (0 goblin, 1 hobgoblin)
++                    _oc_u.preg = _st.occupy.preg;
++
++                scr_occupy_slot(_oc_c, _oc_u, false, 1);
 +                gnx_scn_log("occupy h=" + string(_oc_h) + " class=" + string(_oc_cls) + " cell " + string(_oc_c));
 +            }
 +        }
@@ -20352,7 +20419,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +20444,166 @@
+@@ -183,42 +20511,166 @@
      Value_3,
      Value_4,
      Value_5,
