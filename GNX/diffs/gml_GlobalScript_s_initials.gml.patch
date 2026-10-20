@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-20 09:27:13.644597800 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-20 09:37:40.292496200 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -93,7 +93,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,20476 @@
+@@ -167,12 +184,20511 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -13358,6 +13358,26 @@
 +            scr_gnx_scn_check("infants", (!variable_struct_exists(arg0, "is") || _if_n == arg0.is) && _if_bad == 0, "infants x" + string(_if_n) + " want " + (variable_struct_exists(arg0, "is") ? string(arg0.is) : "any") + ", bad (unlisted, stale, in an empty cell, two in one cell) " + string(_if_bad));
 +            break;
 +
++        case "mon_spr":
++            // {"assert": "mon_spr", "h_type": h, "key": "body_b", "is": "sprite_name"}: the first monster in the first occupied
++            // cell of that type draws that sprite (a mod sprite reference resolves to its name, a SprRef is "sprref")
++            var _ms_c = gnx_scn_occupied_cell(gnx_scn_ref(arg0.h_type));
++            var _ms_got = "no monster";
++
++            if (_ms_c != -1 && array_length(_ms_c.h_unit_list) > 0 && instance_exists(_ms_c.h_unit_list[0]) && variable_instance_exists(_ms_c.h_unit_list[0], "mon_spr") && is_struct(_ms_c.h_unit_list[0].mon_spr))
++            {
++                var _ms_v = variable_struct_get(_ms_c.h_unit_list[0].mon_spr, arg0.key);
++                _ms_got = string(_ms_v);
++
++                if (is_struct(_ms_v))
++                    _ms_got = "sprref";
++                else if (!is_undefined(_ms_v) && !is_string(_ms_v) && !is_array(_ms_v) && sprite_exists(_ms_v))
++                    _ms_got = sprite_get_name(_ms_v);
++            }
++
++            scr_gnx_scn_check("mon_spr", _ms_got == arg0.is, "h=" + string(arg0.h_type) + " " + arg0.key + " = " + _ms_got + " want " + arg0.is + (_ms_c != -1 ? " (class " + string(_ms_c.unit_data.class) + " leg " + string(_ms_c.unit_data.leg) + " anal " + string(_ms_c.slot_data.anal) + ")" : ""));
++            break;
++
 +        case "instances":
 +            // {"assert": "instances", "object": "obj_empty", "is": n | "max": n}: live instances of an object
 +            var _in_o = asset_get_index(arg0.object);
@@ -13556,6 +13576,14 @@
 +}
 +
 +// an occupied cell to borrow for a probe: small (arg0 == -1) or of h_type arg0
++// a mod cell's monster sprite map (arg0) has a body sprite for leg suffix arg3 ("_leg1", "_any"...) in phase arg1 or its fallback arg2
++function gnx_ms_leg_has(arg0, arg1, arg2, arg3)
++{
++    var _v1 = variable_struct_get(arg0, arg1 + "_body_b" + arg3);
++    var _v2 = variable_struct_get(arg0, arg2 + "_body_b" + arg3);
++    return (_v1 != undefined && _v1 != -1) || (_v2 != undefined && _v2 != -1);
++}
++
 +function gnx_scn_occupied_cell(arg0)
 +{
 +    var _c = -1;
@@ -14948,6 +14976,12 @@
 +
 +            gnx_scn_log("STUCK " + string(_st.stuck_scan) + " frame=" + string(_s.frame_n) + " in cells=" + string(ds_map_size(_sk_now)) + " same cell >= " + string(_sk_min) + "f: " + string(_sk_n) + " by h_type " + json_stringify(_sk_by) + _sk_lines);
 +        }
++        else if (variable_struct_exists(_st, "set_global"))
++        {
++            // {"set_global": {"name": "gnx_anal_chance", "value": 100}}
++            variable_global_set(_st.set_global.name, _st.set_global.value);
++            gnx_scn_log("set_global " + _st.set_global.name + " = " + string(_st.set_global.value));
++        }
 +        else if (variable_struct_exists(_st, "swap_unit"))
 +        {
 +            // {"swap_unit": {"h_type": h, "class": c, "level": n}}: the prison-to-cell drag swap (s_mouse_action): the first
@@ -15192,9 +15226,9 @@
 +            {
 +                var _cs_m = "";
 +
-+                if (array_length(_cs_c.h_unit_list) > 0 && instance_exists(_cs_c.h_unit_list[0]) && is_struct(_cs_c.h_unit_list[0].mon_data.spr_data))
++                if (array_length(_cs_c.h_unit_list) > 0 && instance_exists(_cs_c.h_unit_list[0]) && variable_instance_exists(_cs_c.h_unit_list[0], "mon_spr") && is_struct(_cs_c.h_unit_list[0].mon_spr))
 +                {
-+                    var _cs_sd = _cs_c.h_unit_list[0].mon_data.spr_data;
++                    var _cs_sd = _cs_c.h_unit_list[0].mon_spr;
 +                    var _cs_k = variable_struct_get_names(_cs_sd);
 +
 +                    for (var _csi = 0; _csi < array_length(_cs_k); _csi++)
@@ -15230,6 +15264,7 @@
 +
 +                gnx_scn_log("cell_state cov:" + _cs_cov);
 +                gnx_scn_log("cell_state h=" + string(_st.cell_state) + " near:" + _cs_near);
++                gnx_scn_log("cell_state h=" + string(_st.cell_state) + " mon spr:" + _cs_m);
 +
 +                if (variable_struct_exists(_st, "hide_mons") && _st.hide_mons)  // screenshot without the cell's monsters
 +                {
@@ -20572,7 +20607,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +20664,166 @@
+@@ -183,42 +20699,166 @@
      Value_3,
      Value_4,
      Value_5,

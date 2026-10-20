@@ -1366,7 +1366,9 @@ An anal scene:
 
 - causes no pregnancy; the pregnancy chance for later scenes rises instead;
 - uses the second entry of `sq_y` and `sp_y`;
-- in a cell with custom goblin sprites, gives a vanilla captive (class ID below 14) the **vanilla** goblin sprites instead of your `mon_spr`. Hobgoblin sprites are not affected.
+- in a `base+class` cell with custom goblin sprites, gives a vanilla captive (class ID below 14) the **vanilla** goblin sprites instead of your `mon_spr`, which match the vanilla poses that cell reuses. `fixed` and `class_map` cells keep your `mon_spr`. Hobgoblin sprites are not affected.
+
+If your cell has no anal scenes, use `-1`, not `false`: `false` is rolled like `true`.
 
 Vanilla uses `false` only on WALL 1–4.
 
@@ -1797,7 +1799,7 @@ In fixed and class_map mode `base_body` only decides whether the start uses `pha
 
 A **pair** is `{ "alpha": <fill sprite>, "line": <outline sprite> }`; `line` is optional, and a plain sprite name is a pair without a line. The game's monster transparency setting decides how fill and line are drawn; the line is drawn in all three modes.
 
-**Body and hand variants:** `cow` (vanilla Cow, body and hand), `lilith` (vanilla Lilith, body only), `leg_1`, `leg_2` (captive leg variants), `leg_any` (everyone else, and the fallback). GNX checks the class variant, then the leg variant, then `leg_any`. There is no `leg_0`: kneeling captives use `leg_any` ([§7](#7-clothing-maps-how-a-class-looks-in-each-cell)).
+**Body and hand variants:** `cow` (vanilla Cow, body and hand), `lilith` (vanilla Lilith, body only), `leg_1`, `leg_2` (captive leg variants), `leg_any` (everyone else, and the fallback). GNX checks the class variant, then the leg variant, then `leg_any`, then your other leg variants (`leg_1`, then `leg_2`). There is no `leg_0`: kneeling captives use `leg_any`, or your `leg_1` art when there is no `leg_any` ([§7](#7-clothing-maps-how-a-class-looks-in-each-cell)).
 
 **Touch and enter class variants:** `default`, `cow`, `nyx`, `lilith`, `morrigan`, `cat` (the vanilla classes of those names); every other class, and a plain sprite name, means `default`. Class variants matter only in cells with ID 100 or more, where vanilla classes get custom monster sprites.
 
@@ -1818,7 +1820,7 @@ GNX draws vanilla monster sprites instead of yours when:
 - the monster type is not in `mon_types`;
 - the phase block has no body (for example no `start`); without start art, point `start.body` at your loop strips (with row 0 the start shows their first two frames);
 - the captive is a vanilla class (ID below 14) and the cell ID is below 100;
-- for goblins, in an anal scene with a vanilla captive ([9.2](#92-anal)).
+- for goblins, in an anal scene with a vanilla captive, in a `base+class` cell ([9.2](#92-anal)). Cells with their own art (`fixed`, `class_map`) keep your sprites.
 
 **Ogres.** By default an ogre in a custom cell is **one opaque body sprite**: only the `body` alpha is used and the transparency setting does not apply. If the ogre's body in `mon_spr_ogr` has both `alpha` and `line`, the ogre is drawn like goblins: fill plus outline, following the player's MON TYPE and OPACITY settings.
 
