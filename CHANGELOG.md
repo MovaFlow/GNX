@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**Game version:** 1.40
+
+### New Features
+
+- **`mon_sprite_swap`** (class key): replace vanilla monster sprites by name wherever they are drawn on a captive of the class, in every cell and phase, like the game does for the Cow. Lets a class with another body shape get goblins, hobgoblins and ogres that fit it.
+
+### Bug Fixes
+
+- A new class that defines no `clothing_standard`, `clothing_big` or `clothing_tent` no longer crashes the game when it enters a cell of that size (`scr_set_class_spr_data`: `clothing_standard` not set); it wears the vanilla Peasant's clothes there, with a warning in the log.
+
 ## v1.4.9
 
 **Game version:** 1.40

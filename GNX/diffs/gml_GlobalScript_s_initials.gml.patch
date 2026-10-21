@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-20 09:47:03.720516800 +0200
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-21 08:10:59.706621400 +0200
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -93,7 +93,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,20511 @@
+@@ -167,12 +184,20595 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -9158,6 +9158,34 @@
 +    return false;
 +}
 +
++// the class arg0 has the key arg1 in its registry entry (scenario checks)
++function gnx_class_has(arg0, arg1)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++    return _rc != undefined && variable_struct_exists(_rc, arg1);
++}
++
++// a class's mon_sprite_swap struct (vanilla monster sprite name -> replacement), or undefined
++function gnx_get_mon_swap(arg0)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++    
++    if (_rc == undefined || !variable_struct_exists(_rc, "mon_sprite_swap"))
++        return undefined;
++    
++    return _rc.mon_sprite_swap;
++}
++
++// arg0 swapped through the swap struct arg1 when arg0 is a game sprite listed there, else arg0
++function gnx_mon_swap_one(arg0, arg1)
++{
++    if (is_struct(arg0) || is_undefined(arg0) || is_string(arg0) || is_array(arg0) || !sprite_exists(arg0))
++        return arg0;
++    
++    var _n = sprite_get_name(arg0);
++    return variable_struct_exists(arg1, _n) ? variable_struct_get(arg1, _n) : arg0;
++}
++
 +function gnx_get_mso(arg0)
 +{
 +    if (arg0 < 14)
@@ -9573,7 +9601,37 @@
 +        
 +        _rclass.mon_spr_overrides = _mso;
 +    }
-+    
++
++    // GNX: "mon_sprite_swap": { "<vanilla monster sprite name>": sprite }: wherever the game would draw that monster
++    // sprite on a captive of this class (any cell, phase or monster), it draws the replacement instead (same frame layout).
++    // Keys that are not game sprites, and replacements that do not load, are dropped with a warning.
++    if (variable_struct_exists(arg0, "mon_sprite_swap") && is_struct(arg0.mon_sprite_swap))
++    {
++        var _msw = {};
++        var _msw_keys = variable_struct_get_names(arg0.mon_sprite_swap);
++        var _msw_bad = "";
++
++        for (var _swi = 0; _swi < array_length(_msw_keys); _swi++)
++        {
++            var _swk = _msw_keys[_swi];
++            var _sws = gnx_resolve_layer_sprite(variable_struct_get(arg0.mon_sprite_swap, _swk), _sprites, _base_dir);
++
++            if (asset_get_index(_swk) < 0 || _sws == -1)
++                _msw_bad += " " + _swk;
++            else
++                variable_struct_set(_msw, _swk, _sws);
++        }
++
++        if (_msw_bad != "")
++        {
++            var _swlog = gnx_log_open();
++            gnx_log_write(_swlog, "[GNX-WARN] class '" + string(_rclass.name) + "' mon_sprite_swap: dropped (not a game sprite, or the replacement did not load):" + _msw_bad + "\n");
++            gnx_log_close(_swlog);
++        }
++
++        _rclass.mon_sprite_swap = _msw;
++    }
++
 +    if (variable_struct_exists(arg0, "preg_mon_type_override"))
 +        _rclass.preg_mon_type_override = arg0.preg_mon_type_override;
 +    
@@ -9777,7 +9835,7 @@
 +                _prov.carry_hair_spr = true;
 +        }
 +        
-+        var _condk = ["clothing_standard", "clothing_big", "clothing_tent", "clothing_giant", "only_listed_cells", "naked_standard", "naked_big", "naked_tent", "carry_base_spr", "gb1_breast_d2", "mon_spr_overrides", "preg_mon_type_override", "birth_classes", "birth_class", "default_leg", "birth_spr", "post_raid", "scr_unit", "tower_boss_condition"];
++        var _condk = ["clothing_standard", "clothing_big", "clothing_tent", "clothing_giant", "only_listed_cells", "naked_standard", "naked_big", "naked_tent", "carry_base_spr", "gb1_breast_d2", "mon_spr_overrides", "mon_sprite_swap", "preg_mon_type_override", "birth_classes", "birth_class", "default_leg", "birth_spr", "post_raid", "scr_unit", "tower_boss_condition"];
 +        
 +        for (var _pki = 0; _pki < array_length(_condk); _pki++)
 +        {
@@ -9813,6 +9871,30 @@
 +                _fb_n += gnx_fill_from_vanilla(variable_struct_get(_rclass, _fbk), variable_struct_get(arg0, _fbk), variable_struct_get(_fb_base, _fbk), _is_merge);
 +        }
 +        
++        // GNX: a new non-special class with no clothing map at all used to crash in the cells of that size
++        // (scr_set_class_spr_data reads .clothing_standard): it wears the peasant's
++        if (!_is_merge && !_rclass.is_special)
++        {
++            var _fb_whole = ["clothing_standard", "clothing_big", "clothing_tent"];
++            var _fb_none = "";
++
++            for (var _fbw = 0; _fbw < array_length(_fb_whole); _fbw++)
++            {
++                if (!variable_struct_exists(_rclass, _fb_whole[_fbw]) && variable_struct_exists(_fb_base, _fb_whole[_fbw]))
++                {
++                    variable_struct_set(_rclass, _fb_whole[_fbw], variable_struct_get(_fb_base, _fb_whole[_fbw]));
++                    _fb_none += " " + _fb_whole[_fbw];
++                }
++            }
++
++            if (_fb_none != "")
++            {
++                _log = gnx_log_open();
++                gnx_log_write(_log, "[GNX-WARN] Mod '" + arg1 + "' class " + string(_class_id) + " has no" + _fb_none + ": using the vanilla peasant's\n");
++                gnx_log_close(_log);
++            }
++        }
++
 +        if (_fb_n > 0)
 +        {
 +            _log = gnx_log_open();
@@ -13359,7 +13441,7 @@
 +            break;
 +
 +        case "mon_spr":
-+            // {"assert": "mon_spr", "h_type": h, "key": "body_b", "is": "sprite_name"}: the first monster in the first occupied
++            // {"assert": "mon_spr", "h_type": h, "key": "body_b", "is" | "not": "sprite_name"}: the first monster in the first occupied
 +            // cell of that type draws that sprite (a mod sprite reference resolves to its name, a SprRef is "sprref")
 +            var _ms_c = gnx_scn_occupied_cell(gnx_scn_ref(arg0.h_type));
 +            var _ms_got = "no monster";
@@ -13375,7 +13457,9 @@
 +                    _ms_got = sprite_get_name(_ms_v);
 +            }
 +
-+            scr_gnx_scn_check("mon_spr", _ms_got == arg0.is, "h=" + string(arg0.h_type) + " " + arg0.key + " = " + _ms_got + " want " + arg0.is + (_ms_c != -1 ? " (class " + string(_ms_c.unit_data.class) + " leg " + string(_ms_c.unit_data.leg) + " anal " + string(_ms_c.slot_data.anal) + ")" : ""));
++            var _ms_not = variable_struct_exists(arg0, "not");
++            var _ms_notv = _ms_not ? variable_struct_get(arg0, "not") : "";  // "not" is a GML keyword
++            scr_gnx_scn_check("mon_spr", _ms_c != -1 && array_length(_ms_c.h_unit_list) > 0 && (_ms_not ? (_ms_got != _ms_notv && _ms_got != "no monster") : (_ms_got == arg0.is)), "h=" + string(arg0.h_type) + " " + arg0.key + " = " + _ms_got + (_ms_not ? " want not " + _ms_notv : " want " + arg0.is) + (_ms_c != -1 ? " (class " + string(_ms_c.unit_data.class) + " leg " + string(_ms_c.unit_data.leg) + " anal " + string(_ms_c.slot_data.anal) + ")" : ""));
 +            break;
 +
 +        case "instances":
@@ -20607,7 +20691,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +20699,166 @@
+@@ -183,42 +20783,166 @@
      Value_3,
      Value_4,
      Value_5,

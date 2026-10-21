@@ -1,0 +1,115 @@
+{
+  "about": "Class key mon_sprite_swap: a class replaces vanilla monster sprites by name wherever they would be drawn on it (requested by modders: monsters fitting a captive with another body shape, like vanilla's Cow sprites). Test mod harness_swap: the Knight (override) swaps every vanilla goblin body for spr_sp_drip_1. In a vanilla WALL 1 its goblin must draw the replacement; a Peasant in the same cell keeps the vanilla goblin.",
+  "mods": [
+    "tools/scenarios/mods/harness_swap"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "unlock_cell",
+        "h_type": 1
+      }
+    },
+    {
+      "open_build_menu": -1
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 0,
+        "num": 0
+      },
+      "why": "NEW"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 1,
+        "num": 0
+      },
+      "why": "NEW > SMALL: an empty small slot"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "open_slot_menu": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 3,
+        "num": 0
+      },
+      "why": "BREED list"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 10,
+        "num": 1
+      },
+      "why": "WALL 1"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 1,
+      "count": 1
+    },
+    {
+      "do": {
+        "type": "spawn_mon",
+        "species": 0,
+        "amount": 3
+      }
+    },
+    {
+      "occupy": {
+        "h_type": 1,
+        "class": 2
+      }
+    },
+    {
+      "wait": 900
+    },
+    {
+      "assert": "mon_spr",
+      "h_type": 1,
+      "key": "body_b",
+      "is": "spr_sp_drip_1",
+      "why": "the class's swap applies"
+    },
+    {
+      "swap_unit": {
+        "h_type": 1,
+        "class": 0
+      },
+      "why": "a Peasant"
+    },
+    {
+      "wait": 900
+    },
+    {
+      "assert": "mon_spr",
+      "h_type": 1,
+      "key": "body_b",
+      "not": "spr_sp_drip_1",
+      "why": "control: other classes keep the vanilla goblin"
+    }
+  ]
+}

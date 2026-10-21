@@ -720,7 +720,7 @@ On vanilla classes (0–13) these keys have **no effect**; the game's built-in r
 - `carry_head` / `carry_hair` sprites ([6.5](#65-ogre-carry-sprites))
 - `only_listed_cells`
 
-**Clothing maps are filled in.** In `clothing_standard`, `clothing_big`, `clothing_tent` and the three `naked_*` maps, every part you leave out comes from the old class, so `"clothing_standard": { "phase_1": {...} }` keeps the old `phase_2`. A missing or unloadable sprite in your map is replaced by the old one, with `[GNX-WARN] Mod 'my_mod' class 0: 2 sprite(s) missing or not loadable, using the vanilla class's instead`. A part with `leg_any` gets no old `leg_0`–`leg_2`. In a **new** non-special class, missing or unloadable sprites in these maps are replaced by the Peasant's, with the same warning.
+**Clothing maps are filled in.** In `clothing_standard`, `clothing_big`, `clothing_tent` and the three `naked_*` maps, every part you leave out comes from the old class, so `"clothing_standard": { "phase_1": {...} }` keeps the old `phase_2`. A missing or unloadable sprite in your map is replaced by the old one, with `[GNX-WARN] Mod 'my_mod' class 0: 2 sprite(s) missing or not loadable, using the vanilla class's instead`. A part with `leg_any` gets no old `leg_0`–`leg_2`. In a **new** non-special class, missing or unloadable sprites in these maps are replaced by the Peasant's, with the same warning. A new non-special class that leaves out `clothing_standard`, `clothing_big` or `clothing_tent` entirely wears the Peasant's there (`[GNX-WARN] ... has no clothing_standard ...: using the vanilla peasant's`).
 
 > **When** an override contains another object, that object is not merged but replaced as a whole: `clothing_giant`, `mon_spr_overrides`, `birth_spr` and `post_raid` completely; `"birth_class": { "goblin": 2 }` sets the other three species to 0; `"voice": { "pitch": 1.0 }` without `bank` loses the voice bank. Write the complete object.
 
@@ -792,6 +792,7 @@ The ogre's own walking sprite is the `patrol` key of `mon_spr_overrides` ([§16]
 | `birth_class`, `birth_classes`, `birth_spr` | Offspring and birth animations | [§14](#14-pregnancy-and-birth) |
 | `post_raid`, `tower_boss_condition` | Cage escape and tower boss | [§15](#15-bosses-cage-escape-and-tower) |
 | `gb1_breast_d2`, `mon_spr_overrides` | Special sprites in some vanilla cells | [§16](#16-special-classes-and-monster-sprite-overrides) |
+| `mon_sprite_swap` | Replace vanilla monster sprites by name, in every cell | [16.7](#167-mon_sprite_swap-replacing-monster-sprites-by-name) |
 | `carry_base_spr` | Ogre carry body | [6.5](#65-ogre-carry-sprites) |
 
 > **When** the classes file is not a JSON list `[ ... ]` (even for one class), loading stops with `Mod '<folder>': <file> is not a JSON array`.
@@ -2609,6 +2610,31 @@ To change monster sprites there, patch the cell's `mon_spr`, `mon_spr_hob` or `m
 > **When** a key is misspelled, or its `gnx:` sprite is missing from `sprites`, the override is silently ignored and the vanilla sprite is drawn. Check the sprite load lines in `gnx_debug.txt`.
 
 > **When** DAIRY, CHAINS or LILITH SHRINE get overrides, they matter only if the class can enter: in vanilla these cells accept only Hathor, Morrigan and Lilith, so patch `required_class` first ([§12](#12-patching-vanilla-cells-and-classes)).
+
+
+### 16.7 mon_sprite_swap: replacing monster sprites by name
+
+`mon_sprite_swap` replaces vanilla monster sprites **by their game name**, wherever the game would draw them on a captive of your class: every cell, every phase, goblins, hobgoblins and ogres. This is how vanilla fits the monsters to the Cow's body (`spr_h_hobgoblin_body_loop_cow_alpha` instead of `spr_h_hobgoblin_body_loop_v1_alpha`); with it, a class with another body shape can get monsters that fit it.
+
+```json
+{
+  "name": "Witch",
+  "mon_sprite_swap": {
+    "spr_h_hobgoblin_body_loop_v1_alpha": "gnx:witch_hob_body_loop",
+    "spr_h_hobgoblin_body_loop_v1_line": "gnx:witch_hob_body_loop_l",
+    "spr_h_hobgoblin_hand_loop_v1_d1_alpha": "gnx:witch_hob_hand_loop"
+  }
+}
+```
+
+- The key is the exact name of the game sprite to replace; the value a `gnx:` sprite or another game sprite.
+- The replacement uses the **frame layout of the sprite it replaces** (same frame count and rows), so start from that sprite's strip.
+- Replace the fill (`_alpha`) and the outline (`_line`) as a pair; the outline is a separate sprite with its own name.
+- The game often picks among variants (`_v1`, `_v2`, `_v3`, a `_d1` hand...) at random or by leg pose: list every variant you want replaced.
+- It works for every class, vanilla classes through `override` included, and also on top of `mon_spr_overrides` and a cell's `mon_spr`: whatever sprite those pick, if its name is listed, it is swapped.
+- It covers what a monster draws in a cell: body, hand, head, pen, prop, their outlines, touch and enter. Sprites a cell draws itself (the GIANT head, the DRINK goblin, the second G.BANG goblin) and the ogre's walking sprite keep their own keys ([16.5](#165-override-keys-that-work)).
+
+> **When** a key is not a game sprite, or its replacement does not load, that entry is dropped and the log says `[GNX-WARN] class 'Witch' mon_sprite_swap: dropped (...)` with the names.
 
 ---
 
