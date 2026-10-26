@@ -1470,6 +1470,25 @@ The loader keeps only the first five positions.
 
 `spr_array` is the captive's sprite table for the current phase ([§10](#10-cell-sprites-human_spr-and-mon_spr)). Types 6, 7 and 8 get a clothing on/off switch in the MOD window when a captive enters. Vanilla types 4, 13 and 14 (special MOD-window controls) are not drawn by `scr_draw_slot_gnx`.
 
+**Player options in the MOD window.** A cell can let the player choose a hand pose, a leg pose and clothing on or off, in the MOD window a click on the built cell opens:
+
+```json
+"physical": {
+  "layers": [
+    [2, "gnx:hand_pose", true, -1],
+    [3, "gnx:leg_pose", true, -1],
+    [8, -1, false, -1, false], [9, -1, false, -1, false],
+    [6, -1, false, -1, false], [7, -1, false, -1, false], [10, -1, false, -1, false]
+  ],
+  "hand_x": [10, 12], "hand_y": [-40, -42], "hand_xscale": [1, 1], "hand_angle": [0, 0]
+}
+```
+
+- **Hand pose / leg pose:** a type 2 or 3 layer with `true` at `[2]` gets a row with arrows; each frame of its sprite is one pose, and the first choice turns on the hands (type 7) or the leg part (type 9). Give `hand_x` / `hand_y` / `hand_xscale` / `hand_angle` one entry per hand pose.
+- **Clothing on/off:** the breast (6), hands (7) and legs (8) get a switch when the captive's sprite table has a clothing overlay for that layer: in `fixed` and `class_map` tables the matching `spr_c_array` entry (index 2 breast, 3 hands, 4 legs), in `base+class` cells the class's clothing. No overlay, no switch.
+
+The rows appear only for what the cell can show, in this order: hand pose, leg pose, breast, hands, legs. Vanilla's PATROL has no such options, because the game has no clothed art for a carried captive.
+
 **Draw order.** The first entry is at the back, the last in front. Before the layers, the game draws the plain cell background and then the `wall` sprite, if any ([8.7](#87-sprites-and-the-wall-key)).
 
 **Auto-added layers.** For `fixed` and `class_map` cells ([§10](#10-cell-sprites-human_spr-and-mon_spr)), GNX appends any missing layer of type 10, 6, 7, 8 or 9 at the **end** of the list, in front of everything. base+class cells get nothing added: without your body layers the captive is not drawn. To control the order, list all body layers yourself.

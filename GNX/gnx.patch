@@ -4389,7 +4389,7 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 16:02:57.838530100 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 16:35:46.388778700 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -4494,7 +4494,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +186,26929 @@
+@@ -167,12 +186,26966 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -22421,6 +22421,43 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    return global.unlock.boss[arg0];
 +}
 +
++// the MOD-window choice (slot_data.mod_index) of the first layer of type arg1 in the first cell of type arg0
++// (on/off rows: 0/1; pose rows: the chosen frame, -1 = none), or -9 when there is no such layer
++function gnx_scn_mod_index(arg0, arg1)
++{
++    var _c = gnx_scn_occupied_cell(arg0);
++    
++    if (_c == -1 || !is_array(_c.spr_slot))
++        return -9;
++    
++    for (var i = 0; i < array_length(_c.spr_slot); i++)
++    {
++        if (is_array(_c.spr_slot[i]) && _c.spr_slot[i][0] == arg1)
++            return (i < array_length(_c.slot_data.mod_index)) ? _c.slot_data.mod_index[i] : -9;
++    }
++    
++    return -9;
++}
++
++// the layer types the open MOD window of a cell lists as rows (its icon_array indexes the window's order list
++// [0..8, 13, 14]), joined with ","; "" when none is open
++function gnx_scn_mod_rows()
++{
++    var _order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 13, 14];
++    var _t = "";
++    
++    with (obj_window)
++    {
++        if (variable_instance_exists(id, "icon_array") && is_array(icon_array) && variable_instance_exists(id, "pos_array"))
++        {
++            for (var i = 0; i < array_length(icon_array); i++)
++                _t += ((i > 0) ? "," : "") + string(_order[icon_array[i]]);
++        }
++    }
++    
++    return _t;
++}
++
 +// file arg0 exists in the save folder(fn asserts call scripts only, not built-in functions)
 +function gnx_scn_file_exists(arg0)
 +{
@@ -31426,7 +31463,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +27119,181 @@
+@@ -183,42 +27156,181 @@
      Value_3,
      Value_4,
      Value_5,
