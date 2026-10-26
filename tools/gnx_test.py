@@ -83,6 +83,7 @@ class Load:
         self.limit = float(limit)
         self.per_cpu = 100.0 / (os.cpu_count() or 1)
         self.running = 0
+        self.tickets = []  # one per admitted game: {"need": bytes, "proc": psutil.Process or None}
 
     def sample(self):
         cpu = self.psutil.cpu_percent(interval=0.5)
@@ -96,18 +97,20 @@ class Load:
         """how many games fit under the limit now (one CPU thread and game_ram each)"""
         return min(int((self.limit - cpu) // self.per_cpu), int(ram_room // self.game_ram))
 
-    def preflight(self, wanted, need=None):
-        """need: RAM of the biggest game this run plans (default game_ram)"""
+    def preflight(self, wanted, need=None, need_min=None):
+        """need: RAM of a typical game this run plans (sizes the worker count, default game_ram); need_min: the
+        smallest one (busy = not even it fits). Bigger games wait for room in gate()."""
         if need:
             self.game_ram, saved = int(need), self.game_ram
+        small = int(need_min or self.game_ram)
         cpu, ram, ram_room = self.sample()
-        # busy: over the limit, or not even one game fits under it
-        if self.busy(cpu, ram) or self.fits(cpu, ram_room) < 1:
+        # busy: over the limit, or not even the smallest planned game fits under it
+        if self.busy(cpu, ram) or min(int((self.limit - cpu) // self.per_cpu), int(ram_room // small)) < 1:
             print(f"system busy (CPU {cpu:.0f}%, RAM {ram:.0f}%, limit {self.limit:.0f}%, "
                   f"a game needs ~{self.game_ram >> 20} MB): waiting 30 s", file=sys.stderr)
             time.sleep(30)
             cpu, ram, ram_room = self.sample()
-            if self.busy(cpu, ram) or self.fits(cpu, ram_room) < 1:
+            if self.busy(cpu, ram) or min(int((self.limit - cpu) // self.per_cpu), int(ram_room // small)) < 1:
                 raise HarnessError(EXIT_BUSY, f"too busy to run: CPU {cpu:.0f}%, RAM {ram:.0f}% "
                                               f"(the harness stays under {self.limit:.0f}%; a game needs ~{self.game_ram >> 20} MB)")
         n = max(1, min(wanted, self.fits(cpu, ram_room)))
@@ -120,27 +123,59 @@ class Load:
 
     def gate(self, need=None):
         """Before a game starts: wait until one more game (need bytes of RAM, default game_ram) fits under the
-        limit. When none of ours runs and the machine stays too busy for 30 s, stop (EXIT_BUSY)."""
+        limit, counting what our running games will still take: each reserves its expected RAM (or its current
+        RAM when bigger) and one CPU thread, from the moment it is admitted, so games that have not grown yet
+        still count. When none of ours runs and the machine stays too busy for 30 s, stop (EXIT_BUSY).
+        Returns a ticket for started() / done()."""
         need = int(need or self.game_ram)
         idle_busy_since = None
         while True:
             with self.lock:
-                cpu, ram, ram_room = self.sample()
-                if cpu + self.per_cpu <= self.limit and ram_room >= need:
-                    self.running += 1
-                    return
-                if self.running == 0:
+                cpu, ram, _ = self.sample()
+                vm = self.psutil.virtual_memory()
+                ours_rss, reserved = 0, 0
+                for t in self.tickets:
+                    rss = 0
+                    if t["proc"] is not None:
+                        try:
+                            rss = game_mem(t["proc"])
+                        except Exception:
+                            rss = 0
+                    ours_rss += rss
+                    reserved += max(t["need"], rss)
+                others_ram = vm.used - ours_rss  # everything that is not our games
+                budget_ram = vm.total * self.limit / 100 - others_ram
+                others_cpu = max(0.0, cpu - len(self.tickets) * self.per_cpu)  # a game uses one thread
+                fits_ram = reserved + need <= budget_ram
+                fits_cpu = others_cpu + (len(self.tickets) + 1) * self.per_cpu <= self.limit
+                if fits_ram and fits_cpu:
+                    t = {"need": need, "proc": None}
+                    self.tickets.append(t)
+                    self.running = len(self.tickets)
+                    return t
+                if not self.tickets:
                     idle_busy_since = idle_busy_since or time.time()
                     if time.time() - idle_busy_since >= 30:
                         raise HarnessError(EXIT_BUSY, f"too busy to run: CPU {cpu:.0f}%, RAM {ram:.0f}% "
-                                                      f"(the harness stays under {self.limit:.0f}%)")
+                                                      f"(the harness stays under {self.limit:.0f}%; a game needs ~{need >> 20} MB)")
                 else:
                     idle_busy_since = None
             time.sleep(1)
 
-    def done(self):
+    def started(self, ticket, pid):
+        """the game of this ticket runs as pid: its real RAM counts from now on"""
+        if ticket is None:
+            return
+        try:
+            ticket["proc"] = self.psutil.Process(pid)
+        except Exception:
+            pass
+
+    def done(self, ticket=None):
         with self.lock:
-            self.running = max(0, self.running - 1)
+            if ticket in self.tickets:
+                self.tickets.remove(ticket)
+            self.running = len(self.tickets)
 
     def saw_ram(self, rss):
         with self.lock:
@@ -150,6 +185,13 @@ class Load:
 
 
 LOAD = None  # the run's Load guard (main sets it)
+
+
+def game_mem(proc):
+    """What a running game costs the machine's RAM: its private memory on Windows (RSS also counts shared,
+    file-backed pages, about 2 GB for a 14-mod game against ~0.3 GB of real use), else RSS"""
+    mi = proc.memory_info()
+    return getattr(mi, "private", mi.rss)
 
 
 class Box:
@@ -567,6 +609,7 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
     if LOAD is not None:
         try:
             ram_probe = LOAD.psutil.Process(proc.pid)
+            LOAD.started(getattr(box, "load_ticket", None), proc.pid)
         except Exception:
             pass
     r, crash, done_at = parse_log(""), None, None
@@ -584,7 +627,7 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
                 break
             if ram_probe is not None:
                 try:
-                    rss = ram_probe.memory_info().rss
+                    rss = game_mem(ram_probe)
                     LOAD.saw_ram(rss)  # the largest game seen sizes runs that have no record of their own
                     run_peak = max(run_peak, rss)
                 except Exception:
@@ -949,8 +992,9 @@ def main(argv=None):
             boxes = [Box(game_dir, game_dir, SAVE_DIR)]  # a game left open for you uses your normal folders
         else:
             # never over LOAD_LIMIT % CPU or RAM: fewer workers when the machine is busy, or stop (EXIT_BUSY)
+            ests = sorted(ram_est(n) for n in runs)
             boxes = make_workers(game_dir, LOAD.preflight(max(1, min(a.jobs, len(jobs))),
-                                                          max(ram_est(n) for n in runs)))
+                                                          ests[len(ests) // 2], ests[0]))  # median sizes the pool
         if scns:
             for b in boxes:
                 dest = b.run_dir / "GNX_scenarios"
@@ -989,11 +1033,12 @@ def main(argv=None):
                 dst = box.run_dir / "GNX_mods" / f["to"]
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(REPO / f["from"], dst)
-            LOAD.gate(ram_est(name))  # wait for room under the CPU / RAM limit (raises EXIT_BUSY if it never comes)
+            box.load_ticket = LOAD.gate(ram_est(name))  # room under the CPU / RAM limit (EXIT_BUSY if it never comes)
             try:
                 r = boot(box, sc.get("timeout", a.timeout), a.keep_open and not name, name, sc.get("expect_dialog"))
             finally:
-                LOAD.done()
+                LOAD.done(box.load_ticket)
+                box.load_ticket = None
             if sc.get("expect_dialog") and not r["dismissed_dialogs"] and r.get("scn"):
                 # the scenario relies on that popup appearing: missing it is a failure
                 r["scn"]["fails"].append("FAIL  expected dialog containing '" + sc["expect_dialog"] + "' never appeared")
