@@ -4020,7 +4020,7 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 08:20:56.024459900 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 09:02:32.843182200 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -4109,7 +4109,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +179,25619 @@
+@@ -167,12 +179,25669 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -20897,6 +20897,56 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    gnx_scn_log("floor 0 slot types: " + _types);
 +}
 +
++// logs the monsters of the first occupied cell of type arg0 (id, type, place, state, visible), its place
++// table, and how many monsters of each type are out in the nest (instances of obj_mon)
++function gnx_scn_cell_mons(arg0)
++{
++    var _c = gnx_scn_occupied_cell(arg0);
++    var _cnt = [0, 0, 0, 0];
++    
++    with (obj_mon)
++    {
++        if (variable_instance_exists(id, "mon_data") && is_struct(mon_data) && mon_data.mon_type >= 0 && mon_data.mon_type <= 3)
++            _cnt[mon_data.mon_type]++;
++    }
++    
++    var _t = "cell_mons h=" + string(arg0) + " nest=" + json_stringify(_cnt);
++    
++    if (_c == -1)
++    {
++        gnx_scn_log(_t + " (no occupied cell)");
++        return;
++    }
++    
++    _t += " cs=" + string(variable_struct_exists(_c.slot_data, "char_state") ? _c.slot_data.char_state : -9) + " list=" + string(array_length(_c.h_unit_list));
++    
++    for (var i = 0; i < array_length(_c.h_unit_list); i++)
++    {
++        var _m = _c.h_unit_list[i];
++        
++        if (!instance_exists(_m) || !variable_instance_exists(_m, "mon_data"))
++        {
++            _t += " [dead]";
++            continue;
++        }
++        
++        _t += " [" + string(real(_m.id)) + " t" + string(_m.mon_data.mon_type) + " p" + string(variable_struct_exists(_m.mon_data, "placement_num") ? _m.mon_data.placement_num : -9) + " s" + string(variable_struct_exists(_m.mon_data, "mon_state") ? _m.mon_data.mon_state : -9) + " v" + string(_m.visible) + " dx" + string(floor(_m.x - _c.x)) + "]";
++    }
++    
++    if (is_array(_c.slot_data.mon_placement))
++    {
++        _t += " places=";
++        
++        for (var i = 0; i < array_length(_c.slot_data.mon_placement); i++)
++        {
++            var _pm = _c.slot_data.mon_placement[i];
++            _t += ((instance_exists(_pm) && variable_instance_exists(_pm, "mon_data")) ? (string(real(_pm.id)) + ":t" + string(_pm.mon_data.mon_type)) : "-") + " ";
++        }
++    }
++    
++    gnx_scn_log(_t);
++}
++
 +// a birth by a unit of class arg0 into monster type arg1 (the real scr_mon_birth, no cell needed)
 +function gnx_scn_birth(arg0, arg1)
 +{
@@ -29731,7 +29781,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +25802,181 @@
+@@ -183,42 +25852,181 @@
      Value_3,
      Value_4,
      Value_5,
