@@ -2840,13 +2840,14 @@ GNX builds both after all mods have loaded.
 
 A button list whose buttons include one starting with `create_unit` (also in your own categories) gets a **RANK** selector on the left: `1`–`5` (stars), `MAX`, `CLONE`, `SPECIAL` (internally 0–7). `create_unit` uses it when it has no `level` ([§17.6](#176-action-reference)).
 
-**GNX DEBUG** holds eight test switches; their ON/OFF state is never saved.
+**GNX DEBUG** holds nine test switches; their ON/OFF state is never saved.
 
 | Button | What it turns on (its ON popup) |
 |---|---|
 | PERF LOG | `Perf logging ON (gnx_debug.txt)`: a performance line every 120 frames (about 2 seconds). |
 | VERBOSE | `Verbose debug logging ON`: many extra trace lines; use it when a cell or class draws wrong. |
-| CAPT100 | `Raid capture rate forced to 100%` |
+| FREE COPY | `Floor copies are free`: COPY DOWN in an entrance's FLOOR menu costs nothing. |
+| CAPT100 | `Raid capture rate forced to 100%`: every capture roll succeeds (except in `no_capture` encounters, [21.2](#212-map_info)). |
 | TRACE | `Entity lifecycle tracing ON (gnx_debug.txt)` |
 | OVERLAY | `GameMaker debug overlay ON (FPS, memory, textures)` |
 | PERF HUD | `GNX perf HUD ON (FPS, sprites, VRAM)` |
@@ -2992,7 +2993,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **39** a
 | `set_var` key | Meaning |
 |---|---|
 | `w_spd` | Game speed, clamped to 0–10 |
-| `gnx_perf_enabled`, `gnx_debug_verbose`, `gnx_force_capture_100`, `gnx_trace_entities`, `gnx_perf_hud`, `gnx_cull_step_off`, `gnx_econ_on` | The GNX DEBUG switches ([§17.3](#173-built-in-menus-spawn-and-gnx-debug)): `0` = off, any other number = on. |
+| `gnx_perf_enabled`, `gnx_debug_verbose`, `gnx_force_capture_100`, `gnx_free_floor_copy`, `gnx_trace_entities`, `gnx_perf_hud`, `gnx_cull_step_off`, `gnx_econ_on` | The GNX DEBUG switches ([§17.3](#173-built-in-menus-spawn-and-gnx-debug)): `0` = off, any other number = on. |
 
 **Raid screen (3):** `reroll_shop`, `reroll_trade` and `reroll_encounters` (no fields) re-roll the raid shop stock, the trade stock, or the encounters of the open stage. They work only while the raid screen is open, whichever page (map, shop or trade) shows.
 

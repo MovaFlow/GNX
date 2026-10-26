@@ -12,7 +12,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Classes & Sprites**  - custom captive classes with full sprite support: standard, big, and tent cell clothing layers, naked body layer overrides, goblin sprite overrides, patrol and ogre-touch sprites, unit icons, and special-class rendering. Hash-based ID auto-assignment means modders never pick IDs manually.
 
-**Cells**  - custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Multi-monster cells (2+ goblins per cell with per-slot species, offsets, and sprite overrides), locked cells gated behind quest rewards, and `by_class`/`by_mon_type` sprite overrides for fixed-mode cells. Hash-based h_type assignment, automatic unlock migration on save load.
+**Cells**  - custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Multi-monster cells (2+ goblins per cell with per-slot species, offsets, and sprite overrides), locked cells gated behind quest rewards, and `by_class`/`by_mon_type` sprite overrides for fixed-mode cells. Own frame counts, intermissions, second walls and own ejaculation poses (`phase_3`) per cell; underground cells. Hash-based h_type assignment, automatic unlock migration on save load.
 
 **Quests & Dialogs**  - event-driven quest chains with dialog popups, portrait sprites, 13 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
 
@@ -33,6 +33,10 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 **Multi-Map Travel**  - map mods add whole new nests (`map`, `map_info`, `map_start` in `manifest.json`). A map button on the raid window's world map opens a travel menu; a pre-travel selector takes gold, food, troops and prisoners along, depending on the map's tier. Each map keeps its own state; unlocks are shared; maps can unlock later through a condition.
 
 **Mod Menu**  - a MODS button on the main menu turns installed mods on and off (with `requires` dependencies between mods). Saves remember the mods they were made with, and the load page warns when one is missing.
+
+**Building & Nest Management**  - edit a whole floor from its entrance (FLOOR: style, props and CLEAR for every passage at once), copy a floor onto the empty floor below (COPY DOWN, at the normal build price), move floors up or down from the entrance, sort the prison (class, level, milk, fertility), six save slots (three per page), and grouped prop menus (by `category` or mod).
+
+**Raid Variety**  - map mods can mark raid encounters that bring loot and quest progress but no captives (`map_info.no_capture`; bosses stay capturable).
 
 **Atlas Packing**  - optional texture atlas system (`gnx_atlas_pack.py`) packs sprite strips into large atlas PNGs, cutting texture pages from hundreds to single digits, VRAM by ~45%, and boot time from 94s to 1.8s. Fully backwards-compatible: mods work with or without atlas.
 
@@ -112,7 +116,7 @@ GNX targets game version **1.40** and still loads mods made for 1.38 and 1.39. M
 
 ## In-Game Debug Tools
 
-GNX adds a **DEBUG** entry to the Settings menu. This provides framework-level toggles (perf logging, verbose debug logging) and any mod-defined tool buttons.
+GNX adds a **DEBUG** entry to the Settings menu. This provides framework-level toggles (perf logging, verbose debug logging, capture 100%, free floor copies) and any mod-defined tool buttons.
 
 Mods can define custom tools, keybinds, and toggles via `tools.json`. See [`docs/GNX_MODDING.md`](docs/GNX_MODDING.md) for details.
 
