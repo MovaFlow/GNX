@@ -110,3 +110,34 @@ assert plan_jobs([None, "a", "b", "c", "d"], sc) == [[None], ["a", "b", "c"], ["
 # a fixture used through player_slots chains too (mod_menu_b_walkthrough reads mod_menu_a_setup's save that way)
 sc = {"m_a": {"save_fixture_as": "fx"}, "m_b": {"player_slots": {"1": {"fixture": "fx"}}}, "z": {}}
 assert plan_jobs([None, "m_a", "m_b", "z"], sc) == [[None], ["m_a", "m_b"], ["z"]]
+
+# load guard: a machine at 80 % or more gets 30 s, then the run stops with EXIT_BUSY; otherwise as many
+# workers as keep CPU and RAM under 80 % (one CPU thread and game_ram per game), at least one
+import gnx_test as _g
+_samples = []
+_sleep, _g.time.sleep = _g.time.sleep, (lambda s: None)
+try:
+    L = _g.Load(game_ram=1 << 30)
+    L.per_cpu = 12.5  # 8 threads
+    L.sample = lambda: _samples.pop(0)
+    _samples[:] = [(90.0, 40.0, 8 << 30), (91.0, 40.0, 8 << 30)]  # busy, still busy after the wait
+    try:
+        L.preflight(8)
+        raise AssertionError("busy machine was not refused")
+    except _g.HarnessError as e:
+        assert e.code == _g.EXIT_BUSY and "too busy" in str(e), e
+    _samples[:] = [(85.0, 40.0, 8 << 30), (10.0, 40.0, 8 << 30)]  # busy, then free after the wait
+    assert L.preflight(8) == 5  # (80 - 10) // 12.5
+    _samples[:] = [(5.0, 70.0, 3 << 30)]  # RAM: room for 3 games under 80 %
+    assert L.preflight(8) == 3
+    _samples[:] = [(65.0, 40.0, 8 << 30)]  # CPU room for exactly one game (65 + 12.5 < 80)
+    assert L.preflight(8) == 1
+    _samples[:] = [(5.0, 85.0, 1 << 29), (5.0, 85.0, 1 << 29)]  # under the limit, but no RAM room for one game
+    try:
+        L.preflight(8)
+        raise AssertionError("no room for one game was not refused")
+    except _g.HarnessError as e:
+        assert e.code == _g.EXIT_BUSY, e
+finally:
+    _g.time.sleep = _sleep
+print("ok")

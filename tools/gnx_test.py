@@ -16,7 +16,11 @@ Every run after that:
     python tools/gnx_test.py --scenario save_roundtrip   # boot + one scenario
     python tools/gnx_test.py --all            # boot tests + every scenario (parallel, ~100 s)
     python tools/gnx_test.py --all --quick    # skip scenarios marked "slow": true (~65 s)
-    python tools/gnx_test.py --all -j 2       # games at once (default: half the CPUs, max 4)
+    python tools/gnx_test.py --all -j 2       # games at once (default: one per CPU thread, max 8)
+
+Load guard: the harness never takes the machine over 80 % CPU or RAM (--load-limit N to change it). A busy machine gets fewer workers;
+one already at 80 % is given 30 s, then the run stops with exit code 5 ("too busy to run"). Each new game
+waits for room under the limit.
 
 Runs go to worker copies in <game-dir>/workers/wNN whose data.win carries the game name gnx_hrn_wNN, so
 each saves to its own %LOCALAPPDATA%/gnx_hrn_wNN folder: games run side by side, the player's goblin_nest
@@ -58,7 +62,88 @@ EXE = "GoblinNest.exe"
 VANILLA = "data.vanilla.win"
 STAMP = ".harness_stamp"
 
-EXIT_PASS, EXIT_FAIL, EXIT_PATCH, EXIT_PREFLIGHT, EXIT_TIMEOUT = 0, 1, 2, 3, 4
+EXIT_PASS, EXIT_FAIL, EXIT_PATCH, EXIT_PREFLIGHT, EXIT_TIMEOUT, EXIT_BUSY = 0, 1, 2, 3, 4, 5
+LOAD_LIMIT = 80.0  # percent of CPU and of RAM the harness never takes the machine over
+GAME_RAM_GUESS = 1 << 30  # RAM of one game before a run has measured it (bytes)
+
+
+class Load:
+    """CPU / RAM guard. Before the run: busy (>= LOAD_LIMIT) -> wait 30 s -> still busy -> EXIT_BUSY, else as
+    many workers as keep both under the limit (a game takes about one CPU thread and game_ram of RAM).
+    During the run, gate() holds each new game until there is room for it."""
+
+    def __init__(self, game_ram=None, limit=LOAD_LIMIT):
+        import threading
+        import psutil
+        self.psutil = psutil
+        self.lock = threading.Lock()
+        self.game_ram = int(game_ram or GAME_RAM_GUESS)  # measured size of a game (durations.json), else a guess
+        self.measured = 0  # largest game seen in this run
+        self.peak_ram = 0.0  # highest machine RAM % seen while games ran (sampled with the game's RAM)
+        self.limit = float(limit)
+        self.per_cpu = 100.0 / (os.cpu_count() or 1)
+        self.running = 0
+
+    def sample(self):
+        cpu = self.psutil.cpu_percent(interval=0.5)
+        vm = self.psutil.virtual_memory()
+        return cpu, vm.percent, vm.total * self.limit / 100 - vm.used
+
+    def busy(self, cpu, ram):
+        return cpu >= self.limit or ram >= self.limit
+
+    def fits(self, cpu, ram_room):
+        """how many games fit under the limit now (one CPU thread and game_ram each)"""
+        return min(int((self.limit - cpu) // self.per_cpu), int(ram_room // self.game_ram))
+
+    def preflight(self, wanted):
+        cpu, ram, ram_room = self.sample()
+        # busy: over the limit, or not even one game fits under it
+        if self.busy(cpu, ram) or self.fits(cpu, ram_room) < 1:
+            print(f"system busy (CPU {cpu:.0f}%, RAM {ram:.0f}%, limit {self.limit:.0f}%, "
+                  f"a game needs ~{self.game_ram >> 20} MB): waiting 30 s", file=sys.stderr)
+            time.sleep(30)
+            cpu, ram, ram_room = self.sample()
+            if self.busy(cpu, ram) or self.fits(cpu, ram_room) < 1:
+                raise HarnessError(EXIT_BUSY, f"too busy to run: CPU {cpu:.0f}%, RAM {ram:.0f}% "
+                                              f"(the harness stays under {self.limit:.0f}%; a game needs ~{self.game_ram >> 20} MB)")
+        n = max(1, min(wanted, self.fits(cpu, ram_room)))
+        if n < wanted:
+            print(f"load guard: {n} worker(s) instead of {wanted} (CPU {cpu:.0f}%, RAM {ram:.0f}%, "
+                  f"limit {self.limit:.0f}%)", file=sys.stderr)
+        return n
+
+    def gate(self):
+        """Before a game starts: wait until one more game fits under the limit. When none of ours runs and the
+        machine stays too busy for 30 s, stop (EXIT_BUSY)."""
+        idle_busy_since = None
+        while True:
+            with self.lock:
+                cpu, ram, ram_room = self.sample()
+                if cpu + self.per_cpu <= self.limit and ram_room >= self.game_ram:
+                    self.running += 1
+                    return
+                if self.running == 0:
+                    idle_busy_since = idle_busy_since or time.time()
+                    if time.time() - idle_busy_since >= 30:
+                        raise HarnessError(EXIT_BUSY, f"too busy to run: CPU {cpu:.0f}%, RAM {ram:.0f}% "
+                                                      f"(the harness stays under {self.limit:.0f}%)")
+                else:
+                    idle_busy_since = None
+            time.sleep(1)
+
+    def done(self):
+        with self.lock:
+            self.running = max(0, self.running - 1)
+
+    def saw_ram(self, rss):
+        with self.lock:
+            self.measured = max(self.measured, int(rss))
+            self.peak_ram = max(self.peak_ram, self.psutil.virtual_memory().percent)
+            self.game_ram = max(self.measured, int(self.game_ram * 0.5))  # follows real games, never halves at once
+
+
+LOAD = None  # the run's Load guard (main sets it)
 
 
 class Box:
@@ -471,6 +556,12 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
         args += ["-gnx-autotest"]
     proc = subprocess.Popen(args, cwd=box.run_dir, startupinfo=si)
     t0 = time.time()
+    ram_probe = None
+    if LOAD is not None:
+        try:
+            ram_probe = LOAD.psutil.Process(proc.pid)
+        except Exception:
+            pass
     r, crash, done_at = parse_log(""), None, None
     dismissed, seen_dialogs = [], set()
     try:
@@ -484,6 +575,11 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
                               box.scn_log.read_text(encoding="utf-8", errors="replace") if box.scn_log.is_file() else "")
             if proc.poll() is not None:
                 break
+            if ram_probe is not None:
+                try:
+                    LOAD.saw_ram(ram_probe.memory_info().rss)  # the largest game seen sizes later runs
+                except Exception:
+                    ram_probe = None
             if r["done"] and not scenario:
                 if keep_open:
                     break
@@ -760,6 +856,9 @@ def main(argv=None):
                     help="games run at once, each in its own copy and save folder (default: one per CPU thread, max 8; "
                          "the games are CPU-bound, so more than the thread count only slows each one down)")
     ap.add_argument("--quick", action="store_true", help="skip scenarios marked \"slow\": true")
+    ap.add_argument("--load-limit", type=float, default=LOAD_LIMIT,
+                    help="percent of CPU and of RAM the run never takes the machine over (default 80; e.g. 90 on a "
+                         "busy machine: fewer games at once, slower)")
     ap.add_argument("--capture-fixture", nargs=2, metavar=("SLOT", "NAME"),
                     help="copy save slot (a/1/2/3) or a save-folder file name to "
                          "harness_game/fixtures/NAME.json, then exit")
@@ -823,10 +922,14 @@ def main(argv=None):
         est = lambda n: known.get(n or "boot", 6.0)
         jobs.sort(key=lambda j: -sum(est(n) for n in j))  # longest first: the pool finishes together
 
+        global LOAD
+        LOAD = Load(known.get("_game_ram"), a.load_limit)
         if a.keep_open:
+            LOAD.preflight(1)
             boxes = [Box(game_dir, game_dir, SAVE_DIR)]  # a game left open for you uses your normal folders
         else:
-            boxes = make_workers(game_dir, max(1, min(a.jobs, len(jobs))))
+            # never over LOAD_LIMIT % CPU or RAM: fewer workers when the machine is busy, or stop (EXIT_BUSY)
+            boxes = make_workers(game_dir, LOAD.preflight(max(1, min(a.jobs, len(jobs)))))
         if scns:
             for b in boxes:
                 dest = b.run_dir / "GNX_scenarios"
@@ -865,7 +968,11 @@ def main(argv=None):
                 dst = box.run_dir / "GNX_mods" / f["to"]
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(REPO / f["from"], dst)
-            r = boot(box, sc.get("timeout", a.timeout), a.keep_open and not name, name, sc.get("expect_dialog"))
+            LOAD.gate()  # wait for room under the CPU / RAM limit (raises EXIT_BUSY if it never comes)
+            try:
+                r = boot(box, sc.get("timeout", a.timeout), a.keep_open and not name, name, sc.get("expect_dialog"))
+            finally:
+                LOAD.done()
             if sc.get("expect_dialog") and not r["dismissed_dialogs"] and r.get("scn"):
                 # the scenario relies on that popup appearing: missing it is a failure
                 r["scn"]["fails"].append("FAIL  expected dialog containing '" + sc["expect_dialog"] + "' never appeared")
@@ -902,6 +1009,9 @@ def main(argv=None):
                     try:
                         run_one(box, name)
                     except HarnessError as e:
+                        if e.code == EXIT_BUSY:  # the machine stays too busy: stop the whole run
+                            failure.append(e)
+                            return
                         # this run could not start: report it as failed and keep going with the others
                         PROGRESS.result(box.wid, name, "FAIL", str(e)[:60])
                         with out_lock:
@@ -931,9 +1041,14 @@ def main(argv=None):
                 print(f"ERROR: player save(s) {touched} were modified and have been restored", file=sys.stderr)
                 failure.append(HarnessError(EXIT_FAIL, f"player save(s) {touched} modified (restored)"))
             try:
+                if LOAD.measured:
+                    known["_game_ram"] = LOAD.measured  # bytes: the largest game of this run sizes the next one
                 durations_file.write_text(json.dumps(known, indent=0, sort_keys=True), encoding="utf-8")
             except OSError:
                 pass
+        if LOAD.peak_ram and not a.json:
+            print(f"load: RAM peaked at {LOAD.peak_ram:.0f}% (limit {LOAD.limit:.0f}%), largest game "
+                  f"{LOAD.measured >> 20} MB", file=sys.stderr)
         if failure:
             raise failure[0]
         ordered = [results[n] for n in runs if n in results]
