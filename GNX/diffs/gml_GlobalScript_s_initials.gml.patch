@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 10:42:14.928746200 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 11:01:33.917301200 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -53,7 +53,17 @@
      global.val.guide_unlock = 
      {
          num: 0,
-@@ -132,19 +142,21 @@
+@@ -119,6 +129,9 @@
+     scr_set_encounter_reward();
+     scr_set_shop_list();
+     global.load_file = -1;
++    // GNX-SAVES: player save slots (1-3 vanilla, more shown 3 per page); 8 and 9 stay the harness's
++    global.gnx_save_slots = 6;
++    global.gnx_save_page = 0;
+     global.mask_collision = false;
+     global.dirt_fix = 0;
+     global.death_fix = 0;
+@@ -132,19 +145,21 @@
      global.w_spd = 1;
      global.zoom_target = 0;
      global.muffle = 1;
@@ -88,7 +98,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +179,25933 @@
+@@ -167,12 +182,26115 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -4879,7 +4889,12 @@
 +// units, requires, description, author, adds}
 +function scr_gnx_mod_menu_rows()
 +{
-+    var _files = ["save_file_a.json", "save_file_1.json", "save_file_2.json", "save_file_3.json"];
++    var _files = [];
++
++    // GNX-SAVES: autosave and every save slot (used[] indexes this list: 0 = autosave, n = save n)
++    for (var _sf = 0; _sf <= global.gnx_save_slots; _sf++)
++        array_push(_files, gnx_save_file(_sf));
++
 +    var _rows = [];
 +
 +    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
@@ -4974,14 +4989,120 @@
 +    return _t;
 +}
 +
-+// "Save 1, autosave" from a row's used list (indices into autosave, saves 1-3)
++// GNX-SAVES: the file of save slot arg0 (0 = autosave, 1 .. gnx_save_slots), else -1
++function gnx_save_file(arg0)
++{
++    if (arg0 == 0)
++        return "save_file_a.json";
++
++    if (arg0 >= 1 && arg0 <= global.gnx_save_slots)
++        return "save_file_" + string(arg0) + ".json";
++
++    return -1;
++}
++
++// GNX-SAVES: the save slot shown at place arg0 (0-2) of the current page
++function gnx_save_slot_at(arg0)
++{
++    return (global.gnx_save_page * 3) + arg0 + 1;
++}
++
++// GNX-SAVES: "SAVE n" for place arg0 (0-2) of the current page
++function gnx_save_label(arg0)
++{
++    return "SAVE " + string(gnx_save_slot_at(arg0));
++}
++
++// GNX-SAVES: pages of 3 slots
++function gnx_save_pages()
++{
++    return ceil(global.gnx_save_slots / 3);
++}
++
++// GNX-SAVES: page arrows (spr_button_arrow, 0 previous / 1 next, button type arg4) for window arg0 at
++// (arg1, arg3) and (arg2, arg3); none when every slot fits on one page
++function gnx_create_save_page_arrows(arg0, arg1, arg2, arg3, arg4)
++{
++    if (gnx_save_pages() < 2)
++        exit;
++
++    with (arg0)
++    {
++        scr_create_button(arg1, arg3, depth - 2, spr_button_arrow, arg4, id, scr_gnx_create_tool_page_button, -1, scr_draw_hover_button, 0, 0);
++        scr_create_button(arg2, arg3, depth - 2, spr_button_arrow, arg4, id, scr_gnx_create_tool_page_button, -1, scr_draw_hover_button, 1, 0);
++    }
++}
++
++// GNX-SAVES: turns the save page (arg0 = 0 previous, 1 next) and refreshes the in-game save buttons
++function gnx_save_page_turn(arg0)
++{
++    var _n = gnx_save_pages();
++    global.gnx_save_page = (global.gnx_save_page + ((arg0 == 1) ? 1 : -1) + _n) mod _n;
++
++    with (obj_button)
++    {
++        if (interact_type == 53)
++            load_data = scr_set_save_date(button_pos);
++    }
++}
++
++// GNX-SAVES: the main menu's load page windows (autosave, then the 3 slots of the current page) and arrows
++function gnx_create_load_page_windows()
++{
++    with (obj_np)
++    {
++        for (var i = 0; i < 4; i++)
++        {
++            with (instance_create_depth(240, 48 + (50 * i), depth - 1, obj_window))
++            {
++                gui = true;
++                interact_type = 11;
++                scr_window_draw = scr_draw_load_file;
++                source_id = other.id;
++
++                if (i > 0)
++                    y += 13;
++
++                scr_create_load_file((i == 0) ? 0 : gnx_save_slot_at(i - 1));
++            }
++        }
++
++        gnx_create_save_page_arrows(id, 264, 321, 250, 9087);
++    }
++}
++
++// GNX-SAVES: the load page shows another page of slots
++function gnx_load_page_turn(arg0)
++{
++    var _n = gnx_save_pages();
++    global.gnx_save_page = (global.gnx_save_page + ((arg0 == 1) ? 1 : -1) + _n) mod _n;
++    var _old = [];
++
++    with (obj_window)
++    {
++        if (interact_type == 11)
++            array_push(_old, id);
++    }
++
++    with (obj_button)
++    {
++        if (interact_type == 9087 || array_contains(_old, source_id))
++            instance_destroy();
++    }
++
++    for (var i = 0; i < array_length(_old); i++)
++        instance_destroy(_old[i]);
++
++    gnx_create_load_page_windows();
++}
++
++// "Save 1, autosave" from a row's used list(indices into autosave, saves 1-3)
 +function gnx_used_text(arg0)
 +{
-+    var _names = ["autosave", "Save 1", "Save 2", "Save 3"];
 +    var _t = "";
 +
 +    for (var _i = 0; _i < array_length(arg0); _i++)
-+        _t += ((_i > 0) ? ", " : "") + _names[arg0[_i]];
++        _t += ((_i > 0) ? ", " : "") + ((arg0[_i] == 0) ? "autosave" : ("Save " + string(arg0[_i])));
 +
 +    return _t;
 +}
@@ -17046,6 +17167,75 @@
 +    global.val.language = arg0;
 +}
 +
++// the slots the main menu's load page shows, top to bottom, joined with "," (0 = autosave)
++function gnx_scn_load_page_slots()
++{
++    var _w = [];
++    
++    with (obj_window)
++    {
++        if (interact_type == 11)
++            array_push(_w, { y: y, n: button_num });
++    }
++    
++    array_sort(_w, function(_a, _b) { return _a.y - _b.y; });
++    var _t = "";
++    
++    for (var i = 0; i < array_length(_w); i++)
++        _t += ((i > 0) ? "," : "") + string(_w[i].n);
++    
++    return _t;
++}
++
++// answers yes to the open "are you sure" window (type 12), as its yes button does
++function gnx_scn_sure_yes()
++{
++    with (obj_window)
++    {
++        if (interact_type == 12 && scr_window_enter != -1)
++        {
++            enter = true;
++            script_execute(scr_window_enter);
++            exit;
++        }
++    }
++}
++
++// how many buttons of type arg0 exist
++function gnx_scn_button_count(arg0)
++{
++    var _n = 0;
++    
++    with (obj_button)
++    {
++        if (interact_type == arg0)
++            _n++;
++    }
++    
++    return _n;
++}
++
++// file arg0 exists in the save folder (fn asserts call scripts only, not built-in functions)
++function gnx_scn_file_exists(arg0)
++{
++    return file_exists(arg0);
++}
++
++// clicks the in-game save button at place arg0 (0-2) of the open options window (they all have button_num 2)
++function gnx_scn_press_save(arg0)
++{
++    with (obj_button)
++    {
++        if (interact_type == 53 && button_pos == arg0)
++        {
++            with (id)
++                gnx_scn_click();
++            
++            exit;
++        }
++    }
++}
++
 +// the first passage (slot type 5) of floor 0, or -1
 +function gnx_scn_first_passage()
 +{
@@ -22858,9 +23048,9 @@
 +    _x = x - 74;
 +    _y = y + 6;
 +    var _height = 34;
-+    draw_text(_x, _y, "SAVE 1");
-+    draw_text(_x, _y + _height, "SAVE 2");
-+    draw_text(_x, _y + (_height * 2), "SAVE 3");
++    draw_text(_x, _y, gnx_save_label(0));
++    draw_text(_x, _y + _height, gnx_save_label(1));
++    draw_text(_x, _y + (_height * 2), gnx_save_label(2));
 +}
 +
 +function scr_gnx_draw_tool_window()
@@ -23661,10 +23851,12 @@
 +    _x = x - 74;
 +    _y = y + 6;
 +    var _height = 34;
++    // GNX-SAVES: centred like the options window's labels (they were left-aligned here), between the page arrows
++    draw_set_halign(fa_center);
++    draw_text(_x, _y, gnx_save_label(0));
++    draw_text(_x, _y + _height, gnx_save_label(1));
++    draw_text(_x, _y + (_height * 2), gnx_save_label(2));
 +    draw_set_halign(fa_left);
-+    draw_text(_x, _y, "SAVE 1");
-+    draw_text(_x, _y + _height, "SAVE 2");
-+    draw_text(_x, _y + (_height * 2), "SAVE 3");
 +}
 +
 +function sprref_legacy(arg0)
@@ -26024,7 +26216,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +26116,181 @@
+@@ -183,42 +26301,181 @@
      Value_3,
      Value_4,
      Value_5,

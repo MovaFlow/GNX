@@ -1,0 +1,202 @@
+{
+  "about": "More save slots (6, 3 per page): the options window's save buttons get page arrows (9086); on page 2 the buttons save to slots 4-6 (save_file_4.json ...), slots 1-3 stay untouched (also when slot 4 is saved over through the overwrite prompt), and the main menu's load page (arrows 9087) shows slot 4 on its second page and loads it. Runs in the worker's own save folder. The arrows go with the save buttons: closing the options window, or opening the DEBUG tool window from it, leaves none behind.",
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "press": {
+        "type": 32,
+        "num": 4
+      },
+      "why": "the gear: options window with the save buttons"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "global",
+      "name": "gnx_save_page",
+      "is": 0
+    },
+    {
+      "press": {
+        "type": 9086,
+        "num": 1
+      },
+      "why": "next page"
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "global",
+      "name": "gnx_save_page",
+      "is": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_save_slot_at",
+      "args": [
+        0
+      ],
+      "is": 4
+    },
+    {
+      "call": "gnx_scn_press_save",
+      "args": [
+        0
+      ],
+      "why": "the first button of page 2 = slot 4"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_file_exists",
+      "args": [
+        "save_file_4.json"
+      ],
+      "is": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_file_exists",
+      "args": [
+        "save_file_1.json"
+      ],
+      "is": 0,
+      "why": "slot 1 untouched"
+    },
+    {
+      "screenshot": "options_page2"
+    },
+    {
+      "call": "gnx_scn_press_save",
+      "args": [
+        0
+      ],
+      "why": "slot 4 again: it exists, so the game asks to overwrite"
+    },
+    {
+      "wait": 5
+    },
+    {
+      "call": "gnx_scn_sure_yes"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_file_exists",
+      "args": [
+        "save_file_1.json"
+      ],
+      "is": 0,
+      "why": "the overwrite went to slot 4, not slot 1"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_file_exists",
+      "args": [
+        "save_file_4.json"
+      ],
+      "is": 1
+    },
+    {
+      "press": {
+        "type": 9086,
+        "num": 1
+      },
+      "why": "next page wraps to page 1"
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "global",
+      "name": "gnx_save_page",
+      "is": 0
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_count",
+      "args": [
+        9086
+      ],
+      "is": 2
+    },
+    {
+      "press": {
+        "type": 32,
+        "num": 4
+      },
+      "why": "the gear again: closes the options window"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_count",
+      "args": [
+        9086
+      ],
+      "is": 0
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_count",
+      "args": [
+        53
+      ],
+      "is": 0
+    },
+    {
+      "press": {
+        "type": 32,
+        "num": 4
+      }
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_count",
+      "args": [
+        9086
+      ],
+      "is": 2,
+      "why": "reopened"
+    },
+    {
+      "press": {
+        "type": 9010,
+        "num": 0
+      },
+      "why": "DEBUG: the tool window"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_count",
+      "args": [
+        9086
+      ],
+      "is": 0,
+      "why": "no arrows without save buttons"
+    },
+    {
+      "screenshot": "tool_window"
+    }
+  ],
+  "mods": [
+    "GNX/example_mod"
+  ]
+}

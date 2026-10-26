@@ -52,7 +52,8 @@ DEFAULT_MODS = [GNX_SRC / "example_mod"]
 SAVE_DIR = Path(os.environ.get("LOCALAPPDATA", "")) / "goblin_nest"  # the player's saves (and --keep-open runs)
 SCENARIOS = REPO / "tools" / "scenarios"
 TRACKED_FIXTURES = SCENARIOS / "fixtures"  # fixtures shipped with the repo (harness_game/fixtures wins)
-SAVE_SLOTS = {"a": "save_file_a.json", "1": "save_file_1.json", "2": "save_file_2.json", "3": "save_file_3.json"}
+# player save slots (autosave + GNX's 6 slots): backed up and hash-checked around every run
+SAVE_SLOTS = {"a": "save_file_a.json", **{str(n): f"save_file_{n}.json" for n in range(1, 7)}}
 EXE = "GoblinNest.exe"
 VANILLA = "data.vanilla.win"
 STAMP = ".harness_stamp"

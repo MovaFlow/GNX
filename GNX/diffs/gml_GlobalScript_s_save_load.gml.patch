@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-26 08:07:39.034692400 +0100
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-26 11:01:43.147712000 +0100
 @@ -48,6 +48,14 @@
                          _data.slot_data.prop[iii].yscale = image_yscale;
                          _data.slot_data.prop[iii].iindex = image_index;
@@ -59,7 +59,7 @@
      _save_data.global_list = _global;
      var _save_type;
      
-@@ -216,6 +237,46 @@
+@@ -216,6 +237,56 @@
              _save_type = "save_file_3.json";
              scr_pop_up_create(UnknownEnum.Value_23);
              break;
@@ -70,6 +70,16 @@
 +
 +        case 9:
 +            _save_type = "gnx_harness_save.json";  // GNX scenario runner only, never offered to players
++            break;
++        
++        default:
++            // GNX-SAVES: the slots after 3 (gnx_save_file); anything else is not a save slot
++            _save_type = gnx_save_file(arg0);
++            
++            if (_save_type == -1)
++                exit;
++            
++            scr_gnx_pop_up_create("Game saved at slot " + string(arg0) + ".");
 +            break;
 +    }
 +    
@@ -106,7 +116,7 @@
      }
      
      if (file_exists(_save_type))
-@@ -225,6 +286,7 @@
+@@ -225,6 +296,7 @@
      buffer_write(_buff, buffer_text, json_stringify(_save_data));
      buffer_save(_buff, _save_type);
      buffer_delete(_buff);
@@ -114,7 +124,7 @@
  }
  
  function scr_save_lang()
-@@ -246,44 +308,148 @@
+@@ -246,44 +318,157 @@
  
  function scr_load_slot()
  {
@@ -132,12 +142,6 @@
 -        case 0:
 -            if (file_exists("save_file_a.json"))
 -                _load_type = "save_file_a.json";
--            
--            break;
--        
--        case 1:
--            if (file_exists("save_file_1.json"))
--                _load_type = "save_file_1.json";
 +        switch (global.load_file)
 +        {
 +            case 0:
@@ -148,9 +152,9 @@
              
 -            break;
 -        
--        case 2:
--            if (file_exists("save_file_2.json"))
--                _load_type = "save_file_2.json";
+-        case 1:
+-            if (file_exists("save_file_1.json"))
+-                _load_type = "save_file_1.json";
 +            case 1:
 +                if (file_exists("save_file_1.json"))
 +                    _load_type = "save_file_1.json";
@@ -159,9 +163,9 @@
              
 -            break;
 -        
--        case 3:
--            if (file_exists("save_file_3.json"))
--                _load_type = "save_file_3.json";
+-        case 2:
+-            if (file_exists("save_file_2.json"))
+-                _load_type = "save_file_2.json";
 +            case 2:
 +                if (file_exists("save_file_2.json"))
 +                    _load_type = "save_file_2.json";
@@ -169,6 +173,10 @@
 +                break;
              
 -            break;
+-        
+-        case 3:
+-            if (file_exists("save_file_3.json"))
+-                _load_type = "save_file_3.json";
 +            case 3:
 +                if (file_exists("save_file_3.json"))
 +                    _load_type = "save_file_3.json";
@@ -185,6 +193,16 @@
 +                if (file_exists("gnx_harness_save.json"))
 +                    _load_type = "gnx_harness_save.json";
 +
++                break;
+             
+-            break;
++            default:
++                // GNX-SAVES: the slots after 3
++                var _gsf = gnx_save_file(global.load_file);
++                
++                if (_gsf != -1 && file_exists(_gsf))
++                    _load_type = _gsf;
++                
 +                break;
 +        }
      }
@@ -290,7 +308,7 @@
          var _slot_list = _load_data.slot_list;
          var _start_x = -1;
          
-@@ -302,9 +468,12 @@
+@@ -302,9 +487,12 @@
              
              with (_slot_id)
              {
@@ -303,7 +321,7 @@
                      
                      if (_data.unit_data != -1)
                      {
-@@ -365,6 +534,29 @@
+@@ -365,6 +553,29 @@
                      spr_base = _spr;
                  }
                  
@@ -333,7 +351,7 @@
                  if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
                      spr_base = spr_tent_back_full;
                  
-@@ -408,30 +600,121 @@
+@@ -408,30 +619,121 @@
                      global.slot_x[slot_data.slot_floor] += _diff;
                  }
                  
@@ -380,9 +398,7 @@
 +                    // load order (audit P10)
 +                    var _gnx_pt = gnx_prop_saved_type(_pd);
 +                    var _prop = (_gnx_pt == -1) ? -1 : scr_create_prop(id, _gnx_pt, _infant, _pd.prop_step);
-                     
--                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
--                    _prop.prop_data = _data.slot_data.prop[ii];
++                    
 +                    // GNX-FIX: no prop made (its mod is missing): kept aside, not read (that stopped the load)
 +                    if (is_undefined(_prop) || _prop == -1 || !instance_exists(_prop))
 +                    {
@@ -395,7 +411,9 @@
 +                    }
 +                    
 +                    array_push(_gnx_kept, _pd);
-+                    
+                     
+-                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
+-                    _prop.prop_data = _data.slot_data.prop[ii];
 +                    if (variable_struct_exists(_pd, "prop_pos"))
 +                        array_push(_gnx_rows, _pd.prop_pos);
 +                    
@@ -466,7 +484,7 @@
              }
          }
          
-@@ -482,22 +765,14 @@
+@@ -482,22 +784,14 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -491,7 +509,7 @@
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +829,11 @@
+@@ -554,6 +848,11 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -503,7 +521,7 @@
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +847,52 @@
+@@ -567,7 +866,52 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -556,7 +574,7 @@
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +931,21 @@
+@@ -606,11 +950,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -579,7 +597,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +969,12 @@
+@@ -634,7 +988,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -592,7 +610,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +994,392 @@
+@@ -654,8 +1013,392 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -985,7 +1003,7 @@
      }
      
      return _load;
-@@ -663,6 +1387,7 @@
+@@ -663,6 +1406,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -993,17 +1011,52 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,6 +1407,9 @@
+@@ -682,33 +1426,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
-+        
++
 +        default:
-+            exit;
++            // GNX-SAVES: the slots after 3
++            _load_type = gnx_save_file(arg0);
++
++            if (_load_type == -1)
++                exit;
      }
-     
+-    
++
      file_delete(_load_type);
-@@ -733,3 +1461,119 @@
+ }
+ 
+ function scr_create_menu_load_page()
+ {
++    // GNX-SAVES: the autosave and the 3 slots of the current page, with page arrows when there are more
++    gnx_create_load_page_windows();
++
+     with (obj_np)
+-    {
+-        for (var i = 0; i < 4; i++)
+-        {
+-            with (instance_create_depth(240, 48 + (50 * i), depth - 1, obj_window))
+-            {
+-                gui = true;
+-                interact_type = UnknownEnum.Value_11;
+-                scr_window_draw = scr_draw_load_file;
+-                source_id = other.id;
+-                
+-                if (i > 0)
+-                    y += 13;
+-                
+-                scr_create_load_file(i);
+-            }
+-        }
+-        
+         scr_create_button(292, 250, 0, spr_button_long, UnknownEnum.Value_52, id, scr_create_menu_back_button, -1, scr_draw_back_menu, 2, 4);
+-    }
+ }
+ 
+ enum UnknownEnum
+@@ -733,3 +1469,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
