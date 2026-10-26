@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 14:18:17.995163100 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 15:18:39.615457400 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -104,7 +104,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +186,26573 @@
+@@ -167,12 +186,26832 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -116,6 +116,7 @@
 +        perf: 0,
 +        verbose: 0,
 +        capture100: 0,
++        free_floor_copy: 0,
 +        trace: 0,
 +        overlay: 0,
 +        perfhud: 0,
@@ -3218,7 +3219,9 @@
 +    global.gnx_tool_registry = [];
 +    global.gnx_perf_enabled = false;
 +    global.gnx_force_capture_100 = false;
-+    global.gnx_debug_verbose = false;
++    // GNX-FLOOR: COPY DOWN costs nothing (GNX DEBUG toggle FREE COPY)
++    global.gnx_free_floor_copy = false;
++global.gnx_debug_verbose = false;
 +    global.gnx_trace_entities = false;
 +    global.gnx_perf_hud = false;
 +    global.gnx_perf_slots_drawn = 0;
@@ -5130,6 +5133,128 @@
 +    }
 +}
 +
++// GNX-FLOOR: COPY DOWN: builds floor arg0's layout on the floor below: every slot with the same cell, then the
++// passages' styles and props. Only onto a floor that holds nothing yet (its entrance, stairs and first
++// passage, laid out like this floor's start). Costs what building it by hand costs (slot + cell prices),
++// unless the GNX DEBUG toggle FREE COPY is on. Captives, monsters and cell upgrades are not copied.
++// Returns "" when done, else why not (shown in a popup).
++function gnx_floor_copy_down(arg0)
++{
++    var _t = arg0 + 1;
++
++    if (_t > global.val.floor)
++        return "Copy impossible: there is no floor below. Dig one first.";
++
++    var _src = global.slot_list[arg0];
++    var _dst = global.slot_list[_t];
++    var _n0 = ds_list_size(_dst);
++
++    // the floor below must be empty: only the start every floor has (types 3, 4, 5), matching this floor's
++    for (var i = 0; i < _n0; i++)
++    {
++        var _ty = ds_list_find_value(_dst, i).slot_data.slot_type;
++
++        if ((_ty != 3 && _ty != 4 && _ty != 5) || i >= ds_list_size(_src) || ds_list_find_value(_src, i).slot_data.slot_type != _ty)
++            return "Copy impossible: the floor below is not empty.";
++    }
++
++    // the slots to build: everything after the start but the passages, in order (each slot is built with its
++    // passage). Type 3 is not only part of a floor's start: it is also built mid-floor.
++    var _cells = [];
++    var _cost = 0;
++
++    for (var i = _n0; i < ds_list_size(_src); i++)
++    {
++        var _s = ds_list_find_value(_src, i);
++        var _ty = _s.slot_data.slot_type;
++
++        if (_ty == 5)
++            continue;
++
++        var _h = variable_struct_exists(_s.slot_data, "h_type") ? _s.slot_data.h_type : -1;
++        array_push(_cells, { type: _ty, h: _h });
++        _cost += max(0, scr_slot_type_price_data(_ty).price);
++
++        if (_h != -1)
++            _cost += max(0, scr_h_slot_text_data(_h).price);
++    }
++
++    if (array_length(_cells) == 0)
++        return "Nothing to copy: this floor has no cells.";
++
++    if (global.gnx_free_floor_copy)
++        _cost = 0;
++
++    if (global.val.money < _cost)
++        return "Not enough gold to copy this floor: " + string(_cost) + " needed.";
++
++    global.val.money -= _cost;
++    global.gnx_floor_copy_charged = _cost;  // what this copy took (the harness checks it against the build price)
++    var _side = global.build_side;
++    global.build_side = false;  // build left to right, as the source floor reads
++
++    for (var i = 0; i < array_length(_cells); i++)
++    {
++        var _list = global.slot_list[_t];
++        var _before = [];
++
++        for (var k = 0; k < ds_list_size(_list); k++)
++            array_push(_before, ds_list_find_value(_list, k));
++
++        // as the build menu does: scr_create_slot(..., true) adds the slot and its passage, and returns the passage
++        scr_create_slot(_cells[i].type, _t, ds_list_size(_list), true);
++
++        if (_cells[i].h != -1)
++        {
++            for (var k = 0; k < ds_list_size(_list); k++)
++            {
++                var _new = ds_list_find_value(_list, k);
++
++                if (!array_contains(_before, _new) && _new.slot_data.slot_type == _cells[i].type)
++                {
++                    scr_set_slot_h_data(_new, _cells[i].h);
++                    break;
++                }
++            }
++        }
++    }
++
++    global.build_side = _side;
++
++    // passages and entrance: the same style and props, slot by slot (the layouts now line up)
++    var _m = min(ds_list_size(_src), ds_list_size(global.slot_list[_t]));
++
++    for (var i = 0; i < _m; i++)
++    {
++        var _a = ds_list_find_value(_src, i);
++        var _b = ds_list_find_value(global.slot_list[_t], i);
++
++        if (_a.slot_data.slot_type != _b.slot_data.slot_type || (_a.slot_data.slot_type != 4 && _a.slot_data.slot_type != 5))
++            continue;
++
++        if (_b.slot_data.between_type != _a.slot_data.between_type)
++            gnx_set_between(_b, _a.slot_data.between_type);
++
++        scr_check_between_base(_t, _b);
++        scr_clear_prop_pos(_b, 7);
++        scr_clear_prop_pos(_b, 8);
++        scr_clear_prop_pos(_b, 9);
++
++        for (var p = 0; p < array_length(_a.slot_data.prop); p++)
++        {
++            var _pd = _a.slot_data.prop[p];
++
++            if (_pd.prop_pos >= 7 && _pd.prop_pos <= 9)
++                scr_create_prop(_b, _pd.prop_type, _pd.prop_pos, -1);
++        }
++    }
++
++    scr_gnx_check_triggers("cell_built");
++    scr_gnx_check_quest_completion("cell_built");
++    scr_gnx_pop_up_create("Floor copied below" + ((_cost > 0) ? (" for " + string(_cost) + " gold.") : "."));
++    return "";
++}
++
 +// GNX-FLOOR: the edit menu runs for the whole floor of entrance arg0
 +function gnx_floor_edit_on(arg0)
 +{
@@ -5932,6 +6057,26 @@
 +                guard: -1,
 +                guard_fail_popup: ""
 +            }, 
++            {
++                label: "FREE COPY",
++                toggle: "free_floor_copy",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_free_floor_copy",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_free_floor_copy",
++                    value: 0
++                }],
++                popup: "Floor copies are free",
++                undo_popup: "Floor copies cost the build price again",
++                guard: -1,
++                guard_fail_popup: ""
++            },
 +            {
 +                label: "CAPT100",
 +                toggle: "capture100",
@@ -17582,9 +17727,13 @@
 +    return "ok";
 +}
 +
-+// opens the menu of floor arg0's entrance (arg1 = false) or of its first passage (true), as a click on it does
++// opens the menu of floor arg0's entrance (arg1 = false) or of its first passage (true), as a click on it does;
++// arg0 = -1: the floor above the deepest one (global.val.floor - 1)
 +function gnx_scn_open_slot_menu(arg0, arg1)
 +{
++    if (arg0 == -1)
++        arg0 = global.val.floor - 1;
++
 +    for (var i = 0; i < ds_list_size(global.slot_list[arg0]); i++)
 +    {
 +        var _s = ds_list_find_value(global.slot_list[arg0], i);
@@ -17677,6 +17826,112 @@
 +        _n += array_length(_sl[i].slot_data.prop);
 +
 +    return _n;
++}
++
++// "same" when floor global.val.floor - 1 and the deepest floor hold the same slots (types, cells, styles and
++// props, slot by slot), else the first difference
++function gnx_scn_floor_copy_same()
++{
++    var _a = global.slot_list[global.val.floor - 1];
++    var _b = global.slot_list[global.val.floor];
++
++    if (ds_list_size(_a) != ds_list_size(_b))
++        return "sizes " + string(ds_list_size(_a)) + " / " + string(ds_list_size(_b));
++
++    for (var i = 0; i < ds_list_size(_a); i++)
++    {
++        var _x = ds_list_find_value(_a, i).slot_data;
++        var _y = ds_list_find_value(_b, i).slot_data;
++
++        if (_x.slot_type != _y.slot_type)
++            return "type at " + string(i);
++
++        if (variable_struct_exists(_x, "h_type") && _x.h_type != _y.h_type)
++            return "cell at " + string(i);
++
++        if ((_x.slot_type == 4 || _x.slot_type == 5) && _x.between_type != _y.between_type)
++            return "style at " + string(i);
++
++        // placed props live on passages and the entrance; a cell's props are its own (a newborn ...)
++        if (_x.slot_type != 4 && _x.slot_type != 5)
++            continue;
++
++        if (array_length(_x.prop) != array_length(_y.prop))
++            return "props at " + string(i) + " (type " + string(_x.slot_type) + ")";
++
++        for (var p = 0; p < array_length(_x.prop); p++)
++        {
++            if (!scr_check_prop_exists(ds_list_find_value(_b, i), _x.prop[p].prop_pos, _x.prop[p].prop_type))
++                return "prop at " + string(i);
++        }
++    }
++
++    return "same";
++}
++
++// 1 when the last floor copy charged exactly what building floor global.val.floor - 1 by hand costs (the copy
++// records its charge, so the nest's income during the steps does not blur it)
++function gnx_scn_paid_build_cost()
++{
++    return variable_global_exists("gnx_floor_copy_charged") && global.gnx_floor_copy_charged > 0
++        && global.gnx_floor_copy_charged == gnx_scn_floor_build_cost();
++}
++
++// 1 when no gold was spent since gnx_scn_gold_mark (the nest's income may have added some)
++function gnx_scn_gold_not_spent()
++{
++    return gnx_scn_gold_spent() <= 0;
++}
++
++// sets the gold
++function gnx_scn_set_gold(arg0)
++{
++    global.val.money = arg0;
++}
++
++// builds an empty slot of type arg0 (with its passage) at the end of the deepest floor, as NEW does
++function gnx_scn_build_on_last(arg0)
++{
++    scr_create_slot(arg0, global.val.floor, ds_list_size(global.slot_list[global.val.floor]), true);
++}
++
++// how many slots the deepest floor holds
++function gnx_scn_last_floor_size()
++{
++    return ds_list_size(global.slot_list[global.val.floor]);
++}
++
++// remembers the gold (gnx_scn_gold_spent tells how much went since)
++function gnx_scn_gold_mark()
++{
++    global.gnx_scn_gold = global.val.money;
++}
++
++function gnx_scn_gold_spent()
++{
++    return global.gnx_scn_gold - global.val.money;
++}
++
++// what building the cells of floor global.val.floor - 1 by hand costs (slot + cell prices, as the menus charge)
++function gnx_scn_floor_build_cost()
++{
++    var _src = global.slot_list[global.val.floor - 1];
++    var _c = 0;
++
++    for (var i = 3; i < ds_list_size(_src); i++)
++    {
++        var _d = ds_list_find_value(_src, i).slot_data;
++
++        if (_d.slot_type == 5)
++            continue;
++
++        _c += max(0, scr_slot_type_price_data(_d.slot_type).price);
++
++        if (variable_struct_exists(_d, "h_type") && _d.h_type != -1)
++            _c += max(0, scr_h_slot_text_data(_d.h_type).price);
++    }
++
++    return _c;
 +}
 +
 +// file arg0 exists in the save folder (fn asserts call scripts only, not built-in functions)
@@ -23132,6 +23387,10 @@
 +                case "gnx_force_capture_100":
 +                    global.gnx_force_capture_100 = _v != 0;
 +                    break;
++
++                case "gnx_free_floor_copy":
++                    global.gnx_free_floor_copy = _v != 0;
++                    break;
 +                
 +                case "gnx_trace_entities":
 +                    global.gnx_trace_entities = _v != 0;
@@ -23156,7 +23415,7 @@
 +                    break;
 +            }
 +            
-+            if (_key == "gnx_perf_enabled" || _key == "gnx_debug_verbose" || _key == "gnx_force_capture_100" || _key == "gnx_trace_entities" || _key == "gnx_perf_hud" || _key == "gnx_cull_step_off" || _key == "gnx_econ_on")
++            if (_key == "gnx_perf_enabled" || _key == "gnx_debug_verbose" || _key == "gnx_force_capture_100" || _key == "gnx_free_floor_copy" ||_key == "gnx_trace_entities" || _key == "gnx_perf_hud" || _key == "gnx_cull_step_off" || _key == "gnx_econ_on")
 +            {
 +                var _svlog = gnx_log_open();
 +                gnx_log_write(_svlog, "[GNX-TOOL] set_var " + _key + " = " + string(_v) + "\n");
@@ -26680,7 +26939,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +26763,181 @@
+@@ -183,42 +27022,181 @@
      Value_3,
      Value_4,
      Value_5,
