@@ -96,7 +96,10 @@ class Load:
         """how many games fit under the limit now (one CPU thread and game_ram each)"""
         return min(int((self.limit - cpu) // self.per_cpu), int(ram_room // self.game_ram))
 
-    def preflight(self, wanted):
+    def preflight(self, wanted, need=None):
+        """need: RAM of the biggest game this run plans (default game_ram)"""
+        if need:
+            self.game_ram, saved = int(need), self.game_ram
         cpu, ram, ram_room = self.sample()
         # busy: over the limit, or not even one game fits under it
         if self.busy(cpu, ram) or self.fits(cpu, ram_room) < 1:
@@ -108,19 +111,22 @@ class Load:
                 raise HarnessError(EXIT_BUSY, f"too busy to run: CPU {cpu:.0f}%, RAM {ram:.0f}% "
                                               f"(the harness stays under {self.limit:.0f}%; a game needs ~{self.game_ram >> 20} MB)")
         n = max(1, min(wanted, self.fits(cpu, ram_room)))
+        if need:
+            self.game_ram = saved
         if n < wanted:
             print(f"load guard: {n} worker(s) instead of {wanted} (CPU {cpu:.0f}%, RAM {ram:.0f}%, "
                   f"limit {self.limit:.0f}%)", file=sys.stderr)
         return n
 
-    def gate(self):
-        """Before a game starts: wait until one more game fits under the limit. When none of ours runs and the
-        machine stays too busy for 30 s, stop (EXIT_BUSY)."""
+    def gate(self, need=None):
+        """Before a game starts: wait until one more game (need bytes of RAM, default game_ram) fits under the
+        limit. When none of ours runs and the machine stays too busy for 30 s, stop (EXIT_BUSY)."""
+        need = int(need or self.game_ram)
         idle_busy_since = None
         while True:
             with self.lock:
                 cpu, ram, ram_room = self.sample()
-                if cpu + self.per_cpu <= self.limit and ram_room >= self.game_ram:
+                if cpu + self.per_cpu <= self.limit and ram_room >= need:
                     self.running += 1
                     return
                 if self.running == 0:
@@ -557,6 +563,7 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
     proc = subprocess.Popen(args, cwd=box.run_dir, startupinfo=si)
     t0 = time.time()
     ram_probe = None
+    run_peak = 0
     if LOAD is not None:
         try:
             ram_probe = LOAD.psutil.Process(proc.pid)
@@ -577,7 +584,9 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
                 break
             if ram_probe is not None:
                 try:
-                    LOAD.saw_ram(ram_probe.memory_info().rss)  # the largest game seen sizes later runs
+                    rss = ram_probe.memory_info().rss
+                    LOAD.saw_ram(rss)  # the largest game seen sizes runs that have no record of their own
+                    run_peak = max(run_peak, rss)
                 except Exception:
                     ram_probe = None
             if r["done"] and not scenario:
@@ -615,6 +624,7 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
     r = parse_log(text)  # final read: the game may have written its last lines right before exiting
     if crash:
         crash = crash[:2]  # hwnd is meaningless after the run (and not JSON)
+    r.update(ram_peak=run_peak)
     r.update(boot_s=boot_s, exit_code=exit_code, crash=crash, dismissed_dialogs=dismissed, kept_open=keep_open,
              tail=text.splitlines()[-40:], scenario=scenario)
     game_dir = box.out
@@ -920,16 +930,27 @@ def main(argv=None):
         except (OSError, ValueError):
             known = {}
         est = lambda n: known.get(n or "boot", 6.0)
+
+        def ram_est(n):
+            """RAM this run's game needs: its own last peak, else the largest game seen when it loads real mods
+            (harness_game/test_mods), else GAME_RAM_GUESS"""
+            rec = known.get("_ram", {})
+            if (n or "boot") in rec:
+                return rec[n or "boot"]
+            if n and any("test_mods" in str(m) for m in scns.get(n, {}).get("mods", [])):
+                return known.get("_game_ram", GAME_RAM_GUESS)
+            return GAME_RAM_GUESS
         jobs.sort(key=lambda j: -sum(est(n) for n in j))  # longest first: the pool finishes together
 
         global LOAD
         LOAD = Load(known.get("_game_ram"), a.load_limit)
         if a.keep_open:
-            LOAD.preflight(1)
+            LOAD.preflight(1, ram_est(None))
             boxes = [Box(game_dir, game_dir, SAVE_DIR)]  # a game left open for you uses your normal folders
         else:
             # never over LOAD_LIMIT % CPU or RAM: fewer workers when the machine is busy, or stop (EXIT_BUSY)
-            boxes = make_workers(game_dir, LOAD.preflight(max(1, min(a.jobs, len(jobs)))))
+            boxes = make_workers(game_dir, LOAD.preflight(max(1, min(a.jobs, len(jobs))),
+                                                          max(ram_est(n) for n in runs)))
         if scns:
             for b in boxes:
                 dest = b.run_dir / "GNX_scenarios"
@@ -968,7 +989,7 @@ def main(argv=None):
                 dst = box.run_dir / "GNX_mods" / f["to"]
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(REPO / f["from"], dst)
-            LOAD.gate()  # wait for room under the CPU / RAM limit (raises EXIT_BUSY if it never comes)
+            LOAD.gate(ram_est(name))  # wait for room under the CPU / RAM limit (raises EXIT_BUSY if it never comes)
             try:
                 r = boot(box, sc.get("timeout", a.timeout), a.keep_open and not name, name, sc.get("expect_dialog"))
             finally:
@@ -994,6 +1015,8 @@ def main(argv=None):
                                 f"suite {r.get('suite_pass')}/{r.get('suite_total')}  {r['boot_s']}s")
             if code in (EXIT_PASS, EXIT_FAIL) and r.get("boot_s"):
                 known[name or "boot"] = r["boot_s"]
+            if r.get("ram_peak"):
+                known.setdefault("_ram", {})[name or "boot"] = r["ram_peak"]  # bytes: sizes this run next time
             with out_lock:
                 results[name] = {k: v for k, v in r.items() if k != "tail"} | {"verdict": code}
                 if not a.json:
