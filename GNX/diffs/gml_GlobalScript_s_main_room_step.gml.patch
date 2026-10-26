@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_main_room_step.gml	2026-09-02 08:45:16.123548000 +0200
-+++ gml/gml_GlobalScript_s_main_room_step.gml	2026-10-14 08:44:44.201826000 +0200
++++ gml/gml_GlobalScript_s_main_room_step.gml	2026-10-26 08:07:38.974837900 +0100
 @@ -41,6 +41,23 @@
                  var _bgm = global.val.bgm_vol;
                  var _load = scr_load_slot();
@@ -42,7 +42,7 @@
              load_state = UnknownEnum.Value_5;
              break;
          
-@@ -182,6 +201,11 @@
+@@ -182,10 +201,18 @@
              room_goto(rm_game);
              break;
      }
@@ -54,7 +54,23 @@
  }
  
  function scr_main_end_step()
-@@ -210,6 +234,10 @@
+ {
++    // GNX-UG: widen or narrow floor bands when underground cells were built or removed
++    gnx_ug_layout_step();
++    
+     with (obj_camera)
+     {
+         var _transition = !abs(global.zoom_target);
+@@ -197,7 +224,7 @@
+         if (global.zoom_target == 4)
+             _border_y = 10000;
+         else
+-            _border_y = max(0, ((270 + (global.val.floor * 140)) - (cam_height * _transition)) + (50 * max(0, sign(global.val.floor - 1))));
++            _border_y = max(0, ((270 + gnx_floor_off(global.val.floor)) - (cam_height * _transition)) + (50 * max(0, sign(global.val.floor - 1))));
+         
+         y = clamp(y, _start_y, _border_y);
+         camera_set_view_pos(camera, x, y);
+@@ -210,6 +237,10 @@
          }
      }
      
@@ -65,7 +81,29 @@
      if (instance_exists(obj_button))
      {
          with (obj_button)
-@@ -268,6 +296,10 @@
+@@ -250,6 +281,10 @@
+         }
+     }
+     
++    // GNX-PROP: one clock for all mod props, in seconds of game time (stops while paused): looping frames
++    // and effects are worked out from it, so they keep time while a prop is off screen (audit 16)
++    global.gnx_scene_t = gnx_scene_time() + (global.w_spd / 60);
++    
+     if (instance_exists(obj_prop))
+     {
+         with (obj_prop)
+@@ -261,6 +296,10 @@
+                 x = _source.x + prop_data.shift_x;
+                 y = _source.y + prop_data.shift_y;
+             }
++            
++            // GNX-PROP: plays and flashes of reacting mod props run here, every step, on screen or off
++            if (variable_instance_exists(id, "gnx_prop_react") && is_struct(gnx_prop_react))
++                gnx_prop_step();
+         }
+     }
+     
+@@ -268,6 +307,10 @@
      {
          with (obj_slot)
          {
@@ -76,7 +114,7 @@
              if (h_unit_list != -1 && array_length(h_unit_list) > 0)
              {
                  for (var i = 0; i < array_length(h_unit_list); i++)
-@@ -281,6 +313,9 @@
+@@ -281,6 +324,9 @@
              }
          }
      }

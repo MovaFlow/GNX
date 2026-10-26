@@ -6,11 +6,23 @@
 
 ### New Features
 
+- **From Mav (1.4.9.5):**
+  - **Underground cells** (`"category": "ug_breed"`): the captive sits in a pit below the floor and a tentacle works her from below, with its own scene: start, loop, ej, birth rounds, milking while she has milk. The floor holding one gets a deeper band and the floors below move down. Built from CUSTOM. GNX ships the pit's walls, floor, tentacle and band. See the modding guide, section 24.
+  - **Own frame counts per phase** (`physical.frames`) for any mod cell with its own art, with `loop_scale`, `start_loops`, `ej_holds`, `ej_start` and `ej_hold`; a load-time check names every strip whose frame count does not fit its phase.
+  - **Intermissions**: short phases between idle and start, start and loop, loop and ej, ej and birth (`physical.intermissions`), with their own captive and monster art.
+  - **A second wall** (`sprites.wall_2`), switched with the cell's swap button, and **`physical.transfer`** to keep TRANSFER hobgoblins away from a cell.
+  - **Independent places**: in a cell with several monsters, each place can run its own scene. A monster comes in, plays its start, loops and ejaculates on its own clock and leaves alone while the others go on (modding guide 11.5).
+  - **Decoration props come alive**: multi-frame props loop on their own, and props can pulse, float, rotate, swing, cycle colours and glow (light or pixel-art rings). They can react to the cell next to them (a monster leaving, a scene starting or ending, a birth, milk) and show a counter, saved with the game. Props are named by name in quest rewards and tools, and placed props are saved by name, so they survive a change in mod load order (modding guide 19.7 to 19.12).
+  - **Sprite origins by name** (`"xorig": "center"`, `"yorig": "bottom"`...) for any GNX sprite.
+  - Mod values written as text (`"400"`) are read as numbers in more places, `map_start` and the quest map conditions skip a missing `map` with a log line instead of failing, a mod cell without `spawn_info` no longer stops the game at the end of a scene, and an atlas entry on a page that did not load is rejected (the vanilla sprite is used) instead of drawing nothing. Many more crashes on malformed mod data are now mod errors instead (birth class lists, prop entries, glows, atlas files without frames, monster places without species), and a save whose placed props belong to a removed mod loads and keeps them for when the mod comes back.
 - **`mon_sprite_swap`** (class key): replace vanilla monster sprites by name wherever they are drawn on a captive of the class, in every cell and phase, like the game does for the Cow. Lets a class with another body shape get goblins, hobgoblins and ogres that fit it.
 
 ### Bug Fixes
 
+- `preg_mon_type_override` must be 0 to 3; another value is now reported and ignored (`-1`, used by the example mod, made the class never get pregnant).
 - A new class that defines no `clothing_standard`, `clothing_big` or `clothing_tent` no longer crashes the game when it enters a cell of that size (`scr_set_class_spr_data`: `clothing_standard` not set); it wears the vanilla Peasant's clothes there, with a warning in the log.
+- In a mod cell with several monsters, monsters still walking to the cell when the scene ended were moved into it and sent back out as if they had taken part; they now just wander off from where they are. A monster call also no longer picks a place no free monster can fill (from Mav).
+- The monster guide's hover again shows the mod girls who gave birth to that monster after you load a save. The list was never saved, so those portraits only came back after a new birth.
 
 ## v1.4.9
 

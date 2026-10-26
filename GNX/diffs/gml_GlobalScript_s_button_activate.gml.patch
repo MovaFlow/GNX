@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-15 15:22:14.571511000 +0200
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-23 15:52:58.159096100 +0200
 @@ -29,6 +29,15 @@
              trigger = false;
              global.click_lock = false;
@@ -289,7 +289,35 @@
                              slot_data.mod_index[_mod_pos] = !slot_data.mod_index[_mod_pos];
                              
                              if (slot_data.mod_index[_mod_pos] == 1)
-@@ -758,6 +878,44 @@
+@@ -587,7 +707,9 @@
+                                             {
+                                                 scr_unit_removal(false, true, true, false, -1);
+                                             }
+-                                            else if (slot_data.h_step <= 5)
++                                            // GNX-INTER: 5 = where the ej script is in the vanilla list; intermissions put in
++                                            // before it move it, so ask the list (gnx_ej_step)
++                                            else if (slot_data.h_step <= gnx_ej_step())
+                                             {
+                                                 scr_unit_removal(false, true, true, false, -1);
+                                                 slot_data.anim_struct.char_state = UnknownEnum.Value_0;
+@@ -713,6 +835,16 @@
+                     break;
+                 
+                 case UnknownEnum.Value_60:
++                    // GNX-WALL: in a mod cell with two walls the button switches between them;
++                    // 1 - value turns 0 into 1 and 1 into 0
++                    if (gnx_slot_has_wall2(source_id.source_id))
++                    {
++                        with (source_id.source_id)
++                            slot_data.gnx_wall_v = 1 - ((variable_struct_exists(slot_data, "gnx_wall_v") && slot_data.gnx_wall_v == 1) ? 1 : 0);
++                        
++                        break;
++                    }
++                    
+                     var _type = source_id.source_id.slot_data.slot_type;
+                     var _base_type = -1;
+                     var _spr = -1;
+@@ -758,6 +890,44 @@
                                      }
                                  }
                              }
@@ -334,7 +362,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -838,6 +996,38 @@
+@@ -838,6 +1008,38 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -373,7 +401,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -900,6 +1090,26 @@
+@@ -900,6 +1102,26 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -400,7 +428,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -935,6 +1145,11 @@
+@@ -935,6 +1157,11 @@
                                  source_id.source_id.spr_base = spr_slot_back;
                                  source_id.source_id.slot_data.base_type = UnknownEnum.Value_0;
                              }
@@ -412,7 +440,7 @@
                              else
                              {
                                  source_id.source_id.spr_base = spr_big_slot_back;
-@@ -1091,12 +1306,13 @@
+@@ -1091,12 +1318,13 @@
                          
                          case 13:
                              scr_fullscreen_switch();
@@ -427,7 +455,7 @@
                                      instance_destroy();
                              }
                              
-@@ -1148,22 +1364,41 @@
+@@ -1148,22 +1376,41 @@
                              break;
                          
                          case 15:
@@ -484,7 +512,7 @@
                              break;
                      }
                      
-@@ -1189,7 +1424,7 @@
+@@ -1189,7 +1436,7 @@
                          
                          case 1:
                              _guide_create = true;
@@ -493,7 +521,7 @@
                              _scr = scr_create_guide_raiding_button;
                              _scr_draw = scr_draw_guide_button;
                              break;
-@@ -1210,6 +1445,18 @@
+@@ -1210,6 +1457,18 @@
                                          instance_destroy();
                                      
                                      alpha_window = scr_create_alpha_window();
@@ -512,7 +540,7 @@
                                  }
                              }
                              
-@@ -1335,6 +1582,10 @@
+@@ -1335,6 +1594,10 @@
                                  case 7:
                                      _text = scr_guide_casualty;
                                      break;
@@ -523,7 +551,7 @@
                              }
                              
                              break;
-@@ -1410,6 +1661,18 @@
+@@ -1410,6 +1673,18 @@
                              if (alpha_window == -1)
                              {
                                  alpha_window = scr_create_alpha_window();
@@ -542,7 +570,7 @@
                              }
                              else
                              {
-@@ -1426,7 +1689,7 @@
+@@ -1426,7 +1701,7 @@
                                  
                                  with (obj_button)
                                  {
@@ -551,7 +579,7 @@
                                          instance_destroy();
                                  }
                              }
-@@ -1673,6 +1936,12 @@
+@@ -1673,6 +1948,12 @@
                      break;
                  
                  case UnknownEnum.Value_45:
@@ -564,7 +592,7 @@
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
-@@ -1853,6 +2122,7 @@
+@@ -1853,6 +2134,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
                          scr_create_map_buttons();
@@ -572,7 +600,7 @@
                      }
                      
                      break;
-@@ -2046,6 +2316,17 @@
+@@ -2046,6 +2328,17 @@
                              break;
                          
                          case 3:
@@ -590,7 +618,7 @@
                              game_end();
                              break;
                      }
-@@ -2056,43 +2337,43 @@
+@@ -2056,43 +2349,43 @@
                      switch (button_num)
                      {
                          case 0:
@@ -644,7 +672,7 @@
                              break;
                      }
                      
-@@ -2135,6 +2416,9 @@
+@@ -2135,6 +2428,9 @@
                          switch (button_num)
                          {
                              case 0:
@@ -654,7 +682,7 @@
                                  if (source_id.load_data.ver > 0.43 && source_id.load_data.ver < 1.07)
                                  {
                                      scr_sfx_play(UnknownEnum.Value_1);
-@@ -2167,45 +2451,45 @@
+@@ -2167,45 +2463,45 @@
                                  
                                  switch (global.val.language)
                                  {
@@ -710,7 +738,7 @@
                                          _text = "Deletar arquivo salvo?";
                                          break;
                                  }
-@@ -2265,48 +2549,48 @@
+@@ -2265,48 +2561,48 @@
                          
                          switch (global.val.language)
                          {
@@ -769,7 +797,7 @@
                                  _text = "Sobrescrever arquivo salvo?";
                                  break;
                          }
-@@ -2481,6 +2765,315 @@
+@@ -2481,6 +2777,315 @@
                      
                      scr_reset_unit_window(-1);
                      break;

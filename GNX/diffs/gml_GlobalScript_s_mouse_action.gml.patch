@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_mouse_action.gml	2026-09-02 08:45:16.155545700 +0200
-+++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-15 15:22:14.534512400 +0200
++++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-26 08:07:39.011438200 +0100
 @@ -1,6 +1,7 @@
  function scr_mouse_control()
  {
@@ -9,6 +9,15 @@
          scr_mouse_click();
      
      var _wheel = mouse_wheel_down() - mouse_wheel_up();
+@@ -107,7 +108,7 @@
+                     scr_camera_x_border();
+                     var _border_x = max(10, (obj_camera.border_x + 175) - _end_w);
+                     target_x = floor(clamp(target_x, 0, _border_x));
+-                    var _border_y = max(0, ((270 + (global.val.floor * 140)) - _end_h) + (50 * max(0, sign(global.val.floor - 1))));
++                    var _border_y = max(0, ((270 + gnx_floor_off(global.val.floor)) - _end_h) + (50 * max(0, sign(global.val.floor - 1))));  // GNX-UG: floor top incl. the extra bands of underground cells
+                     var _start_y = 0;
+                     target_y = floor(clamp(target_y, _start_y, _border_y));
+                     global.camera_lock = true;
 @@ -115,7 +116,8 @@
              }
          }
@@ -70,7 +79,13 @@
                                                  var _shift_min, _shift_max;
                                                  
                                                  switch (_mod_type)
-@@ -1208,13 +1225,9 @@
+@@ -1204,17 +1221,14 @@
+                                 if (mouse_check_button_pressed(global.val.select_click) && prop_data.spawn)
+                                 {
+                                     scr_sfx_play(UnknownEnum.Value_0);
+-                                    scr_mon_birth(prop_data.mon_data, slot_id);
++                                    // GNX-PROP: through gnx_mon_birth: the "birth" event only when a child was given
++                                    gnx_mon_birth(prop_data.mon_data, slot_id);
                                      
                                      with (slot_id)
                                      {
@@ -87,7 +102,7 @@
                                          
                                          if (slot_data.anim_struct.char_state != UnknownEnum.Value_0)
                                          {
-@@ -1565,20 +1578,23 @@
+@@ -1565,20 +1579,23 @@
                                          {
                                              if (mon_data.mon_type == UnknownEnum.Value_1 && mon_data.task == UnknownEnum.Value_3 && variable_struct_exists(mon_data, "carry_start_id") && mon_data.carry_start_id == other.id)
                                              {

@@ -1,0 +1,144 @@
+{
+  "about": "Mav's underground cell (test mod harness_scenes, UG CELL h 9051): own frame counts per phase, all four intermissions (6 idle_start, 7 start_loop, 8 loop_ej; 9 ej_birth needs a new pregnancy), one birth round. A pregnant captive gives birth first, then the scene runs idle, start, loop, ej. Also: TRANSFER hobgoblins leave underground cells alone, and a save/reload in the middle of the loop must not crash (it did: spawn_part was only created when a phase started).",
+  "mods": [
+    "tools/scenarios/mods/harness_scenes"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "unlock_cell",
+        "h_type": 1
+      }
+    },
+    {
+      "open_build_menu": -1
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 0,
+        "num": 0
+      },
+      "why": "NEW"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 1,
+        "num": 5
+      },
+      "why": "CUSTOM"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": {
+        "type": 95,
+        "num": 9051
+      }
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9051,
+      "count": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_no_transfer",
+      "args": [
+        9051
+      ],
+      "is": true,
+      "why": "underground cells by default"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_is_ug",
+      "args": [
+        9051
+      ],
+      "is": true
+    },
+    {
+      "occupy": {
+        "h_type": 9051,
+        "class": 0,
+        "preg": 2
+      }
+    },
+    {
+      "trace": 9051
+    },
+    {
+      "wait": 2500
+    },
+    {
+      "assert": "trace",
+      "order": [
+        4,
+        1,
+        6,
+        0,
+        7,
+        2,
+        8,
+        3
+      ],
+      "frame_c": {
+        "0": 3,
+        "2": 4,
+        "3": 3,
+        "4": 2,
+        "6": 3,
+        "7": 4,
+        "8": 3
+      },
+      "why": "birth, then a full scene with every intermission it can reach"
+    },
+    {
+      "until_phase": {
+        "phase": 2,
+        "max_frames": 3000
+      },
+      "why": "the next scene's loop"
+    },
+    {
+      "wait": 30,
+      "why": "well inside the loop"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9,
+      "why": "used to crash here when the cell was in its loop"
+    },
+    {
+      "trace": 9051
+    },
+    {
+      "wait": 1500
+    },
+    {
+      "assert": "trace",
+      "order": [
+        2,
+        8,
+        3
+      ],
+      "why": "the scene goes on after the reload"
+    }
+  ]
+}

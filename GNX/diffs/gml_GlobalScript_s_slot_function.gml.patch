@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_slot_function.gml	2026-09-02 08:45:16.550128500 +0200
-+++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-19 16:05:38.273961000 +0200
++++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-26 08:07:39.083141300 +0100
 @@ -3,7 +3,7 @@
      var _list = global.slot_list[arg1];
      var _x;
@@ -9,7 +9,14 @@
      {
          arg2--;
          var _prev_slot = ds_list_find_value(_list, arg2);
-@@ -45,9 +45,9 @@
+@@ -39,15 +39,15 @@
+         slot_range = -1;
+         mod_window = -1;
+         x = _x;
+-        y = 175 + (arg1 * 140);
++        y = 175 + gnx_floor_off(arg1);
+         hover = true;
+         h_unit_list = -1;
          
          switch (arg0)
          {
@@ -575,7 +582,7 @@
              {
                  with (h_unit_list[0])
                      spr_type = spr_h_tent_ej_mon;
-@@ -602,22 +706,42 @@
+@@ -602,25 +706,54 @@
  
  function scr_slot_state()
  {
@@ -589,6 +596,12 @@
 +    // POPRAWKA (wydajnosc): tekst sledzenia skladamy tylko przy wlaczonym sledzeniu (wczesniej co klatke dla kazdej celi)
 +    if (global.gnx_trace_entities)
 +        scr_gnx_trace("STATE", id, "h_type=" + string(slot_data.h_type) + " char_state=" + string(slot_data.anim_struct.char_state) + " h_step=" + string(slot_data.h_step) + " ff=" + string(slot_data.anim_struct.ff));
++    
++    // GNX-PROP: scene state and art phase before the script, so what it changes can be told to the props
++    // next to the cell (gnx_cell_state_events); only while some mod prop has reactions (&& = and)
++    var _gnx_ev = variable_global_exists("gnx_react_props") && global.gnx_react_props > 0;
++    var _gnx_cs0 = _gnx_ev ? slot_data.anim_struct.char_state : -1;
++    var _gnx_ph0 = (_gnx_ev && variable_struct_exists(slot_data.anim_struct, "spr_type")) ? slot_data.anim_struct.spr_type : -1;
      
      switch (slot_data.anim_struct.char_state)
      {
@@ -622,7 +635,13 @@
              script_execute(scr_slot.none);
              break;
      }
-@@ -654,7 +778,7 @@
++    
++    if (_gnx_ev)
++        gnx_cell_state_events(_gnx_cs0, _gnx_ph0);
+ }
+ 
+ function scr_shift_slot(arg0, arg1, arg2)
+@@ -654,7 +787,7 @@
              {
                  array_push(global.unlock.breed, arg0);
                  _base_array = global.unlock.breed;
@@ -631,7 +650,7 @@
                  _set = true;
              }
          }
-@@ -670,7 +794,7 @@
+@@ -670,7 +803,7 @@
              {
                  array_push(global.unlock.utility, arg0);
                  _base_array = global.unlock.utility;
@@ -640,7 +659,7 @@
                  _set = true;
              }
          }
-@@ -686,7 +810,7 @@
+@@ -686,7 +819,7 @@
              {
                  array_push(global.unlock.pleasure, arg0);
                  _base_array = global.unlock.pleasure;
@@ -649,7 +668,7 @@
                  _set = true;
              }
          }
-@@ -702,7 +826,7 @@
+@@ -702,7 +835,7 @@
              {
                  array_push(global.unlock.b_breed, arg0);
                  _base_array = global.unlock.b_breed;
@@ -658,7 +677,7 @@
                  _set = true;
              }
          }
-@@ -718,7 +842,7 @@
+@@ -718,7 +851,7 @@
              {
                  array_push(global.unlock.b_utility, arg0);
                  _base_array = global.unlock.b_utility;
@@ -667,7 +686,7 @@
                  _set = true;
              }
          }
-@@ -734,7 +858,7 @@
+@@ -734,7 +867,7 @@
              {
                  array_push(global.unlock.b_other, arg0);
                  _base_array = global.unlock.b_other;
@@ -676,7 +695,7 @@
                  _set = true;
              }
          }
-@@ -750,7 +874,7 @@
+@@ -750,7 +883,7 @@
              {
                  array_push(global.unlock.t_breed, arg0);
                  _base_array = global.unlock.t_breed;
@@ -685,17 +704,17 @@
                  _set = true;
              }
          }
-@@ -766,14 +890,40 @@
+@@ -766,14 +899,60 @@
              {
                  array_push(global.unlock.t_utility, arg0);
                  _base_array = global.unlock.t_utility;
 -                _button_group = UnknownEnum.Value_17;
 +                _button_group = 17;
-                 _set = true;
-             }
-         }
-     }
-     
++                _set = true;
++            }
++        }
++    }
++    
 +    // POPRAWKA: cele XL (kategoria xl_breed) nie byly tu obslugiwane - unlock_cell / blueprint ich nie dodawal
 +    if (!_set)
 +    {
@@ -716,6 +735,26 @@
 +    // POPRAWKA: nieznany typ celi - wczesniej scr_rearrange_buttons dostawal undefined i gra sie wywalala
 +    if (!_set)
 +    {
++        _order_array = global.ug_breed_order;
++        
++        for (var i = 0; i < array_length(_order_array); i++)
++        {
++            if (arg0 == _order_array[i])
++            {
++                // GNX-UG: saves and map snapshots from before the underground cell have no ug_breed list
++                if (!variable_struct_exists(global.unlock, "ug_breed"))
++                    global.unlock.ug_breed = [];
++                
++                array_push(global.unlock.ug_breed, arg0);
++                _base_array = global.unlock.ug_breed;
++                _button_group = 97;
+                 _set = true;
+             }
+         }
+     }
+     
++    if (!_set)
++    {
 +        var _ulog = gnx_log_open();
 +        gnx_log_write(_ulog, "[GNX-WARN] unlock: cell h=" + string(arg0) + " is not in any build category - skipped\n");
 +        gnx_log_close(_ulog);
@@ -728,7 +767,7 @@
      {
          slot_type: arg0,
          prop_type: -1,
-@@ -783,9 +933,10 @@
+@@ -783,9 +962,10 @@
      scr_check_add_guide(arg0);
      
      if (arg1)
@@ -742,7 +781,7 @@
  }
  
  function scr_add_new_prop_type(arg0, arg1)
-@@ -803,7 +954,7 @@
+@@ -803,7 +983,7 @@
              _set = true;
              array_push(global.unlock.edit_top, arg0);
              _base_array = global.unlock.edit_top;
@@ -751,7 +790,7 @@
          }
      }
      
-@@ -820,7 +971,7 @@
+@@ -820,7 +1000,7 @@
              _set = true;
              array_push(global.unlock.edit_mid, arg0);
              _base_array = global.unlock.edit_mid;
@@ -760,7 +799,7 @@
          }
      }
      
-@@ -837,7 +988,7 @@
+@@ -837,7 +1017,7 @@
              _set = true;
              array_push(global.unlock.edit_bot, arg0);
              _base_array = global.unlock.edit_bot;
@@ -769,7 +808,7 @@
          }
      }
      
-@@ -853,9 +1004,9 @@
+@@ -853,9 +1033,9 @@
      ds_list_add(global.new_button_list, _data);
      
      if (arg1)
@@ -781,7 +820,7 @@
  }
  
  function scr_add_new_between_type(arg0, arg1)
-@@ -868,12 +1019,12 @@
+@@ -868,12 +1048,12 @@
      {
          if (arg0 == _order_array[i])
          {
@@ -797,7 +836,7 @@
              _set = true;
          }
      }
-@@ -888,9 +1039,9 @@
+@@ -888,9 +1068,9 @@
      ds_list_add(global.new_button_list, _data);
      
      if (arg1)
@@ -809,7 +848,7 @@
  }
  
  function scr_rearrange_buttons(arg0, arg1, arg2)
-@@ -915,51 +1066,56 @@
+@@ -915,51 +1095,61 @@
      
      switch (arg0)
      {
@@ -858,6 +897,11 @@
 +        case 93:
 +            global.unlock.xl_breed = _array;
 +            break;
++        
++        // GNX-UG: underground cells (97: 1.4.9 uses 96 for the CUSTOM list of an empty slot)
++        case 97:
++            global.unlock.ug_breed = _array;
++            break;
 +
 +        case 6:
              global.unlock.edit_between = _array;
@@ -878,7 +922,7 @@
              global.unlock.edit_bot = _array;
              break;
      }
-@@ -986,173 +1142,246 @@
+@@ -986,173 +1176,246 @@
      {
          switch (slot_data.slot_type)
          {
@@ -1067,11 +1111,13 @@
 -                            
 +                        case 38:
 +                            _gnx_hardcoded_req = 12;
-+                            break;
-+                        
+                             break;
+                         
+-                        case UnknownEnum.Value_39:
+-                            if (_unit_data.class != UnknownEnum.Value_8)
 +                        case 39:
 +                            _gnx_hardcoded_req = 8;
-                             break;
++                            break;
 +                    }
 +                    
 +                    var _gnx_req = _gnx_hardcoded_req;
@@ -1087,9 +1133,7 @@
 +                    if (_gnx_req != -1)
 +                    {
 +                        var _class_ok = false;
-                         
--                        case UnknownEnum.Value_39:
--                            if (_unit_data.class != UnknownEnum.Value_8)
++                        
 +                        if (is_array(_gnx_req))
 +                        {
 +                            for (var _ri = 0; _ri < array_length(_gnx_req); _ri++)
@@ -1185,7 +1229,7 @@
      return _result;
  }
  
-@@ -1170,7 +1399,7 @@
+@@ -1170,7 +1433,7 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[arg2], _c_pos);
          
@@ -1194,7 +1238,7 @@
          {
              if (abs(arg0 - _c_pos) < _slot_dist)
              {
-@@ -1203,6 +1432,13 @@
+@@ -1203,6 +1466,13 @@
          {
              var _c_slot_id = id;
              
@@ -1208,7 +1252,7 @@
              if (unit_data.preg != -1)
              {
                  for (var i = 0; i < _count; i++)
-@@ -1211,7 +1447,7 @@
+@@ -1211,7 +1481,7 @@
                      _flip *= -1;
                      var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                      
@@ -1217,7 +1261,7 @@
                      {
                          i = _count;
                          _set_mon = true;
-@@ -1229,7 +1465,7 @@
+@@ -1229,7 +1499,7 @@
                          _flip *= -1;
                          var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                          
@@ -1226,7 +1270,7 @@
                          {
                              i = _count;
                              _set_mon = true;
-@@ -1246,7 +1482,7 @@
+@@ -1246,7 +1516,7 @@
                          _flip *= -1;
                          var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                          
@@ -1235,7 +1279,7 @@
                          {
                              i = _count;
                              _set_mon = true;
-@@ -1259,19 +1495,23 @@
+@@ -1259,19 +1529,23 @@
                  {
                      switch (unit_data.class)
                      {
@@ -1265,7 +1309,7 @@
                      if (_cell_spe != -1)
                      {
                          for (var i = 0; i < _count; i++)
-@@ -1280,7 +1520,7 @@
+@@ -1280,7 +1554,7 @@
                              _flip *= -1;
                              var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                              
@@ -1274,7 +1318,7 @@
                              {
                                  i = _count;
                                  _set_mon = true;
-@@ -1297,7 +1537,7 @@
+@@ -1297,7 +1571,7 @@
                              _flip *= -1;
                              var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                              
@@ -1283,16 +1327,17 @@
                              {
                                  i = _count;
                                  _set_mon = true;
-@@ -1332,7 +1572,7 @@
+@@ -1332,7 +1606,8 @@
                  _flip *= -1;
                  var _c_slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
                  
 -                if (_c_slot_id != undefined && _c_slot_id.slot_data.anim_struct != -1 && _c_slot_id.unit_data != -1 && (!_c_slot_id.slot_data.carry || !_c_slot_id.slot_data.load) && (_c_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || (_c_slot_id.slot_data.slot_type == UnknownEnum.Value_1 && _c_slot_id.slot_data.h_type != UnknownEnum.Value_37) || (_c_slot_id.slot_data.slot_type == UnknownEnum.Value_2 && _c_slot_id.slot_data.h_type == UnknownEnum.Value_30)))
-+                if (_c_slot_id != undefined && _c_slot_id.slot_data.anim_struct != -1 && _c_slot_id.unit_data != -1 && (!_c_slot_id.slot_data.carry || !_c_slot_id.slot_data.load) && (_c_slot_id.slot_data.slot_type == 0 || _c_slot_id.slot_data.slot_type == 6 || (_c_slot_id.slot_data.slot_type == 1 && _c_slot_id.slot_data.h_type != 37) || (_c_slot_id.slot_data.slot_type == 2 && _c_slot_id.slot_data.h_type == 30)))
++                // GNX-UG: !gnx_cell_no_transfer = the hobgoblins take no captive out of an underground cell
++                if (_c_slot_id != undefined && _c_slot_id.slot_data.anim_struct != -1 && _c_slot_id.unit_data != -1 && (!_c_slot_id.slot_data.carry || !_c_slot_id.slot_data.load) && (_c_slot_id.slot_data.slot_type == 0 || _c_slot_id.slot_data.slot_type == 6 || (_c_slot_id.slot_data.slot_type == 1 && _c_slot_id.slot_data.h_type != 37) || (_c_slot_id.slot_data.slot_type == 2 && _c_slot_id.slot_data.h_type == 30)) && !gnx_cell_no_transfer(_c_slot_id.slot_data.h_type))
                  {
                      if (_c_slot_id.slot_data.allow_preg)
                      {
-@@ -1359,7 +1599,7 @@
+@@ -1359,7 +1634,7 @@
                                          }
                                      }
                                      
@@ -1301,7 +1346,7 @@
                                      {
                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                          
-@@ -1387,22 +1627,25 @@
+@@ -1387,22 +1662,25 @@
                          
                          switch (_c_slot_id.unit_data.class)
                          {
@@ -1334,7 +1379,7 @@
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1428,7 +1671,7 @@
+@@ -1428,7 +1706,7 @@
                                                      }
                                                  }
                                                  
@@ -1343,7 +1388,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1465,7 +1708,7 @@
+@@ -1465,7 +1743,7 @@
                                                      }
                                                  }
                                                  
@@ -1352,7 +1397,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1489,7 +1732,7 @@
+@@ -1489,7 +1767,7 @@
                                  
                                  break;
                              
@@ -1361,7 +1406,7 @@
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1515,7 +1758,7 @@
+@@ -1515,7 +1793,7 @@
                                                      }
                                                  }
                                                  
@@ -1370,7 +1415,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1552,7 +1795,7 @@
+@@ -1552,7 +1830,7 @@
                                                      }
                                                  }
                                                  
@@ -1379,7 +1424,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1576,8 +1819,8 @@
+@@ -1576,8 +1854,8 @@
                                  
                                  break;
                              
@@ -1390,7 +1435,7 @@
                                  {
                                      if (_c_slot_id.unit_data.milk)
                                      {
-@@ -1602,7 +1845,7 @@
+@@ -1602,7 +1880,7 @@
                                                      }
                                                  }
                                                  
@@ -1399,7 +1444,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1646,7 +1889,7 @@
+@@ -1646,7 +1924,7 @@
                                                      }
                                                  }
                                                  
@@ -1408,7 +1453,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1692,7 +1935,7 @@
+@@ -1692,7 +1970,7 @@
                                                          }
                                                      }
                                                      
@@ -1417,7 +1462,7 @@
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1729,7 +1972,7 @@
+@@ -1729,7 +2007,7 @@
                                                          }
                                                      }
                                                      
@@ -1426,7 +1471,7 @@
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1753,8 +1996,8 @@
+@@ -1753,8 +2031,8 @@
                                  
                                  break;
                              
@@ -1437,7 +1482,7 @@
                                  {
                                      if (_c_slot_id.unit_data.milk)
                                      {
-@@ -1779,7 +2022,7 @@
+@@ -1779,7 +2057,7 @@
                                                      }
                                                  }
                                                  
@@ -1446,7 +1491,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1823,7 +2066,7 @@
+@@ -1823,7 +2101,7 @@
                                                      }
                                                  }
                                                  
@@ -1455,7 +1500,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1869,7 +2112,7 @@
+@@ -1869,7 +2147,7 @@
                                                          }
                                                      }
                                                      
@@ -1464,7 +1509,7 @@
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1906,7 +2149,7 @@
+@@ -1906,7 +2184,7 @@
                                                          }
                                                      }
                                                      
@@ -1473,7 +1518,7 @@
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1930,7 +2173,7 @@
+@@ -1930,7 +2208,7 @@
                                  
                                  break;
                              
@@ -1482,7 +1527,7 @@
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1956,7 +2199,7 @@
+@@ -1956,7 +2234,7 @@
                                                      }
                                                  }
                                                  
@@ -1491,7 +1536,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1993,7 +2236,7 @@
+@@ -1993,7 +2271,7 @@
                                                      }
                                                  }
                                                  
@@ -1500,7 +1545,7 @@
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -2022,12 +2265,29 @@
+@@ -2022,12 +2300,33 @@
              }
          }
      }
@@ -1508,6 +1553,10 @@
 +
 +    // POPRAWKA (GNX): klasa z "only_listed_cells" zostaje w miejscu, jesli cel jej nie wymienia
 +    if (_set_mon && !gnx_class_cell_listed_ok(_slot_pos[1].slot_data.h_type, _slot_pos[0].unit_data.class))
++        _set_mon = false;
++    
++    // GNX-UG: last guard: neither end of a transfer may be a cell the hobgoblins leave alone
++    if (_set_mon && (gnx_cell_no_transfer(_slot_pos[0].slot_data.h_type) || gnx_cell_no_transfer(_slot_pos[1].slot_data.h_type)))
 +        _set_mon = false;
 +
      if (_set_mon)
@@ -1531,7 +1580,7 @@
      }
      
      return _carry_exe;
-@@ -2037,13 +2297,27 @@
+@@ -2037,13 +2336,27 @@
  {
      var _carry = scr_check_carry_slot_range(arg0);
      
@@ -1560,7 +1609,7 @@
          if (_door != -1)
          {
              _x = _door.x + floor(_door.image_xscale * 0.5);
-@@ -2051,15 +2325,24 @@
+@@ -2051,15 +2364,24 @@
              var _slot_pos = ds_list_find_index(global.slot_list[_floor], id);
              var _c_slot_id = _carry[0];
              var _t_slot_id = _carry[1];
@@ -1587,7 +1636,7 @@
                  mon_data.mood_timer = 180;
                  scr_mood_value_set(-0.25);
              }
-@@ -2081,7 +2364,7 @@
+@@ -2081,7 +2403,7 @@
                  scr_create_slot_head(false, id);
              }
              
@@ -1596,7 +1645,7 @@
              slot_data.anim_struct.ff = true;
          }
      }
-@@ -2102,14 +2385,17 @@
+@@ -2102,14 +2424,17 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
@@ -1616,7 +1665,7 @@
                  
                  clean_id = instance_create_depth(x + _shift_x, y, -761, obj_clean);
                  
-@@ -2119,8 +2405,10 @@
+@@ -2119,8 +2444,10 @@
                      shift_x = _shift_x;
                      var _width;
                      
@@ -1628,9 +1677,14 @@
                      else
                          _width = 77;
                      
-@@ -2158,35 +2446,35 @@
+@@ -2156,37 +2483,39 @@
+     }
+ }
  
- function scr_mon_find_placement()
+-function scr_mon_find_placement()
++/// arg0 (GNX, audit 27): true when the calling scr_slot_call_mon may send a wandering monster (its own
++/// argument); other callers leave it out and get true. Only the availability check of mod cells reads it.
++function scr_mon_find_placement(arg0 = true)
  {
 -    var _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1];
 +    var _type_ar = [0, 1];
@@ -1675,7 +1729,7 @@
              var _hob = true;
              var _slot_ar = [false, false, false];
              var _ar = [];
-@@ -2206,12 +2494,12 @@
+@@ -2206,12 +2535,12 @@
                  _place = choose(0, 1);
              
              if (_place != 0)
@@ -1691,7 +1745,7 @@
              var _slot_ar = [false, false];
              var _ar = [];
              
-@@ -2227,8 +2515,8 @@
+@@ -2227,8 +2556,8 @@
              _place = _ar[irandom_range(0, array_length(_ar) - 1)];
              break;
          
@@ -1702,7 +1756,7 @@
              var _slot_ar = [false, false];
              var _ar = [];
              
-@@ -2244,13 +2532,13 @@
+@@ -2244,13 +2573,13 @@
              _place = _ar[irandom_range(0, array_length(_ar) - 1)];
              break;
          
@@ -1718,7 +1772,7 @@
                  _place = 0;
              }
              else if (slot_data.mon_placement[0] == -1)
-@@ -2264,24 +2552,63 @@
+@@ -2264,27 +2593,127 @@
              
              break;
          
@@ -1760,11 +1814,9 @@
 +                if (variable_struct_exists(_gcell.physical, "mon_placements") && is_array(_gcell.physical.mon_placements))
 +                {
 +                    var _mp = _gcell.physical.mon_placements;
-+                    var _occupied = array_create(array_length(_mp), false);
-+                    
-+                    for (var i = 0; i < _num; i++)
-+                        _occupied[h_unit_list[i].mon_data.placement_num] = true;
-+                    
++                    // GNX-FIX: places taken by monsters that still exist; a place outside the list (-1, or a
++                    // list that got shorter) is not written, a gone monster is skipped (audit P5)
++                    var _occupied = gnx_places_taken(array_length(_mp));
 +                    var _open = [];
 +                    
 +                    for (var i = 0; i < array_length(_mp); i++)
@@ -1775,27 +1827,147 @@
 +                    
 +                    if (array_length(_open) > 0)
 +                    {
++                        // GNX-FIX (audit 25): a mod cell picks among the places a free monster can fill now, and
++                        // calls one of the free types there; before, a place whose types were all busy could be
++                        // picked and the call found nobody, although another place could have been filled.
++                        // When no place can be filled, the pick is as before (and finds nobody).
++                        // _fm = which species can come now, worked out once for this call (audit 26)
++                        var _fm = variable_struct_exists(_gcell, "mod_name") ? gnx_free_mask(slot_data.slot_floor, arg0) : -1;
++                        
++                        if (is_array(_fm))
++                        {
++                            var _ready = [];
++                            
++                            for (var i = 0; i < array_length(_open); i++)
++                            {
++                                if (array_length(gnx_types_free(_mp[_open[i]], _fm)) > 0)
++                                    array_push(_ready, _open[i]);
++                            }
++                            
++                            if (array_length(_ready) > 0)
++                                _open = _ready;
++                        }
++                        
 +                        _place = _open[irandom_range(0, array_length(_open) - 1)];
 +                        _type_ar = _mp[_place];
++                        
++                        if (is_array(_fm))
++                        {
++                            var _ft = gnx_types_free(_type_ar, _fm);
++                            
++                            if (array_length(_ft) > 0)
++                                _type_ar = _ft;
++                        }
 +                    }
 +                    else
 +                    {
 +                        _exists = false;
 +                    }
 +                }
-+                else if (variable_struct_exists(_gcell, "mon_types") && _gcell.mon_types != undefined)
++                else
 +                {
++                    if (variable_struct_exists(_gcell, "mon_types") && is_array(_gcell.mon_types))
 +                    _type_ar = _gcell.mon_types;
++                    
++                    // GNX-FIX (audit 25): a mod cell calls one of its types that is free now, when there is one
++                    if (variable_struct_exists(_gcell, "mod_name") && is_array(_type_ar))
++                    {
++                        var _ft2 = gnx_types_free(_type_ar, gnx_free_mask(slot_data.slot_floor, arg0));
++                        
++                        if (array_length(_ft2) > 0)
++                            _type_ar = _ft2;
++                    }
++                    
++                    // GNX-FIX: a cell with room for more monsters but no mon_placements put every one of
++                    // them on place 0; now each takes a free place 0 .. max_mon_num - 1 (audit P5)
++                    if (slot_data.max_mon_num > 1)
++                    {
++                        var _taken = gnx_places_taken(slot_data.max_mon_num);
++                        var _free = [];
++                        
++                        for (var i = 0; i < slot_data.max_mon_num; i++)
++                        {
++                            if (!_taken[i])
++                                array_push(_free, i);
++                        }
++                        
++                        if (array_length(_free) > 0)
++                            _place = _free[irandom_range(0, array_length(_free) - 1)];
++                        else
++                            _exists = false;
++                    }
 +                }
 +            }
 +            
              break;
      }
      
-@@ -2297,8 +2624,103 @@
++    // GNX-FIX: no species to choose from (an empty mon_placements entry): no monster, instead of
++    // irandom_range(0, -1) and a read from an empty list (audit P5)
++    if (_exists && (!is_array(_type_ar) || array_length(_type_ar) == 0))
++        _exists = false;
++    
+     if (_exists)
+     {
+         var _a = irandom_range(0, array_length(_type_ar) - 1);
+@@ -2297,8 +2726,157 @@
      }
  }
  
++/// GNX-FIX (audit 25, 26): which species a call from a cell on floor arg0 can bring right now, as
++/// [goblin, hobgoblin, tentacle, ogre] true / false, by the tests scr_slot_call_mon uses: a free monster
++/// wandering on that floor (only when arg1 is true: scr_slot_call_mon(true) sends such monsters, (false)
++/// does not), or one in the nest that is not out (mon_num - nest_num) and may come through the doors of
++/// that floor. One pass over the monsters and one door check for all four species, so a call costs the
++/// same however many places it looks at.
++function gnx_free_mask(arg0, arg1)
++{
++    var _m = [false, false, false, false];
++    
++    if (arg1)
++    {
++        with (obj_mon)
++        {
++            // the test scr_slot_call_mon uses for a wandering monster it can send (&& = and)
++            if (mon_data.mon_state == 5 && mon_data.slot_id == -1 && mon_data.mon_floor == arg0 && mon_data.task == 0 && is_numeric(mon_data.mon_type) && mon_data.mon_type >= 0 && mon_data.mon_type <= 3)
++                _m[mon_data.mon_type] = true;
++        }
++    }
++    
++    // scr_check_door_allow keeps the species the doors of that floor let through
++    var _door = scr_check_door_allow(arg0, [0, 1, 2, 3]);
++    
++    for (var i = 0; i < 4; i++)
++    {
++        // ! = not: not found wandering, so from the nest: one there that is not out, and a door for it
++        if (!_m[i] && (global.val.mon_num[i] - global.val.nest_num[i + 1]) > 0 && array_contains(_door, i))
++            _m[i] = true;
++    }
++    
++    return _m;
++}
++
++/// GNX-FIX (audit 25, 26): the species of list arg0 that are true in mask arg1 (gnx_free_mask), each once,
++/// as a new list; arg0 is not changed
++function gnx_types_free(arg0, arg1)
++{
++    var _out = [];
++    
++    if (!is_array(arg0) || !is_array(arg1))
++        return _out;
++    
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        var _t = arg0[i];
++        
++        // a species is 0-3 and is taken once (! = not, || = or, && = and)
++        if (is_numeric(_t) && _t >= 0 && _t <= 3 && arg1[_t] && !array_contains(_out, _t))
++            array_push(_out, _t);
++    }
++    
++    return _out;
++}
++
 +// Sprawdza, czy cela arg0 (obj_slot) to nowa cela z modu z regulami typow potworow (mon_placements albo mon_types).
 +// Cele wanilowe (takze patchowane przez mody) zwracaja false - one maja wlasna logike miejsc i dzialaja jak dotad.
 +function gnx_cell_has_mon_rules(arg0)
@@ -1896,7 +2068,18 @@
      var _num = array_length(h_unit_list);
      
      if (_num < slot_data.max_mon_num && !slot_data.carry)
-@@ -2322,13 +2744,22 @@
+@@ -2308,7 +2886,9 @@
+         if (slot_data.h_wait <= 0)
+         {
+             slot_data.h_wait = irandom_range(240, 360);
+-            var _ar = scr_mon_find_placement();
++            // GNX-FIX (audit 26, 27): whether this call can send wandering monsters goes to the availability
++            // check of scr_mon_find_placement (gnx_free_mask) as an argument, not through a global
++            var _ar = scr_mon_find_placement(arg0);
+             
+             if (_ar != -1)
+             {
+@@ -2322,13 +2902,22 @@
                  {
                      with (obj_mon)
                      {
@@ -1921,7 +2104,7 @@
                              break;
                          }
                      }
-@@ -2340,7 +2771,7 @@
+@@ -2340,7 +2929,7 @@
                      var _y = y;
                      var _door = -1;
                      
@@ -1930,11 +2113,13 @@
                      {
                          _door = scr_find_nearest_door(_x, _y, _floor);
                      }
-@@ -2421,14 +2852,15 @@
+@@ -2421,14 +3010,17 @@
          if (unit_data.scr_wait >= 240)
          {
              scr_add_milk_item(1, 1);
 -            scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 62, 1, UnknownEnum.Value_1, false);
++            // GNX-PROP: the props next to the cell can react to the milk
++            gnx_cell_event(id, "milk");
 +            scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 62, 1, 1, false);
              unit_data.milk = false;
              unit_data.scr_wait = 0;
@@ -1948,7 +2133,7 @@
  {
      arg1 += global.val.add_range;
      var _floor = arg0.slot_data.slot_floor;
-@@ -2446,8 +2878,13 @@
+@@ -2446,8 +3038,13 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
@@ -1963,7 +2148,7 @@
              var _num = array_length(_slot_id.h_unit_list);
              
              if (abs(_pos - _c_pos) < _slot_dist)
-@@ -2456,7 +2893,7 @@
+@@ -2456,7 +3053,7 @@
                  
                  switch (_slot_id.slot_data.h_type)
                  {
@@ -1972,7 +2157,7 @@
                          _check = true;
                          
                          if (_num == 1)
-@@ -2467,10 +2904,10 @@
+@@ -2467,10 +3064,10 @@
                          
                          break;
                      
@@ -1985,7 +2170,7 @@
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2478,10 +2915,10 @@
+@@ -2478,10 +3075,10 @@
                          
                          break;
                      
@@ -1998,7 +2183,7 @@
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2509,7 +2946,7 @@
+@@ -2509,7 +3106,7 @@
  {
      var _exists = false;
      
@@ -2007,7 +2192,7 @@
          _exists = true;
      
      if (_exists)
-@@ -2527,7 +2964,7 @@
+@@ -2527,7 +3124,7 @@
      
      switch (arg0)
      {
@@ -2016,7 +2201,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2535,7 +2972,7 @@
+@@ -2535,7 +3132,7 @@
              
              break;
          
@@ -2025,7 +2210,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2543,7 +2980,7 @@
+@@ -2543,7 +3140,7 @@
              
              break;
          
@@ -2034,7 +2219,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2558,7 +2995,7 @@
+@@ -2558,7 +3155,7 @@
              
              break;
          
@@ -2043,7 +2228,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2573,7 +3010,7 @@
+@@ -2573,12 +3170,28 @@
              
              break;
          
@@ -2052,7 +2237,28 @@
              _slot = true;
              _scr_check = scr_check_type_n_preg;
              break;
-@@ -2602,7 +3039,7 @@
+     }
+     
++    // GNX-UG: an underground cell milks its captive, so, like the vanilla birth cells (5, 12), the frog
++    // shrine swaps a used-up captive (no pregnancies left, not pregnant) only once her milk is used up.
++    // GNX-FIX: only in a cell that milks (milk_items > 0); in one that does not, her milk is never used up
++    // there, so waiting for it would block the swap for good. unit_data.milk itself stays as it is.
++    if (!_slot && gnx_cell_is_ug(arg0))
++    {
++        _slot = true;
++        var _ug_c = ds_map_find_value(global.cell_registry, arg0);
++        var _ug_milks = _ug_c != undefined && variable_struct_exists(_ug_c.physical, "gnx_milk_items") && _ug_c.physical.gnx_milk_items > 0;
++        // && = and: her milk holds the swap back only where the cell milks it away
++        var _milk_blocks = _unit_data.milk && _ug_milks;
++        
++        if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_milk_blocks)
++            _scr_check = scr_check_type_preg;
++    }
++    
+     if (!_slot && slot_data.allow_preg)
+     {
+         if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1)
+@@ -2602,7 +3215,7 @@
              var _c_pos = _start_pos + i;
              var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
              
@@ -2061,7 +2267,7 @@
              {
                  i = _dist;
                  _frog = true;
-@@ -2623,8 +3060,8 @@
+@@ -2623,8 +3236,8 @@
                  ds_list_set(global.unit_list, _swap_pos, -1);
                  scr_insert_unit_to_list(_unit_data, _swap_pos, -1);
                  var _button = scr_reset_single_unit_window(_swap_pos);
@@ -2072,7 +2278,7 @@
                  scr_create_slot_head(true, id);
                  scr_swap_emitter(x + round(image_xscale * 0.5), y - 30, false);
                  scr_swap_emitter(_button.x, _button.y, true);
-@@ -2641,7 +3078,7 @@
+@@ -2641,7 +3254,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -2081,7 +2287,7 @@
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2662,14 +3099,14 @@
+@@ -2662,14 +3275,14 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -2098,15 +2304,25 @@
      return _swap_pos;
  }
  
-@@ -2682,17 +3119,17 @@
+@@ -2681,18 +3294,27 @@
+     var _class = arg0.class;
      var _same_check = false;
      var _tent = false;
++    // GNX-UG: pregnancy a captive may bring along into a tentacle cell (vanilla: tentacle 2)
++    var _tent_preg = 2;
      
 -    if (arg1 > UnknownEnum.Value_26 && arg1 < UnknownEnum.Value_35)
 +    if (arg1 > 26 && arg1 < 35)
          _tent = true;
      
 -    if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.drag_type == UnknownEnum.Value_1)
++    // GNX-UG: an underground cell takes a captive who is not pregnant or carries the cell's own child
++    if (gnx_cell_is_ug(arg1))
++    {
++        _tent = true;
++        _tent_preg = gnx_ug_child_type_for(_class);
++    }
++    
 +    if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.drag_type == 1)
          _hold_pos = obj_control.hold_id.button_num;
      
@@ -2115,11 +2331,11 @@
          var _pris_unit = ds_list_find_value(global.unit_list, i);
          
 -        if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class == _class && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == UnknownEnum.Value_2)))))
-+        if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class == _class && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == 2)))))
++        if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class == _class && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == _tent_preg)))))
          {
              _swap_pos = i;
              i = _num;
-@@ -2700,13 +3137,13 @@
+@@ -2700,13 +3322,13 @@
          }
      }
      
@@ -2131,11 +2347,11 @@
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
 -            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class != UnknownEnum.Value_11 && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == UnknownEnum.Value_2)))))
-+            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class != 11 && gnx_class_cell_listed_ok(arg1, _pris_unit.class) && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == 2)))))
++            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class != 11 && gnx_class_cell_listed_ok(arg1, _pris_unit.class) && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == _tent_preg)))))
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2725,7 +3162,7 @@
+@@ -2725,7 +3347,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -2144,7 +2360,7 @@
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2746,7 +3183,7 @@
+@@ -2746,7 +3368,7 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -2153,7 +2369,7 @@
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2773,23 +3210,30 @@
+@@ -2773,23 +3395,30 @@
          }
          else
          {
@@ -2190,7 +2406,7 @@
          }
      }
      
-@@ -2804,23 +3248,30 @@
+@@ -2804,23 +3433,30 @@
          }
          else
          {
@@ -2227,7 +2443,7 @@
          }
      }
  }
-@@ -2832,67 +3283,94 @@
+@@ -2832,67 +3468,94 @@
      
      switch (arg0.slot_data.slot_type)
      {
@@ -2304,9 +2520,8 @@
 -        case UnknownEnum.Value_2:
 +        // POPRAWKA: sciany celi XL
 +        case 6:
-             switch (arg1)
-             {
--                case UnknownEnum.Value_4:
++            switch (arg1)
++            {
 +                case 0:
 +                    _spr = spr_xl_slot_back;
 +                    _base_type = 0;
@@ -2331,8 +2546,9 @@
 +            break;
 +
 +        case 2:
-+            switch (arg1)
-+            {
+             switch (arg1)
+             {
+-                case UnknownEnum.Value_4:
 +                case 4:
                      _spr = spr_tent_back_full;
 -                    _base_type = UnknownEnum.Value_5;
@@ -2344,7 +2560,190 @@
              break;
      }
      
-@@ -2978,49 +3456,3 @@
+@@ -2929,35 +3592,167 @@
+     ds_list_destroy(_new_list_1);
+     ds_list_destroy(_new_list_2);
+     
++    // GNX-UG: floor tops before and after the swap. The extra bands travel with their floors, so floors
++    // between or below can move too. Without underground cells every move is 140 * floors, as in vanilla.
++    var _yold = gnx_ug_floor_offsets();
++    gnx_ug_swap_extra(arg0, arg1);
++    var _ynew = gnx_ug_floor_offsets();
++    
+     with (obj_slot)
+     {
+-        if (slot_data.slot_floor == arg0)
++        var _of = clamp(slot_data.slot_floor, 0, array_length(_yold) - 1);
++        // ? : picks the floor this slot ends up on (arg0 <-> arg1, others stay)
++        var _nf = (_of == arg0) ? arg1 : ((_of == arg1) ? arg0 : _of);
++        var _dy = _ynew[_nf] - _yold[_of];
++        slot_data.slot_floor = _nf;
++        y += _dy;
++        // vanilla moves only slots and monsters; props, tentacles and cleaners move only by the band part
++        gnx_ug_move_attached(_dy - ((_nf - _of) * 140));
++    }
++    
++    with (obj_mon)
++    {
++        var _of = mon_data.mon_floor;
++        
++        // only monsters standing on a floor (the index must exist in the offset arrays)
++        if (_of >= 0 && _of < array_length(_yold))
+         {
+-            slot_data.slot_floor = arg1;
+-            y += (140 * (arg1 - arg0));
++            var _nf = (_of == arg0) ? arg1 : ((_of == arg1) ? arg0 : _of);
++            var _dy = _ynew[_nf] - _yold[_of];
++            mon_data.mon_floor = _nf;
++            y += _dy;
++            mon_data.yto += _dy;
+         }
+-        else if (slot_data.slot_floor == arg1)
++    }
++}
++
++/// GNX-UG: swaps the extra bands of floors arg0 and arg1 (used when two floors change places).
++function gnx_ug_swap_extra(arg0, arg1)
++{
++    var _n = max(arg0, arg1) + 1;
++    
++    // make the array long enough for both floors (missing floors have no extra band)
++    while (array_length(global.gnx_floor_extra) < _n)
++        array_push(global.gnx_floor_extra, 0);
++    
++    var _t = global.gnx_floor_extra[arg0];
++    global.gnx_floor_extra[arg0] = global.gnx_floor_extra[arg1];
++    global.gnx_floor_extra[arg1] = _t;
++}
++
++/// GNX-UG: moves what belongs to this slot but is not part of it by arg0 px: props (the newborn too),
++/// the tentacle of a tentacle cell and the cleaner. Runs in the slot (with or a slot's own code).
++function gnx_ug_move_attached(arg0)
++{
++    // == 0: nothing to move
++    if (arg0 == 0)
++        exit;
++    
++    var _pn = array_length(slot_data.prop);
++    
++    for (var _p = 0; _p < _pn; _p++)
++    {
++        var _pid = slot_data.prop[_p].prop_id;
++        
++        if (instance_exists(_pid))
++            _pid.y += arg0;
++    }
++    
++    var _me = id;
++    
++    with (obj_tent)
++    {
++        if (variable_instance_exists(id, "source_id") && source_id == _me)
++            y += arg0;
++    }
++    
++    with (obj_clean)
++    {
++        if (variable_instance_exists(id, "source_id") && source_id == _me)
++            y += arg0;
++    }
++}
++
++/// GNX-UG: runs every step. Each floor gets the extra band its underground cells need (0 without one).
++/// When that changes (such a cell built, replaced or removed), the floors below move down or up by the
++/// difference, with their slots, props, tentacles, cleaners and monsters.
++function gnx_ug_layout_step()
++{
++    // ! = not: no underground cell is registered, so there is nothing to do
++    if (!variable_global_exists("gnx_ug_any") || !global.gnx_ug_any)
++        exit;
++    
++    var _n = global.val.floor + 1;
++    var _need = array_create(_n, 0);
++    
++    with (obj_slot)
++    {
++        var _f = slot_data.slot_floor;
++        
++        // && = and: GameMaker stops at the first false part, so h_type is only read where it exists
++        if (_f >= 0 && _f < _n && variable_struct_exists(slot_data, "h_type") && slot_data.h_type != -1)
+         {
+-            slot_data.slot_floor = arg0;
+-            y += (-140 * (arg1 - arg0));
++            var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
++            
++            if (_c != undefined && variable_struct_exists(_c.physical, "gnx_ug_extra"))
++                _need[_f] = max(_need[_f], _c.physical.gnx_ug_extra);
+         }
+     }
+     
+-    with (obj_mon)
++    var _same = true;
++    
++    for (var i = 0; i < _n; i++)
+     {
+-        if (mon_data.mon_floor == arg0)
++        if (_need[i] != gnx_floor_extra(i))
+         {
+-            mon_data.mon_floor = arg1;
+-            y += (140 * (arg1 - arg0));
+-            mon_data.yto += 140 * (arg1 - arg0);
++            _same = false;
++            break;
+         }
+-        else if (mon_data.mon_floor == arg1)
++    }
++    
++    if (_same)
++        exit;
++    
++    var _yold = gnx_ug_floor_offsets();
++    global.gnx_floor_extra = _need;
++    var _ynew = gnx_ug_floor_offsets();
++    
++    with (obj_slot)
++    {
++        var _f = slot_data.slot_floor;
++        
++        if (_f >= 0 && _f < _n)
++        {
++            var _dy = _ynew[_f] - _yold[_f];
++            
++            if (_dy != 0)
++            {
++                y += _dy;
++                gnx_ug_move_attached(_dy);
++            }
++        }
++    }
++    
++    with (obj_mon)
++    {
++        if (variable_instance_exists(id, "mon_data") && is_struct(mon_data))
+         {
+-            mon_data.mon_floor = arg0;
+-            y += (-140 * (arg1 - arg0));
+-            mon_data.yto += -140 * (arg1 - arg0);
++            var _f = mon_data.mon_floor;
++            
++            if (_f >= 0 && _f < _n)
++            {
++                var _dy = _ynew[_f] - _yold[_f];
++                y += _dy;
++                
++                if (variable_struct_exists(mon_data, "yto"))
++                    mon_data.yto += _dy;
++            }
+         }
+     }
++    
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-UG] floor bands now: " + string(_need) + "\n");
++    gnx_log_close(_l);
+ }
+ 
+ function scr_slot_anim_base()
+@@ -2978,49 +3773,3 @@
              bar_glow_rep = 0;
      }
  }

@@ -1,463 +1,68 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-20 09:11:04.295530200 +0200
-@@ -1,735 +1,1466 @@
--function scr_save_game(arg0)
--{
--    var _save_data = {};
--    var _slot_hold_id = -1;
--    var _hold_id = obj_control.hold_id;
--    
--    if (_hold_id != -1 && _hold_id.drag_type == UnknownEnum.Value_2)
--        _slot_hold_id = _hold_id.source_id;
--    
--    var _slot_list = [];
--    var _slot_num = 0;
--    
--    for (var i = 0; i <= global.val.floor; i++)
--    {
--        _list = global.slot_list[i];
--        _num = ds_list_size(_list);
--        
--        for (var ii = 0; ii < _num; ii++)
--        {
--            var _slot_id = ds_list_find_value(_list, ii);
--            var _data = {};
--            
--            with (_slot_id)
--            {
--                _data.slot_data = slot_data;
--                
--                if (_slot_hold_id == _slot_id)
--                {
--                    _data.unit_data = _hold_id.unit_data;
--                    _data.slot_data.anim_struct.spr_type = UnknownEnum.Value_1;
--                }
--                else
--                {
--                    _data.unit_data = unit_data;
--                }
--                
--                _data.pos = ii;
--                var _prop_num = array_length(slot_data.prop);
--                
--                for (var iii = 0; iii < _prop_num; iii++)
--                {
--                    with (slot_data.prop[iii].prop_id)
--                    {
--                        _data.slot_data.prop[iii].x_pos = x;
--                        _data.slot_data.prop[iii].y_pos = y;
--                        _data.slot_data.prop[iii].d_pos = depth;
--                        _data.slot_data.prop[iii].xscale = image_xscale;
--                        _data.slot_data.prop[iii].yscale = image_yscale;
--                        _data.slot_data.prop[iii].iindex = image_index;
--                        
--                        if (prop_data.prop_type == UnknownEnum.Value_40)
--                            _data.slot_data.prop[iii].mon_data = prop_data.mon_data;
--                    }
--                }
--            }
--            
--            _slot_list[_slot_num] = _data;
--            _slot_num++;
--        }
--    }
--    
--    _save_data.slot_list = _slot_list;
--    var _mon_list = [];
--    var _num = 0;
--    
--    if (instance_exists(obj_mon))
--    {
--        with (obj_mon)
--        {
--            var _data = {};
--            _data.x_pos = x;
--            _data.y_pos = y;
--            _data.d_pos = depth;
--            _data.xscale = image_xscale;
--            _data.yscale = image_yscale;
--            _data.iindex = image_index;
--            _data.ispeed = image_speed;
--            _data.vis = visible;
--            _data.mon_data = mon_data;
--            _data.slot_pos = -1;
--            
--            if (mon_data.slot_id != -1)
--                _data.slot_pos = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.slot_id);
--            
--            switch (mon_data.task)
--            {
--                case UnknownEnum.Value_3:
--                    if (mon_data.placement_num == 0)
--                    {
--                        if (mon_data.carry_start_id != -1)
--                            _data.carry_start_id = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.carry_start_id);
--                        
--                        if (mon_data.carry_end_id != -1)
--                            _data.carry_end_id = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.carry_end_id);
--                    }
--                    
--                    break;
--            }
--            
--            _mon_list[_num] = _data;
--            _num++;
--        }
--    }
--    
--    _save_data.mon_list = _mon_list;
--    
--    with (obj_np.obj_raid)
--    {
--        raid_data.raid_pos = layer_sequence_get_headpos(seq_id);
--        _save_data.raid_data = raid_data;
--    }
--    
--    var _global = {};
--    _global.val = global.val;
--    _global.unlock = global.unlock;
--    _global.unit_num = scr_all_fem_num_cal();
--    _global.mon_num = global.val.nest_num[0];
--    var _list = [];
--    _num = ds_list_size(global.unit_list);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.unit_list, i);
--    
--    _global.unit_list = _list;
--    _list = [];
--    _num = ds_list_size(global.front_row);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.front_row, i);
--    
--    _global.front_row = _list;
--    _list = [];
--    _num = ds_list_size(global.back_row);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.back_row, i);
--    
--    _global.back_row = _list;
--    _list = [];
--    _num = ds_list_size(global.new_button_list);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.new_button_list, i);
--    
--    _global.new_button_list = _list;
--    _list = [];
--    _num = ds_list_size(global.inv_list);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.inv_list, i);
--    
--    _global.inv_list = _list;
--    _list = [];
--    _num = ds_list_size(global.raid_inv_list);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.raid_inv_list, i);
--    
--    _global.raid_inv_list = _list;
--    _list = [];
--    _num = ds_list_size(global.quest_list);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.quest_list, i);
--    
--    _global.quest_list = _list;
--    _list = [];
--    _num = ds_list_size(global.noti_list);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.noti_list, i);
--    
--    _global.noti_list = _list;
--    _list = [];
--    _num = ds_list_size(global.new_guide_list);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.new_guide_list, i);
--    
--    _global.new_guide_list = _list;
--    _list = [];
--    _num = ds_list_size(global.front_row_save);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.front_row_save, i);
--    
--    _global.front_row_save = _list;
--    _list = [];
--    _num = ds_list_size(global.back_row_save);
--    
--    for (var i = 0; i < _num; i++)
--        _list[i] = ds_list_find_value(global.back_row_save, i);
--    
--    _global.back_row_save = _list;
--    _save_data.global_list = _global;
--    var _save_type;
--    
--    switch (arg0)
--    {
--        case 0:
--            _save_type = "save_file_a.json";
--            scr_pop_up_create(UnknownEnum.Value_25);
--            break;
--        
--        case 1:
--            _save_type = "save_file_1.json";
--            scr_pop_up_create(UnknownEnum.Value_21);
--            break;
--        
--        case 2:
--            _save_type = "save_file_2.json";
--            scr_pop_up_create(UnknownEnum.Value_22);
--            break;
--        
--        case 3:
--            _save_type = "save_file_3.json";
--            scr_pop_up_create(UnknownEnum.Value_23);
--            break;
--    }
--    
--    if (file_exists(_save_type))
--        file_delete(_save_type);
--    
--    var _buff = buffer_create(1, buffer_grow, 1);
--    buffer_write(_buff, buffer_text, json_stringify(_save_data));
--    buffer_save(_buff, _save_type);
--    buffer_delete(_buff);
--}
-+function scr_save_game(arg0)
-+{
-+    var _save_data = {};
-+    var _slot_hold_id = -1;
-+    var _hold_id = obj_control.hold_id;
-+    
-+    if (_hold_id != -1 && _hold_id.drag_type == UnknownEnum.Value_2)
-+        _slot_hold_id = _hold_id.source_id;
-+    
-+    var _slot_list = [];
-+    var _slot_num = 0;
-+    
-+    for (var i = 0; i <= global.val.floor; i++)
-+    {
-+        _list = global.slot_list[i];
-+        _num = ds_list_size(_list);
-+        
-+        for (var ii = 0; ii < _num; ii++)
-+        {
-+            var _slot_id = ds_list_find_value(_list, ii);
-+            var _data = {};
-+            
-+            with (_slot_id)
-+            {
-+                _data.slot_data = slot_data;
-+                
-+                if (_slot_hold_id == _slot_id)
-+                {
-+                    _data.unit_data = _hold_id.unit_data;
-+                    _data.slot_data.anim_struct.spr_type = UnknownEnum.Value_1;
-+                }
-+                else
-+                {
-+                    _data.unit_data = unit_data;
-+                }
-+                
-+                _data.pos = ii;
-+                var _prop_num = array_length(slot_data.prop);
-+                
-+                for (var iii = 0; iii < _prop_num; iii++)
-+                {
-+                    with (slot_data.prop[iii].prop_id)
-+                    {
-+                        _data.slot_data.prop[iii].x_pos = x;
-+                        _data.slot_data.prop[iii].y_pos = y;
-+                        _data.slot_data.prop[iii].d_pos = depth;
-+                        _data.slot_data.prop[iii].xscale = image_xscale;
-+                        _data.slot_data.prop[iii].yscale = image_yscale;
-+                        _data.slot_data.prop[iii].iindex = image_index;
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-26 08:07:39.034692400 +0100
+@@ -48,6 +48,14 @@
+                         _data.slot_data.prop[iii].yscale = image_yscale;
+                         _data.slot_data.prop[iii].iindex = image_index;
+                         
++                        // GNX-PROP: where a reacting prop is in its play, so a save in the middle of it goes
++                        // on from there after loading (audit P7)
++                        if (variable_instance_exists(id, "gnx_prop_play"))
++                        {
++                            _data.slot_data.prop[iii].gnx_t = gnx_prop_t;
++                            _data.slot_data.prop[iii].gnx_play = gnx_prop_play;
++                        }
 +                        
-+                        if (prop_data.prop_type == UnknownEnum.Value_40)
-+                            _data.slot_data.prop[iii].mon_data = prop_data.mon_data;
-+                    }
-+                }
-+            }
-+            
-+            _slot_list[_slot_num] = _data;
-+            _slot_num++;
-+        }
-+    }
-+    
-+    _save_data.slot_list = _slot_list;
-+    var _mon_list = [];
-+    var _num = 0;
-+    
-+    if (instance_exists(obj_mon))
-+    {
-+        with (obj_mon)
-+        {
-+            var _data = {};
-+            _data.x_pos = x;
-+            _data.y_pos = y;
-+            _data.d_pos = depth;
-+            _data.xscale = image_xscale;
-+            _data.yscale = image_yscale;
-+            _data.iindex = image_index;
-+            _data.ispeed = image_speed;
-+            _data.vis = visible;
-+            _data.mon_data = mon_data;
-+            _data.slot_pos = -1;
-+            
-+            if (mon_data.slot_id != -1)
-+                _data.slot_pos = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.slot_id);
-+            
-+            switch (mon_data.task)
-+            {
-+                case UnknownEnum.Value_3:
-+                    if (mon_data.placement_num == 0)
-+                    {
-+                        if (mon_data.carry_start_id != -1)
-+                            _data.carry_start_id = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.carry_start_id);
-+                        
-+                        if (mon_data.carry_end_id != -1)
-+                            _data.carry_end_id = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.carry_end_id);
-+                    }
-+                    
-+                    break;
-+            }
-+            
-+            _mon_list[_num] = _data;
-+            _num++;
-+        }
-+    }
-+    
-+    _save_data.mon_list = _mon_list;
-+    
-+    with (obj_np.obj_raid)
-+    {
-+        raid_data.raid_pos = layer_sequence_get_headpos(seq_id);
-+        _save_data.raid_data = raid_data;
-+    }
-+    
+                         if (prop_data.prop_type == UnknownEnum.Value_40)
+                             _data.slot_data.prop[iii].mon_data = prop_data.mon_data;
+                     }
+@@ -110,6 +118,7 @@
+         _save_data.raid_data = raid_data;
+     }
+     
 +    scr_gnx_save_quest_state();
-+    var _global = {};
-+    _global.val = global.val;
-+    _global.unlock = global.unlock;
-+    _global.unit_num = scr_all_fem_num_cal();
-+    _global.mon_num = global.val.nest_num[0];
-+    var _list = [];
-+    _num = ds_list_size(global.unit_list);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.unit_list, i);
-+    
-+    _global.unit_list = _list;
-+    _list = [];
-+    _num = ds_list_size(global.front_row);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.front_row, i);
-+    
-+    _global.front_row = _list;
-+    _list = [];
-+    _num = ds_list_size(global.back_row);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.back_row, i);
-+    
-+    _global.back_row = _list;
-+    _list = [];
-+    _num = ds_list_size(global.new_button_list);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.new_button_list, i);
-+    
-+    _global.new_button_list = _list;
-+    _list = [];
-+    _num = ds_list_size(global.inv_list);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.inv_list, i);
-+    
-+    _global.inv_list = _list;
-+    _list = [];
-+    _num = ds_list_size(global.raid_inv_list);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.raid_inv_list, i);
-+    
-+    _global.raid_inv_list = _list;
-+    _list = [];
-+    _num = ds_list_size(global.quest_list);
-+    
-+    for (var i = 0; i < _num; i++)
+     var _global = {};
+     _global.val = global.val;
+     _global.unlock = global.unlock;
+@@ -161,14 +170,24 @@
+     _num = ds_list_size(global.quest_list);
+     
+     for (var i = 0; i < _num; i++)
+-        _list[i] = ds_list_find_value(global.quest_list, i);
 +    {
 +        var _qe = ds_list_find_value(global.quest_list, i);
 +        
 +        if (!variable_struct_exists(_qe, "gnx_event_id"))
 +            array_push(_list, _qe);
 +    }
-+    
-+    _global.quest_list = _list;
-+    _list = [];
-+    _num = ds_list_size(global.noti_list);
-+    
-+    for (var i = 0; i < _num; i++)
+     
+     _global.quest_list = _list;
+     _list = [];
+     _num = ds_list_size(global.noti_list);
+     
+     for (var i = 0; i < _num; i++)
+-        _list[i] = ds_list_find_value(global.noti_list, i);
 +    {
 +        var _ne = ds_list_find_value(global.noti_list, i);
 +        
 +        if (!variable_struct_exists(_ne, "gnx_event_id"))
 +            array_push(_list, _ne);
 +    }
-+    
-+    _global.noti_list = _list;
-+    _list = [];
-+    _num = ds_list_size(global.new_guide_list);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.new_guide_list, i);
-+    
-+    _global.new_guide_list = _list;
-+    _list = [];
-+    _num = ds_list_size(global.front_row_save);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.front_row_save, i);
-+    
-+    _global.front_row_save = _list;
-+    _list = [];
-+    _num = ds_list_size(global.back_row_save);
-+    
-+    for (var i = 0; i < _num; i++)
-+        _list[i] = ds_list_find_value(global.back_row_save, i);
-+    
-+    _global.back_row_save = _list;
-+    _save_data.global_list = _global;
-+    var _save_type;
-+    
-+    switch (arg0)
-+    {
-+        case 0:
-+            _save_type = "save_file_a.json";
-+            scr_pop_up_create(UnknownEnum.Value_25);
-+            break;
-+        
-+        case 1:
-+            _save_type = "save_file_1.json";
-+            scr_pop_up_create(UnknownEnum.Value_21);
-+            break;
-+        
-+        case 2:
-+            _save_type = "save_file_2.json";
-+            scr_pop_up_create(UnknownEnum.Value_22);
-+            break;
-+        
-+        case 3:
-+            _save_type = "save_file_3.json";
-+            scr_pop_up_create(UnknownEnum.Value_23);
-+            break;
+     
+     _global.noti_list = _list;
+     _list = [];
+@@ -192,6 +211,8 @@
+         _list[i] = ds_list_find_value(global.back_row_save, i);
+     
+     _global.back_row_save = _list;
++    // GNX-UG: extra floor bands at the time of saving; slots, props and monsters were saved in this layout
++    _global.gnx_floor_extra = global.gnx_floor_extra;
+     _save_data.global_list = _global;
+     var _save_type;
+     
+@@ -216,6 +237,46 @@
+             _save_type = "save_file_3.json";
+             scr_pop_up_create(UnknownEnum.Value_23);
+             break;
 +
 +        case 8:
 +            _save_type = "gnx_harness_save_b.json";  // GNX scenario runner only, never offered to players
@@ -480,43 +85,59 @@
 +    // which mods this save was made with, and what it uses from each (mod menu / load page warnings)
 +    _save_data.gnx_mods = scr_gnx_save_mod_record(_save_data);
 +    
-+    if (file_exists(_save_type))
-+        file_delete(_save_type);
-+    
-+    var _buff = buffer_create(1, buffer_grow, 1);
-+    buffer_write(_buff, buffer_text, json_stringify(_save_data));
-+    buffer_save(_buff, _save_type);
-+    buffer_delete(_buff);
-+    gnx_save_cache_clear();  // the menus re-read this save
-+}
-+
-+function scr_save_lang()
-+{
-+    var _save_data = {};
-+    _save_data.language = global.val.language;
-+    _save_data.sfx_vol = global.val.sfx_vol;
-+    _save_data.bgm_vol = global.val.bgm_vol;
-+    var _save_type = "lang.json";
-+    
-+    if (file_exists(_save_type))
-+        file_delete(_save_type);
-+    
-+    var _buff = buffer_create(1, buffer_grow, 1);
-+    buffer_write(_buff, buffer_text, json_stringify(_save_data));
-+    buffer_save(_buff, _save_type);
-+    buffer_delete(_buff);
-+}
-+
-+function scr_load_slot()
-+{
-+    gnx_save_cache_clear();  // the menus' parsed saves are not needed in game
-+    var _gnx_pt0 = get_timer();  // load timing ([GNX-TIME] lines)
-+    var _load = false;
-+    var _load_type = -1;
-+    var _gnx_travel = variable_global_exists("gnx_travel_data") && global.gnx_travel_data != -1;
-+    
-+    if (!_gnx_travel)
++    // GNX-PROP: saving over the very file whose older props were moved to names keeps a copy of it first
++    // (once: an existing copy is not overwritten) (audit 18, 23). gnx_save_backup_pending holds that file's
++    // name ("" = nothing pending); saves to other slots or the autosave leave it pending
++    if (variable_global_exists("gnx_save_backup_pending") && is_string(global.gnx_save_backup_pending) && global.gnx_save_backup_pending != "" && global.gnx_save_backup_pending == _save_type && file_exists(_save_type))
 +    {
++        global.gnx_save_backup_pending = "";
++        var _gnx_bk = _save_type + ".before_gnx_names";
++        
++        if (!file_exists(_gnx_bk))
++        {
++            file_copy(_save_type, _gnx_bk);
++            var _gnx_bl = gnx_log_open();
++
++            // GNX-FIX (audit 19): file_copy gives no result, so the copy is looked for: the log says only
++            // what really happened (? : the first text when the copy is there, else the second)
++            gnx_log_write(_gnx_bl, file_exists(_gnx_bk) ? ("[GNX] save: copy of the older save kept as " + _gnx_bk + "\n") : ("[GNX-WARN] save: the copy " + _gnx_bk + " could not be written; the save is written without it\n"));
++            gnx_log_close(_gnx_bl);
++        }
+     }
+     
+     if (file_exists(_save_type))
+@@ -225,6 +286,7 @@
+     buffer_write(_buff, buffer_text, json_stringify(_save_data));
+     buffer_save(_buff, _save_type);
+     buffer_delete(_buff);
++    gnx_save_cache_clear();  // the menus re-read this save
+ }
+ 
+ function scr_save_lang()
+@@ -246,44 +308,148 @@
+ 
+ function scr_load_slot()
+ {
++    gnx_save_cache_clear();  // the menus' parsed saves are not needed in game
++    // GNX-UG: a new game starts without extra floor bands; a loaded save sets its own below
++    global.gnx_floor_extra = [];
++    var _gnx_pt0 = get_timer();  // load timing ([GNX-TIME] lines)
+     var _load = false;
+     var _load_type = -1;
++    var _gnx_travel = variable_global_exists("gnx_travel_data") && global.gnx_travel_data != -1;
+     
+-    switch (global.load_file)
++    if (!_gnx_travel)
+     {
+-        case 0:
+-            if (file_exists("save_file_a.json"))
+-                _load_type = "save_file_a.json";
+-            
+-            break;
+-        
+-        case 1:
+-            if (file_exists("save_file_1.json"))
+-                _load_type = "save_file_1.json";
 +        switch (global.load_file)
 +        {
 +            case 0:
@@ -524,19 +145,30 @@
 +                    _load_type = "save_file_a.json";
 +                
 +                break;
-+            
+             
+-            break;
+-        
+-        case 2:
+-            if (file_exists("save_file_2.json"))
+-                _load_type = "save_file_2.json";
 +            case 1:
 +                if (file_exists("save_file_1.json"))
 +                    _load_type = "save_file_1.json";
 +                
 +                break;
-+            
+             
+-            break;
+-        
+-        case 3:
+-            if (file_exists("save_file_3.json"))
+-                _load_type = "save_file_3.json";
 +            case 2:
 +                if (file_exists("save_file_2.json"))
 +                    _load_type = "save_file_2.json";
 +                
 +                break;
-+            
+             
+-            break;
 +            case 3:
 +                if (file_exists("save_file_3.json"))
 +                    _load_type = "save_file_3.json";
@@ -555,11 +187,17 @@
 +
 +                break;
 +        }
-+    }
-+    
+     }
+     
+-    if (_load_type != -1)
 +    if (_gnx_travel || _load_type != -1)
-+    {
-+        _load = true;
+     {
+         _load = true;
+-        var _buff = buffer_load(_load_type);
+-        var _json = buffer_read(_buff, buffer_text);
+-        var _load_data = json_parse(_json);
+-        buffer_delete(_buff);
+-        _load_data = scr_patch_update_pre(_load_data);
 +        
 +        if (_gnx_travel)
 +        {
@@ -581,6 +219,11 @@
 +            var _json = buffer_read(_buff, buffer_text);
 +            _load_data = json_parse(_json);
 +            buffer_delete(_buff);
++            // GNX-PROP: which save file this is, so the one-time copy of an older save is made of this very
++            // file when it is saved over, not of another slot or the autosave (audit 23); a new load starts
++            // with no copy pending
++            global.gnx_loaded_save_file = _load_type;
++            global.gnx_save_backup_pending = "";
 +            gnx_time_log("save read + parse (" + string(string_length(_json) div 1024) + " KB)", _gnx_lt0);
 +            global.gnx_loaded_mod_record = variable_struct_exists(_load_data, "gnx_mods") ? _load_data.gnx_mods : -1;
 +
@@ -640,91 +283,30 @@
 +        _gnx_pt0 = get_timer();
 +        var _load_data = scr_patch_update_pre(_load_data);
 +        gnx_time_log("sanitize pre-pass", _gnx_pt0);
++        // GNX-UG: rebuild the floors in the layout they were saved in (saves without it used no extra bands);
++        // gnx_ug_layout_step corrects it afterwards if the cells need another layout
++        global.gnx_floor_extra = variable_struct_exists(_load_data.global_list, "gnx_floor_extra") ? _load_data.global_list.gnx_floor_extra : [];
 +        _gnx_pt0 = get_timer();
-+        var _slot_list = _load_data.slot_list;
-+        var _start_x = -1;
-+        
-+        for (var i = 0; i <= _load_data.global_list.val.floor; i++)
-+        {
-+            global.slot_x[i] = _start_x;
-+            global.slot_list[i] = ds_list_create();
-+        }
-+        
-+        var _num = array_length(_slot_list);
-+        
-+        for (var i = 0; i < _num; i++)
-+        {
-+            var _data = _slot_list[i];
-+            var _slot_id = scr_create_slot(_data.slot_data.slot_type, _data.slot_data.slot_floor, _data.pos, false);
-+            
-+            with (_slot_id)
-+            {
+         var _slot_list = _load_data.slot_list;
+         var _start_x = -1;
+         
+@@ -302,9 +468,12 @@
+             
+             with (_slot_id)
+             {
 +                var _gnx_fresh_hand_frame = -1;
 +                
-+                if (_data.slot_data.anim_struct != -1)
-+                {
-+                    scr_set_slot_h_data(id, _data.slot_data.h_type);
+                 if (_data.slot_data.anim_struct != -1)
+                 {
+                     scr_set_slot_h_data(id, _data.slot_data.h_type);
 +                    _gnx_fresh_hand_frame = slot_data.hand_frame;
-+                    
-+                    if (_data.unit_data != -1)
-+                    {
-+                        unit_data = _data.unit_data;
-+                        scr_occupy_slot(id, _data.unit_data, false, _data.slot_data.anim_struct.spr_type);
-+                    }
-+                }
-+                
-+                if (_data.slot_data.slot_type == UnknownEnum.Value_0)
-+                {
-+                    var _spr;
-+                    
-+                    switch (_data.slot_data.base_type)
-+                    {
-+                        case UnknownEnum.Value_0:
-+                            _spr = spr_slot_back;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_1:
-+                            _spr = spr_slot_back_pillar;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_2:
-+                            _spr = spr_slot_back_rock;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_3:
-+                            _spr = spr_slot_back_brick;
-+                            break;
-+                    }
-+                    
-+                    spr_base = _spr;
-+                }
-+                
-+                if (_data.slot_data.slot_type == UnknownEnum.Value_1)
-+                {
-+                    var _spr;
-+                    
-+                    switch (_data.slot_data.base_type)
-+                    {
-+                        case UnknownEnum.Value_0:
-+                            _spr = spr_big_slot_back;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_1:
-+                            _spr = spr_big_slot_back_pillar;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_2:
-+                            _spr = spr_big_slot_back_rock;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_3:
-+                            _spr = spr_big_slot_back_brick;
-+                            break;
-+                    }
-+                    
-+                    spr_base = _spr;
-+                }
-+                
+                     
+                     if (_data.unit_data != -1)
+                     {
+@@ -365,6 +534,29 @@
+                     spr_base = _spr;
+                 }
+                 
 +                // POPRAWKA: cela XL tracila styl sciany (filar/skala/cegla) po wczytaniu
 +                if (_data.slot_data.slot_type == 6)
 +                {
@@ -748,73 +330,108 @@
 +                    spr_base = _spr;
 +                }
 +
-+                if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
-+                    spr_base = spr_tent_back_full;
-+                
-+                if (_data.slot_data.slot_type == UnknownEnum.Value_5 || _data.slot_data.slot_type == UnknownEnum.Value_4)
-+                {
-+                    var _diff = 0;
-+                    _diff = _slot_id.image_xscale + 2;
-+                    var _scale, _spr;
+                 if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
+                     spr_base = spr_tent_back_full;
+                 
+@@ -408,30 +600,121 @@
+                     global.slot_x[slot_data.slot_floor] += _diff;
+                 }
+                 
+-                var _prop_num = array_length(_data.slot_data.prop);
++                // GNX-FIX: the saved props, then the ones kept aside earlier because their mod was missing
++                // (gnx_orphan_props); a prop that cannot be made now is kept aside again instead of being lost
++                // with the next save, and comes back when its mod is back (audit 16, C)
++                var _gnx_src = _data.slot_data.prop;
++                var _gnx_orph_in = (variable_struct_exists(_data.slot_data, "gnx_orphan_props") && is_array(_data.slot_data.gnx_orphan_props)) ? _data.slot_data.gnx_orphan_props : [];
++                var _gnx_n_src = array_length(_gnx_src);
++                var _prop_num = _gnx_n_src + array_length(_gnx_orph_in);
++                var _gnx_kept = [];
++                var _gnx_orph = [];
++                var _gnx_rows = [];
++                // why each one was kept aside: its mod is missing, or its row is taken (audit 18)
++                var _gnx_n_missing = 0;
++                var _gnx_n_row = 0;
+                 
+                 for (var ii = 0; ii < _prop_num; ii++)
+                 {
++                    // >= : past the saved props, the ones kept aside
++                    var _gnx_is_orph = ii >= _gnx_n_src;
++                    var _pd = _gnx_is_orph ? _gnx_orph_in[ii - _gnx_n_src] : _gnx_src[ii];
 +                    
-+                    switch (_data.slot_data.between_type)
++                    if (!is_struct(_pd))
++                        continue;
++                    
++                    // a prop kept aside does not come back into a row that holds another prop by now
++                    if (_gnx_is_orph && variable_struct_exists(_pd, "prop_pos") && array_contains(_gnx_rows, _pd.prop_pos))
 +                    {
-+                        case UnknownEnum.Value_0:
-+                            _spr = spr_bet_plank;
-+                            _scale = 11;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_1:
-+                            _spr = spr_bet_pillar;
-+                            _scale = 20;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_4:
-+                            _spr = spr_bet_tent;
-+                            _scale = 11;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_2:
-+                            _spr = spr_bet_rock;
-+                            _scale = 15;
-+                            break;
-+                        
-+                        case UnknownEnum.Value_3:
-+                            _spr = spr_bet_brick;
-+                            _scale = 13;
-+                            break;
++                        array_push(_gnx_orph, _pd);
++                        _gnx_n_row++;
++                        continue;
 +                    }
 +                    
-+                    _diff = _scale - _diff;
-+                    spr_base = _spr;
-+                    image_xscale += _diff;
-+                    global.slot_x[slot_data.slot_floor] += _diff;
-+                }
+                     var _infant = -1;
+                     
+-                    if (_data.slot_data.prop[ii].prop_type == UnknownEnum.Value_40)
+-                        _infant = _data.slot_data.prop[ii].mon_data;
++                    if (_pd.prop_type == UnknownEnum.Value_40)
++                        _infant = _pd.mon_data;
++                    
++                    // GNX-PROP: a mod prop is found by its saved name; its number can change with the mod
++                    // load order (audit P10)
++                    var _gnx_pt = gnx_prop_saved_type(_pd);
++                    var _prop = (_gnx_pt == -1) ? -1 : scr_create_prop(id, _gnx_pt, _infant, _pd.prop_step);
+                     
+-                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
+-                    _prop.prop_data = _data.slot_data.prop[ii];
++                    // GNX-FIX: no prop made (its mod is missing): kept aside, not read (that stopped the load)
++                    if (is_undefined(_prop) || _prop == -1 || !instance_exists(_prop))
++                    {
++                        array_push(_gnx_orph, _pd);
++                        _gnx_n_missing++;
++                        var _gnx_pl = gnx_log_open();
++                        gnx_log_write(_gnx_pl, "[GNX-WARN] load: prop type " + string(_pd.prop_type) + (variable_struct_exists(_pd, "gnx_name") ? (" ('" + string(_pd.gnx_name) + "')") : "") + " is not registered (mod missing?); kept aside with the save, back when its mod is\n");
++                        gnx_log_close(_gnx_pl);
++                        continue;
++                    }
++                    
++                    array_push(_gnx_kept, _pd);
++                    
++                    if (variable_struct_exists(_pd, "prop_pos"))
++                        array_push(_gnx_rows, _pd.prop_pos);
++                    
++                    _prop.prop_data = _pd;
+                     _prop.prop_data.prop_id = _prop;
+-                    _prop.x = _data.slot_data.prop[ii].x_pos;
+-                    _prop.y = _data.slot_data.prop[ii].y_pos;
+-                    _prop.depth = _data.slot_data.prop[ii].d_pos;
+-                    _prop.image_xscale = _data.slot_data.prop[ii].xscale;
+-                    _prop.image_yscale = _data.slot_data.prop[ii].yscale;
+-                    _prop.image_index = _data.slot_data.prop[ii].iindex;
++                    // GNX-PROP: a prop whose frames move on events gets back the frame it stood on
++                    gnx_prop_restore(_prop);
++                    _prop.x = _pd.x_pos;
++                    _prop.y = _pd.y_pos;
++                    _prop.depth = _pd.d_pos;
++                    _prop.image_xscale = _pd.xscale;
++                    _prop.image_yscale = _pd.yscale;
++                    _prop.image_index = _pd.iindex;
+                     
+                     if (_infant != -1 && _prop.prop_data.prop_id.prop_data.spawn == true)
+                         _prop.mask_index = _prop.sprite_index;
+                 }
+                 
++                _data.slot_data.prop = _gnx_kept;
++                _data.slot_data.gnx_orphan_props = _gnx_orph;
 +                
-+                var _prop_num = array_length(_data.slot_data.prop);
-+                
-+                for (var ii = 0; ii < _prop_num; ii++)
++                // GNX-FIX: how many are kept aside on this passage, so the log shows they are still there
++                // (audit 17); they stay until their mod is back and their row is free, or the passage is sold
++                if (array_length(_gnx_orph) > 0)
 +                {
-+                    var _infant = -1;
-+                    
-+                    if (_data.slot_data.prop[ii].prop_type == UnknownEnum.Value_40)
-+                        _infant = _data.slot_data.prop[ii].mon_data;
-+                    
-+                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
-+                    _prop.prop_data = _data.slot_data.prop[ii];
-+                    _prop.prop_data.prop_id = _prop;
-+                    _prop.x = _data.slot_data.prop[ii].x_pos;
-+                    _prop.y = _data.slot_data.prop[ii].y_pos;
-+                    _prop.depth = _data.slot_data.prop[ii].d_pos;
-+                    _prop.image_xscale = _data.slot_data.prop[ii].xscale;
-+                    _prop.image_yscale = _data.slot_data.prop[ii].yscale;
-+                    _prop.image_index = _data.slot_data.prop[ii].iindex;
-+                    
-+                    if (_infant != -1 && _prop.prop_data.prop_id.prop_data.spawn == true)
-+                        _prop.mask_index = _prop.sprite_index;
++                    var _gnx_ol = gnx_log_open();
++                    gnx_log_write(_gnx_ol, "[GNX] load: props kept aside on a passage of floor " + string(_data.slot_data.slot_floor) + ": " + string(_gnx_n_missing) + " of missing mods, " + string(_gnx_n_row) + " whose row holds another prop\n");
++                    gnx_log_close(_gnx_ol);
 +                }
-+                
-+                slot_data = _data.slot_data;
+                 slot_data = _data.slot_data;
 +
 +                if (is_array(_gnx_fresh_hand_frame))
 +                    slot_data.hand_frame = _gnx_fresh_hand_frame;
@@ -846,142 +463,62 @@
 +                            slot_data.mod_index[_mi] = 0;
 +                    }
 +                }
-+            }
-+        }
-+        
-+        _num = 0;
-+        var _mon_list = _load_data.mon_list;
-+        var _mon_num = array_length(_mon_list);
-+        
-+        for (var i = 0; i < _mon_num; i++)
-+        {
-+            var _data = _mon_list[_num];
-+            
-+            if (_data.slot_pos != -1)
-+            {
-+            }
-+            else
-+            {
-+                var _slot_id = -1;
-+            }
-+            
-+            var _mon = scr_create_mon(_data.mon_data.mon_type, x, y, _data.mon_data.mon_floor, _data.slot_pos, -1);
-+            _num++;
-+            
-+            with (_mon)
-+            {
-+                x = _data.x_pos;
-+                y = _data.y_pos;
-+                depth = _data.d_pos;
-+                image_xscale = _data.xscale;
-+                image_yscale = _data.yscale;
-+                image_index = _data.iindex;
-+                image_speed = _data.ispeed;
-+                visible = _data.vis;
-+                var _old_slot_id = mon_data.slot_id;
-+                mon_data = _data.mon_data;
-+                mon_data.slot_id = _old_slot_id;
-+                var _place = mon_data.placement_num;
-+                
-+                if (_old_slot_id != -1 && _old_slot_id.slot_data.slot_type != UnknownEnum.Value_3)
-+                {
-+                    with (_old_slot_id)
-+                    {
-+                        array_push(h_unit_list, other.id);
-+                        
-+                        if (slot_data.mon_placement != -1)
-+                            slot_data.mon_placement[_place] = _mon;
-+                    }
-+                }
-+                
-+                var _spr_data = _data.mon_data.spr_data;
-+                
+             }
+         }
+         
+@@ -482,22 +765,14 @@
+                 
+                 var _spr_data = _data.mon_data.spr_data;
+                 
+-                if (_spr_data != -1)
+-                {
+-                    switch (_spr_data.mon_step)
+-                    {
+-                        case UnknownEnum.Value_0:
+-                            scr_set_mon_spr_data(mon_data.slot_id, _spr_data.spr_type);
+-                            break;
+-                    }
+-                }
 +                if (_spr_data != -1 && is_struct(_spr_data) && variable_struct_exists(_spr_data, "spr_type"))
 +                    scr_set_mon_spr_data(mon_data.slot_id, _spr_data.spr_type);
-+                
-+                if (mon_data.task == UnknownEnum.Value_3)
-+                {
-+                    switch (_data.mon_data.mon_state)
-+                    {
-+                        case UnknownEnum.Value_0:
-+                            break;
-+                        
-+                        case UnknownEnum.Value_8:
-+                            scr_mon_draw = scr_draw_hobgoblin_carry;
-+                            break;
-+                    }
-+                    
-+                    if (mon_data.placement_num == 0)
-+                    {
-+                        if (mon_data.carry_start_id != -1)
-+                            mon_data.carry_start_id = ds_list_find_value(global.slot_list[mon_data.mon_floor], _data.carry_start_id);
-+                        
-+                        if (mon_data.carry_end_id != -1)
-+                            mon_data.carry_end_id = ds_list_find_value(global.slot_list[mon_data.mon_floor], _data.carry_end_id);
-+                    }
-+                }
-+                
-+                switch (mon_data.mon_state)
-+                {
-+                    case UnknownEnum.Value_0:
-+                        sprite_index = spr_idle;
-+                        break;
-+                    
-+                    case UnknownEnum.Value_6:
-+                        mon_data.ff = true;
-+                        break;
-+                    
-+                    case UnknownEnum.Value_5:
-+                        if (x == mon_data.xto)
-+                            sprite_index = spr_idle;
-+                        else if (mon_data.removed_set == UnknownEnum.Value_0 || mon_data.removed_set == UnknownEnum.Value_4)
-+                            sprite_index = spr_b_walk;
-+                        else
-+                            sprite_index = spr_walk;
-+                        
-+                        break;
-+                    
-+                    case UnknownEnum.Value_7:
-+                        mon_data.ff = true;
-+                        break;
-+                    
-+                    case UnknownEnum.Value_8:
-+                        sprite_index = spr_walk;
-+                        break;
-+                    
-+                    case UnknownEnum.Value_9:
-+                        sprite_index = spr_walk;
-+                        break;
-+                    
-+                    case UnknownEnum.Value_12:
-+                        sprite_index = spr_walk;
-+                        break;
-+                    
-+                    case UnknownEnum.Value_10:
-+                        sprite_index = spr_patrol;
-+                        spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
+                 
+                 if (mon_data.task == UnknownEnum.Value_3)
+                 {
+                     switch (_data.mon_data.mon_state)
+                     {
+                         case UnknownEnum.Value_0:
+-                            var _spr = spr_idle;
+                             break;
+                         
+                         case UnknownEnum.Value_8:
+@@ -554,6 +829,11 @@
+                     case UnknownEnum.Value_10:
+                         sprite_index = spr_patrol;
+                         spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
 +                        
 +                        // Mav (1.4.7.5): an atlas sprite (a struct) cannot be sprite_index
 +                        if (spr_unit.patrol_spr != -1 && !is_struct(spr_unit.patrol_spr))
 +                            sprite_index = spr_unit.patrol_spr;
 +                        
-+                        scr_mon_draw = scr_draw_orgre_patrol;
-+                        scr_mon_begin_step = scr_ogre_spd_b;
-+                        break;
-+                }
-+            }
-+        }
+                         scr_mon_draw = scr_draw_orgre_patrol;
+                         scr_mon_begin_step = scr_ogre_spd_b;
+                         break;
+@@ -567,7 +847,52 @@
+         obj_np.obj_raid.raid_data = _load_data.raid_data;
+         var _global = _load_data.global_list;
+         global.val = _global.val;
 +        
-+        if (_load_data.raid_data.raid_state == UnknownEnum.Value_1 || _load_data.raid_data.raid_state == UnknownEnum.Value_2)
-+            _load_data.raid_data.ff = true;
-+        
-+        obj_np.obj_raid.raid_data = _load_data.raid_data;
-+        var _global = _load_data.global_list;
-+        global.val = _global.val;
-+        global.unlock = _global.unlock;
++        // GNX: saves before 1.4.10 did not keep the mod birth list
++        if (!variable_struct_exists(global.val, "gnx_br_unlock") || !is_array(global.val.gnx_br_unlock) || array_length(global.val.gnx_br_unlock) < 4)
++            global.val.gnx_br_unlock = gnx_br_unlock_new();
+         global.unlock = _global.unlock;
 +        
 +        if (!variable_struct_exists(global.unlock, "xl_breed"))
 +            global.unlock.xl_breed = [];
++        
++        // GNX-UG: saves from before the underground cell
++        if (!variable_struct_exists(global.unlock, "ug_breed"))
++            global.unlock.ug_breed = [];
 +        
 +        if (_gnx_travel && global.gnx_carry_day != -1)
 +        {
@@ -1016,52 +553,22 @@
 +        else
 +            global.val.fullscreen = false;
 +        
-+        ds_list_clear(global.unit_list);
-+        _num = array_length(_global.unit_list);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.unit_list, _global.unit_list[i]);
-+        
-+        ds_list_clear(global.front_row);
-+        _num = array_length(_global.front_row);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.front_row, _global.front_row[i]);
-+        
-+        ds_list_clear(global.back_row);
-+        _num = array_length(_global.back_row);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.back_row, _global.back_row[i]);
-+        
-+        ds_list_clear(global.new_button_list);
-+        _num = array_length(_global.new_button_list);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.new_button_list, _global.new_button_list[i]);
-+        
-+        ds_list_clear(global.inv_list);
-+        _num = array_length(_global.inv_list);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.inv_list, _global.inv_list[i]);
-+        
-+        ds_list_clear(global.raid_inv_list);
-+        _num = array_length(_global.raid_inv_list);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.raid_inv_list, _global.raid_inv_list[i]);
-+        
-+        ds_list_clear(global.quest_list);
-+        _num = array_length(_global.quest_list);
+         ds_list_clear(global.unit_list);
+         _num = array_length(_global.unit_list);
+         
+@@ -606,11 +931,21 @@
+         
+         ds_list_clear(global.quest_list);
+         _num = array_length(_global.quest_list);
 +        var _vq_idx = 0;
-+        
-+        for (var i = 0; i < _num; i++)
-+        {
+         
+         for (var i = 0; i < _num; i++)
+         {
 +            if (is_string(_global.quest_list[i].quest_type))
 +                continue;
 +            
-+            scr_add_event(_global.quest_list[i].quest_type, true);
+             scr_add_event(_global.quest_list[i].quest_type, true);
+-            ds_list_find_value(global.quest_list, i).quest_clear = _global.quest_list[i].quest_clear;
 +            var _val = ds_list_find_value(global.quest_list, _vq_idx);
 +            
 +            if (is_undefined(_val))
@@ -1069,60 +576,32 @@
 +            
 +            _val.quest_clear = _global.quest_list[i].quest_clear;
 +            _vq_idx++;
-+        }
-+        
-+        for (var i = 0; i < ds_list_size(global.quest_list); i++)
-+        {
-+            if (ds_list_find_value(global.quest_list, i).quest_type == UnknownEnum.Value_10 && ds_list_find_value(global.quest_list, i).quest_clear)
-+            {
-+                with (obj_np)
-+                {
-+                    if (tutorial_arrow != -1)
-+                    {
-+                        with (tutorial_arrow)
-+                            instance_destroy();
-+                    }
-+                    
-+                    tutorial_arrow = -1;
-+                }
-+            }
-+        }
-+        
-+        ds_list_clear(global.noti_list);
-+        _num = array_length(_global.noti_list);
-+        
-+        for (var i = 0; i < _num; i++)
+         }
+         
+         for (var i = 0; i < ds_list_size(global.quest_list); i++)
+@@ -634,7 +969,12 @@
+         _num = array_length(_global.noti_list);
+         
+         for (var i = 0; i < _num; i++)
 +        {
 +            if (is_string(_global.noti_list[i].noti_type))
 +                continue;
 +            
-+            scr_add_event(_global.noti_list[i].noti_type, true);
+             scr_add_event(_global.noti_list[i].noti_type, true);
 +        }
-+        
-+        ds_list_clear(global.new_guide_list);
-+        _num = array_length(_global.new_guide_list);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.new_guide_list, _global.new_guide_list[i]);
-+        
-+        ds_list_clear(global.front_row_save);
-+        _num = array_length(_global.front_row_save);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.front_row_save, _global.front_row_save[i]);
-+        
-+        ds_list_clear(global.back_row_save);
-+        _num = array_length(_global.back_row_save);
-+        
-+        for (var i = 0; i < _num; i++)
-+            ds_list_add(global.back_row_save, _global.back_row_save[i]);
-+        
+         
+         ds_list_clear(global.new_guide_list);
+         _num = array_length(_global.new_guide_list);
+@@ -654,8 +994,392 @@
+         for (var i = 0; i < _num; i++)
+             ds_list_add(global.back_row_save, _global.back_row_save[i]);
+         
 +        gnx_time_log("restore slots/units (load body)", _gnx_pt0);
 +        _gnx_pt0 = get_timer();
-+        _load_data = scr_patch_update_post(_load_data);
+         _load_data = scr_patch_update_post(_load_data);
 +        gnx_time_log("sanitize post-pass", _gnx_pt0);
 +        _gnx_pt0 = get_timer();
-+        scr_demo_to_full();
+         scr_demo_to_full();
 +        
 +        if (variable_struct_exists(global.val, "gnx_mod_data"))
 +        {
@@ -1295,525 +774,32 @@
 +        // straight into the in-cell state instead: the cell never started and the monster stayed there for good.
 +        if (_ok && (mon_data.mon_state == 5 || mon_data.mon_state == 6))
 +            mon_data.follow = false;
- 
--function scr_save_lang()
--{
--    var _save_data = {};
--    _save_data.language = global.val.language;
--    _save_data.sfx_vol = global.val.sfx_vol;
--    _save_data.bgm_vol = global.val.bgm_vol;
--    var _save_type = "lang.json";
--    
--    if (file_exists(_save_type))
--        file_delete(_save_type);
--    
--    var _buff = buffer_create(1, buffer_grow, 1);
--    buffer_write(_buff, buffer_text, json_stringify(_save_data));
--    buffer_save(_buff, _save_type);
--    buffer_delete(_buff);
--}
--
--function scr_load_slot()
--{
--    var _load = false;
--    var _load_type = -1;
--    
--    switch (global.load_file)
--    {
--        case 0:
--            if (file_exists("save_file_a.json"))
--                _load_type = "save_file_a.json";
--            
--            break;
--        
--        case 1:
--            if (file_exists("save_file_1.json"))
--                _load_type = "save_file_1.json";
--            
--            break;
--        
--        case 2:
--            if (file_exists("save_file_2.json"))
--                _load_type = "save_file_2.json";
--            
--            break;
--        
--        case 3:
--            if (file_exists("save_file_3.json"))
--                _load_type = "save_file_3.json";
--            
--            break;
--    }
--    
--    if (_load_type != -1)
--    {
--        _load = true;
--        var _buff = buffer_load(_load_type);
--        var _json = buffer_read(_buff, buffer_text);
--        var _load_data = json_parse(_json);
--        buffer_delete(_buff);
--        _load_data = scr_patch_update_pre(_load_data);
--        var _slot_list = _load_data.slot_list;
--        var _start_x = -1;
--        
--        for (var i = 0; i <= _load_data.global_list.val.floor; i++)
--        {
--            global.slot_x[i] = _start_x;
--            global.slot_list[i] = ds_list_create();
--        }
--        
--        var _num = array_length(_slot_list);
--        
--        for (var i = 0; i < _num; i++)
++
 +        // GNX: saves made with that seating hold a monster "in" an idle cell (in-cell state, cell idle): send it walking again
 +        // so it arrives the normal way
 +        if (_ok && mon_data.mon_state == 1 && mon_data.slot_id.slot_data.anim_struct.char_state == 0 && mon_data.slot_id.slot_data.slot_type != 3)
-         {
--            var _data = _slot_list[i];
--            var _slot_id = scr_create_slot(_data.slot_data.slot_type, _data.slot_data.slot_floor, _data.pos, false);
--            
--            with (_slot_id)
++        {
 +            with (mon_data.slot_id)
-             {
--                if (_data.slot_data.anim_struct != -1)
--                {
--                    scr_set_slot_h_data(id, _data.slot_data.h_type);
--                    
--                    if (_data.unit_data != -1)
--                    {
--                        unit_data = _data.unit_data;
--                        scr_occupy_slot(id, _data.unit_data, false, _data.slot_data.anim_struct.spr_type);
--                    }
--                }
--                
--                if (_data.slot_data.slot_type == UnknownEnum.Value_0)
--                {
--                    var _spr;
--                    
--                    switch (_data.slot_data.base_type)
--                    {
--                        case UnknownEnum.Value_0:
--                            _spr = spr_slot_back;
--                            break;
--                        
--                        case UnknownEnum.Value_1:
--                            _spr = spr_slot_back_pillar;
--                            break;
--                        
--                        case UnknownEnum.Value_2:
--                            _spr = spr_slot_back_rock;
--                            break;
--                        
--                        case UnknownEnum.Value_3:
--                            _spr = spr_slot_back_brick;
--                            break;
--                    }
--                    
--                    spr_base = _spr;
--                }
--                
--                if (_data.slot_data.slot_type == UnknownEnum.Value_1)
++            {
 +                for (var _rp = 0; _rp < array_length(slot_data.mon_placement); _rp++)
-                 {
--                    var _spr;
--                    
--                    switch (_data.slot_data.base_type)
--                    {
--                        case UnknownEnum.Value_0:
--                            _spr = spr_big_slot_back;
--                            break;
--                        
--                        case UnknownEnum.Value_1:
--                            _spr = spr_big_slot_back_pillar;
--                            break;
--                        
--                        case UnknownEnum.Value_2:
--                            _spr = spr_big_slot_back_rock;
--                            break;
--                        
--                        case UnknownEnum.Value_3:
--                            _spr = spr_big_slot_back_brick;
--                            break;
--                    }
--                    
--                    spr_base = _spr;
++                {
 +                    if (slot_data.mon_placement[_rp] == other.id)
++                    {
 +                        slot_data.mon_placement[_rp] = -1;
-                 }
--                
--                if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
--                    spr_base = spr_tent_back_full;
--                
--                if (_data.slot_data.slot_type == UnknownEnum.Value_5 || _data.slot_data.slot_type == UnknownEnum.Value_4)
--                {
--                    var _diff = 0;
--                    _diff = _slot_id.image_xscale + 2;
--                    var _scale, _spr;
--                    
--                    switch (_data.slot_data.between_type)
--                    {
--                        case UnknownEnum.Value_0:
--                            _spr = spr_bet_plank;
--                            _scale = 11;
--                            break;
--                        
--                        case UnknownEnum.Value_1:
--                            _spr = spr_bet_pillar;
--                            _scale = 20;
--                            break;
--                        
--                        case UnknownEnum.Value_4:
--                            _spr = spr_bet_tent;
--                            _scale = 11;
--                            break;
--                        
--                        case UnknownEnum.Value_2:
--                            _spr = spr_bet_rock;
--                            _scale = 15;
--                            break;
--                        
--                        case UnknownEnum.Value_3:
--                            _spr = spr_bet_brick;
--                            _scale = 13;
--                            break;
--                    }
--                    
--                    _diff = _scale - _diff;
--                    spr_base = _spr;
--                    image_xscale += _diff;
--                    global.slot_x[slot_data.slot_floor] += _diff;
--                }
--                
--                var _prop_num = array_length(_data.slot_data.prop);
--                
--                for (var ii = 0; ii < _prop_num; ii++)
--                {
--                    var _infant = -1;
--                    
--                    if (_data.slot_data.prop[ii].prop_type == UnknownEnum.Value_40)
--                        _infant = _data.slot_data.prop[ii].mon_data;
--                    
--                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
--                    _prop.prop_data = _data.slot_data.prop[ii];
--                    _prop.prop_data.prop_id = _prop;
--                    _prop.x = _data.slot_data.prop[ii].x_pos;
--                    _prop.y = _data.slot_data.prop[ii].y_pos;
--                    _prop.depth = _data.slot_data.prop[ii].d_pos;
--                    _prop.image_xscale = _data.slot_data.prop[ii].xscale;
--                    _prop.image_yscale = _data.slot_data.prop[ii].yscale;
--                    _prop.image_index = _data.slot_data.prop[ii].iindex;
--                    
--                    if (_infant != -1 && _prop.prop_data.prop_id.prop_data.spawn == true)
--                        _prop.mask_index = _prop.sprite_index;
--                }
--                
--                slot_data = _data.slot_data;
-             }
--        }
--        
--        _num = 0;
--        var _mon_list = _load_data.mon_list;
--        var _mon_num = array_length(_mon_list);
--        
--        for (var i = 0; i < _mon_num; i++)
--        {
--            var _data = _mon_list[_num];
--            
--            if (_data.slot_pos != -1)
--            {
--            }
--            else
--            {
--                var _slot_id = -1;
--            }
--            
--            var _mon = scr_create_mon(_data.mon_data.mon_type, x, y, _data.mon_data.mon_floor, _data.slot_pos, -1);
--            _num++;
--            
--            with (_mon)
--            {
--                x = _data.x_pos;
--                y = _data.y_pos;
--                depth = _data.d_pos;
--                image_xscale = _data.xscale;
--                image_yscale = _data.yscale;
--                image_index = _data.iindex;
--                image_speed = _data.ispeed;
--                visible = _data.vis;
--                var _old_slot_id = mon_data.slot_id;
--                mon_data = _data.mon_data;
--                mon_data.slot_id = _old_slot_id;
--                var _place = mon_data.placement_num;
--                
--                if (_old_slot_id != -1 && _old_slot_id.slot_data.slot_type != UnknownEnum.Value_3)
--                {
--                    with (_old_slot_id)
--                    {
--                        array_push(h_unit_list, other.id);
--                        
--                        if (slot_data.mon_placement != -1)
--                            slot_data.mon_placement[_place] = _mon;
--                    }
--                }
--                
--                var _spr_data = _data.mon_data.spr_data;
--                
--                if (_spr_data != -1)
--                {
--                    switch (_spr_data.mon_step)
--                    {
--                        case UnknownEnum.Value_0:
--                            scr_set_mon_spr_data(mon_data.slot_id, _spr_data.spr_type);
--                            break;
--                    }
--                }
--                
--                if (mon_data.task == UnknownEnum.Value_3)
--                {
--                    switch (_data.mon_data.mon_state)
--                    {
--                        case UnknownEnum.Value_0:
--                            var _spr = spr_idle;
--                            break;
--                        
--                        case UnknownEnum.Value_8:
--                            scr_mon_draw = scr_draw_hobgoblin_carry;
--                            break;
--                    }
--                    
--                    if (mon_data.placement_num == 0)
--                    {
--                        if (mon_data.carry_start_id != -1)
--                            mon_data.carry_start_id = ds_list_find_value(global.slot_list[mon_data.mon_floor], _data.carry_start_id);
--                        
--                        if (mon_data.carry_end_id != -1)
--                            mon_data.carry_end_id = ds_list_find_value(global.slot_list[mon_data.mon_floor], _data.carry_end_id);
--                    }
--                }
--                
--                switch (mon_data.mon_state)
--                {
--                    case UnknownEnum.Value_0:
--                        sprite_index = spr_idle;
--                        break;
--                    
--                    case UnknownEnum.Value_6:
--                        mon_data.ff = true;
--                        break;
--                    
--                    case UnknownEnum.Value_5:
--                        if (x == mon_data.xto)
--                            sprite_index = spr_idle;
--                        else if (mon_data.removed_set == UnknownEnum.Value_0 || mon_data.removed_set == UnknownEnum.Value_4)
--                            sprite_index = spr_b_walk;
--                        else
--                            sprite_index = spr_walk;
--                        
--                        break;
--                    
--                    case UnknownEnum.Value_7:
--                        mon_data.ff = true;
--                        break;
--                    
--                    case UnknownEnum.Value_8:
--                        sprite_index = spr_walk;
--                        break;
--                    
--                    case UnknownEnum.Value_9:
--                        sprite_index = spr_walk;
--                        break;
--                    
--                    case UnknownEnum.Value_12:
--                        sprite_index = spr_walk;
--                        break;
--                    
--                    case UnknownEnum.Value_10:
--                        sprite_index = spr_patrol;
--                        spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
--                        scr_mon_draw = scr_draw_orgre_patrol;
--                        scr_mon_begin_step = scr_ogre_spd_b;
--                        break;
--                }
--            }
--        }
--        
--        if (_load_data.raid_data.raid_state == UnknownEnum.Value_1 || _load_data.raid_data.raid_state == UnknownEnum.Value_2)
--            _load_data.raid_data.ff = true;
--        
--        obj_np.obj_raid.raid_data = _load_data.raid_data;
--        var _global = _load_data.global_list;
--        global.val = _global.val;
--        global.unlock = _global.unlock;
--        ds_list_clear(global.unit_list);
--        _num = array_length(_global.unit_list);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.unit_list, _global.unit_list[i]);
--        
--        ds_list_clear(global.front_row);
--        _num = array_length(_global.front_row);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.front_row, _global.front_row[i]);
--        
--        ds_list_clear(global.back_row);
--        _num = array_length(_global.back_row);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.back_row, _global.back_row[i]);
--        
--        ds_list_clear(global.new_button_list);
--        _num = array_length(_global.new_button_list);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.new_button_list, _global.new_button_list[i]);
--        
--        ds_list_clear(global.inv_list);
--        _num = array_length(_global.inv_list);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.inv_list, _global.inv_list[i]);
--        
--        ds_list_clear(global.raid_inv_list);
--        _num = array_length(_global.raid_inv_list);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.raid_inv_list, _global.raid_inv_list[i]);
--        
--        ds_list_clear(global.quest_list);
--        _num = array_length(_global.quest_list);
--        
--        for (var i = 0; i < _num; i++)
--        {
--            scr_add_event(_global.quest_list[i].quest_type, true);
--            ds_list_find_value(global.quest_list, i).quest_clear = _global.quest_list[i].quest_clear;
--        }
--        
--        for (var i = 0; i < ds_list_size(global.quest_list); i++)
--        {
--            if (ds_list_find_value(global.quest_list, i).quest_type == UnknownEnum.Value_10 && ds_list_find_value(global.quest_list, i).quest_clear)
--            {
--                with (obj_np)
--                {
--                    if (tutorial_arrow != -1)
--                    {
--                        with (tutorial_arrow)
--                            instance_destroy();
--                    }
--                    
--                    tutorial_arrow = -1;
--                }
--            }
--        }
--        
--        ds_list_clear(global.noti_list);
--        _num = array_length(_global.noti_list);
--        
--        for (var i = 0; i < _num; i++)
--            scr_add_event(_global.noti_list[i].noti_type, true);
--        
--        ds_list_clear(global.new_guide_list);
--        _num = array_length(_global.new_guide_list);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.new_guide_list, _global.new_guide_list[i]);
--        
--        ds_list_clear(global.front_row_save);
--        _num = array_length(_global.front_row_save);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.front_row_save, _global.front_row_save[i]);
--        
--        ds_list_clear(global.back_row_save);
--        _num = array_length(_global.back_row_save);
--        
--        for (var i = 0; i < _num; i++)
--            ds_list_add(global.back_row_save, _global.back_row_save[i]);
--        
--        _load_data = scr_patch_update_post(_load_data);
--        scr_demo_to_full();
--    }
--    
--    return _load;
--}
- 
--function scr_delete_save(arg0)
--{
--    var _load_type;
--    
--    switch (arg0)
--    {
--        case 0:
--            _load_type = "save_file_a.json";
--            break;
--        
--        case 1:
--            _load_type = "save_file_1.json";
--            break;
--        
--        case 2:
--            _load_type = "save_file_2.json";
--            break;
--        
--        case 3:
--            _load_type = "save_file_3.json";
--            break;
--    }
--    
--    file_delete(_load_type);
--}
++                        // GNX-FIX: also restart the seat's timer, like the other SWEEP clean-ups, so the
++                        // monster walking back in does not keep its old time in the cell (it leaves at 600)
++                        gnx_slot_reset_place_timer(_rp);
++                    }
++                }
++            }
++            
 +            mon_data.mon_state = 6;
 +            mon_data.ff = true;
 +            mon_data.follow = false;
- 
--function scr_create_menu_load_page()
--{
--    with (obj_np)
--    {
--        for (var i = 0; i < 4; i++)
--        {
--            with (instance_create_depth(240, 48 + (50 * i), depth - 1, obj_window))
--            {
--                gui = true;
--                interact_type = UnknownEnum.Value_11;
--                scr_window_draw = scr_draw_load_file;
--                source_id = other.id;
--                
--                if (i > 0)
--                    y += 13;
--                
--                scr_create_load_file(i);
--            }
--        }
--        
--        scr_create_button(292, 250, 0, spr_button_long, UnknownEnum.Value_52, id, scr_create_menu_back_button, -1, scr_draw_back_menu, 2, 4);
--    }
--}
++
 +            if (_sweep_f == -1)
 +                _sweep_f = gnx_log_open();
- 
--enum UnknownEnum
--{
--    Value_0,
--    Value_1,
--    Value_2,
--    Value_3,
--    Value_4,
--    Value_5,
--    Value_6,
--    Value_7,
--    Value_8,
--    Value_9,
--    Value_10,
--    Value_11,
--    Value_12,
--    Value_21 = 21,
--    Value_22,
--    Value_23,
--    Value_25 = 25,
--    Value_40 = 40,
--    Value_52 = 52
--}
++
 +            gnx_log_write(_sweep_f, "[GNX] SWEEP re-seat mon=" + string(id) + " slot=" + string(mon_data.slot_id) + " (in-cell state, cell idle)");
 +            gnx_log_writeln(_sweep_f);
 +        }
@@ -1996,87 +982,31 @@
 +        gnx_log_write(_sweep_f, "[GNX-TIME] after post-pass to end of load = " + string((get_timer() - _gnx_pt0) / 1000) + " ms");
 +        gnx_log_writeln(_sweep_f);
 +        gnx_log_close(_sweep_f);
-+    }
-+    
-+    return _load;
-+}
-+
-+function scr_delete_save(arg0)
-+{
+     }
+     
+     return _load;
+@@ -663,6 +1387,7 @@
+ 
+ function scr_delete_save(arg0)
+ {
 +    gnx_save_cache_clear();
-+    var _load_type;
-+    
-+    switch (arg0)
-+    {
-+        case 0:
-+            _load_type = "save_file_a.json";
-+            break;
-+        
-+        case 1:
-+            _load_type = "save_file_1.json";
-+            break;
-+        
-+        case 2:
-+            _load_type = "save_file_2.json";
-+            break;
-+        
-+        case 3:
-+            _load_type = "save_file_3.json";
-+            break;
+     var _load_type;
+     
+     switch (arg0)
+@@ -682,6 +1407,9 @@
+         case 3:
+             _load_type = "save_file_3.json";
+             break;
 +        
 +        default:
 +            exit;
-+    }
-+    
-+    file_delete(_load_type);
-+}
-+
-+function scr_create_menu_load_page()
-+{
-+    with (obj_np)
-+    {
-+        for (var i = 0; i < 4; i++)
-+        {
-+            with (instance_create_depth(240, 48 + (50 * i), depth - 1, obj_window))
-+            {
-+                gui = true;
-+                interact_type = UnknownEnum.Value_11;
-+                scr_window_draw = scr_draw_load_file;
-+                source_id = other.id;
-+                
-+                if (i > 0)
-+                    y += 13;
-+                
-+                scr_create_load_file(i);
-+            }
-+        }
-+        
-+        scr_create_button(292, 250, 0, spr_button_long, UnknownEnum.Value_52, id, scr_create_menu_back_button, -1, scr_draw_back_menu, 2, 4);
-+    }
-+}
-+
-+enum UnknownEnum
-+{
-+    Value_0,
-+    Value_1,
-+    Value_2,
-+    Value_3,
-+    Value_4,
-+    Value_5,
-+    Value_6,
-+    Value_7,
-+    Value_8,
-+    Value_9,
-+    Value_10,
-+    Value_11,
-+    Value_12,
-+    Value_21 = 21,
-+    Value_22,
-+    Value_23,
-+    Value_25 = 25,
-+    Value_40 = 40,
-+    Value_52 = 52
-+}
+     }
+     
+     file_delete(_load_type);
+@@ -733,3 +1461,119 @@
+     Value_40 = 40,
+     Value_52 = 52
+ }
 +
 +// Sprawdza, czy arg0 to istniejaca instancja (a nie -1, indeks obiektu albo uszkodzony wpis z zapisu). Zwraca true/false.
 +function gnx_is_live_inst(arg0)

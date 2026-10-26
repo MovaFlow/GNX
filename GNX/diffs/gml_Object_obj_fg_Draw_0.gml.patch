@@ -1,0 +1,35 @@
+--- gml_138/gml_Object_obj_fg_Draw_0.gml	2026-09-02 08:45:16.166546800 +0200
++++ gml/gml_Object_obj_fg_Draw_0.gml	2026-10-23 15:20:50.000384600 +0200
+@@ -1,5 +1,30 @@
++// GNX-UG: _o = top of floor i counted from floor 0 (i * 140 plus the extra bands of the floors above)
++var _o = 0;
++// GNX-UG: band floor = a mod's band_spr, else the GNX one (spr_gnx_ug_band), else -1
++var _band = (global.gnx_ug_band != -1) ? global.gnx_ug_band : global.gnx_ug_assets.band;
++
+ for (var i = 0; i < (global.val.floor + 1); i++)
+ {
+-    scr_draw_tile_loop(spr_ceil, 0, 67 + (i * 140), true);
+-    scr_draw_tile_loop(spr_floor, 0, 174 + (i * 140), true);
++    var _extra = gnx_floor_extra(i);
++    scr_draw_tile_loop(spr_ceil, 0, 67 + _o, true);
++    
++    // GNX-UG: a floor with an underground cell gets the band floor instead of the vanilla tile;
++    // without one: vanilla tile plus a black band. > 0 = this floor has an extra band.
++    if (_extra > 0 && _band != -1)
++    {
++        gnx_ug_draw_floor_band(174 + _o, _band, _extra);
++    }
++    else
++    {
++        scr_draw_tile_loop(spr_floor, 0, 174 + _o, true);
++        
++        if (_extra > 0)
++            draw_rectangle_colour(0, 207 + _o, room_width, (207 + _o + _extra) - 1, c_black, c_black, c_black, c_black, false);
++    }
++    
++    _o += 140 + _extra;
+ }
++
++// GNX-UG: parts of underground cells below the floor line, drawn over the floor band
++if (global.gnx_ug_any)
++    gnx_ug_draw_below_floor();

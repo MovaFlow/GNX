@@ -1,0 +1,55 @@
+--- gml_138/gml_GlobalScript_s_particle_function.gml	2026-09-02 08:45:16.422591300 +0200
++++ gml/gml_GlobalScript_s_particle_function.gml	2026-10-23 15:20:49.834752300 +0200
+@@ -1,5 +1,8 @@
+ function scr_create_emitter(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12)
+ {
++    // GNX-FX: landing line of this cell's drops (0 = the floor line; underground cells: their own floor)
++    var _gnx_fx = gnx_fx_floor();
++    
+     if (irandom_range(0, 100) < arg9)
+     {
+         with (instance_create_depth(arg0, arg1, arg2, obj_emitter))
+@@ -15,7 +18,7 @@
+             num = arg4;
+             angle_rot = arg10;
+             intensity = arg7;
+-            floor_y = 175 + (arg11 * 140);
++            floor_y = 175 + gnx_floor_off(arg11) + _gnx_fx;  // GNX-UG: floor top incl. the extra bands of underground cells; GNX-FX: + the cell's landing line
+             scr_emitter_step = arg12;
+             
+             if (emitter_type == UnknownEnum.Value_1)
+@@ -36,6 +39,8 @@
+         var _type = spr_sp_drip_2;
+         var _x = x + arg0.sp_x;
+         var _y = y + arg0.sp_y[max(0, arg0.anal)];
++        // GNX-FX: landing line of this cell's drips (read here: inside the with below self is the drip)
++        var _gnx_fx = gnx_fx_floor();
+         
+         if (arg2)
+             _type = spr_sp_drip_1;
+@@ -47,7 +52,7 @@
+             sprite_index = _type;
+             image_index = 0;
+             image_speed = 1;
+-            floor_y = 175 + (arg0.slot_floor * 140);
++            floor_y = 175 + gnx_floor_off(arg0.slot_floor) + _gnx_fx;  // GNX-UG: floor top incl. the extra bands of underground cells; GNX-FX: + the cell's landing line
+             timer = irandom_range(360, 600);
+             scr_empty_step = scr_part_drip_step;
+             curve_spd = 0.02;
+@@ -65,12 +70,15 @@
+     else
+         _type = spr_sp_drip_2;
+     
++    // GNX-FX: landing line of this cell's drips (read here: inside the with below self is the drip)
++    var _gnx_fx = gnx_fx_floor();
++    
+     with (instance_create_depth(x + arg0, y + arg1, arg3, obj_empty))
+     {
+         sprite_index = _type;
+         image_index = 0;
+         image_speed = 1;
+-        floor_y = 175 + (arg2.slot_floor * 140);
++        floor_y = 175 + gnx_floor_off(arg2.slot_floor) + _gnx_fx;  // GNX-UG: floor top incl. the extra bands of underground cells; GNX-FX: + the cell's landing line
+         timer = irandom_range(360, 600);
+         scr_empty_step = scr_part_drip_step;
+         curve_spd = 0.02;

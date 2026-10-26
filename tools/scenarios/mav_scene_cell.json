@@ -1,0 +1,169 @@
+{
+  "about": "Mav's scene features on a normal mod cell (test mod harness_scenes, SCENE CELL h 9050): physical.frames (idle 3, loop 8) drives the base scene scripts, a 6-frame start_loop intermission plays between start and loop, ej_holds 2 cuts the ej to about one loop (vanilla 5-7), wall_2 gives the cell's swap button two walls, and transfer false keeps TRANSFER hobgoblins away. The phase trace records every phase the cell plays (0 start, 1 idle, 2 loop, 3 ej, 7 the start_loop intermission) with its frame count.",
+  "mods": [
+    "tools/scenarios/mods/harness_scenes"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "unlock_cell",
+        "h_type": 1
+      }
+    },
+    {
+      "open_build_menu": -1
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 0,
+        "num": 0
+      },
+      "why": "NEW"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 1,
+        "num": 5
+      },
+      "why": "CUSTOM"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": {
+        "type": 95,
+        "num": 9050
+      }
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9050,
+      "count": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_no_transfer",
+      "args": [
+        9050
+      ],
+      "is": true,
+      "why": "physical.transfer false"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_cell_no_transfer",
+      "args": [
+        1
+      ],
+      "is": false,
+      "why": "control: WALL 1"
+    },
+    {
+      "assert": "cell_var",
+      "h_type": 9050,
+      "field": "gnx_wall_v",
+      "is": -1,
+      "why": "first wall until the button is used"
+    },
+    {
+      "open_cell_menu": 9050
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 60,
+        "num": 0
+      },
+      "why": "the cell menu's swap button"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "cell_var",
+      "h_type": 9050,
+      "field": "gnx_wall_v",
+      "is": 1
+    },
+    {
+      "open_cell_menu": 9050
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 60,
+        "num": 0
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "cell_var",
+      "h_type": 9050,
+      "field": "gnx_wall_v",
+      "is": 0
+    },
+    {
+      "do": {
+        "type": "spawn_mon",
+        "species": 0,
+        "amount": 2
+      }
+    },
+    {
+      "occupy": {
+        "h_type": 9050,
+        "class": 0
+      }
+    },
+    {
+      "trace": 9050
+    },
+    {
+      "wait": 4000
+    },
+    {
+      "assert": "trace",
+      "order": [
+        0,
+        7,
+        2,
+        3,
+        1,
+        0,
+        7,
+        2,
+        3
+      ],
+      "frame_c": {
+        "0": 3,
+        "7": 6,
+        "2": 8,
+        "3": 8
+      },
+      "loops_per_max": {
+        "3": 2
+      },
+      "why": "two scenes, own frame counts, intermission between start and loop, short ej"
+    }
+  ]
+}

@@ -25,6 +25,9 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.4.9
 - [19. Props (props.json)](#19-props-propsjson)
 - [20. Atlas packing](#20-atlas-packing)
 - [21. Multi-map travel](#21-multi-map-travel)
+- [22. Scene timing: frame counts, start, ej and loop strips](#22-scene-timing-frame-counts-start-ej-and-loop-strips)
+- [23. Intermissions](#23-intermissions)
+- [24. Underground cells](#24-underground-cells)
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
 
@@ -101,6 +104,10 @@ In GNX files `-1` almost always means **"none" or "not used"**: `"icon_hair": -1
 | Control pregnancy and offspring | [14. Pregnancy and birth](#14-pregnancy-and-birth) |
 | Make a boss | [15. Bosses](#15-bosses-cage-escape-and-tower), [16. Special classes](#16-special-classes-and-monster-sprite-overrides) |
 | Add buttons, keybinds, sounds or props | [17. Tools](#17-tools-toolsjson), [18. Sounds](#18-sounds-soundsjson), [19. Props](#19-props-propsjson) |
+| Make props animate, glow, react to a cell or count | [19.7](#197-animation) to [19.11](#1911-counter) |
+| Give a cell its own frame counts and timing, or add intermissions | [22. Scene timing](#22-scene-timing-frame-counts-start-ej-and-loop-strips), [23. Intermissions](#23-intermissions) |
+| Make a cell below the floor line | [24. Underground cells](#24-underground-cells) |
+| Let several monsters use a cell each on their own | [11.5 Independent places](#115-independent-places) |
 | Make many sprites load faster | [20. Atlas packing](#20-atlas-packing) |
 | Write quests and events | [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) |
 | Look up a vanilla ID number | [Appendix A](#appendix-a-vanilla-ids-and-cell-list) |
@@ -126,35 +133,40 @@ In GNX files `-1` almost always means **"none" or "not used"**: `"icon_hair": -1
 | clothed variant (`_c`) | An overlay (usually clothes) over a body part, with the same frame layout: keys ending in `_c`, `spr_c_array` lists. [§7](#7-clothing-maps-how-a-class-looks-in-each-cell) |
 | condition | A test such as "state key `witch_state` equals 2", checked by quests, conditional raid spawns, cage escape, tower bosses and tool guards. [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md), [§13](#13-raid-spawns-and-the-trade-shop) |
 | encounter pool | The weighted list of classes a raid encounter picks from, one per stage and encounter level. [§13](#13-raid-spawns-and-the-trade-shop) |
+| event | Something a cell tells the props next to it: a monster leaves, a scene starts, a phase changes, a birth, a milk item. [19.10](#1910-reactions-to-a-cell-react) |
 | fixed mode | `"mode": "fixed"` in `human_spr`: the cell draws its own human sprites instead of the captive's clothing. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
 | frame | One picture of an animation. [§5](#5-sprites) |
 | gnx: reference | Text such as `"gnx:idle_head"`: the entry `idle_head` from the `sprites` dict of the same class or cell. [5.4](#54-gnx-references-and-vanilla-sprite-names) |
 | h_type | A cell type's ID: vanilla 1–42 (0, 16, 26, 35 are not cells), mod cells a hash ID 100–9999. [§8](#8-cells-cellsjson), [Appendix A](#appendix-a-vanilla-ids-and-cell-list) |
 | hash ID | An ID GNX calculates from `"<folder>.<name>"`: same text, same number; a rename changes it. [3.4](#34-duplicate-ids) |
 | human_spr | Cell key that decides which captive sprites the cell draws. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
+| intermission | A short extra phase between two main phases of a scene: `idle_start`, `start_loop`, `loop_ej` or `ej_birth`. [§23](#23-intermissions) |
 | is_special | Class flag for boss-type classes: one skin tone, a different clothing format and some extra rules. [§16](#16-special-classes-and-monster-sprite-overrides) |
 | layer | One entry of `physical.layers`: a sprite and a layer type, drawn in list order. [§9](#9-the-physical-block-how-a-cell-behaves) |
 | leg variant | The captive's leg pose: `leg_1` or `leg_2` (random for most classes) or `leg_0` (the kneeling body of Shaman and Warrior). `leg_any` in a clothing map is the fallback for a missing leg key. [§7](#7-clothing-maps-how-a-class-looks-in-each-cell) |
 | manifest | `manifest.json`, the file that turns a folder into a mod. [§4](#4-manifestjson) |
+| mod error | A `[GNX] ERROR:` line in the log, also listed in the `Mod loading problem(s)` box. One that names a cell, prop, class or sprite says which value GNX replaced; the rest still loads. [Appendix B](#appendix-b-troubleshooting) |
 | mod folder | A folder directly inside `GNX_mods/`. Its name is the mod's identity. [§3](#3-mod-folder-and-loading) |
 | mon_spr | Cell key holding the monster sprites for that cell. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
 | mon_type | Monster species number: 0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre. [Appendix A](#appendix-a-vanilla-ids-and-cell-list) |
 | origin (xorig / yorig) | A sprite's pivot point in pixels from its top-left corner, placed on the drawing position. [5.3](#53-the-origin) |
 | override | `"override": true` on a class entry: merges your fields into an existing class, or registers a class at a fixed `class_id`. [§6](#6-classes-classesjson), [§12](#12-patching-vanilla-cells-and-classes) |
+| passage | The narrow slot between two cells, where props stand: at most one prop in each of its top, middle and bottom groups. [§19](#19-props-propsjson) |
 | patch (vanilla patch) | A cells.json entry with an existing `h_type`: it changes that cell instead of creating one. [§12](#12-patching-vanilla-cells-and-classes) |
-| phase | A cell animation stage: 0 start, 1 idle, 2 loop, 3 ejaculation, 4 birth (tentacle cells). Class sprites reuse the loop sprites for phase 3. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
-| placement | A numbered monster position in a cell that holds more than one monster. [§11](#11-multi-monster-cells) |
+| phase | A cell animation stage: 0 start, 1 idle, 2 loop, 3 ejaculation, 4 birth (tentacle and underground cells), 6–9 the intermissions ([§23](#23-intermissions)). Outside underground cells phase 3 reuses the loop sprites. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
+| placement | A numbered monster position in a cell that holds more than one monster; with independent places each runs its own scene ([11.5](#115-independent-places)). [§11](#11-multi-monster-cells) |
 | required_class | Cell key listing the classes allowed into the cell. [§9](#9-the-physical-block-how-a-cell-behaves) |
 | save state | Your mod's saved variables (`save_state.fields` in the manifest); each name, such as `witch_state`, is a **state key**. [4.3](#43-save_state) |
 | skin | Skin tone 0–2 of a normal-class captive; body strips hold 3 skin versions of each pose. Special classes have one. [5.5](#55-how-frames-are-arranged-in-a-strip) |
 | slot | (1) The game's internal word for a cell. (2) A numbered position in the `spr_array` / `spr_c_array` lists. [§7](#7-clothing-maps-how-a-class-looks-in-each-cell), [§8](#8-cells-cellsjson) |
-| slot type | Cell size: small, big, tentacle or XL. It comes from `category`; the `slot_type` number in cells.json only affects the default `base_body` ([10.1](#101-human_spr-the-three-modes)). [§8](#8-cells-cellsjson) |
+| slot type | Cell size: small, big, tentacle or XL; an underground cell uses a big slot. It comes from `category`; the `slot_type` number in cells.json only affects the default `base_body` ([10.1](#101-human_spr-the-three-modes)). [§8](#8-cells-cellsjson) |
 | sprite | An image or animation, made of one or more frames. [§5](#5-sprites) |
 | sprite key | The name of an entry in a `sprites` dict, for example `idle_head`, used as `"gnx:idle_head"`. [5.1](#51-the-sprites-dict) |
 | stage | A raid area: 0 Village, 1 Mountain, 2 Forest, 3 Castle, 4 Tower. [Appendix A](#appendix-a-vanilla-ids-and-cell-list), [§13](#13-raid-spawns-and-the-trade-shop) |
 | state key | See *save state*. |
 | strip | One PNG holding all frames of a sprite side by side, left to right. [§5](#5-sprites) |
 | string reference | Text `"<folder>.<name>"` pointing at a class or cell, for example `"my_mod.Witch"`. It is case-sensitive. [§6](#6-classes-classesjson), [3.3](#33-load-order) |
+| underground cell | A big cell (category `ug_breed`) whose pit reaches below the floor line; GNX brings its scene, walls, floor and tentacle. [§24](#24-underground-cells) |
 | unit / captive | A captured human. The game code calls captives "units". [§6](#6-classes-classesjson) |
 | vanilla | The original game without mods. |
 
@@ -472,8 +484,9 @@ If the mod has an atlas, GNX checks it before all of these ([§20](#20-atlas-pac
 | `folder` | Folder of per-frame PNGs. If it does not exist, GNX tries `strips/<folder>`. | text | — |
 | `from_game` | Name of a vanilla sprite; GNX copies **one** frame of it. | text | — |
 | `index` | Which frame `from_game` copies (0 = first). | number | 0 |
-| `xorig`, `yorig` | Origin: pixels from the left and top edge of a frame. | number | 0 |
+| `xorig`, `yorig` | Origin: pixels from the left and top edge of a frame, or a name: `"left"`, `"center"`, `"right"` / `"top"`, `"middle"`, `"bottom"` ([5.3](#53-the-origin), new in 1.4.9). | number or text | 0 |
 | `origin_from` | Vanilla sprite whose origin is copied, instead of `xorig` / `yorig`. | text | — |
+| `loop` | Captive strips in cells: the strip loops its own frames inside a longer phase ([22.6](#226-looping-captive-strips), new in 1.4.9). | true/false or number | — |
 | `canvas_w`, `canvas_h` | **Ignored.** A strip's frame width is always the PNG width divided by `frames`. | number | — |
 
 **Strip** (the normal case, as in the example above). The PNG must be exactly `frames` × one frame wide.
@@ -543,6 +556,18 @@ The **origin** is the point GNX places on the drawing position, in pixels from a
 - If the name in `origin_from` is not a game sprite (here a typo), GNX uses `xorig` / `yorig` and writes:
   `[GNX-WARN] idle_head: origin_from 'spr_h_peasant_idle_haed' is not a game sprite - using xorig/yorig`
 - The class icon uses origin 10, 13 ([5.7](#57-hand-icon-and-carry-sprites)).
+
+**Origin by name** (new in 1.4.9). `xorig` and `yorig` can name a point instead of a number, so the image size need not be typed:
+
+```json
+{
+  "witch_banner": { "strip": "strips/prop_witch_banner.png", "frames": 1, "xorig": "center", "yorig": "bottom" }
+}
+```
+
+- `"left"` and `"top"` are 0; `"center"` and `"middle"` are half the frame's width or height, rounded down; `"right"` and `"bottom"` are its full width or height. With `"yorig": "bottom"` the sprite stands on its drawing position.
+- Names work in every `sprites` dict (classes, cells, props). GNX loads the image once with origin 0 to measure it.
+- An unknown name is a mod error, and 0 is used: `[GNX] ERROR: Sprite 'witch_banner': yorig must be a number or "top", "middle", "bottom", not botom; 0 is used`
 
 ### 5.4 gnx: references and vanilla sprite names
 
@@ -1197,7 +1222,8 @@ A standard-size breeding cell that reuses the vanilla WALL 1 body pose, with its
 | `mon_spr_hob`, `mon_spr_ogr` | Hobgoblin and ogre sprites. | object | none (falls back to `mon_spr`) |
 | `mon_spr_p0` … `mon_spr_ogr_p2` | Sprites for one [placement](#2-glossary) only ([§11](#11-multi-monster-cells)). | object | none |
 | `sfx_type` | Sound set ([§18](#18-sounds-soundsjson)). | text | none |
-| `sprites` | The cell's sprite list ([§5](#5-sprites)). `wall` is drawn automatically ([8.7](#87-sprites-and-the-wall-key)). | object | none |
+| `tent_spr`, `milk_spr`, `infant_spr`, `band_spr` | Tentacle, milk overlay, newborn and floor band of an underground cell ([§24](#24-underground-cells), new in 1.4.9). | object or sprite | GNX parts |
+| `sprites` | The cell's sprite list ([§5](#5-sprites)). `wall` and `wall_2` are drawn automatically ([8.7](#87-sprites-and-the-wall-key)). | object | none |
 
 ### 8.3 h_type: the cell's ID
 
@@ -1226,11 +1252,12 @@ If you do write `h_type`:
 | `t_breed` | tentacle breeding | tentacle, 45 px | T.WALL 1–3, BIND 1–2 |
 | `t_utility` | tentacle utility | tentacle, 45 px | CLEAN, MILK 2, RECOVER |
 | `xl_breed` | XL breeding | XL, 150 px | none |
+| `ug_breed` | none, NEW → CUSTOM only | big, 77 px, with a pit below the floor line ([§24](#24-underground-cells), new in 1.4.9) | none |
 
 **The CUSTOM list.** A pillar's NEW menu gets a sixth entry, **CUSTOM**, once at least one modded cell (`h_type` above 42) is unlocked.
 
-- It lists every unlocked modded cell: standard, big, tentacle, then XL. XL cells are left out when the floor has no room for a 150 px slot.
-- One click builds a slot of the right size next to the pillar with the cell in it, for the slot price (CELL 100, BIG CELL 300, TENTACLE 150, XL CELL 500) plus the cell's `price`. The `cell_built` quest hooks fire as for a normal build.
+- It lists every unlocked modded cell: standard, big, tentacle, XL, then underground. XL cells are left out when the floor has no room for a 150 px slot.
+- One click builds a slot of the right size next to the pillar with the cell in it, for the slot price (CELL 100, BIG CELL 300, TENTACLE 150, XL CELL 500; an underground cell takes a big slot) plus the cell's `price`. The `cell_built` quest hooks fire as for a normal build.
 - The normal lists show vanilla cells only; newly unlocked modded cells mark CUSTOM as new.
 
 - The menu of an existing empty slot (BREED / UTILITY / …) also ends with CUSTOM when a modded cell fits that slot's size, and puts the cell into that slot for its `price` only (new in 1.4.9).
@@ -1275,13 +1302,28 @@ How the payout is computed (`L` = the captive's level, counted up to 5; `true` =
 
 Tentacle cells pay too, with the same formula, at the end of each tentacle scene.
 
-> **When** a cell with a scene has no `spawn_info`, it loads fine, but the game hits an error the first time a scene in it ends, because the payout code reads `spawn_info` without checking it. Cells without monsters do not need it.
+> **When** a cell with a scene has no `spawn_info`, it pays no gold or mood at the end of its scenes, and the log says `[GNX-WARN] cell <h_type> has no spawn_info: no gold or mood at the end of its scenes` (before 1.4.9 the game stopped with an error). Underground cells get a default ([24.1](#241-what-gnx-fills-in)). Cells without monsters do not need it.
 
 ### 8.7 sprites and the wall key
 
 `sprites` is the cell's own sprite list, in the format of [§5](#5-sprites); references work as in [5.4](#54-gnx-references-and-vanilla-sprite-names).
 
 One key is special: `wall`. `scr_draw_slot_gnx` draws it first, under all layers, as the cell's back wall, using the frame of the cell's random background variant (picked when the cell is built). It can replace a type 0 background layer.
+
+**A second wall** (new in 1.4.9). A mod cell can also give `wall_2`:
+
+```json
+{
+  "sprites": {
+    "wall": { "strip": "strips/spr_slot_altar_wall_1.png", "frames": 1, "origin_from": "spr_slot_wall_1_back" },
+    "wall_2": { "strip": "strips/spr_slot_altar_wall_2.png", "frames": 1, "origin_from": "spr_slot_wall_1_back" }
+  }
+}
+```
+
+- The swap button of the cell's window then switches between the two walls, like the two backgrounds of the vanilla tentacle cells, without an unlock. The choice is saved per cell.
+- With two walls, and in underground cells, the wall replaces the plain cell background, so no vanilla background shows through.
+- `wall_2` works only in mod cells. A patch of a vanilla cell ignores it: `[GNX-WARN] mod 'my_mod': sprites.wall_2 works only for mod cells, not vanilla cell h=<N>; ignored`
 
 > **When** a layer shows nothing, check the log line `[GNX] cell sprites h=<id>: [0]=… [1]=…`: it lists the resolved sprite of every layer, and `-1` there means a broken name.
 
@@ -1354,6 +1396,8 @@ Every new cell needs these keys. If one is missing (or `physical` or `category`)
 | `sp_anim_x`, `sp_anim_y` | How far the splash moves per animation frame. | number | required |
 
 Optional keys with defaults: `character_row` (0), `sp_spr` (-1), `hand_frames` (none), and everything in [9.9](#99-optional-keys) and [9.10](#910-advanced-vanilla-pattern-fields).
+
+An underground cell (`ug_breed`) needs none of these keys: GNX fills them in ([24.1](#241-what-gnx-fills-in)).
 
 ### 9.2 anal
 
@@ -1449,8 +1493,11 @@ Most vanilla breeding cells use the 7-entry list from the example: start (the mo
 | `scr_slot_h_big_start` | start; the captive switches to her start ([phase](#2-glossary) 0) sprites | M.PRESS 2, BEHIND, RIDE 2 |
 | `scr_slot_h_base_wait`, `_sloop`, `_floop`, `_ej` | pause, slow loop, fast loop, ejaculation | most breeding cells |
 | `scr_slot_h_base_ej_2` | shorter ejaculation | TITFUCK |
+| `scr_slot_h_gnx_places` | the whole scene of a cell with independent places, as its only `scr_h` entry ([11.5](#115-independent-places), new in 1.4.9) | none |
 
 Other vanilla scripts (tentacle, G.BANG, CHAINS, DAIRY, GIANT, birth and milk cells) are written for their own cells; check how the vanilla cell uses one before reusing it.
+
+Since 1.4.9 the base scripts above also play the cell's own frame counts and timing ([§22](#22-scene-timing-frame-counts-start-ej-and-loop-strips)), and they and the tentacle scripts play intermissions ([§23](#23-intermissions)). Underground cells have their own scripts, `scr_slot_h_gnx_ug_*`, which GNX fills in ([§24](#24-underground-cells)).
 
 > **When** a script name is wrong (names are case-sensitive), GNX logs `[GNX] WARNING: script not found: <name>`. There is **no fallback**: the game hits an error when the cell reaches that step (for `scr_idle`, as soon as a captive is in the cell).
 >
@@ -1476,7 +1523,7 @@ Each list has **one entry per frame of the type 2 hand pose overlay**: pose N ch
 
 Each hand is drawn twice: at `hand_x`, and mirrored at the same distance from the cell's right edge.
 
-**hand_frames** keys are phases: `frame_1` idle (also the start of standard cells), `frame_2` loop, `frame_3` ejaculation, `frame_4` tentacle birth. Each lists body animation frames during which the hand shows its next frame (for example a closed hand); otherwise it shows its first frame. Vanilla T.WALL 1/2 use `"frame_4": [1]`.
+**hand_frames** keys are phases: `frame_1` idle (also the start of standard cells), `frame_2` loop, `frame_3` ejaculation, `frame_4` tentacle birth. Each lists body animation frames during which the hand shows its next frame (for example a closed hand); otherwise it shows its first frame. Vanilla T.WALL 1/2 use `"frame_4": [1]`. Since 1.4.9 there are also `frame_0` for the start of underground cells and `frame_<name>` for an intermission, such as `frame_loop_ej` ([§23](#23-intermissions)).
 
 ### 9.8 Fluid effects: sp_spr, sq_*, sp_*
 
@@ -1490,6 +1537,7 @@ Positions are pixels from the cell's bottom-left corner: x to the right, negativ
 | `sp_x` | X of the splash and its drips; `-1` = no splash. | number | required |
 | `sp_y` | Y as `[normal, anal]`. | list | required |
 | `sp_anim_x`, `sp_anim_y` | Pixels the splash moves per body animation frame, to follow the body. | number | required |
+| `fx_floor` | Pixels below the floor line where the squirt drops and drips land; negative = above it. New in 1.4.9. | number | 0 (underground cells: pit depth − 4) |
 
 `sq_y` and `sp_y` must be lists even with one value (`[-30]`), which is then used for both cases. With a splash (`sp_x` not -1), set `sp_spr` too.
 
@@ -1505,6 +1553,10 @@ Positions are pixels from the cell's bottom-left corner: x to the right, negativ
 | `sign_y_base` | Height of the type 1 sign, in pixels from the floor line (vanilla −84 to −92); without it the sign sits at the floor line. | number | none |
 | `sign_y_jitter` | Random extra height (−jitter to +jitter) picked when built; only with `sign_y_base`. | number | `2` |
 | `mon_placements`, `mon_positions` | Multi-monster settings ([§11](#11-multi-monster-cells)). | list | none |
+| `transfer` | `false` = the hobgoblins of a TRANSFER cell take no captive out of this cell and bring none in (below). New in 1.4.9. | true/false | `true` (underground cells `false`) |
+| `frames`, `start_loops`, `ej_start`, `ej_hold`, `ej_holds`, `loop_scale` | The cell's own frame counts and scene timing ([§22](#22-scene-timing-frame-counts-start-ej-and-loop-strips)). New in 1.4.9. | object, number or list | vanilla |
+| `intermissions` | Short extra phases between the main phases ([§23](#23-intermissions)). New in 1.4.9. | object | none |
+| `underground`, `underground_gap`, `speed`, `milk_items`, `milk_interval`, `birth_rounds`, `birth_rest`, `infant_*` | Underground cells ([§24](#24-underground-cells)). New in 1.4.9. | number or object | see §24 |
 
 **required_class** limits who can be placed in the cell: a class ID (`"required_class": 0`), a class ref `"<folder>.<class name>"` (`"required_class": "my_mod.Witch"`), or a list of both (`["my_mod.Witch", 0]`).
 
@@ -1515,6 +1567,8 @@ On big cells, `required_class` replaces the vanilla class locks of DAIRY (cow), 
 > **When** a cell is a tentacle cell (`t_breed`, `t_utility`), `required_class` is **not checked**: every class can be placed there, except `only_listed_cells` classes the cell does not list.
 
 **TRANSFER and modded classes.** After birth or milking, or in a TRANSFER cell, vanilla sends Lilith, Morrigan and Cow to their own cells (SHRINE 39, CHAINS 38, DAIRY 36). A modded class (ID ≥ 14) treats every cell whose `required_class` lists it as its own: GNX tries a free one in range first, otherwise a regular cell (still subject to `required_class` and `only_listed_cells`).
+
+A cell with `"transfer": false`, which every underground cell has by default, is left alone both ways: TRANSFER hobgoblins carry no captive out of it and none into it, also not as her own cell (new in 1.4.9). The player can still move captives by hand.
 
 ### 9.10 Advanced vanilla-pattern fields
 
@@ -1545,6 +1599,7 @@ Starting values some vanilla cells need. Only the matching vanilla scripts read 
 
 > **When** `scr_slot_step` or `scr_slot_base` has a typo, nothing warns; the script simply never runs.
 
+
 ---
 
 ## 10. Cell sprites: human_spr and mon_spr
@@ -1561,7 +1616,7 @@ Starting values some vanilla cells need. Only the matching vanilla scripts read 
 
 `human_spr` is optional; without it, or without `mode`, the cell uses `base+class`. Without `base_body`, GNX takes it from `category`: `b_…` (or `slot_type` 2) gives `"big"`, `t_…` (or `slot_type` 3) gives `"tent"`, all others `"standard"` ([10.7](#107-categories-and-base_body)). With `fixed` or `class_map`, write both keys anyway.
 
-A [phase](#2-glossary) is an animation stage: 0 start, 1 idle, 2 loop, 3 ejaculation (uses the phase 2 table), 4 tentacle birth.
+A [phase](#2-glossary) is an animation stage: 0 start, 1 idle, 2 loop, 3 ejaculation (uses the phase 2 table), 4 tentacle birth. Underground cells also read a `phase_3` table ([§24](#24-underground-cells)), and intermissions have tables of their own, `phase_<name>` ([§23](#23-intermissions)).
 
 ### 10.2 base+class
 
@@ -1602,6 +1657,8 @@ Every class looks the same in this cell. `phase_1` is used while idle (and for t
 | `phase_1` | idle; also the start on non-big cells | always |
 | `phase_2` | loops and ejaculation | always |
 | `phase_4` | tentacle birth | tentacle cells with a birth step |
+| `phase_3` | ejaculation, underground cells only ([§24](#24-underground-cells)) | no |
+| `phase_idle_start`, `phase_start_loop`, `phase_loop_ej`, `phase_ej_birth` | intermissions ([§23](#23-intermissions)) | no |
 
 The positions are the slots of [7.7](#77-special-class-tables-spr_array-and-spr_c_array): `[0]` hair (only in `spr_c_array`, drawn with the captive's hair colour), `[1]` head, `[2]` breast, `[3]` hand, `[4]` leg, `[5]` leg part, `[6]` cape (only in `spr_array`). Write 7 positions in `spr_array` and at least 6 in `spr_c_array`, with `-1` for "nothing".
 
@@ -1705,6 +1762,7 @@ When a phase starts, GNX picks the captive's sprites in this order:
 | `b_breed`, `b_utility`, `b_other` | big, 77 px | `"big"` |
 | `t_breed`, `t_utility` | tentacle, 45 px | `"tent"` |
 | `xl_breed` | XL, 150 px | no XL value; see below |
+| `ug_breed` | big, 77 px, with a pit below the floor line | `"big"` (GNX sets it, [§24](#24-underground-cells)) |
 
 In fixed and class_map mode `base_body` only decides whether the start uses `phase_0` (only with `"big"`). There is no XL base body, so an XL cell should use fixed or class_map mode with its own sprites (and `"standard"` or `"big"`).
 
@@ -1784,6 +1842,7 @@ In fixed and class_map mode `base_body` only decides whether the start uses `pha
 | `start` | the start step | `body`, `hand`, `pen`, `touch`, `hand_xscale` |
 | `loop` | slow and fast loop; fallback for `ej` | `head`, `body`, `hand`, `pen`, `touch`, `enter` |
 | `ej` | ejaculation | as `loop`; each missing part uses `loop` |
+| `idle_start`, `start_loop`, `loop_ej`, `ej_birth` | the intermissions ([§23](#23-intermissions)) | as `loop`; without the block the strips of the next phase |
 
 **Part keys**
 
@@ -1804,7 +1863,7 @@ A **pair** is `{ "alpha": <fill sprite>, "line": <outline sprite> }`; `line` is 
 
 **Touch and enter class variants:** `default`, `cow`, `nyx`, `lilith`, `morrigan`, `cat` (the vanilla classes of those names); every other class, and a plain sprite name, means `default`. Class variants matter only in cells with ID 100 or more, where vanilla classes get custom monster sprites.
 
-**Frame layout of monster strips:** frame = row × frames per row + current frame, with row = `character_row` (or the placement with `mon_positions`). With the standard scene scripts a row has 2 frames for `start` and 5 for `loop` and `ej` (ejaculation shows frames 2–4).
+**Frame layout of monster strips:** frame = row × frames per row + current frame, with row = `character_row` (or the placement with `mon_positions`). With the standard scene scripts a row has 2 frames for `start` and 5 for `loop` and `ej` (ejaculation shows frames 2–4). A cell with its own `frames` uses its own counts ([22.1](#221-physicalframes)), and GNX checks every strip against them ([22.5](#225-the-frame-rule-for-every-mod-cell)).
 
 **Frame layout of touch and enter:** they use the **captive's** frame numbers, so they need the layout of the captive's strips (3 skin blocks per row in base+class and class_map, 1 in fixed mode). `touch` is not drawn in the third monster transparency mode.
 
@@ -1952,9 +2011,14 @@ Here the loop body has fill `ogre_altar_loop` and outline `ogre_altar_loop_l` fo
 
 `mon_placements` has one entry per placement, as many as `max_mon_num`. Each entry lists the monster types allowed there (`0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre).
 
-- A called monster gets a random free placement, then a random type from that placement's list. A placement only fills if a free monster of that type exists in the nest.
+- **Calling.** About every 4–6 s a cell that has room calls a monster: it picks a random free placement, then a random type from that placement's list. In a mod cell (new in 1.4.9) the pick is narrowed to the placements a monster can come to right now, and to those types there. A monster can come when one of its type wanders free on that floor and the scene's script may send it (`scr_slot_call_mon(true)`, as the standard scripts and independent places do; the vanilla MILK 1 and PATROL scripts use `false` and do not send wanderers), or when one waits in the nest and a door of that floor lets it through. When no placement can be filled right now, the pick is as in vanilla and nobody comes this time. Before 1.4.9 a mod cell could pick a placement whose types were all busy, and nobody came although another placement could have been filled.
 - `mon_types` then no longer decides who comes, but it still filters the custom sprites, so it must contain every type from the placements.
-- **Without `mon_placements`, every monster gets placement 0.** They are drawn on top of each other, and `_p1`/`_p2` sprites and later `mon_positions` entries are never used.
+- **Without `mon_placements`** each monster takes a free placement from 0 to `max_mon_num` − 1, with a type from `mon_types` (new in 1.4.9; before, every monster got placement 0 and they were drawn on top of each other).
+
+**Checks** (new in 1.4.9), when the cell loads and when a patch changes `mon_types` or `mon_placements`:
+
+- A list with more or fewer entries than `max_mon_num` is cut or filled to fit; filled placements take `mon_types`. Before, placements past `max_mon_num` could leave the cell waiting for good. The log says `[GNX-WARN] cell '<name>' of mod '<folder>': mon_placements has <n> places, max_mon_num is <m>; ...`
+- A type outside 0–3, or one not in `mon_types` (it would be invisible), is dropped with a mod error. A placement left without a type takes `mon_types`.
 
 ### 11.2 Per-placement sprite keys
 
@@ -1997,7 +2061,52 @@ Two goblins: the first moved 6 px left, the second 8 px right and 2 px up.
 - **Monsters join during the scene.** The idle, wait, loop and ejaculation scripts keep calling monsters until the cell is full (the start scripts do not). When one arrives, the current step starts over.
 - **A newcomer gets its cell sprites** when the next start, slow loop (`scr_slot_h_base_sloop`) or ejaculation step begins. Until then (in the fast loop or a wait) it shows its normal walking sprite.
 - **touch and enter are shared.** The cell stores one of each, from the monster whose sprites were set last, and clears them when a monster leaves. Put `touch`/`enter` only in the placement that should show them.
-- **Ejaculation ends the scene for everyone.** With `max_mon_num` above 1 the standard ejaculation script removes **all** monsters. The payout ([8.6](#86-spawn_info-gold-and-mood)) and the pregnancy roll happen once per scene. The offspring type, and `by_mon_type` ([10.4](#104-by_class-and-by_mon_type-fixed-mode-only)), use the first monster in the cell's list (the one called first).
+- **Ejaculation ends the scene for everyone.** With `max_mon_num` above 1 the standard ejaculation script removes **all** monsters (independent places, [11.5](#115-independent-places), let each one leave on its own). The payout ([8.6](#86-spawn_info-gold-and-mood)) and the pregnancy roll happen once per scene. The offspring type, and `by_mon_type` ([10.4](#104-by_class-and-by_mon_type-fixed-mode-only)), use the first monster in the cell's list (the one called first).
+- **Monsters still on their way are called off** (new in 1.4.9). A monster that was called but had not reached the cell when the scene ends stops where it is and wanders off: it does not come out of the cell and does not count as leaving for props ([19.10](#1910-reactions-to-a-cell-react)). Before, it was first put at the cell and sent out of it, so monsters seemed to leave that never went in. Its mood is as in vanilla: at a normal end it costs nothing; in the few cases where vanilla let such a monster wander off unserved, it still lowers the nest mood a little (−0.35) when it leaves. Monsters on another errand (a milk goblin, a TRANSFER carrier, a patrol ogre) end it as in vanilla and stay where they were. With VERBOSE on, the log shows each one: `[MON:<id>] CALLED OFF from h_type=<N> place=<n> task=0 state <s> -> 5 at x=<x> y=<y>`
+
+
+### 11.5 Independent places
+
+New in 1.4.9. With `"scr_h": ["scr_slot_h_gnx_places"]` every placement runs a scene of its own: a monster comes, plays its own start, slow loop, fast loop and ejaculation on its own clock, and leaves alone while the others go on. One monster in, one monster out, and they do not move in step.
+
+```json
+{
+  "physical": {
+    "max_mon_num": 3,
+    "mon_placements": [
+      [3],
+      [1],
+      [0]
+    ],
+    "anal": -1,
+    "scr_idle": "scr_slot_h_state_idle",
+    "scr_h": ["scr_slot_h_gnx_places"],
+    "scr_draw": "scr_draw_slot_gnx"
+  }
+}
+```
+
+**What this example does:** an ogre stands on the left (placement 0), a hobgoblin in the middle (1) and a goblin on the right (2), each drawn with its placement's sprites ([11.2](#112-per-placement-sprite-keys)). Each comes when one of its type is free, plays its scene and leaves, whatever the other two are doing.
+
+How one place plays, with vanilla timing:
+
+1. **Start:** the start strip 3–5 times at 2 frames per second (`start_loops`, [22.2](#222-start_loops)).
+2. **Slow loop:** 9 frames per second for 6–7 s; **fast loop:** 11 frames per second for 6–7 s (`loop_scale`, [22.4](#224-loop_scale)).
+3. **Ejaculation:** 5–7 holds (`ej_holds`, `ej_start`, `ej_hold`, [22.3](#223-the-ejaculation-ej_holds-ej_start-ej_hold)), with the ejaculation sound and a squirt.
+4. **Leaving:** the monster goes out through the door. The cell pays `spawn_info` for it, rolls the pregnancy (with `allow_preg`), and the props next to the cell get `mon_exit` ([19.10](#1910-reactions-to-a-cell-react)). A goblin may go on to a DRINK cell, as after any scene.
+
+Each place varies its speed by up to 10 % every cycle, so monsters that arrived together drift apart.
+
+- **Payout:** every monster that leaves is a scene of its own, so it pays `spawn_info` and adds dirt as a whole vanilla scene does. Three busy places pay about three times as often as one shared scene; lower `spawn_info` if that is too much.
+- **Pregnancy:** with `allow_preg`, the monster that is leaving is the father, not the first monster in the cell.
+
+- **The captive** shows her idle pictures while nobody is inside, her start pictures while every monster inside is still starting (`phase_0` with `base_body` `"big"`, else her idle pictures), and her loop pictures as soon as one monster is past its start. Slap sounds, squirts and drips follow her loop.
+- **Calling:** about every 4–6 s one empty placement is filled, picked among those for which a monster is free right now ([11.1](#111-mon_placements)). A placement whose type has no free monster stays empty without holding up the others.
+- **Strips:** the monsters' start strips need the start count and their loop and `ej` strips the loop count ([22.5](#225-the-frame-rule-for-every-mod-cell)); `frames` works as in [22.1](#221-physicalframes). `touch` and `enter` overlays follow the captive's frame, not a monster's.
+- **Saves** keep each place's phase and frame.
+- Intermissions ([§23](#23-intermissions)) do not work with independent places (mod error).
+
+> **When** `scr_h` holds other entries next to `scr_slot_h_gnx_places`, they are left out with a mod error, and the cell runs independent places with the places script alone. With `max_mon_num` below 1 it is a mod error, and the cell gets no monsters.
 
 ---
 
@@ -2072,11 +2181,11 @@ An entry is a patch when it has an explicit `h_type` that is already registered:
 |------|------------------------|-------|
 | top level | `name`, `price`, `code_text`, `spawn_info`, `slot_type`, `mon_types`, `sfx_type` | `name`, `price`, `spawn_info`, `code_text`: **no visible effect** on vanilla cells (built-in text). |
 | monster sprites | `mon_spr`, `mon_spr_hob`, `mon_spr_ogr` | Replaced as a whole. On vanilla cells they affect only captives of class 14 or higher. |
-| sprites | `sprites.wall` | Also used to resolve `gnx:` keys inside the patch. |
-| `human_spr` | `mode`, `base_body`, `phase_0`, `phase_1`, `phase_2`, `phase_4` | Phases are merged ([12.3](#123-merge-rules-across-mods)). |
-| `physical` | every required key of [9.1](#91-required-keys), plus `character_row`, `hand_frames`, `sp_spr`, `mon_placements`, `required_class`, `range_draw_func`, `scr_unoccupy` | Each given field replaces the old value, except `required_class` (merged). |
+| sprites | `sprites.wall`, `sprites.wall_2` (mod cells only, [8.7](#87-sprites-and-the-wall-key)) | Also used to resolve `gnx:` keys inside the patch. |
+| `human_spr` | `mode`, `base_body`, `phase_0`, `phase_1`, `phase_2`, `phase_4`, and the intermission tables `phase_<name>` ([§23](#23-intermissions)) | Phases are merged ([12.3](#123-merge-rules-across-mods)). |
+| `physical` | every required key of [9.1](#91-required-keys), plus `character_row`, `hand_frames`, `sp_spr`, `mon_placements`, `required_class`, `range_draw_func`, `scr_unoccupy` | Each given field replaces the old value, except `required_class` (merged). A new `scr_h` gets the cell's intermissions put in again, and switches independent places on or off ([11.5](#115-independent-places)). |
 
-**Ignored in a patch** (no message): `category`, `locked`, `human_spr.default` and `human_spr.classes` (class_map content), `mon_spr_p0` … `mon_spr_ogr_p2`, every field from [9.10](#910-advanced-vanilla-pattern-fields), `slot_range`, `sign_y_base` and `sign_y_jitter`.
+**Ignored in a patch** (no message): `category`, `locked`, `human_spr.default` and `human_spr.classes` (class_map content), `mon_spr_p0` … `mon_spr_ogr_p2`, every field from [9.10](#910-advanced-vanilla-pattern-fields), `slot_range`, `sign_y_base` and `sign_y_jitter`. Also the keys new in 1.4.9 for timing, intermissions and underground cells: `frames`, `speed`, `start_loops`, `ej_start`, `ej_hold`, `ej_holds`, `loop_scale`, `intermissions`, `transfer`, `fx_floor`, `underground`, `underground_gap`, the milk and birth keys of [§24](#24-underground-cells), `tent_spr`, `milk_spr`, `infant_spr`, `band_spr` and `human_spr.phase_3`.
 
 > **When** a patch contains these keys, they do less than expected:
 > - `physical.mon_positions` shifts the monsters but keeps the cell's own monster strip rows ([11.3](#113-mon_positions)).
@@ -2247,7 +2356,7 @@ Each unit has a pregnancy counter: the pregnancies she has left. Each birth lowe
 | Key | What it means | Type | Default |
 |---|---|---|---|
 | `preg_c_override` | Starting value of the counter. `-1` = unlimited births. | number | random by unit level: 4–5 at level 0 up to 8–9 at level 4; 4–5 again at levels 5–7 |
-| `preg_mon_type_override` | Species of every child, whoever bred her: `0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre | number | species of the first monster in the cell |
+| `preg_mon_type_override` | Species of every child, whoever bred her: `0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre. Another value is a mod error and the key is left out (new in 1.4.9). | number | species of the first monster in the cell |
 
 Both keys also work on vanilla classes through `override` ([6.2](#62-override-changing-an-existing-class)). With `scr_unit: 1` ([6.3](#63-core-fields)) the counter slowly refills to its starting value.
 
@@ -2257,7 +2366,7 @@ Every monster species has four troop types, 0–3: separate groups on the raid s
 
 | Key | What it means | Type | Default |
 |---|---|---|---|
-| `birth_class.goblin`, `.hobgoblin`, `.tentacle`, `.ogre` | Troop type of children of that species. Rounded down and limited to 0–3; a species left out gets type 0. | number 0–3 | `0` |
+| `birth_class.goblin`, `.hobgoblin`, `.tentacle`, `.ogre` | Troop type of children of that species. Rounded down and limited to 0–3; a species left out gets type 0. A number written as text is read; another value is a mod error and 0 is used. A list of four numbers (goblin, hobgoblin, tentacle, ogre) works too. | number 0–3 | `0` |
 
 What the types do, from the game's skill descriptions:
 
@@ -2270,7 +2379,7 @@ What the types do, from the game's skill descriptions:
 
 For comparison, vanilla goblin children of a Peasant are type 0, those of a Knight type 2.
 
-> **When** a class with ID ≥ 14 has **neither** `birth_class` nor `birth_classes`, it produces **no offspring**: the birth animation plays, but no monster is added. Always give a modded class a `birth_class`.
+> **When** a class with ID ≥ 14 has **neither** `birth_class` nor `birth_classes`, its children join troop type 0 of their species, and the log says `[GNX-WARN] class <id> has no birth_class: newborns are monster class 0` (before 1.4.9 such a class produced no offspring at all). Give a modded class a `birth_class` to choose.
 
 ### 14.3 birth_classes (old format)
 
@@ -2280,7 +2389,7 @@ The older form is a list of four numbers in species order (goblin, hobgoblin, te
 { "name": "Witch", "birth_classes": [2, 1, 0, 3] }
 ```
 
-If both are present, `birth_class` wins. Prefer it: GNX does **not** check or limit `birth_classes`, so the list must hold exactly four numbers from 0 to 3.
+If both are present, `birth_class` wins. Prefer it. GNX makes `birth_classes` four entries long and turns every entry that is not a number from 0 to 3, such as a class name, into 0, with a warning like `[GNX-WARN] class <id> birth_classes: 3 entries instead of 4 (entries are monster classes 0-3); now <list>`. Before 1.4.9 such a list crashed the game at birth.
 
 ### 14.4 birth_spr: birth animations
 
@@ -2821,7 +2930,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **39** a
 | `add_orbs` | `amount` (required) | Adds orbs (the vanilla orb counter). Never below 0. |
 | `give_item` | `item_type`, `data`, `level` (all required) | Creates one inventory item from the game's internal item data. Advanced; the actions below are easier. |
 | `give_blueprint` | `h_type` (cell reference, required), `fragment` (default false), `lvl` (default 1) | Gives a complete blueprint, or with `"fragment": true` a fragment of level `lvl` (a complete blueprint is level 3). |
-| `give_prop` | `prop_id` (required) | Unlocks a prop in the edit-mode menu with the vanilla popup. `prop_id` is the prop's **number** ([§19.5](#195-prop-ids)). Same as `unlock_prop`. |
+| `give_prop` | `prop_id` (required) | Unlocks a prop in the edit-mode menu with the vanilla popup. `prop_id` is the prop's name (`"my_mod.iron_candle"`, or `"iron_candle"` for your own mod; new in 1.4.9) or its number ([§19.5](#195-prop-ids)). Same as `unlock_prop`. |
 
 **Monsters (5)**
 
@@ -2852,7 +2961,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **39** a
 | `unlock_cell` | `h_type` (cell reference, required) | Adds the cell to its build menu tab and shows `<NAME> unlocked!`; a cell without a build category shows `Cell has no build category. Contact modder.` |
 | `unlock_prop` | `prop_id` (required) | Same as `give_prop`. |
 | `unlock_raid` | none | Enables the raid button. |
-| `unlock_all_cells` | none | Unlocks every cell in the small, big, tentacle and XL build lists. |
+| `unlock_all_cells` | none | Unlocks every cell in the small, big, tentacle, XL and underground build lists. |
 
 > **When** `unlock_cell`, `give_prop` or `unlock_prop` runs again, it adds a second entry: nothing checks whether it is already unlocked. Protect one-time buttons with a guard and a state key ([§17.10](#1710-full-example)).
 
@@ -3298,7 +3407,7 @@ Class 13 always gets `my_mod.loud` at pitch 1.1, others their class `voice` or a
 
 ## 19. Props (props.json)
 
-**In short:** `props.json` adds decorations (props) such as candles, banners or barrels to the edit-mode prop menu. Each prop has a sprite, a menu group (top, middle or bottom) and a few placement options. The file is loaded when `manifest.json` has `"props": "props.json"`.
+**In short:** `props.json` adds decorations (props) such as candles, banners or barrels to the edit-mode prop menu. Each prop has a sprite, a menu group (top, middle or bottom) and a few placement options. A prop can also animate, move and glow, react to the cell next to it and show a counter ([19.7](#197-animation) to [19.11](#1911-counter), new in 1.4.9). The file is loaded when `manifest.json` has `"props": "props.json"`.
 
 ```json
 {
@@ -3318,28 +3427,48 @@ Class 13 always gets `my_mod.loud` at pitch 1.1, others their class `voice` or a
 - `sprite` points to the entry `iron_candle` of the `sprites` block, which loads the PNG as a one-frame sprite with its [origin](#2-glossary) at 8, 16 (example values for a 16×16 image).
 - Each placed candle is shifted sideways by a random −4 to +4 pixels (`x_random_range`) and mirrored at random (`xscale_random`).
 
+Props stand on [passages](#2-glossary), the narrow slots between cells. A passage holds at most one prop per menu group.
+
 ### 19.1 File layout
 
-`props.json` is an object `{ "props": [...], "sprites": {...} }` or just the list of props, which then has no custom sprites. Other top-level keys (such as `schema_version`) are ignored. Errors go to `gnx_debug.txt`, for example `[GNX] ERROR: Mod 'my_mod': props file 'props.json' not found` or `[GNX] ERROR: Mod 'my_mod': props must be an array or { props: [...] }`.
+`props.json` is an object `{ "props": [...], "sprites": {...} }` or just the list of props, which then has no custom sprites. Other top-level keys (such as `schema_version`) are ignored. Errors go to `gnx_debug.txt`, for example `[GNX] ERROR: Mod 'my_mod': props file 'props.json' not found` or `[GNX] ERROR: Mod 'my_mod': props must be an array or { props: [...] }`. An entry of the list that is not an object is skipped with `[GNX] ERROR: Mod 'my_mod': props[<n>] must be an object like { "id": "lamp", ... }; skipped`. At the end, `[GNX] registered <n> prop(s)` counts the props that were really registered, followed by `, <k> skipped (see the mod errors)` when some were not.
 
 ### 19.2 Prop fields
 
 | Key | What it means | Type | Default |
 |---|---|---|---|
-| `id` | Prop name in your mod; the prop number is made from `<folder>.<id>`. | text | required |
-| `display_name_key` | Button text in edit mode, shown as written in every language. | text | the `id` |
+| `id` | Prop name in your mod; the prop's name `<folder>.<id>` and its number are made from it ([19.5](#195-prop-ids)). A prop without `id`, or with an `id` used twice in the mod, is skipped with a mod error. | text | required |
+| `display_name_key` | Button text in edit mode, shown as written in every language. Anything but text is a mod error, and the `id` is shown. | text | the `id` |
 | `code_text` | Stored, but nothing draws it for props. | text | `"?"` |
-| `position` | Menu group and default height: `"top"`, `"mid"` or `"bot"`. Other text works like `"bot"`, but the boot test reports `bad_pos`. | text | `"bot"` |
-| `sprite` | `"gnx:<key>"` or `"<key>"` from the `sprites` block. Without a usable sprite, frame 0 of vanilla `spr_between_prop` is drawn. | text | none |
-| `price` | Price stored on the prop's unlock item (an orange print, for example from a quest `prop` reward), **not** a cost for placing it. | number | -1 |
-| `y_offset` | Vertical shift in pixels from the prop spot; negative moves up. | number | top -30, mid -10, bot 0 |
-| `x_random_range` | Random sideways shift per placed prop, −range to +range pixels. | number | 0 |
+| `position` | Menu group and default height: `"top"`, `"mid"` or `"bot"`. Any other text is a mod error, and `"bot"` is used. | text | `"bot"` |
+| `sprite` | `"gnx:<key>"` or `"<key>"` from the `sprites` block. Without a usable sprite the prop draws nothing and the log has a mod error. | text | none |
+| `anchor` | Where the prop's x is counted from: `"center"` = the middle of the passage, as vanilla props; `"left"` = its left edge ([19.4](#194-menu-placement-and-drawing)). New in 1.4.9. | text | `"left"` |
+| `speed` | Frames per second of the prop's own animation, 0–60; `0` = frame 0 only ([19.7](#197-animation)). New in 1.4.9. | number | 8 for a sprite with 2 or more frames |
+| `random_frame` | `true` = each placed prop starts on a random frame. New in 1.4.9. | true/false | false |
+| `price` | Price stored on the prop's unlock item (an orange print, for example from a quest `prop` reward), **not** a cost for placing it. −1 to 99 999 999. | number | -1 |
+| `y_offset` | Vertical shift in pixels from the prop spot, −200 to 200; negative moves up. | number | top -30, mid -10, bot 0 |
+| `x_random_range` | Random sideways shift per placed prop, −range to +range pixels; range 0–64. | number | 0 |
 | `xscale_random` | `true` = each placed prop is mirrored at random. | true/false | false |
 | `locked` | `true` = not in the menu at the start until unlocked ([§19.6](#196-locked-props)). | true/false | false |
+| `fx` | Visual effects: pulse, float, rotation, colour and glows ([19.8](#198-visual-effects-fx), [19.9](#199-glows)). New in 1.4.9. | object | none |
+| `react` | Reactions to the cell next to the prop ([19.10](#1910-reactions-to-a-cell-react)). New in 1.4.9. | object | none |
+| `counter` | A number drawn on the prop ([19.11](#1911-counter)). New in 1.4.9. | object | none |
+
+**Mod errors.** Prop values are checked when the file loads (new in 1.4.9): numbers and their ranges, true/false, the allowed words, sprites, the display name, and the keys inside `fx`, `react` and `counter`. A value out of range, of the wrong kind or not one of the allowed words gives a line that names the prop and says what GNX used instead, for example:
+
+```
+[GNX] ERROR: Prop 'my_mod.iron_candle': speed must be 0-60 (90); 60 is used
+```
+
+The prop still loads. These lines also appear in the `Mod loading problem(s)` box after loading. An unknown key inside `fx`, `react` or `counter` is reported the same way, so a typo does not silently do nothing. Not checked: unknown keys directly in a prop entry (a misspelled `"spede"` is simply not used) and `code_text`, which nothing reads.
 
 ### 19.3 Sprites block
 
-Same format as in `classes.json` and `cells.json` ([§5](#5-sprites)), with atlas support ([§20](#20-atlas-packing)). Props do not animate: only frame 0 is drawn.
+Same format as in `classes.json` and `cells.json` ([§5](#5-sprites)), with atlas support ([§20](#20-atlas-packing)). Glow masks ([19.9](#199-glows)) and counter digits ([19.11](#1911-counter)) are sprites of this block too.
+
+- A sprite with 2 or more frames animates by itself ([19.7](#197-animation)). Before 1.4.9 props did not animate: only frame 0 was drawn.
+- `"xorig": "center", "yorig": "bottom"` puts the origin in the middle of the bottom edge without typing the image size ([5.3](#53-the-origin)). With `"anchor": "center"` and `"y_offset": 0` such a prop stands on the floor in the middle of its passage, whatever the size of its PNG.
+- Scale, rotation, glows at a point and the counter are placed from the origin ([19.8](#198-visual-effects-fx)): for a hanging lamp put the origin at its hook, for a spinning crystal in its middle.
 
 ### 19.4 Menu placement and drawing
 
@@ -3349,23 +3478,31 @@ Same format as in `classes.json` and `cells.json` ([§5](#5-sprites)), with atla
 | `"mid"` | middle group | -10 | behind bottom props |
 | `"bot"` | bottom group | 0 | in front of top and middle props |
 
-With the mouse over a cell, its props get the same yellow highlight as vanilla props.
+**Where on the passage.** `"anchor": "center"` counts the prop's x from the middle of the passage, as vanilla props do; the default `"left"` counts from the passage's left edge, as in GNX 1.4.8 (new in 1.4.9). For a new prop use `"center"` with the origin in the middle of the sprite. `x_random_range` and `y_offset` are added to that spot.
+
+With the mouse over a cell, its props get the same yellow highlight as vanilla props. With the mouse over a passage, every cell a reacting prop of that passage listens to gets a yellow outline ([19.10](#1910-reactions-to-a-cell-react)).
 
 ### 19.5 Prop IDs
 
-The game saves props as numbers. GNX makes the number as a [hash](#2-glossary) of `<folder>.<id>`, from 100 to 9999; if two props collide, the later one moves to the next free number, so in that rare case it depends on load order.
-
-`give_prop`, `unlock_prop` ([§17.6](#176-action-reference)) and the quest `prop` reward ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)) need this number, not the text ID. It is in `gnx_debug.txt`:
+The game saves props as numbers. GNX makes the number as a [hash](#2-glossary) of `<folder>.<id>`, from 100 to 9999. Every prop has a line in `gnx_debug.txt`:
 
 ```
-[GNX] prop 'my_mod.iron_candle' -> id=2734 pos=top
+[GNX] prop 'my_mod.iron_candle' -> id=2734 pos=top name="Iron Candle"
 ```
 
-> **When** the mod folder or a prop's `id` is renamed, or the mod is removed, the number changes or disappears, and placed props with the old number are deleted when the save loads (GNX deletes props with unknown numbers of 100 or higher).
+If two props collide, the later one moves to the next free number, so in that rare case its number depends on the load order. The log says so:
+
+```
+[GNX-WARN] prop 'my_mod.iron_candle': number 2734 is taken by 'other_mod.lamp', it gets 2735 (depends on the mod load order; refer to it by name)
+```
+
+**Names instead of numbers** (new in 1.4.9). `give_prop`, `unlock_prop` ([§17.6](#176-action-reference)) and the quest `prop` reward ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)) take the prop's name, `"my_mod.iron_candle"`, or just `"iron_candle"` for a prop of the same mod. A name stays right whatever the load order. Numbers still work, also written as text (`"2734"`). A name that no loaded mod has does nothing, and the log says `[GNX] ERROR: prop 'my_mod.iron_candel' is not a prop of any loaded mod (props.json "id", named "Mod.id")`.
+
+> **When** the mod folder or a prop's `id` is renamed, or the mod is removed, placed props of the old name are no longer drawn. Since 1.4.9 they are not deleted: they are kept aside in the save and come back when a prop of that name is loaded again ([19.12](#1912-props-in-saves)).
 
 ### 19.6 Locked props
 
-A prop with `"locked": true` is not in the edit-mode menu at the start; a tool action or quest reward with its number unlocks it.
+A prop with `"locked": true` is not in the edit-mode menu at the start; a tool action or quest reward with its name or number unlocks it.
 
 ```json
 {
@@ -3378,24 +3515,267 @@ A prop with `"locked": true` is not in the edit-mode menu at the start; a tool a
 }
 ```
 
-A matching tool button, if the log line for the banner reads `id=3012`:
+A matching tool button:
 
 ```json
 {
   "label": "UNLOCK BANNER",
   "actions": [
-    { "type": "unlock_prop", "prop_id": 3012 }
+    { "type": "unlock_prop", "prop_id": "my_mod.witch_banner" }
   ]
 }
 ```
 
-Clicking it adds the banner to the middle menu group with the vanilla unlock popup; the unlock is stored in the save.
+Clicking it adds the banner to the middle menu group with the vanilla unlock popup; the unlock is stored in the save. The number from the log (`"prop_id": 3012`) works too.
 
 > **When** `give_prop` or `unlock_prop` runs on an already unlocked prop, it adds it again. Use them only once per locked prop (with a guard and a state key).
 
-### 19.7 Testing
+### 19.7 Animation
 
-The boot test checks every prop: `[GNX-TEST] PASS  T59 prop_registry valid`, or `[GNX-TEST] FAIL  T59 prop_registry invalid: ...` with the prop number and the problem (`bad_spr`, `no_name`, `bad_pos`, `not_in_order`).
+New in 1.4.9. A prop sprite with 2 or more frames loops through all of them, at 8 frames per second unless `speed` says otherwise:
+
+```json
+{ "id": "crystal_lamp", "display_name_key": "Crystal Lamp", "position": "top", "anchor": "center", "sprite": "gnx:crystal_lamp", "speed": 6, "random_frame": true }
+```
+
+- `speed` is 0–60 frames per second; `"speed": 0` keeps frame 0, as every prop did before 1.4.9.
+- `random_frame: true` starts each placed lamp on another frame, so neighbours do not flicker in step.
+- The animation runs in game time: it stops while the game is paused and follows the game speed. It also runs while the prop is off screen, so it never jumps.
+- A prop whose frames move on events (`react`, [19.10](#1910-reactions-to-a-cell-react)) does not loop by itself; a `speed` above 0 next to such a `react` is a mod error. `react.speed` sets how fast its frames play.
+
+> **When** an older mod has a multi-frame prop strip that was meant as one still picture (before 1.4.9 only frame 0 was drawn), the prop now animates. Add `"speed": 0`.
+
+### 19.8 Visual effects (fx)
+
+New in 1.4.9. `fx` makes a prop move or change colour. Every part is optional; the parts combine with each other and with the animation.
+
+```json
+{
+  "id": "spirit_orb", "display_name_key": "Spirit Orb", "position": "mid", "anchor": "center", "sprite": "gnx:spirit_orb", "y_offset": -8,
+  "fx": {
+    "float": { "height": 3, "period": 3 },
+    "rotate": { "speed": 30 },
+    "color": { "colors": ["#B0D8FF", "#B48CFF", "#FFB0E0"], "period": 6 },
+    "random_phase": true
+  }
+}
+```
+
+**What this example does:** the orb bobs 3 px up and back every 3 seconds, turns 30° per second, and is tinted pale blue, violet, pink and back every 6 seconds. With `random_phase` each placed orb starts at another point of these cycles, so neighbours do not move together. Its origin should be in the middle of the sprite, so it spins in place.
+
+| Part | Keys (range, default) | What it does |
+|---|---|---|
+| `pulse` | `scale` (0–1, 0.05), `alpha` (0–1, 0), `period` (0.1–60 s, 2) | Grows and shrinks by `scale` (0.05 = ±5 %); `alpha` fades it by up to that much at its smallest. |
+| `float` | `height` (0–64 px, 2), `period` (0.1–60 s, 3) | Bobs up from its place and back in whole pixels, never below it. |
+| `rotate` | `speed` (−720–720 °/s, 0), `swing` (0–180 °, 0), `period` (0.1–60 s, 4) | Turns at `speed` degrees per second, and/or swings ±`swing` once per `period`. Needs one of the two. |
+| `color` | `colors` (2–8 colours), `period` (0.1–60 s, 4) | Tints the sprite through the colours in a circle, once per `period`. White = the sprite's own colours. |
+| `glow` | one glow, or a list of up to 8 | Light round the outline, on a marked part of the sprite, or at a point ([19.9](#199-glows)). |
+| `random_phase` | true/false (false) | Each placed prop starts at another point of its cycles. |
+
+- **Colours** are written `"#RRGGBB"` (or `"RRGGBB"`), or `[r, g, b]` with 0–255.
+- **Times** are seconds of game time: the effects stop while the game is paused and run on while the prop is off screen.
+- **Origin:** scale and rotation turn around the sprite's origin (`xorig` / `yorig`). A lamp with its origin on the hook swings like a hanging lamp; a crystal with its origin in the middle spins in place.
+- Effects are only drawn: the prop's click area stays where the prop was placed.
+
+### 19.9 Glows
+
+New in 1.4.9. A glow is light drawn with the prop. `fx.glow` is one glow object or a list of up to 8, so a staff can have a shining gem and a torch a flame light.
+
+```json
+{
+  "id": "wall_torch", "display_name_key": "Wall Torch", "position": "mid", "anchor": "center", "sprite": "gnx:wall_torch", "random_frame": true,
+  "fx": {
+    "glow": { "at": [0, -14], "colors": ["#C02008", "#FF7A18", "#FFE24A"], "radius": [5, 9], "alpha": [0.35, 0.75], "period": 1.6, "flicker": 0.4 },
+    "random_phase": true
+  }
+}
+```
+
+**What this example does:** a round light sits 14 px above the torch's origin, on the flame. Every 1.6 seconds it goes from small, dim and red through orange to big, bright and yellow, and back. `flicker` makes the change uneven, like a flame, and `random_phase` keeps two torches out of step.
+
+**Where a glow shines**
+
+| Kind | How you write it | What is drawn |
+|---|---|---|
+| Outline | no `mask`, no `at` | A halo round the whole sprite, behind it. |
+| Marked part | `"mask": "gnx:<sprite>"` | Only the pixels painted in the mask light up, with a halo round them, in front of the sprite. |
+| Point light | `"at": [x, y]` | A round light at that point, in pixels from the prop's origin (x and y −128 to 128), in front of the sprite. |
+
+**A mask** is a sprite of the props file with the same size and `xorig` / `yorig` as the prop's sprite. Copy the prop's PNG, paint only what should shine (the gem of a staff; the colour does not matter) and make the rest transparent. Give it 1 frame, or as many frames as the prop when the shining part moves.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `color`, `colors` | One colour, or a list of 1–8 colours; `colors` wins. The light is added to what is under it, so black adds nothing. | colour or list | white |
+| `rings` | Pixel-art rings in exactly these colours, inside first, drawn as they are instead of added light (see below). | list of 1–8 colours | none |
+| `alpha` | Brightness 0–1: a number, or `[low, high]`. | number or list | 0.4 |
+| `size` | Width of the halo in px, outline and mask glows: a number or `[low, high]`, 0–4 (0–16 with `rings`). | number or list | 1 |
+| `radius` | Radius of a point light in px: a number or `[low, high]`, 1–64 (1–16 with `rings`). | number or list | 6 |
+| `period` | Seconds of one wave, low → high → low, 0.1–60. | number | 2 |
+| `mode` | `"pingpong"`: the colours follow the wave, the first at its low end, the last at its high end. `"loop"`: the colours go round the list once per period, apart from the wave. | text | `"pingpong"` |
+| `flicker` | 0–1: an uneven wobble on the wave, like a flame. | number | 0 |
+| `offset` | 0–1: moves the glow in its cycle, so two glows are out of step. | number | 0 |
+| `style` | Point lights only: `"soft"` fades out to its edge, `"bands"` draws three hard rings (pixel art). | text | `"soft"` |
+| `layer` | `"front"` or `"behind"` the sprite. | text | outline behind, mask and point in front |
+| `corners` | With `rings`: `true` adds the diagonal corners, so the rings look rounder and fuller. | true/false | false |
+| `pulse` | Older key: how far a single `alpha` dips at the low end of the wave, 0–1. Not together with an `alpha` pair. | number | 0 |
+
+A `[low, high]` pair changes with the wave; a single number stays the same. Mask glows and point lights move, turn and mirror with the prop's `fx`, so a gem on a swinging staff keeps shining on the gem.
+
+**Rings.** `rings` draws an aura in fixed colours from the inside out, as a pixel artist would:
+
+```json
+{
+  "fx": {
+    "glow": { "mask": "gnx:staff_gem", "rings": ["#4A0402", "#C21F24", "#FF9192"], "size": [3, 7], "alpha": [0.35, 1], "period": 4, "flicker": 0.15 }
+  }
+}
+```
+
+- At size 3 each of the three colours is a 1 px ring round the gem; as the glow grows to 7 px the rings stretch (3 + 2 + 2 px) and it brightens, then it shrinks and dims again every 4 seconds.
+- GNX draws the rings once while loading, one picture for each whole size from low to high, and in play draws one picture per frame, so rings cost almost nothing while playing.
+- Loading has limits: at most 128 pictures and 8 MB per glow, and 64 MB for the ring glows of all mods together. A glow over a limit is left out with a mod error. One line at the end of loading sums them up: `[GNX-PERF] ring glows: <n> baked, ~<KB> KB estimated RGBA, <ms> ms, <n> left out over budget`. To stay small, use fewer sizes, or a mask with 1 frame.
+- `color` and `colors` are not used next to `rings` (mod error).
+
+> **When** a glow does not look as expected, check the mod errors:
+> - a halo wider than 4 px without `rings` falls apart into separate copies, so it is limited to 4 px;
+> - a mask of another size or origin than the sprite puts the shine in the wrong place;
+> - `size` belongs to outline and mask glows, `radius` and `style` to point lights; `mask` and `at` together use the mask.
+
+### 19.10 Reactions to a cell (react)
+
+New in 1.4.9. A prop stands on a passage between two slots. With `react` it listens to the cell on one side and changes its frame, flashes or counts when something happens in that cell.
+
+```json
+{
+  "id": "exit_wheel", "display_name_key": "Exit Wheel", "position": "bot", "anchor": "center", "sprite": "gnx:exit_wheel",
+  "react": {
+    "side": "right",
+    "on": {
+      "mon_exit": { "step": 1 },
+      "birth": { "flash": { "time": 0.6, "color": "#FFE080", "alpha": 0.7 } }
+    }
+  }
+}
+```
+
+**What this example does:** the wheel (an 8-frame strip) moves one frame further each time a monster leaves the cell on the right of its passage; after frame 7 comes frame 0. When a newborn of that cell joins the nest, the wheel flashes yellow for 0.6 s.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `side` | Which cell it listens to: `"left"`, `"right"`, `"both"`, or `"facing"` (right; left while `xscale_random` mirrors the prop, so draw the PNG facing right). | text | `"both"` |
+| `on` | The events and what to do on each: `{ "<event>": { <actions> } }`. | object | required |
+| `speed` | Frames per second of `play`, 0.1–60. | number | 8 |
+| `at_end` | Past the last frame: `"loop"` goes on at frame 0; `"hold"` stays on the last (and a step back below frame 0 stays on 0). | text | `"loop"` |
+| `stops` | Frames where `"play": "next_stop"` stops: a list such as `[3, 6, 9]`, or `{ "every": 3, "until": 60 }` for 3, 6 … 60. | list or object | none |
+
+**Events**
+
+| Event | When the cell sends it |
+|---|---|
+| `mon_exit` | A monster that was inside the cell leaves it; once per monster. |
+| `scene_start`, `scene_end` | The scene starts; the cell is back to idle. |
+| `phase_idle`, `phase_start`, `phase_loop`, `phase_ej`, `phase_birth` | The captive's pictures change to that [phase](#2-glossary). |
+| `phase_idle_start`, `phase_start_loop`, `phase_loop_ej`, `phase_ej_birth` | The same for the intermissions ([§23](#23-intermissions)). |
+| `birth` | A newborn of the cell joins the nest; only when a child was really given. |
+| `milk` | The cell gives a milk item. |
+
+**Actions.** All are optional; several in one event add up, in this order.
+
+| Key | What it does | Type |
+|---|---|---|
+| `frame` | Jump to this frame (0 = the first); also drops a `play` still running. | number |
+| `step` | Move this many frames at once, −64 to 64. | number |
+| `play` | Run this many frames forward at `speed`, 1–999; or `"next_stop"`: run up to the next of `stops` (after the last stop: to the end of the strip and on to frame 0, or with `"hold"` to the last frame). Plays from more events queue up. | number or text |
+| `flash` | Seconds (0.05–10) of a flash of the sprite's shape that fades out, or `{ "time": …, "color": …, "alpha": … }` (0.4 s, white, 0.6). | number or object |
+| `count_set` | Set the prop's counter ([19.11](#1911-counter)), 0–999 999 999. | number |
+| `count` | Add to the counter (after `count_set`), −999 999 to 999 999. | number |
+| `chance` | How likely the reaction is each time, 0–1. | number |
+
+**Stops: a frame-by-frame story.** A 70-frame strip with
+
+```json
+{
+  "react": {
+    "side": "right",
+    "stops": { "every": 3, "until": 60 },
+    "on": {
+      "mon_exit": { "play": "next_stop" }
+    }
+  }
+}
+```
+
+plays 3 frames per monster at 8 frames per second (frames 1–3, 4–6 … 58–60). The 21st monster plays frames 61–69 and lands on frame 0, and the story starts again.
+
+- The cell is looked up when the event happens: a cell built, sold or swapped next to the prop counts at once. The end of a floor, the entrance and an empty slot send nothing.
+- A `play` that starts from rest shows its first new frame at once.
+- A prop that only flashes or counts keeps its own animation ([19.7](#197-animation)).
+- The frame a prop reached, a `play` still running and the counter are saved ([19.12](#1912-props-in-saves)).
+- Moving frames on a 1-frame sprite does nothing (mod error); `flash` still works.
+
+> **When** an event never comes:
+> - `phase_start` needs a start with its own pictures: vanilla `scr_slot_h_base_start` keeps the idle pictures, so a cell using it sends no `phase_start`. Some vanilla gang and chain scenes draw their ejaculation with the loop pictures and send no `phase_ej`. `scene_start` and `mon_exit` work in all of them.
+> - TRANSFER (17) and the tentacle cells (27–34) let their monsters go another way and send no `mon_exit`.
+> - A monster that was called but had not reached the cell when the scene ended does not count ([11.4](#114-how-a-scene-runs-with-several-monsters)).
+> - Utility rooms send events too: a carry room starting work sends `scene_start`.
+
+### 19.11 Counter
+
+New in 1.4.9. `counter` draws a number on the prop. The `count` and `count_set` actions of its `react` change it ([19.10](#1910-reactions-to-a-cell-react)), for example to show how many monsters have left the cell next to it.
+
+```json
+{
+  "id": "tally_sign", "display_name_key": "Tally Sign", "position": "bot", "anchor": "center", "sprite": "gnx:tally_sign",
+  "react": {
+    "side": "right",
+    "on": {
+      "mon_exit": { "count": 1 }
+    }
+  },
+  "counter": { "x": 1, "y": -6, "valign": "middle", "color": "#FFFFFF", "outline": "#000000", "max": 9999, "at_max": "loop" }
+}
+```
+
+**What this example does:** each monster that leaves the cell on the right adds 1. The number is white with a black outline, centred on the point 1 px right of and 6 px above the sign's origin, and after 9999 it starts at 0 again.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `x`, `y` | The number's anchor, in pixels from the sprite's origin: x −64 to 64, y −128 to 64. | number | x 0, y 2 px above the sprite |
+| `align` | `"center"`, `"left"` or `"right"`: which way the number grows from the anchor. | text | `"center"` |
+| `valign` | `"bottom"`, `"middle"` or `"top"`: whether the anchor is the number's bottom edge, middle or top edge. | text | `"bottom"` |
+| `angle` | Tilt in degrees, −180 to 180, counter-clockwise, around the anchor. | number | 0 |
+| `follow_fx` | `true` = the number moves, grows and turns with the prop's `fx`. | true/false | true |
+| `turn_digits` | Own digits only: `false` keeps each digit upright on whole pixels and only steps the digits along the tilt. | true/false | true |
+| `color` | Tint of the text or of the digit sprites. | colour | white |
+| `scale` | Size, 0.5–4. | number | 1 |
+| `max` | Highest number, 1–999 999 999. | number | 9999 |
+| `at_max` | Past `max`: `"hold"` stays on `max`, `"loop"` starts at 0. Below 0 it is 0 with `hold` and `max` with `loop`. | text | `"hold"` |
+| `pad` | At least this many digits, with leading zeros (`3` shows `007`), 0–9. | number | 0 |
+| `show` | `"always"`, or `"hover"`: only with the mouse over the passage. | text | `"always"` |
+| `prefix`, `suffix` | Text before and after the number; game font only. | text | none |
+| `outline` | Colour of a 1 px outline round the number (times `scale`). | colour | none |
+| `digits` | Own digits: a sprite of the props file whose frames 0–9 are the digits 0–9. | sprite | the game font |
+| `spacing` | Pixels between own digits, 0–16. | number | 1 |
+
+**Game font.** Without `digits` the number uses the font of the game's `+3` pop-ups over the cells, in the player's language. The first such counter writes the font's size to the log once, so you can size a sign: `[GNX] counter font: line height <N> px, digit width <M> px (scale 1)`.
+
+**Own digits.** `digits` points to a strip of 10 frames with the digits 0 to 9 in that order. The strip is cut into equal frames like any strip ([5.2](#52-where-gnx-takes-the-image-from)), so it needs no padding: 4 × 6 px digits make a 40 × 6 px strip. Every digit takes the width of the widest frame, so the number does not jump when it changes. Fewer than 10 frames, or a missing sprite, is a mod error, and the game font is used.
+
+**On a sign or a plaque.** The anchor is a point of the sprite, so it moves like the sprite's pixels: it is mirrored with the prop (`x` and `angle` change sign, the number stays readable), grows with `pulse` and turns with `rotate`. To place it, find the pixel in the PNG (column and row, counted from 0) and subtract the origin: `x` = column − `xorig`, `y` = row − `yorig`. A plaque drawn tilted 6° clockwise in the PNG takes `"angle": -6`. Pixel art turned by a free angle loses its sharp edges; for sharp slanted numbers draw the digits already slanted and use `"turn_digits": false`.
+
+- The counter is saved with the prop. Each placed prop counts on its own from 0; taking it away and placing it again starts at 0.
+- A `counter` whose `react` has no `count` or `count_set` is a mod error: it would always show 0. So are `prefix` or `suffix` together with `digits`.
+
+### 19.12 Props in saves
+
+- **Names.** Placed props are saved with their name (`my_mod.iron_candle`) next to their number (new in 1.4.9). A save is loaded by name, so a number that changed with the load order does not turn one prop into another; the log says `[GNX] load: prop 'my_mod.iron_candle' was number 2734, is now 2735`.
+- **Older saves** have numbers only. GNX gives such a prop its name only when the number is that name's own hash and no other prop name gives the same number. Only a collision at saving time can have pushed another prop onto that number; the prop shown is then wrong with or without the name, as it was with numbers before 1.4.9. It logs `[GNX] load: prop 2734 from an older save is 'my_mod.iron_candle' (its own number); saved with its name from now on`. When you save over that same save file, GNX first keeps a copy of it, named `<save file>.before_gnx_names` (once; an existing copy is never overwritten). Saving to another slot or the autosave does not use this up, and a copy that cannot be written gives a `[GNX-WARN] save: ...` line instead. If two names give that number, the prop stays saved by number and a `[GNX-WARN] load: prop 2734 from an older save ...` line asks you to check it.
+- **A missing mod.** Props whose mod is not loaded are kept aside in the save instead of being deleted, and come back when the mod is loaded again. They are tried again each time a save is loaded: if another prop holds their group on that passage, they wait and come back at the first load after the group is free. Freeing the group during play does not bring them back at once; save and load again. They are gone only when the passage is sold. The log counts them: `[GNX-WARN] load: prop type <N> ('<name>') is not registered (mod missing?); kept aside with the save, back when its mod is` and `[GNX] load: props kept aside on a passage of floor <N>: <n> of missing mods, <n> whose row holds another prop`.
+- **What is saved** of a prop: the frame a reacting prop reached, a `play` still running and the counter. Animation loops and `fx` cycles are not saved; after loading they start at another point. A flash is not saved.
+
+### 19.13 Testing
+
+The boot test checks every prop: `[GNX-TEST] PASS  T59 prop_registry valid`, or `[GNX-TEST] FAIL  T59 prop_registry invalid: ...` with the prop number and the problem (`bad_spr`, `no_name`, `bad_pos`, `not_in_order`). Mistakes in prop values are mod errors ([19.2](#192-prop-fields)): search the log for `Prop '`.
 
 ---
 
@@ -3481,9 +3861,11 @@ Atlas sprites work everywhere strips do: birth sprites, `carry_base_spr`, naked 
 
 Useful log lines:
 
-- `[GNX-PERF] mod "my_mod" atlas mode: 1 texture pages, 120 sprite refs`: the atlas was loaded.
+- `[GNX-PERF] mod "my_mod" atlas mode: 1 texture pages (~64.0 MB), 120 sprite refs, 0 page(s) failed to load, 0 entr(y/ies) left out, 2 strip(s) loaded outside the atlas`: the atlas was loaded. The size is the video memory of the pages; every strip loaded outside the atlas is one more texture.
 - `[GNX-ATLAS] ERROR: malformed uv.json for my_mod`: invalid JSON; the mod loads its strips normally.
-- `[GNX-ATLAS] ERROR: my_mod: failed to load atlas_3.png`: one page is missing; its sprites are not drawn, the other pages work.
+- `[GNX-ATLAS] ERROR: my_mod: failed to load atlas_3.png`: one page is missing. Since 1.4.9 the entries on it are left out, and those sprites load from their strip PNGs instead when the mod still has them; the other pages work.
+- `[GNX-ATLAS] INVALID: mod=my_mod entry=<name>: <reason>; not used`: an entry has a frame on a page that did not load, or outside its page, or a value that is no number (the first 20 are listed, then a count). That sprite loads from its strip PNG instead (new in 1.4.9). A frame with `w` or `h` 0 is an empty frame, not an error.
+- `[GNX-ATLAS] ERROR: my_mod: uv.json needs atlas_files (a list of PNGs) and entries; atlas not used, the mod's strips load one by one`
 
 ### 20.5 Known limits
 
@@ -3494,6 +3876,8 @@ Useful log lines:
 > **When** two strips in different folders have the same file name, they share one atlas entry, because only the file name is looked up.
 
 > **When** a strip is added or changed, re-run the packer: GNX draws what is in the pages, not in `strips/`. This includes `folder` sprites.
+
+> **When** a mod ships with an atlas, keep its `strips/` too: an atlas entry that cannot be used falls back to its strip PNG.
 
 ---
 
@@ -3581,6 +3965,8 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 
 > **When** `unlock_cells` names a vanilla cell, the village gets it too once the player has been to this map, because unlocks are shared ([21.4](#214-how-travel-works)). A map mod's own cells stay on its map.
 
+Numbers in `map_start` and `travel_cost` may also be written as text (`"400"`); other text uses the default. A `cells` entry with an `h_type` number that no cell has is skipped with a mod error (new in 1.4.9).
+
 `python tools/build_mod.py <mod_dir> <game_dir>` checks `map_info` and `map_start` before deploying (unknown condition types, unknown monster types, cells on floors that do not exist, a missing `map_sprite` file) and deploys the map image from `sprites/`.
 
 ### 21.4 How travel works
@@ -3595,6 +3981,377 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 - **Tool action** `travel_map` with `"target": "<map ID>"` opens the selector for that map ([§17](#17-tools-toolsjson)).
 - **Quests** can follow the player between maps (new in 1.4.9): the trigger hook `map_arrive` runs once after every trip, the conditions `on_map`, `map_visited` and `map_unlocked` tell where the player is and has been, and the side effect `unlock_map` opens a map from a quest. A mod's save state is kept per map, so a storyline that spans maps reads `map_visited` / `map_unlocked` instead of state keys. Details: [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md).
 - **Limits:** one map per mod. A map's nest uses the vanilla backgrounds and walls; only the raid panel's world map can be replaced (`map_sprite`).
+
+---
+
+## 22. Scene timing: frame counts, start, ej and loop strips
+
+**In short:** new in 1.4.9. A mod cell can give each phase of its scene more frames than vanilla, play its start a set number of times, set how the ejaculation holds, and let the captive's strips loop a short animation inside a longer phase. All these keys sit in `physical`; a cell without them plays exactly as before.
+
+```json
+{
+  "physical": {
+    "scr_idle": "scr_slot_h_state_idle",
+    "scr_h": ["scr_slot_h_big_start", "scr_slot_h_base_wait", "scr_slot_h_base_sloop", "scr_slot_h_base_floop", "scr_slot_h_base_wait", "scr_slot_h_base_ej", "scr_slot_h_base_wait"],
+    "scr_draw": "scr_draw_slot_gnx",
+    "frames": { "idle": 4, "start": 6, "loop": 8 },
+    "start_loops": [2, 3],
+    "ej_holds": [4, 6],
+    "ej_start": 3,
+    "ej_hold": 5,
+    "loop_scale": true
+  }
+}
+```
+
+This is part of the `physical` block of a big fixed-mode cell such as BIG ALTAR ([§11](#11-multi-monster-cells)) with its own frame counts.
+
+**What this example does**
+
+- `frames`: the idle strips have 4 frames, the start strips 6 and the loop strips 8; the ejaculation is drawn with the loop strips. Every strip of the cell, the monsters' too, needs these counts ([22.5](#225-the-frame-rule-for-every-mod-cell)).
+- `start_loops`: the start plays 2 or 3 times (vanilla 3–5).
+- `ej_holds`, `ej_start`, `ej_hold`: the ejaculation holds 4 to 6 times, starting on frame 3 and holding on frame 5 of the 8 loop frames.
+- `loop_scale`: each loop part lasts 8 / 5 times as long as in vanilla, so it plays as many cycles as vanilla.
+
+### 22.1 physical.frames
+
+| Key | Phase | Default |
+|---|---|---|
+| `frames.idle` | 1, idle; also the start of cells that are not big | 2 |
+| `frames.start` | 0, the start of big cells (`base_body` `"big"` with `scr_slot_h_big_start`) | 2 |
+| `frames.loop` | 2 and 3, the loops and the ejaculation (drawn with the loop pictures) | 5 |
+| `frames.birth` | 4, birth | 2 |
+
+Each count is a whole number from 1 to 64; a phase left out keeps the vanilla count.
+
+- Every frame lasts as long as in vanilla, so more frames make a longer animation: one cycle, the start and the ejaculation get longer. The two loop parts still end after 6–7 seconds each, unless `loop_scale` is on ([22.4](#224-loop_scale)).
+- Frames the scripts react to move with the count: the squirt vanilla plays on frame 2 of 5 comes on frame 4 of 10.
+- The log shows the counts used: `[GNX-FRAMES] BIG ALTAR: frames per phase (start, idle, loop, ej, birth) = <counts>`. `frames.ej` is not used outside underground cells, and `frames.start` not in cells that are not big; the log says so.
+
+`frames` works only together with:
+
+- `human_spr` mode `fixed` or `class_map` (the class sheets of `base+class` have the vanilla counts);
+- `scr_draw` `scr_draw_slot_gnx` or `scr_draw_slot_parts`;
+- the scene scripts `scr_slot_h_state_idle`, `scr_slot_h_big_start`, `scr_slot_h_base_start`, `scr_slot_h_base_wait`, `scr_slot_h_base_sloop`, `scr_slot_h_base_floop`, `scr_slot_h_base_ej` and `scr_slot_h_base_ej_2`, or the independent places script `scr_slot_h_gnx_places` ([11.5](#115-independent-places)).
+
+Otherwise `frames` is ignored with a mod error that names the reason, for example `[GNX] ERROR: Cell 'BIG ALTAR': physical.frames needs human_spr mode fixed or class_map; ...`. Cells on the tentacle scripts keep the vanilla counts. Underground cells have their own timing keys ([§24](#24-underground-cells)).
+
+### 22.2 start_loops
+
+How many times the start plays: a whole number from 1 to 99, or `[min, max]` for a random count each scene. Vanilla plays the start 3–5 times. It works for every cell with `scr_slot_h_big_start` or `scr_slot_h_base_start`, with or without `frames`, and for underground cells (where it defaults to 1).
+
+### 22.3 The ejaculation: ej_holds, ej_start, ej_hold
+
+The vanilla ejaculation plays from frame 2 of the 5 loop frames and holds on frame 3, 5 to 7 times.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `ej_holds` | How many holds: a whole number 1–99, or `[min, max]`. Works with `scr_slot_h_base_ej`, `scr_slot_h_base_ej_2` and in underground cells, with or without `frames`. | number or list | 5–7 |
+| `ej_start` | The first ejaculation frame, counted from 0 in the loop frames. | number | 2 of 5, moved in proportion |
+| `ej_hold` | The held frame, counted the same way. | number | 3 of 5, moved in proportion |
+
+`ej_start` and `ej_hold` are used by cells with `frames` and by underground cells. Without them the key frames keep their place in proportion: with 8 loop frames they are 3 and 5, with 10 frames 4 and 6.
+
+A count written as text or outside 1–99, or a pair with min above max, is a mod error and the default is used.
+
+### 22.4 loop_scale
+
+`"loop_scale": true` makes each loop part (slow and fast) last `frames.loop / 5` times its vanilla 6–7 seconds, so a 10-frame loop plays as many cycles as vanilla, in 12–14 seconds per part. It works for cells with `frames` and for underground cells. It is off by default because a longer scene means fewer scenes, so less gold, mood and pregnancies per hour.
+
+### 22.5 The frame rule for every mod cell
+
+When a mod cell loads, GNX checks its strips (new in 1.4.9): every captive strip in the `human_spr` tables and every monster strip in `mon_spr`, `mon_spr_hob`, `mon_spr_ogr` and the placement keys must have the frame count of its phase. Without `frames` these are the vanilla counts: start 2, idle 2, loop 5, ejaculation 5, birth 2.
+
+- **Fewer frames** than the phase needs is a mod error naming the strip, where it is used and the count it needs, for example `[GNX] ERROR: Cell 'BIG ALTAR': strip 'gob_back_loop' (mon_spr_p1.loop) has 3 frames, it needs 5 per row`. The game goes on; the strip only shows wrong frames.
+- **More frames** that are not a whole multiple of the count is only a log line, because one strip can hold several rows (skins, placements) or be shared with a longer phase: `[GNX-FRAMES] BIG ALTAR: strip '<key>' (<where>) has 7 frames, the phase uses 5 per row; the last 2 are not shown`.
+- A 1-frame strip is a still picture and always fits. Hand strips (`spr_array[3]`, `spr_c_array[3]`) are not counted. Game sprites and the class sheets are not checked.
+- In a cell with its own counts, a monster type the cell allows but which has no own `start` or `loop` strips is reported: it would be drawn from the vanilla sheets, which have 2 and 5 frames.
+
+### 22.6 Looping captive strips
+
+A captive strip can be shorter than its phase and loop its own frames, for example a 2-frame breathing head over an 11-frame start:
+
+```json
+{
+  "sprites": {
+    "big_altar_start_head": { "strip": "strips/spr_h_big_altar_start_head.png", "frames": 2, "loop": true, "origin_from": "spr_h_base_big_start_head" }
+  }
+}
+```
+
+- `"loop": true`: the whole strip is one row that repeats (frames 0, 1, 0, 1 … for as long as the phase).
+- `"loop": <n>` with 2 or more: `n` frames per row, for a strip with several rows (one per skin in `class_map` mode).
+- Only the captive's strips loop (the `human_spr` tables, hair included). Monster strips, `touch` and `enter`, and the underground tentacle never loop: they need the phase's count, with or without `loop`, and a short one marked `loop` is a mod error that says so.
+- A looping strip fits any phase length, so the frame rule ([22.5](#225-the-frame-rule-for-every-mod-cell)) accepts it.
+
+> **When** two sprite entries use the same PNG with the same `frames` and origin, GNX loads it once ([5.2](#52-where-gnx-takes-the-image-from)), and `loop` belongs to that one sprite. Both entries must agree on `loop`: the first one wins and the clash is a mod error. For a different `loop`, use a copy of the PNG under another name.
+
+---
+
+## 23. Intermissions
+
+**In short:** new in 1.4.9. An intermission is a short extra phase between two main phases of a scene, with its own captive and monster pictures: for example a few frames in which the monster changes its grip between the loop and the ejaculation. Any mod cell can declare up to four in `physical.intermissions`. Vanilla cells are never changed.
+
+```json
+{
+  "physical": {
+    "intermissions": {
+      "idle_start": { "speed": 4, "loops": 2 },
+      "loop_ej": { "frames": 6, "speed": 10, "loops": [1, 2] }
+    }
+  },
+  "human_spr": {
+    "mode": "fixed",
+    "base_body": "standard",
+    "phase_loop_ej": {
+      "spr_array": [-1, "gnx:altar_le_head", "gnx:altar_le_breast", -1, "gnx:altar_le_leg", -1, -1],
+      "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+    }
+  },
+  "mon_spr": {
+    "loop_ej": {
+      "body": {
+        "leg_any": { "alpha": "gnx:gob_altar_le", "line": "gnx:gob_altar_le_line" }
+      }
+    }
+  }
+}
+```
+
+These keys are added to a fixed-mode standard cell such as the ALTAR of [10.3](#103-fixed), next to its own `phase_1` and `phase_2` tables, `mon_spr` and `sprites`.
+
+**What this example does**
+
+- `idle_start` plays when a scene starts, before the start: 2 frames (the default, the frame count of the start it leads into) at 4 frames per second, twice. It has no pictures of its own, so the captive and the goblin show the pictures of the start, slowed down (for the captive of a standard cell those are her idle pictures).
+- `loop_ej` plays after the loop, before the ejaculation: 6 frames at 10 frames per second, once or twice, with its own captive table `phase_loop_ej` and its own goblin body `mon_spr.loop_ej`. All these strips need 6 frames.
+
+| Name | Played | Pictures when it has none of its own |
+|---|---|---|
+| `idle_start` | when the scene starts, before the start; in a scene without a start, before the loop | the start's (or the loop's) |
+| `start_loop` | after the start, before the loop; only in a scene with a start | the loop's |
+| `loop_ej` | after the loop, before the ejaculation | the ejaculation's (outside underground cells: the loop's) |
+| `ej_birth` | after the ejaculation, when the captive gives birth in the cell (tentacle-script and underground cells) | the birth's |
+
+| Key in an intermission | What it means | Type | Default |
+|---|---|---|---|
+| `frames` | Frames of the intermission, 1–64. | number | the frames of the phase it leads into |
+| `speed` | Frames per second, 0.1–60. | number | 8 |
+| `loops` | How many times it plays: a whole number 1–99, or `[min, max]`. | number or list | 1 |
+
+### 23.1 Pictures
+
+All optional, by the intermission's name:
+
+- **captive:** `human_spr.phase_<name>`, built like `phase_1` ([10.3](#103-fixed)); in `class_map` mode per class or in `default` ([10.5](#105-class_map));
+- **monsters:** `mon_spr.<name>`, and the same in `mon_spr_hob`, `mon_spr_ogr` and the placement keys: a block like `loop` (`head`, `body`, `hand`, `pen`, `touch`, `enter`, [10.9](#109-mon_spr-reference)). Without it the monsters keep the strips of the phase the intermission leads into;
+- **captive hands:** `physical.hand_frames.frame_<name>` ([9.7](#97-hands-hand_x-hand_y-hand_xscale-hand_angle-hand_frames));
+- **underground cells:** `tent_spr.<name>` and `milk_spr.<name>` ([§24](#24-underground-cells)).
+
+**The frame rule.** The intermission's strips need its `frames`; captive strips may loop ([22.6](#226-looping-captive-strips)). Where it borrows the pictures of the next phase (no own table, no own monster strips, or no `mon_spr` at all, which means the vanilla monster sheets), its `frames` must be that phase's count. Otherwise a mod error says what to add, for example `[GNX] ERROR: Cell 'ALTAR': intermission idle_start has 4 frames but no phase_idle_start table, so the captive is drawn with the phase_1 art (2 frames); add phase_idle_start, give both the same count, or mark those strips "loop": true`.
+
+### 23.2 Which cells
+
+Intermissions work with:
+
+- the base scene scripts (`scr_slot_h_big_start` or `scr_slot_h_base_start`, `scr_slot_h_base_wait`, `scr_slot_h_base_sloop`, `scr_slot_h_base_floop`, `scr_slot_h_base_ej`, `scr_slot_h_base_ej_2`): GNX puts each declared intermission into the cell's `scr_h`, right before the script it leads into, so you do not list it;
+- the tentacle scene scripts (`scr_slot_h_tent_idle`, `scr_slot_h_tent_sloop` … `scr_slot_h_tent_birth_ej`);
+- underground cells ([§24](#24-underground-cells)).
+
+These are mod errors, and the intermission is ignored:
+
+- other scene scripts (gang, chain, milk, cow, giant birth …, and independent places, [11.5](#115-independent-places)): `[GNX] ERROR: Cell '<name>': physical.intermissions works with the base and tentacle scene scripts and underground cells, not <scripts>; ignored`;
+- `ej_birth` with the base scripts: the captive gives birth in a BIRTH cell, not in this one;
+- `start_loop` in a scene without a start;
+- an unknown name.
+
+### 23.3 How they play
+
+- Intermissions play no sounds and no squirts. An underground cell keeps milking during them.
+- A save made during an intermission restores its pictures.
+- Each intermission sends its own event to reacting props, such as `phase_loop_ej` ([19.10](#1910-reactions-to-a-cell-react)).
+- **Patches** ([§12](#12-patching-vanilla-cells-and-classes)) can merge `phase_<name>` tables into a mod cell and can replace its `scr_h` (the cell's intermissions are put in again), but cannot add or change `intermissions`.
+
+---
+
+## 24. Underground cells
+
+**In short:** new in 1.4.9. An underground cell is a big cell sunk into the ground: its pit reaches 75 px below the floor line, and the floor it stands on gets a deeper band so the pit fits. GNX brings everything except the captive: a tentacle scene with milking, two walls, the cell floor, the tentacle and the floor band. A mod adds a cell with `"category": "ug_breed"` and the captive's sprites.
+
+```json
+[
+  {
+    "name": "WITCH PIT",
+    "category": "ug_breed",
+    "price": 800,
+    "physical": {
+      "required_class": "my_mod.Witch",
+      "frames": { "idle": 2, "loop": 6, "ej": 6 },
+      "sq_x": 38,
+      "sq_y": [20],
+      "sp_x": 38,
+      "sp_y": [20]
+    },
+    "human_spr": {
+      "mode": "fixed",
+      "phase_1": {
+        "spr_array": [-1, "gnx:pit_idle_head", -1, -1, "gnx:pit_idle_body", -1, -1],
+        "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+      },
+      "phase_2": {
+        "spr_array": [-1, "gnx:pit_loop_head", -1, -1, "gnx:pit_loop_body", -1, -1],
+        "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+      },
+      "phase_4": {
+        "spr_array": [-1, "gnx:pit_birth_head", -1, -1, "gnx:pit_birth_body", -1, -1],
+        "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+      }
+    },
+    "milk_spr": { "loop": "gnx:pit_milk" },
+    "infant_spr": "gnx:pit_egg",
+    "sprites": {
+      "pit_idle_head": { "strip": "strips/spr_pit_idle_head.png", "frames": 2, "xorig": 0, "yorig": 86 },
+      "pit_idle_body": { "strip": "strips/spr_pit_idle_body.png", "frames": 2, "xorig": 0, "yorig": 86 },
+      "pit_loop_head": { "strip": "strips/spr_pit_loop_head.png", "frames": 6, "xorig": 0, "yorig": 86 },
+      "pit_loop_body": { "strip": "strips/spr_pit_loop_body.png", "frames": 6, "xorig": 0, "yorig": 86 },
+      "pit_birth_head": { "strip": "strips/spr_pit_birth_head.png", "frames": 2, "xorig": 0, "yorig": 86 },
+      "pit_birth_body": { "strip": "strips/spr_pit_birth_body.png", "frames": 2, "xorig": 0, "yorig": 86 },
+      "pit_milk": { "strip": "strips/spr_pit_milk.png", "frames": 6, "xorig": 0, "yorig": 86 },
+      "pit_egg": { "strip": "strips/spr_pit_egg.png", "frames": 8, "xorig": 0, "yorig": 86 }
+    }
+  }
+]
+```
+
+**What this example does**
+
+- `"category": "ug_breed"` makes an underground cell. GNX fills in everything the entry leaves out: the scene scripts, layers, walls, floor, tentacle, band and payout ([24.1](#241-what-gnx-fills-in)). The cell is listed under **NEW → CUSTOM** and built on a big slot for 300 + 800 gold; the CUSTOM entry of an empty big slot builds it for its `price` only.
+- `required_class` lets only the Witch in: fixed-mode pictures fit one class.
+- `frames`: idle 2, start 2 (left out), loop 6, ejaculation 6, birth 2. The cell has no `phase_0` and no `phase_3`, so the start is drawn with the idle table and the ejaculation with the loop table; their counts must match those tables.
+- `sq_*` / `sp_*`: the squirt and the splash start 38 px from the strip's left edge and 20 px below the floor line, in the pit.
+- `milk_spr.loop`: the milk overlay; the other phases borrow it ([24.5](#245-milking-milk_spr)).
+- `infant_spr`: the newborn, here an egg: 2 labour frames, then 6 frames of the egg coming out ([24.6](#246-birth-and-the-newborn-infant_spr)).
+- All strips share one canvas, 77 × 161 px, with `yorig` 86: 86 px above the floor line and 75 below it.
+
+### 24.1 What GNX fills in
+
+Every key the cell writes itself stays as written.
+
+| Key | GNX value |
+|---|---|
+| `physical.allow_preg`, `max_mon_num`, `anal`, `slot_dirt_init`, `character_row` | `true`, `0`, `-1`, `0`, `0` (no monsters come: the tentacle is part of the cell) |
+| `physical.scr_idle`, `scr_h`, `scr_draw` | the underground scene `scr_slot_h_gnx_ug_*`, and `scr_draw_slot_gnx` |
+| `physical.layers` | legs, breast, head, milk overlay (type 21), tentacle (type 20, `spr_gnx_ug_tent_ready`), cell floor (`spr_gnx_ug_floor`) |
+| `physical.underground`, `underground_gap` | 75, 5 ([24.2](#242-below-the-floor-line)) |
+| `physical.frames` | idle 2, start 2, loop 5, ej 5, birth 2 |
+| `physical.hand_x` … `hand_angle` | empty: no captive hands |
+| `physical.sq_x`, `sp_x` | `-1`: no squirt, drips or splash until you set them; the log says `[GNX-UG] mod 'my_mod': underground cell 'WITCH PIT' has no sq_x / sp_x - no squirt, drips or splash; set sq_x, sq_y, sp_x, sp_y in physical` |
+| `physical.sp_spr` | `"spr_sp_v_start"`, the vanilla splash of the tentacle cells |
+| `physical.transfer` | `false` ([24.7](#247-effects-transfer-and-the-frog-shrine)) |
+| `sprites.wall`, `sprites.wall_2` | the GNX walls; the cell's swap button switches between them ([8.7](#87-sprites-and-the-wall-key)) |
+| `tent_spr` | the tentacle shows only in the empty cell ([24.4](#244-the-tentacle-tent_spr)) |
+| `human_spr.base_body` | `"big"` |
+| `band_spr` | the GNX floor band |
+| `spawn_info` | `{ "coin": 0, "mood": 2, "coin_mul": false, "mood_mul": false }`, as the vanilla tentacle walls |
+
+**Who can enter.** In `class_map` mode the cell lets in the classes listed in `classes` (any class when there is a `default`), unless it has its own `required_class`. In `fixed` mode set `required_class`; without it every class can enter and the log warns: `[GNX-WARN] mod 'my_mod': underground cell 'WITCH PIT' uses fixed sprites without required_class - every class can enter`.
+
+**The GNX graphics** are PNGs of the GNX installation, in `GNX_assets`: `gnx_ug_wall_1.png`, `gnx_ug_wall_2.png`, `gnx_ug_floor.png`, `gnx_ug_tent_ready.png` and `gnx_ug_band.png`. When one is missing, that part is not drawn, nothing else breaks, and the log says so once, for example `[GNX-UG] spr_gnx_ug_floor is not in the game: put gnx_ug_floor.png into GNX_assets (the installer names each PNG spr_<file name>); the cell floor is not drawn`. A mod can bring its own `wall`, `wall_2` and `band_spr` instead; a mod that gives its own `wall` but no `wall_2` keeps one wall. Layers can use the GNX parts by name, `"spr_gnx_ug_floor"` and `"spr_gnx_ug_tent_ready"`.
+
+> **When** an underground cell is unlocked by a tool button, `unlock_cell` with its name works as for any cell; `unlock_all_cells` unlocks underground cells too.
+
+### 24.2 Below the floor line
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `physical.underground` | Pixels of the cell below the floor line, 1–140. | number | 75 for `ug_breed`, else none |
+| `physical.underground_gap` | Free pixels of ground between the bottom of the pit and the next floor's ceiling, 0–64. | number | 5 for `ug_breed`, else 0 |
+| `band_spr` | Top-level key: the floor tile of floors with an underground cell, drawn instead of the vanilla tile and repeated across the room. | sprite | the GNX band |
+
+- **Floors move.** A floor with an underground cell gets a band `underground + underground_gap − 32` px deeper than vanilla (32 px is the vanilla space between the floor line and the next ceiling): 75 + 5 gives 48 px, so that floor is 188 px tall instead of 140. When such a cell is built the floors below move down, with their cells, props and monsters; when it is removed they move back up. Floors without one keep 140 px. Saves keep the layout.
+- **The band** must be as tall as the floor tile plus the extra band: 28 + 48 = 76 px. The first underground cell with `band_spr` sets it for all such floors. A shorter band leaves a gap and the log says `[GNX-UG] the floor band is <h> px tall, a floor with <n> px extra needs <m> px (band_spr or gnx_ug_band.png); the rest stays uncovered`.
+- **The canvas.** All sprites of the cell share one canvas, and `yorig` is the number of pixels above the floor line: a 161 px canvas with a 75 px pit has `yorig` 86. The GNX walls are 77 × 184 px (109 px above the floor line, up to the ceiling; `yorig` 109).
+- **Drawing.** The cell is drawn as usual, then its part below the floor line again, over the floor band. Use `scr_draw_slot_gnx`: other draw scripts are not drawn below the floor line. A rotated layer (a hand with an angle) is not drawn below the floor line either; the log says so once per sprite.
+- Clicking and the hover highlight use the part above the floor line, as in other cells.
+- The log shows the setup: `[GNX-UG] WITCH PIT: underground=75 gap=5 -> floor band +48 px where built`, and `[GNX-UG] floor bands now: <list>` when the floors move.
+
+### 24.3 The scene
+
+An underground cell has no monsters: the captive and the tentacle play the scene on their own, like a vanilla tentacle wall:
+
+```
+idle → start (start_loops times) → loop, slow then fast → ejaculation → payout and pregnancy roll → birth → rest → idle
+```
+
+Declared intermissions play in between ([§23](#23-intermissions)). Between scenes the captive rests in idle, as in the tentacle cells; a captive still pregnant (Bastet) starts the next birth at once.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `physical.frames.idle`, `.start`, `.loop`, `.ej`, `.birth` | Frames per row of each phase, 1–64. | number | 2, 2, 5, 5, 2 |
+| `physical.speed.idle`, `.start`, `.loop`, `.loop_fast`, `.ej`, `.birth` | Frames per second of each phase, 0.1–60. `loop_fast` is the second part of the loop: stronger (bigger squirt), not quicker. | number | 1, 6, 9, 7, 9, 1 |
+| `physical.start_loops` | How many times the start plays, 1–99 or `[min, max]`. | number or list | 1 |
+| `physical.ej_holds`, `ej_start`, `ej_hold` | As in [22.3](#223-the-ejaculation-ej_holds-ej_start-ej_hold). The ejaculation works as in the tentacle cells: the first hold lasts 0.5–1 s, the middle ones 0.75–1.5 s, the last 2–3 s. | | 5–7 holds, frames 2 and 3 of 5 |
+| `physical.loop_scale` | As in [22.4](#224-loop_scale). | true/false | false |
+| `physical.birth_rounds` | Labour: how many times the captive loops the birth frames, 1–99. | number | 3 |
+| `physical.birth_rest` | Seconds the captive keeps the birth frames after the newborn is out, 0–60; `0` = straight to idle. | number | 2 |
+| `physical.hand_frames.frame_0` | Hand frames during the start, like `frame_1` … `frame_4` ([9.7](#97-hands-hand_x-hand_y-hand_xscale-hand_angle-hand_frames)). | list | none |
+
+**The captive's pictures** come from `human_spr` in `fixed` or `class_map` mode ([§10](#10-cell-sprites-human_spr-and-mon_spr)), one table per phase: `phase_0` start, `phase_1` idle, `phase_2` loop, `phase_3` ejaculation, `phase_4` birth. Without `phase_0` the start uses `phase_1`, and without `phase_3` the ejaculation uses `phase_2`; their frame counts must then match, or those strips must loop ([22.6](#226-looping-captive-strips)). `phase_1`, `phase_2` and `phase_4` are needed. Every strip follows the frame rule with the cell's own counts ([22.5](#225-the-frame-rule-for-every-mod-cell)).
+
+### 24.4 The tentacle (tent_spr)
+
+Layer type 20 draws the tentacle. Its own sprite (GNX: `spr_gnx_ug_tent_ready`) shows in the empty cell; `tent_spr` gives a sprite per phase:
+
+```json
+{ "tent_spr": { "start": "gnx:pit_tent_start", "loop": "gnx:pit_tent_loop", "ej": "gnx:pit_tent_ej" } }
+```
+
+- Keys: `start`, `idle`, `loop`, `ej`, `birth` and the intermission names. `"spr_empty"` hides the tentacle in that phase.
+- A main phase without a key draws the layer's own sprite; an intermission without a key draws no tentacle.
+- Without `tent_spr` at all, the tentacle shows only in the empty cell.
+- Tentacle strips need the frame count of their phase; they never loop.
+
+### 24.5 Milking (milk_spr)
+
+There is no milking phase: while the captive has milk, she is milked alongside whatever the cell plays.
+
+- Every `milk_interval` frames one milk item goes to the storage, with the icon over the cell; after `milk_items` items her milk is used up.
+- She gets milk after giving birth in this cell, from a milk-producing class, or brought along from another cell.
+- Layer type 21 draws `milk_spr` of the current phase while she is milked. The keys are those of `tent_spr`; `"spr_empty"` hides the milk in a phase.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `physical.milk_items` | Milk items per milking, 0–99; `0` turns milking off for the cell. | number | 4 |
+| `physical.milk_interval` | Frames between two items, 1–36 000 (900 = 15 s at speed 1, as MILK 2). | number | 900 |
+| `physical.speed.milk` | Frames per second of milk strips that run on their own clock. | number | 7 |
+| `milk_spr` | Milk overlay per phase. | object | none |
+
+How a milk strip plays:
+
+- A strip with the phase's frame count (or whole rows of it) moves with the captive.
+- A strip marked `"loop": true`, or one whose count does not fit the phase (5 frames in a 2-frame phase), runs on its own clock at `speed.milk`. So one 5-frame milk strip can serve every phase.
+- A phase without its own strip borrows one, so the milk shows whenever it comes. Without any `milk_spr` the items still come in but nothing is drawn: `[GNX-UG] WITCH PIT: no milk_spr - milk items come in, but no milk is drawn`.
+- Keep the type 21 layer GNX writes, `[21, "spr_empty", false, -1]`: a layer whose sprite is `-1` is never drawn.
+
+### 24.6 Birth and the newborn (infant_spr)
+
+`infant_spr` is the newborn, for example an egg: one block of frames without skin blocks. First come the labour frames, spread over each loop of the birth frames; then the frames of the newborn coming out. The child joins the nest on the last frame.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `physical.infant_labour_frames` | Frames of `infant_spr` that belong to the labour, 1–64. | number | as many as `frames.birth` |
+| `physical.infant_speed` | Frames per second of the rest of `infant_spr`, 0.1–60. | number | 8 |
+| `physical.infant_time` | Seconds for the rest of `infant_spr` instead, 0.1–600; wins over `infant_speed`. | number | not set |
+
+- Without `infant_spr` nothing is drawn and the birth ends after 0.5 s.
+- The child's species is the class's `preg_mon_type_override`, otherwise tentacle ([14.1](#141-pregnancy-preg_c_override-and-preg_mon_type_override)); its troop type comes from `birth_class` ([14.2](#142-birth_class-which-troop-the-child-joins)). The child is given exactly once, even when the newborn picture is gone before its last frame.
+
+### 24.7 Effects, transfer and the frog shrine
+
+- **Squirt and splash.** `sq_x`, `sq_y`, `sp_x`, `sp_y` are measured on the strip: x from its left edge, y from the floor line (pixel row − `yorig`, so positive is down, in the pit); `sq_y` and `sp_y` are lists. Once set, the cell plays as the tentacle cells do: slap sound and squirt on frame 2 of the loop, drips, the squirt and ejaculation sound at the start of the ejaculation, and the splash (`sp_spr`) growing during idle after it.
+- **Where drops land.** The drops and drips fall to the pit floor: `physical.fx_floor`, by default `underground` − 4 px below the floor line ([9.8](#98-fluid-effects-sp_spr-sq_-sp_)), and they are drawn over the floor band.
+- **TRANSFER.** The hobgoblins of a TRANSFER cell take no captive out of an underground cell and bring none in. The player can still move captives in and out by hand. `"transfer": true` in `physical` allows it ([9.9](#99-optional-keys)).
+- **Frog shrine.** It works for underground cells: a captive with no pregnancies left, and not pregnant, is swapped for a unit of the same class from the prison that still has pregnancies. In a cell that milks, the swap waits until her milk is used up.
+- **Payout.** `spawn_info` is paid after each ejaculation, as in other cells ([8.6](#86-spawn_info-gold-and-mood)).
 
 ---
 
@@ -3637,7 +4394,7 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 
 - **h_type**: the cell's ID; 0, 16, 26 and 35 are not cells.
 - **In-game name** is the English build-button name; **Registry name** is the `name` GNX stores (seen in some log lines). They differ for several cells.
-- **Build tab**: the cell's `category`, which decides its size: `breed`/`utility`/`pleasure` small, `b_…` big, `t_…` tentacle. No vanilla cell is `xl_breed` (XL was added by GNX 1.4.6).
+- **Build tab**: the cell's `category`, which decides its size: `breed`/`utility`/`pleasure` small, `b_…` big, `t_…` tentacle. No vanilla cell is `xl_breed` (XL was added by GNX 1.4.6) or `ug_breed` (underground, added by GNX 1.4.9).
 - **slot_type**: registry number (0 small, 1 big, 3 tentacle). It does not set the size and does not always match it (see GIANT or the OGRE cells); in a mod cell it only affects the default `base_body` ([10.1](#101-human_spr-the-three-modes)).
 - **Body**: the cell's `human_spr`: `standard` / `big` / `tent` = class sprites on that `base_body`, `fixed` = the cell's own human sprites, `—` = the game's own code draws the cell.
 - **Strip row**: the row the cell uses in a class's body strips ([5.5](#55-how-frames-are-arranged-in-a-strip)).
@@ -3694,7 +4451,7 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 
 ### B.1 How to read the log quickly
 
-1. **Search for `ERROR`.** These lines stop a whole mod or file from loading, so fix them first; they also appear in the message box after loading.
+1. **Search for `ERROR`.** Most of these lines stop a whole mod or file from loading, so fix them first; they also appear in the message box after loading. A line that names a `Cell '<name>'`, `Prop '<folder>.<id>'`, `Class '<name>'` or `Sprite '<key>'` (new in 1.4.9) is about one value: it says what GNX used instead, and the rest loads.
 2. **Check for `[GNX] loading: <name> v<version>`** for your mod: the manifest was found and the version check passed.
 3. **Search for `WARN`.** The mod loads, but a reference, sprite or script is missing; this explains most "invisible part" and "class not allowed" problems.
 4. **Search for `FAIL`.** These are the self-checks after loading (`[GNX-TEST]`); one that names your cell (`h=<N>`) or class ID points to a content problem.
@@ -3717,6 +4474,10 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 | `[GNX-WARN] <key>: folder '<path>' has no .png frames, returning fallback` | The `folder` sprite's folder is empty or missing. | Check the folder path ([5.2](#52-where-gnx-takes-the-image-from)). |
 | `[GNX-WARN] <key>: from_game '<name>' is not a game sprite, returning fallback` | The `from_game` name does not exist. | Fix the sprite name. |
 | `[GNX-WARN] <key>: origin_from '<name>' is not a game sprite - using xorig/yorig` | The `origin_from` sprite does not exist; the sprite loads with `xorig` / `yorig`. | Fix the name or remove `origin_from`. |
+| `[GNX] ERROR: Cell '<name>': the <phase> has <N> frames but <monsters> have no <phase> strips in mon_spr (the vanilla ones have <M>)` | The cell has its own frame counts ([22.5](#225-the-frame-rule-for-every-mod-cell)) and a monster type that can enter has no strips made for them. | Add that monster's `mon_spr` strips with the right count, or limit `mon_types` to the monsters you drew. |
+| `[GNX-FRAMES] <name>: <N> strip(s) do not match the frame counts, see the mod errors` | Summary of the line above for one cell. | Fix each strip the errors name. |
+| `[GNX] ERROR: Cell '<name>': unknown intermission '<key>' (known: idle_start, start_loop, loop_ej, ej_birth); ignored` | A misspelled intermission name ([23](#23-intermissions)). | Use one of the four names. |
+| `[GNX-ATLAS] INVALID: mod=<mod> entry=<name>: frame <N> is on page <P>, which did not load; not used` | An atlas entry points into a page PNG that is missing or failed to load; the class falls back to the vanilla sprite there. | Check that every `atlas_<N>.png` listed in `uv.json` is in the mod ([§20](#20-atlas-packing)). |
 | `[GNX] WARNING: script not found: <name>` | A cell script name (`scr_h`, `scr_idle` …) does not exist. No fallback: the cell can crash the game when used. | Copy the name exactly ([§9](#9-the-physical-block-how-a-cell-behaves)). |
 | `[GNX] class_id <N> override (merge)` | Information: your override was merged into class `<N>`; without `(merge)`, a new class was created at that ID. | Nothing, if intended ([§12](#12-patching-vanilla-cells-and-classes)). |
 | `[GNX] class_id <N> hash collision (probe failed)  - skipped` | No free class ID was found; practically never happens. | Report it with your log. |
@@ -3741,6 +4502,26 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 | `[GNX-TEST] FAIL  T84 bad required_class: h<N>[<i>]` | Entry `<i>` of cell `<N>`'s `required_class` (a single value: `h<N>`) is still unresolved text. | See the `required_class ref ... not found` warning above it. |
 | `[GNX-TEST] FAIL  DROUTE h=<N> FIXED_MISSING_PHASE` | A fixed-mode cell lacks `phase_1` or `phase_2`. | Add both ([§10](#10-cell-sprites-human_spr-and-mon_spr)). |
 | `[GNX-TEST] FAIL  DROUTE h=<N> c=<class> CLASS_MAP_NO_MATCH` | A `class_map` cell has no `default` and does not list this class. | Add a `default` or list the class ([§10](#10-cell-sprites-human_spr-and-mon_spr)). |
+| `[GNX] ERROR: Cell '<name>': <key> must be <range> (<value>); <value> is used` (also `Prop '<folder>.<id>'`, `Class '<name>'`, `Sprite '<key>'`) | A value is out of range, of the wrong kind or misspelled. GNX used the value at the end; the rest loads. | Fix the named key ([19.2](#192-prop-fields), [§22](#22-scene-timing-frame-counts-start-ej-and-loop-strips) to [§24](#24-underground-cells)). |
+| `[GNX] ERROR: Cell '<name>': strip '<key>' (<where>) has <n> frames, it needs <m> per row` | A cell strip is shorter than its phase. | Give it the phase's frame count, or loop it if it is a captive strip ([22.5](#225-the-frame-rule-for-every-mod-cell)). |
+| `[GNX-FRAMES] <cell>: strip '<key>' (<where>) has <n> frames, the phase uses <m> per row; the last <k> are not shown` | Information: a strip has frames left over after its last full row. | Nothing, if the strip is shared on purpose ([22.5](#225-the-frame-rule-for-every-mod-cell)). |
+| `[GNX-FRAMES] <cell>: frames per phase (start, idle, loop, ej, birth) = <counts>` | Information: the counts a cell with `frames` plays. | Nothing ([22.1](#221-physicalframes)). |
+| `[GNX-WARN] cell '<name>' of mod '<folder>': mon_placements has <n> places, max_mon_num is <m>; ...` | The placement list did not match `max_mon_num` and was cut or filled. | Give one placement per monster ([11.1](#111-mon_placements)). |
+| `[GNX-WARN] cell <N> has no spawn_info: no gold or mood at the end of its scenes` | A cell with a scene has no payout. | Add `spawn_info` ([8.6](#86-spawn_info-gold-and-mood)). |
+| `[GNX-WARN] class <id> has no birth_class: newborns are monster class 0` | A mod class gives children without a troop choice. | Add `birth_class` ([14.2](#142-birth_class-which-troop-the-child-joins)). |
+| `[GNX-WARN] class <id> birth_classes: <problem> (entries are monster classes 0-3); now <list>` | `birth_classes` was not four numbers 0–3 and was repaired. | Use `birth_class` ([14.3](#143-birth_classes-old-format)). |
+| `[GNX-WARN] mod '<folder>': sprites.wall_2 works only for mod cells, not vanilla cell h=<N>; ignored` | A patch gave a vanilla cell a second wall. | Remove `wall_2` from the patch ([8.7](#87-sprites-and-the-wall-key)). |
+| `[GNX-UG] spr_<file> is not in the game: put <file>.png into GNX_assets ...` | A GNX graphic of the underground cell is missing; that part is not drawn. | Reinstall GNX with its `GNX_assets` ([24.1](#241-what-gnx-fills-in)). |
+| `[GNX-UG] mod '<folder>': underground cell '<name>' has no sq_x / sp_x - no squirt, drips or splash; ...` | The cell's effects are off. | Set `sq_x`, `sq_y`, `sp_x`, `sp_y` ([24.7](#247-effects-transfer-and-the-frog-shrine)). |
+| `[GNX-UG] <cell>: no milk_spr - milk items come in, but no milk is drawn` | An underground cell milks without a milk overlay. | Add `milk_spr` ([24.5](#245-milking-milk_spr)). |
+| `[GNX-UG] the floor band is <h> px tall, a floor with <n> px extra needs <m> px ...` | The floor band image is too short. | Make `band_spr` taller ([24.2](#242-below-the-floor-line)). |
+| `[GNX-WARN] prop '<folder>.<id>': number <N> is taken by '<other>', it gets <M> ...` | Two prop names give the same number; this one's number depends on the load order. | Refer to the prop by name ([19.5](#195-prop-ids)). |
+| `[GNX] ERROR: prop '<name>' is not a prop of any loaded mod ...` | A tool action or quest reward names a prop that is not loaded; it does nothing. | Check the name `<folder>.<id>` ([19.5](#195-prop-ids)). |
+| `[GNX-WARN] load: prop type <N> ('<name>') is not registered (mod missing?); kept aside with the save, back when its mod is` | A placed prop's mod is not loaded; the prop waits in the save. | Switch the mod back on ([19.12](#1912-props-in-saves)). |
+| `[GNX-PERF] ring glows: <n> baked, ~<KB> KB estimated RGBA, <ms> ms, <n> left out over budget` | Information: the ring glows drawn at loading. | If glows were left out, use fewer sizes ([19.9](#199-glows)). |
+| `[GNX-ATLAS] INVALID: mod=<folder> entry=<name>: <reason>; not used` | An atlas entry cannot be drawn; its strip PNG is used instead. | Re-run the packer ([20.4](#204-how-gnx-uses-the-atlas)). |
+| `[GNX] ERROR: Cell '<name>': scr_slot_h_gnx_places runs the whole scene, so it must be the only entry of scr_h; the other entries are left out` (also `needs max_mon_num 1 or more; the cell gets no monsters`) | Other scene scripts were listed next to the independent places script (they are not run), or the cell has no room for a monster. | Use `"scr_h": ["scr_slot_h_gnx_places"]` and `max_mon_num` 1 or more ([11.5](#115-independent-places)). |
+| `[MON:<id>] CALLED OFF from h_type=<N> place=<n> ...` (VERBOSE) | Information: a monster on its way was called off when the scene ended. | Nothing ([11.4](#114-how-a-scene-runs-with-several-monsters)). |
 
 ### B.3 Common mistakes
 
@@ -3756,7 +4537,7 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 - **Misspelled `category`:** the cell appears in no build menu, with no warning at load time ([§8](#8-cells-cellsjson)).
 - **Missing phases:** fixed-mode cells need `phase_1` and `phase_2`, plus `phase_0` for a big cell starting with `scr_slot_h_big_start` ([§10](#10-cell-sprites-human_spr-and-mon_spr)).
 - **Missing monster sprites:** without `mon_spr` / `mon_spr_hob` / `mon_spr_ogr` for a monster type, vanilla sprites (usually the wall-cell pose) are drawn ([§10](#10-cell-sprites-human_spr-and-mon_spr)).
-- **No offspring:** a mod class without `birth_class` and `birth_classes` produces none ([§14](#14-pregnancy-and-birth)).
+- **No troop choice for offspring:** a mod class without `birth_class` and `birth_classes` gives children of troop type 0 ([§14](#14-pregnancy-and-birth)).
 - **Too short BIRTH 2 strip:** `birth_2` needs 6 frames per skin (18 for a normal class), although the last frame of each block is never shown ([14.4](#144-birth_spr-birth-animations)).
 - **Raid weights too high:** vanilla weights are 12–65 per pool, the default 10; 100–200 puts your class in almost every encounter ([§13](#13-raid-spawns-and-the-trade-shop)).
 - **Stage numbers mixed up:** 1 is Mountain, 2 is Forest ([A.3](#a3-raid-stages)).
@@ -3765,3 +4546,7 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 - **Map mod for players still on GNX 1.4.8:** 1.4.8 reads only the old name `map_button`; with `map_info` alone the map gets no travel entry there ([§21](#21-multi-map-travel)).
 - **Renaming after release:** a renamed folder, class or cell changes hash IDs and breaks saves ([3.4](#34-duplicate-ids)).
 - **`0` instead of `-1`:** in a sprite field `0` is a real game sprite ([1.4](#14-what--1-means)).
+- **A prop that should stand still now animates:** since 1.4.9 multi-frame props loop; add `"speed": 0` ([19.7](#197-animation)).
+- **Prop numbers in tools and quests:** write the prop's name; a number can change when two prop names collide ([19.5](#195-prop-ids)).
+- **Cell strips with the wrong frame count:** every strip needs the frame count of its phase; read the `Cell '<name>': strip '<key>' ...` errors ([22.5](#225-the-frame-rule-for-every-mod-cell)).
+- **Parts of an underground cell missing:** the GNX graphics are not in `GNX_assets`, or the cell's own walls or band are missing ([24.1](#241-what-gnx-fills-in)).

@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-09-02 08:45:16.434590200 +0200
-+++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-15 11:14:44.717786100 +0200
++++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-23 15:20:49.893669800 +0200
 @@ -2,27 +2,31 @@
  {
      switch (slot_data.slot_type)
@@ -38,11 +38,14 @@
              scr_draw_slot_between();
              break;
      }
-@@ -31,31 +35,31 @@
+@@ -30,32 +34,33 @@
+ 
  function scr_draw_slot_h()
  {
-     if (spr_base != -1)
+-    if (spr_base != -1)
 -        draw_sprite(spr_base, slot_data.index, x, y);
++    // GNX-WALL: ! = not: the slot background is skipped when the cell's own wall replaces it
++    if (spr_base != -1 && !gnx_slot_hides_back())
 +        gnx_draw_sprite(spr_base, slot_data.index, x, y);
      
      if (slot_data.anim_struct != -1)
@@ -76,7 +79,7 @@
  }
  
  function scr_draw_highlight(arg0)
-@@ -72,11 +76,11 @@
+@@ -72,11 +77,11 @@
      
      if (unit_data != -1)
      {
@@ -90,7 +93,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -88,77 +92,77 @@
+@@ -88,77 +93,77 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -165,16 +168,16 @@
                      {
                          if (!_replace)
 -                            draw_sprite(_spr, _final_index, x, y);
-+                            gnx_draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
                          
 -                        draw_sprite(_c_spr, _final_index, x, y);
 -                        var _hair_spr = spr_slot[i][UnknownEnum.Value_5];
-+                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, gnx_loop_index(_c_spr, _final_index), x, y);
 +                        var _hair_spr = spr_slot[i][5];
                          
                          if (_hair_spr != -1)
 -                            draw_sprite(_hair_spr, _hair_index, x, y);
-+                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, gnx_loop_index(_hair_spr, _hair_index), x, y);
                      }
                      
                      break;
@@ -189,7 +192,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -166,7 +170,7 @@
+@@ -166,7 +171,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -198,7 +201,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -184,68 +188,68 @@
+@@ -184,68 +189,68 @@
                          
                          if (!_replace)
                          {
@@ -223,11 +226,11 @@
 +                case 6:
                      if (_index != -1 && !_replace)
 -                        draw_sprite(_spr, _final_index, x, y);
-+                        gnx_draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
                      
                      if (_index == 0 && _c_spr != -1)
 -                        draw_sprite(_c_spr, _final_index, x, y);
-+                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, gnx_loop_index(_c_spr, _final_index), x, y);
                      
                      break;
                  
@@ -236,7 +239,7 @@
                      if (_index != -1 && !_replace)
                      {
 -                        draw_sprite(_spr, _final_index, x, y);
-+                        gnx_draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
                          
 -                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                            draw_sprite(_touch, _final_index, x, y);
@@ -250,7 +253,7 @@
                      
                      if (_index == 0 && _c_spr != -1)
 -                        draw_sprite(_c_spr, _final_index, x, y);
-+                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, gnx_loop_index(_c_spr, _final_index), x, y);
                      
                      break;
                  
@@ -261,11 +264,11 @@
                      {
                          if (!_replace)
 -                            draw_sprite(_spr, _final_index, x, y);
-+                            gnx_draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
                          
                          if (_index == 0 && _c_spr != -1)
 -                            draw_sprite(_c_spr, _final_index, x, y);
-+                            gnx_draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, gnx_loop_index(_c_spr, _final_index), x, y);
                      }
                      
                      break;
@@ -274,7 +277,7 @@
 +                case 11:
                      if (_index == 0)
 -                        draw_sprite(_spr, _final_index, x, y);
-+                        gnx_draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
                      
                      break;
                  
@@ -288,7 +291,7 @@
                      }
                      
                      break;
-@@ -254,21 +258,39 @@
+@@ -254,21 +259,93 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -306,6 +309,59 @@
 +        
 +        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[_gnx_spy_idx] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
 +    }
++}
++
++/// GNX-LOOP-STRIP: the frame to draw of sprite arg0 when the cell asks for frame arg1 (row * frame count
++/// + frame of the phase). A strip marked "loop" in its JSON shows its own frames in a loop instead:
++/// on a 2-frame strip phase frames 0-10 become 0, 1, 0, 1 ... Every other sprite gets arg1 unchanged.
++function gnx_loop_index(arg0, arg1)
++{
++    var _n = gnx_loop_frames(arg0);
++    
++    if (_n < 1)
++        return arg1;
++    
++    var _fc = max(1, slot_data.anim_struct.frame_c);
++    var _row = floor(arg1 / _fc);
++    var _i = floor(arg1 - (_row * _fc));
++    // mod = remainder of a division: 5 mod 2 = 1, so the strip starts over
++    return (_row * _n) + (_i mod _n);
++}
++
++/// GNX-WALL: the wall this cell draws behind everything (arg0 = its registry entry): the second wall
++/// (sprites.wall_2) when the cell's swap button chose it (slot_data.gnx_wall_v 1), else the first;
++/// -1 when the cell has no wall of its own.
++function gnx_cell_wall(arg0)
++{
++    if (arg0 == undefined || !variable_struct_exists(arg0, "gnx_spr_wall"))
++        return -1;
++    
++    // && = and: the second wall only when the cell has one and the button picked it
++    if (variable_struct_exists(slot_data, "gnx_wall_v") && slot_data.gnx_wall_v == 1 && variable_struct_exists(arg0, "gnx_spr_wall2") && arg0.gnx_spr_wall2 != -1)
++        return arg0.gnx_spr_wall2;
++    
++    return arg0.gnx_spr_wall;
++}
++
++/// GNX-WALL: true when the current slot holds a cell whose own wall replaces the slot background
++/// (underground cells and cells with two walls), so the vanilla back is not drawn behind the wall.
++function gnx_slot_hides_back()
++{
++    if (!variable_struct_exists(slot_data, "h_type"))
++        return false;
++    
++    var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    return _c != undefined && variable_struct_exists(_c, "gnx_hide_back") && _c.gnx_hide_back;
++}
++
++/// GNX-WALL: true when slot arg0 holds a mod cell with two walls, so its swap button switches walls.
++function gnx_slot_has_wall2(arg0)
++{
++    if (!instance_exists(arg0) || !variable_instance_exists(arg0, "slot_data") || !variable_struct_exists(arg0.slot_data, "h_type"))
++        return false;
++    
++    var _c = ds_map_find_value(global.cell_registry, arg0.slot_data.h_type);
++    return _c != undefined && variable_struct_exists(_c, "gnx_spr_wall2") && _c.gnx_spr_wall2 != -1;
  }
  
  function scr_draw_slot_parts_wall()
@@ -314,8 +370,9 @@
 +    var _gnx_wall_spr = spr_slot_wall;
 +    var _gnx_cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +    
-+    if (_gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_spr_wall") && _gnx_cell.gnx_spr_wall != -1)
-+        _gnx_wall_spr = _gnx_cell.gnx_spr_wall;
++    // GNX-WALL: the first or the second wall of the cell, as the swap button set it
++    if (gnx_cell_wall(_gnx_cell) != -1)
++        _gnx_wall_spr = gnx_cell_wall(_gnx_cell);
 +    
 +    gnx_draw_sprite(_gnx_wall_spr, slot_data.index, x, y);
      var _final_index, _hair_index, _touch, _enter;
@@ -332,7 +389,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -280,77 +302,77 @@
+@@ -280,77 +357,77 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -431,7 +488,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -358,7 +380,7 @@
+@@ -358,7 +435,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -440,7 +497,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -376,68 +398,68 @@
+@@ -376,68 +453,68 @@
                          
                          if (!_replace)
                          {
@@ -530,7 +587,7 @@
                      }
                      
                      break;
-@@ -446,51 +468,59 @@
+@@ -446,51 +523,59 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -600,7 +657,7 @@
                  
                  break;
          }
-@@ -499,65 +529,67 @@
+@@ -499,65 +584,67 @@
          {
              var _touch = slot_data.spr_touch;
              var _blink_index = slot_data.anim_struct.blink_index;
@@ -687,7 +744,7 @@
      
      if (unit_data != -1)
      {
-@@ -568,30 +600,30 @@
+@@ -568,30 +655,30 @@
          switch (slot_data.mod_index[3])
          {
              case -1:
@@ -726,7 +783,7 @@
                  
                  break;
              
-@@ -599,16 +631,16 @@
+@@ -599,16 +686,16 @@
                  break;
          }
          
@@ -748,7 +805,7 @@
          {
              var _mon_spr_head_b = -1;
              var _mon_type = slot_data.mon_placement[0].mon_data.mon_type;
-@@ -617,12 +649,12 @@
+@@ -617,12 +704,12 @@
              {
                  switch (_mon_type)
                  {
@@ -763,7 +820,7 @@
                          _mon_spr_head_b = spr_h_hobgoblin_body_start_alpha_giant;
                          var _mon_spr_head_l = spr_h_hobgoblin_body_start_line_giant;
                          break;
-@@ -634,14 +666,14 @@
+@@ -634,14 +721,14 @@
                  
                  switch (_mon_type)
                  {
@@ -785,7 +842,7 @@
                          break;
                  }
                  
-@@ -651,23 +683,23 @@
+@@ -651,23 +738,23 @@
                  {
                      switch (global.val.alpha_type)
                      {
@@ -818,7 +875,7 @@
                              break;
                      }
                  }
-@@ -677,76 +709,82 @@
+@@ -677,76 +764,82 @@
          switch (slot_data.mod_index[4])
          {
              case -1:
@@ -925,7 +982,7 @@
  }
  
  function scr_draw_slot_drink()
-@@ -755,11 +793,11 @@
+@@ -755,11 +848,11 @@
      
      if (unit_data != -1)
      {
@@ -939,7 +996,7 @@
          var _handc_pos = -1;
          _touch = slot_data.spr_touch;
      }
-@@ -769,62 +807,62 @@
+@@ -769,62 +862,62 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -1019,7 +1076,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -832,7 +870,7 @@
+@@ -832,7 +925,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -1028,7 +1085,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -850,51 +888,61 @@
+@@ -850,51 +943,61 @@
                          
                          if (!_replace)
                          {
@@ -1102,7 +1159,7 @@
                      }
                      else
                      {
-@@ -934,18 +982,18 @@
+@@ -934,18 +1037,18 @@
                          
                          var _c_w = 45;
                          var _c_scale = -1;
@@ -1128,7 +1185,7 @@
                          }
                      }
                      
-@@ -962,77 +1010,77 @@
+@@ -962,77 +1065,77 @@
      
      if (slot_data.visual && unit_data != -1)
      {
@@ -1227,7 +1284,7 @@
                      }
                      
                      break;
-@@ -1040,7 +1088,7 @@
+@@ -1040,7 +1143,7 @@
          }
      }
      
@@ -1236,7 +1293,7 @@
  }
  
  function scr_draw_slot_patrol()
-@@ -1050,77 +1098,77 @@
+@@ -1050,77 +1153,77 @@
      
      if (slot_data.visual && unit_data != -1)
      {
@@ -1334,7 +1391,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -1138,8 +1186,8 @@
+@@ -1138,8 +1241,8 @@
                          
                          if (!_replace)
                          {
@@ -1345,7 +1402,7 @@
                          }
                      }
                      
-@@ -1148,7 +1196,7 @@
+@@ -1148,7 +1251,7 @@
          }
      }
      
@@ -1354,7 +1411,7 @@
  }
  
  function scr_draw_slot_tent()
-@@ -1157,97 +1205,97 @@
+@@ -1157,97 +1260,97 @@
      
      if (unit_data != -1)
      {
@@ -1477,7 +1534,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -1255,8 +1303,19 @@
+@@ -1255,8 +1358,19 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -1499,7 +1556,7 @@
                          
                          if (_hand_frame != -1)
                          {
-@@ -1273,52 +1332,52 @@
+@@ -1273,52 +1387,52 @@
                          
                          if (!_replace)
                          {
@@ -1568,7 +1625,7 @@
                      
                      break;
              }
-@@ -1326,19 +1385,19 @@
+@@ -1326,19 +1440,19 @@
      }
      
      if (slot_data.anim_struct.sp_state != -1)
@@ -1593,7 +1650,7 @@
      }
  }
  
-@@ -1351,29 +1410,29 @@
+@@ -1351,29 +1465,29 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -1629,7 +1686,7 @@
              _touch = slot_data.spr_touch;
          
          if (slot_data.mon_placement[1] != -1)
-@@ -1383,7 +1442,7 @@
+@@ -1383,7 +1497,7 @@
              var _mon_body_b = spr_h_goblin_gb_1_loop_alpha;
              var _mon_body_l = spr_h_goblin_gb_1_loop_line;
              
@@ -1638,7 +1695,7 @@
              {
                  _breast_spr = spr_h_gb_1_big_loop_breast_v3_d2;
                  _mon_body_b = spr_h_goblin_gb_1_v3_loop_alpha;
-@@ -1392,35 +1451,70 @@
+@@ -1392,35 +1506,70 @@
              
              switch (unit_data.class)
              {
@@ -1719,7 +1776,7 @@
          }
      }
      
-@@ -1429,66 +1523,66 @@
+@@ -1429,66 +1578,66 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -1806,7 +1863,7 @@
                      }
                      
                      break;
-@@ -1503,11 +1597,11 @@
+@@ -1503,11 +1652,11 @@
      
      if (unit_data != -1)
      {
@@ -1820,7 +1877,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1519,77 +1613,77 @@
+@@ -1519,77 +1668,77 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -1919,7 +1976,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -1597,7 +1691,7 @@
+@@ -1597,7 +1746,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -1928,7 +1985,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -1615,74 +1709,74 @@
+@@ -1615,74 +1764,74 @@
                          
                          if (!_replace)
                          {
@@ -2024,7 +2081,7 @@
                      }
                      
                      break;
-@@ -1698,11 +1792,11 @@
+@@ -1698,11 +1847,11 @@
              
              switch (slot_data.anim_struct.char_state)
              {
@@ -2039,7 +2096,7 @@
                      var _sp_index = 0;
                      
                      if (floor(slot_data.anim_struct.index) == 2)
-@@ -1710,7 +1804,7 @@
+@@ -1710,7 +1859,7 @@
                      else
                          _sp_index = 0;
                      
@@ -2048,7 +2105,7 @@
                      break;
              }
          }
-@@ -1719,15 +1813,16 @@
+@@ -1719,15 +1868,16 @@
  
  function scr_draw_slot_l_shrine()
  {
@@ -2067,7 +2124,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1739,54 +1834,78 @@
+@@ -1739,54 +1889,78 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2160,7 +2217,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          var _handc_pos = 0;
                          
-@@ -1805,74 +1924,88 @@
+@@ -1805,74 +1979,88 @@
                          
                          if (!_replace)
                          {
@@ -2274,7 +2331,7 @@
                      }
                      
                      break;
-@@ -1883,12 +2016,12 @@
+@@ -1883,12 +2071,12 @@
      if (slot_data.anim_struct.sp_state != -1)
      {
          if (slot_data.mon_placement[0] != -1 && slot_data.h_step == 0)
@@ -2290,7 +2347,7 @@
  }
  
  function scr_draw_ogre_behind()
-@@ -1896,28 +2029,28 @@
+@@ -1896,28 +2084,28 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -2325,7 +2382,7 @@
                  
                  break;
          }
-@@ -1931,7 +2064,7 @@
+@@ -1931,7 +2119,7 @@
          
          for (var i = 0; i < array_length(h_unit_list); i++)
          {
@@ -2334,7 +2391,7 @@
                  _unit = h_unit_list[i];
          }
          
-@@ -1943,22 +2076,22 @@
+@@ -1943,22 +2131,22 @@
              _final_index = _row_index + slot_data.anim_struct.index;
              
              if (_spr != -1)
@@ -2361,7 +2418,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1970,71 +2103,71 @@
+@@ -1970,71 +2158,71 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2452,7 +2509,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2042,7 +2175,7 @@
+@@ -2042,7 +2230,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -2461,7 +2518,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2060,60 +2193,60 @@
+@@ -2060,60 +2248,60 @@
                          
                          if (!_replace)
                          {
@@ -2541,7 +2598,7 @@
                      
                      break;
              }
-@@ -2121,7 +2254,7 @@
+@@ -2121,7 +2309,7 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -2550,7 +2607,7 @@
  }
  
  function scr_draw_ogre_front()
-@@ -2129,28 +2262,28 @@
+@@ -2129,28 +2317,28 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -2585,7 +2642,7 @@
                  
                  break;
          }
-@@ -2160,11 +2293,11 @@
+@@ -2160,11 +2348,11 @@
      
      if (unit_data != -1)
      {
@@ -2599,7 +2656,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -2176,71 +2309,71 @@
+@@ -2176,71 +2364,71 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2690,7 +2747,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2248,7 +2381,7 @@
+@@ -2248,7 +2436,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -2699,7 +2756,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2266,60 +2399,60 @@
+@@ -2266,60 +2454,60 @@
                          
                          if (!_replace)
                          {
@@ -2779,7 +2836,7 @@
                      
                      break;
              }
-@@ -2327,7 +2460,7 @@
+@@ -2327,7 +2515,7 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -2788,7 +2845,7 @@
  }
  
  function scr_draw_slot_gb_3()
-@@ -2340,7 +2473,7 @@
+@@ -2340,7 +2528,7 @@
          var _final_index = _row_index + slot_data.anim_struct.index;
          
          if (_spr != -1)
@@ -2797,7 +2854,7 @@
      }
      
      scr_draw_slot_parts();
-@@ -2349,14 +2482,14 @@
+@@ -2349,14 +2537,14 @@
  function scr_draw_slot_clone()
  {
      if (spr_base != -1)
@@ -2815,7 +2872,7 @@
          
          var _index = slot_data.mod_index[1];
          
-@@ -2364,12 +2497,12 @@
+@@ -2364,12 +2552,12 @@
          {
              var _mod_sign = _index;
              var _scale_sign = ((_mod_sign * 2) - 1) * -1;
@@ -2830,7 +2887,7 @@
  }
  
  function scr_draw_slot_chain()
-@@ -2378,18 +2511,26 @@
+@@ -2378,18 +2566,26 @@
      
      if (unit_data != -1)
      {
@@ -2860,7 +2917,7 @@
      }
      
      var _num = array_length(spr_slot);
-@@ -2397,67 +2538,67 @@
+@@ -2397,67 +2593,67 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2947,7 +3004,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2465,7 +2606,7 @@
+@@ -2465,7 +2661,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -2956,7 +3013,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2483,74 +2624,74 @@
+@@ -2483,74 +2679,74 @@
                          
                          if (!_replace)
                          {
@@ -3052,7 +3109,7 @@
                      }
                      
                      break;
-@@ -2566,11 +2707,11 @@
+@@ -2566,11 +2762,11 @@
              
              switch (slot_data.anim_struct.char_state)
              {
@@ -3067,7 +3124,7 @@
                      var _sp_y = 0;
                      var _sp_x = 0;
                      
-@@ -2590,20 +2731,23 @@
+@@ -2590,20 +2786,23 @@
                              break;
                      }
                      
@@ -3094,7 +3151,7 @@
          }
      }
      
-@@ -2613,24 +2757,225 @@
+@@ -2613,24 +2812,402 @@
      {
          var _mod_sign = _index;
          var _scale_sign = ((_mod_sign * 2) - 1) * -1;
@@ -3123,8 +3180,9 @@
 +    var _gnx_wall_spr = -1;
 +    var _gnx_cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +    
-+    if (_gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_spr_wall") && _gnx_cell.gnx_spr_wall != -1)
-+        _gnx_wall_spr = _gnx_cell.gnx_spr_wall;
++    // GNX-WALL: the first or the second wall of the cell, as the swap button set it
++    if (gnx_cell_wall(_gnx_cell) != -1)
++        _gnx_wall_spr = gnx_cell_wall(_gnx_cell);
 +    
 +    if (_gnx_wall_spr != -1)
 +        gnx_draw_sprite(_gnx_wall_spr, slot_data.index, x, y);
@@ -3218,15 +3276,15 @@
 +                    if (_index != -1)
 +                    {
 +                        if (!_replace && _spr != -1)
-+                            gnx_draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
 +                        
 +                        if (_c_spr != -1)
-+                            gnx_draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, gnx_loop_index(_c_spr, _final_index), x, y);
 +                        
 +                        var _hair_spr = spr_slot[i][5];
 +                        
 +                        if (_hair_spr != -1)
-+                            gnx_draw_sprite(_hair_spr, _hair_index, x, y);
++                            gnx_draw_sprite(_hair_spr, gnx_loop_index(_hair_spr, _hair_index), x, y);
 +                    }
 +                    
 +                    break;
@@ -3279,17 +3337,17 @@
 +                
 +                case 6:
 +                    if (_index != -1 && !_replace && _spr != -1)
-+                        gnx_draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
 +                    
 +                    if (_index == 0 && _c_spr != -1)
-+                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, gnx_loop_index(_c_spr, _final_index), x, y);
 +                    
 +                    break;
 +                
 +                case 8:
 +                    if (_index != -1 && !_replace && _spr != -1)
 +                    {
-+                        gnx_draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
 +                        
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
 +                            gnx_draw_sprite(_touch, _final_index, x, y);
@@ -3299,7 +3357,7 @@
 +                    }
 +                    
 +                    if (_index == 0 && _c_spr != -1)
-+                        gnx_draw_sprite(_c_spr, _final_index, x, y);
++                        gnx_draw_sprite(_c_spr, gnx_loop_index(_c_spr, _final_index), x, y);
 +                    
 +                    break;
 +                
@@ -3307,17 +3365,17 @@
 +                    if (_index != -1 && (_legc_pos != -1 || spr_slot[i][2] == -2))
 +                    {
 +                        if (!_replace && _spr != -1)
-+                            gnx_draw_sprite(_spr, _final_index, x, y);
++                            gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
 +                        
 +                        if (_index == 0 && _c_spr != -1)
-+                            gnx_draw_sprite(_c_spr, _final_index, x, y);
++                            gnx_draw_sprite(_c_spr, gnx_loop_index(_c_spr, _final_index), x, y);
 +                    }
 +                    
 +                    break;
 +                
 +                case 11:
 +                    if (_spr != -1 && _index == 0)
-+                        gnx_draw_sprite(_spr, _final_index, x, y);
++                        gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
 +                    
 +                    break;
 +                
@@ -3329,10 +3387,186 @@
 +                    }
 +                    
 +                    break;
++                
++                case 21:
++                    // GNX-UG: milking overlay, drawn only while the captive has milk and the cell milks
++                    // (milk_items > 0); sprite of the current phase from milk_spr, else this layer's own sprite.
++                    // Frame = row * frames_of_phase + current frame, so it moves in step with the captive.
++                    if (unit_data != -1 && unit_data.milk && _index != -1 && _gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_milk_spr") && variable_struct_exists(_gnx_cell.physical, "gnx_milk_items") && _gnx_cell.physical.gnx_milk_items > 0)
++                    {
++                        var _mph = slot_data.anim_struct.spr_type;
++                        // && = and: a phase 0-4 that has a milk strip (its own or borrowed at registration)
++                        var _mown = _mph >= 0 && _mph < array_length(_gnx_cell.gnx_milk_spr) && _gnx_cell.gnx_milk_spr[_mph] != -1;
++                        var _mspr = _mown ? _gnx_cell.gnx_milk_spr[_mph] : _spr;
++                        
++                        if (_mspr != -1)
++                        {
++                            var _mrow = slot_data.h_type - slot_data.spr_row_pos - 1;
++                            var _mframe = (_mrow * slot_data.anim_struct.frame_c) + floor(slot_data.anim_struct.index);
++                            
++                            // GNX-UG: a strip on the milk's own clock loops its gnx_milk_n frames per row at
++                            // speed.milk (mod = remainder, so frame 7 of a 5-frame strip is frame 2)
++                            if (_mown && variable_struct_exists(_gnx_cell, "gnx_milk_clock") && _gnx_cell.gnx_milk_clock[_mph])
++                            {
++                                var _mn = max(1, _gnx_cell.gnx_milk_n[_mph]);
++                                var _mt = variable_struct_exists(slot_data, "gnx_ug_milk_f") ? floor(slot_data.gnx_ug_milk_f) : 0;
++                                _mframe = (_mrow * _mn) + (_mt mod _mn);
++                            }
++                            
++                            gnx_draw_sprite(_mspr, _mframe, x, y);
++                        }
++                    }
++                    
++                    break;
++                
++                case 20:
++                    // GNX-UG: tentacle layer. Phase sprite from tent_spr, else this layer's own sprite.
++                    // Frame = row * frames_of_phase + current frame, like the captive's body parts.
++                    var _tspr = _spr;
++                    
++                    if (unit_data != -1 && _gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_tent"))
++                    {
++                        // GNX-UG: phases 0-6 (6 = the ej -> birth intermission)
++                        var _tph = clamp(slot_data.anim_struct.spr_type, 0, array_length(_gnx_cell.gnx_tent) - 1);
++                        
++                        if (_gnx_cell.gnx_tent[_tph] != -1)
++                            _tspr = _gnx_cell.gnx_tent[_tph];
++                    }
++                    
++                    if (_tspr != -1 && _index != -1)
++                    {
++                        if (unit_data != -1)
++                        {
++                            var _trow = slot_data.h_type - slot_data.spr_row_pos - 1;
++                            gnx_draw_sprite(_tspr, (_trow * slot_data.anim_struct.frame_c) + floor(slot_data.anim_struct.index), x, y);
++                        }
++                        else
++                        {
++                            gnx_draw_sprite(_tspr, 0, x, y);
++                        }
++                    }
++                    
++                    break;
 +            }
 +        }
 +    }
 +    
 +    if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
 +        gnx_draw_sprite(sp_spr, slot_data.anim_struct.sp_index, x + slot_data.sp_x + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_x), y + slot_data.sp_y[max(0, slot_data.anal)] + (floor(slot_data.anim_struct.index) * slot_data.sp_anim_y));
++}
++
++/// GNX-UG: draws the band floor (arg1) in place of the vanilla floor tile on a floor with an underground
++/// cell (arg0 = y of the floor tile, 174 + floor top). Tiled across the visible part of the room, one row:
++/// the sprite itself is as tall as the floor tile plus the extra band.
++function gnx_ug_draw_floor_band(arg0, arg1, arg2 = 0)
++{
++    var _spr = arg1;
++    var _w = gnx_sprite_get_width(_spr);
++    
++    // <= 0 : a broken sprite would make the loop below endless
++    if (_w <= 0)
++        exit;
++    
++    // GNX-FIX: the band has to reach the next floor's ceiling: 28 px of floor plus the extra band (arg2;
++    // the GNX band is 76 px for the default 48). A shorter one leaves a gap under it; the log says so
++    // once for each extra height, since a mod can give cells of other depths than the band was made for.
++    if (arg2 > 0 && gnx_sprite_get_height(_spr) < (28 + arg2))
++    {
++        if (!variable_global_exists("gnx_ug_band_warned") || !is_struct(global.gnx_ug_band_warned))
++            global.gnx_ug_band_warned = {};
++        
++        if (!variable_struct_exists(global.gnx_ug_band_warned, string(arg2)))
++        {
++            variable_struct_set(global.gnx_ug_band_warned, string(arg2), true);
++            var _bl = gnx_log_open();
++            gnx_log_write(_bl, "[GNX-UG] the floor band is " + string(gnx_sprite_get_height(_spr)) + " px tall, a floor with " + string(arg2) + " px extra needs " + string(28 + arg2) + " px (band_spr or gnx_ug_band.png); the rest stays uncovered\n");
++            gnx_log_close(_bl);
++        }
++    }
++    
++    var _vx = camera_get_view_x(view_camera[0]);
++    var _vy = camera_get_view_y(view_camera[0]);
++    var _vw = camera_get_view_width(view_camera[0]);
++    var _vh = camera_get_view_height(view_camera[0]);
++    
++    // floor far above or below the view: nothing to draw (150 px covers the sprite height)
++    if ((arg0 + 150) < _vy || arg0 > (_vy + _vh))
++        exit;
++    
++    // first tile column that touches the view (div = whole-number division)
++    var _x0 = max(0, (floor(_vx) div _w) * _w);
++    
++    for (var _xx = _x0; _xx < (_vx + _vw) && _xx < room_width; _xx += _w)
++        gnx_draw_sprite(_spr, 0, _xx, arg0);
++}
++
++/// GNX-UG: draws every underground cell on screen again, clipped to the rows from the floor tile down,
++/// so its part below the floor line covers the floor band. The newborn of the cell is drawn the same way.
++/// Called from obj_fg after the floor tiles; only cells drawn by scr_draw_slot_gnx are handled.
++function gnx_ug_draw_below_floor()
++{
++    var _vy = camera_get_view_y(view_camera[0]);
++    var _vh = camera_get_view_height(view_camera[0]);
++    
++    with (obj_slot)
++    {
++        // && = and (GameMaker stops at the first false part, so h_type is read only where it exists)
++        if (y >= (_vy - 200) && y <= (_vy + _vh + 200) && variable_struct_exists(slot_data, "h_type") && slot_data.h_type != -1)
++        {
++            var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
++            
++            if (_c != undefined && variable_struct_exists(_c.physical, "gnx_ug_depth"))
++            {
++                // one line in gnx_debug.txt the first time an underground part is drawn
++                if (!global.gnx_ug_logged)
++                {
++                    global.gnx_ug_logged = true;
++                    var _ul = gnx_log_open();
++                    gnx_log_write(_ul, "[GNX-UG] drawing below the floor: h=" + string(slot_data.h_type) + " y=" + string(y) + " band=+" + string(gnx_floor_extra(slot_data.slot_floor)) + "\n");
++                    gnx_log_close(_ul);
++                }
++                
++                // y - 1 = top row of the vanilla floor tile (174 + floor * floor height)
++                global.gnx_clip_top = y - 1;
++                scr_draw_slot();
++                var _pn = array_length(slot_data.prop);
++                
++                for (var _p = 0; _p < _pn; _p++)
++                {
++                    var _pid = slot_data.prop[_p].prop_id;
++                    
++                    if (instance_exists(_pid))
++                    {
++                        with (_pid)
++                        {
++                            if (visible && variable_instance_exists(id, "gnx_birth_spr") && gnx_birth_spr != -1)
++                                gnx_draw_sprite_ext(gnx_birth_spr, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++                        }
++                    }
++                }
++
++                global.gnx_clip_top = undefined;
++                // GNX-FX: squirt drops and splash drips inside the cell below the floor line were drawn
++                // under the floor band, so draw them again on top (only those in this cell's pit:
++                // x across the 77 px cell, y from the floor tile down to the cell bottom)
++                var _fx_x0 = x - 4;
++                var _fx_x1 = x + 81;
++                var _fx_y0 = y - 1;
++                var _fx_y1 = y + _c.physical.gnx_ug_depth + 4;
++
++                with (obj_particle_single)
++                {
++                    if (x >= _fx_x0 && x <= _fx_x1 && y >= _fx_y0 && y <= _fx_y1)
++                        draw_sprite_ext(sprite_index, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++                }
++
++                with (obj_empty)
++                {
++                    // obj_empty is used for many things; only the splash drips (spr_sp_drip_*)
++                    if ((sprite_index == spr_sp_drip_1 || sprite_index == spr_sp_drip_2 || sprite_index == spr_sp_drip_1_end || sprite_index == spr_sp_drip_2_end) && x >= _fx_x0 && x <= _fx_x1 && y >= _fx_y0 && y <= _fx_y1)
++                        draw_sprite_ext(sprite_index, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++                }
++            }
++        }
++    }
  }

@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_slot_data.gml	2026-09-02 08:45:16.402592000 +0200
-+++ gml/gml_GlobalScript_s_slot_data.gml	2026-10-14 08:44:22.222966500 +0200
++++ gml/gml_GlobalScript_s_slot_data.gml	2026-10-26 08:07:39.057289200 +0100
 @@ -1,7 +1,7 @@
  function scr_set_slot_h_data(arg0, arg1)
  {
@@ -9,7 +9,7 @@
      with (arg0)
      {
          if (arg1 != -1)
-@@ -14,841 +14,1002 @@
+@@ -14,841 +14,1033 @@
              slot_data.spr_touch = -1;
              slot_data.spr_enter = -1;
              scr_slot_base = -1;
@@ -438,14 +438,14 @@
 +                if (variable_struct_exists(_rp, "hand_frames"))
 +                {
 +                    var _hf = _rp.hand_frames;
-                     
--                    for (var i = 0; i < _num; i++)
++                    
 +                    if (variable_struct_exists(_hf, "frame_1"))
 +                        slot_data.hand_frame[1] = _hf.frame_1;
 +                    
 +                    if (variable_struct_exists(_hf, "frame_2"))
 +                        slot_data.hand_frame[2] = _hf.frame_2;
-+                    
+                     
+-                    for (var i = 0; i < _num; i++)
 +                    if (variable_struct_exists(_hf, "frame_3"))
 +                        slot_data.hand_frame[3] = _hf.frame_3;
 +                    
@@ -453,46 +453,25 @@
 +                        slot_data.hand_frame[4] = _hf.frame_4;
 +                }
 +                
-+                sp_spr = _rp.sp_spr;
-+                slot_data.sq_x = _rp.sq_x;
-+                slot_data.sq_y = _rp.sq_y;
-+                slot_data.sp_x = _rp.sp_x;
-+                slot_data.sp_y = _rp.sp_y;
-+                slot_data.sp_anim_x = _rp.sp_anim_x;
-+                slot_data.sp_anim_y = _rp.sp_anim_y;
-+                
-+                if (variable_struct_exists(_rp, "sign_y_base"))
-+                    slot_data.sign_y = _rp.sign_y_base + irandom_range(-_rp.sign_y_jitter, _rp.sign_y_jitter);
-+                
-+                if (variable_struct_exists(_rp, "milk_step"))
-+                    slot_data.milk_step = _rp.milk_step;
-+                
-+                if (variable_struct_exists(_rp, "drink_num"))
-+                    slot_data.drink_num = _rp.drink_num;
-+                
-+                if (variable_struct_exists(_rp, "mon_index"))
-+                    slot_data.mon_index = array_create(array_length(_rp.mon_index), 0);
-+                
-+                if (variable_struct_exists(_rp, "blink_spr"))
-+                    blink_spr = _rp.blink_spr;
-+                
-+                if (variable_struct_exists(_rp, "anim_struct_overrides"))
++                // GNX-UG: cells with physical.frames also use phase 0 (start) and 5 (milk) for hands
++                if (variable_struct_exists(_rp, "gnx_frames"))
 +                {
-+                    var _ao = _rp.anim_struct_overrides;
-+                    var _ao_keys = variable_struct_get_names(_ao);
-+                    var _ao_n = array_length(_ao_keys);
++                    slot_data.hand_frame[0] = -1;
++                    slot_data.hand_frame[5] = -1;
 +                    
-+                    for (var _aoi = 0; _aoi < _ao_n; _aoi++)
++                    if (variable_struct_exists(_rp, "hand_frames"))
                      {
 -                        var _item = ds_list_find_value(global.inv_list, i);
--                        
++                        if (variable_struct_exists(_rp.hand_frames, "frame_0"))
++                            slot_data.hand_frame[0] = _rp.hand_frames.frame_0;
+                         
 -                        if (_item.item_type == UnknownEnum.Value_2)
 -                        {
 -                            ds_list_delete(global.inv_list, i);
 -                            i = _num;
 -                        }
-+                        var _aok = _ao_keys[_aoi];
-+                        variable_struct_set(slot_data.anim_struct, _aok, variable_struct_get(_ao, _aok));
++                        if (variable_struct_exists(_rp.hand_frames, "frame_5"))
++                            slot_data.hand_frame[5] = _rp.hand_frames.frame_5;
                      }
 -                    
 -                    break;
@@ -572,7 +551,52 @@
 -                    slot_data.sign_y = -84 + irandom_range(-2, 2);
 -                    spr_slot = [[UnknownEnum.Value_12, spr_dirt_big, false, -1, false], [UnknownEnum.Value_10, -1, false, -1, false], [UnknownEnum.Value_6, -1, -2, -1, false], [UnknownEnum.Value_8, -1, false, -1, false], [UnknownEnum.Value_0, spr_slot_gb_1_back, false, -1], [UnknownEnum.Value_1, spr_slot_gb_sign, true, -1], [UnknownEnum.Value_4, 0, true, -1]];
 -                    scr_slot = 
--                    {
++                // GNX-INTER: phases 6-9 are the intermissions and the draw reads hand_frame[phase], so every mod
++                // cell gets entries up to 9 (hand_frames.frame_idle_start ... frame_ej_birth, else no hand frames)
++                if (array_length(slot_data.hand_frame) < 6)
++                    slot_data.hand_frame[5] = -1;
++                
++                var _gnx_hfn = gnx_inter_names();
++                
++                for (var _hk = 0; _hk < 4; _hk++)
++                {
++                    slot_data.hand_frame[6 + _hk] = -1;
++                    
++                    if (variable_struct_exists(_rp, "hand_frames") && variable_struct_exists(_rp.hand_frames, "frame_" + _gnx_hfn[_hk]))
++                        slot_data.hand_frame[6 + _hk] = variable_struct_get(_rp.hand_frames, "frame_" + _gnx_hfn[_hk]);
++                }
++                
++                sp_spr = _rp.sp_spr;
++                slot_data.sq_x = _rp.sq_x;
++                slot_data.sq_y = _rp.sq_y;
++                slot_data.sp_x = _rp.sp_x;
++                slot_data.sp_y = _rp.sp_y;
++                slot_data.sp_anim_x = _rp.sp_anim_x;
++                slot_data.sp_anim_y = _rp.sp_anim_y;
++                
++                if (variable_struct_exists(_rp, "sign_y_base"))
++                    slot_data.sign_y = _rp.sign_y_base + irandom_range(-_rp.sign_y_jitter, _rp.sign_y_jitter);
++                
++                if (variable_struct_exists(_rp, "milk_step"))
++                    slot_data.milk_step = _rp.milk_step;
++                
++                if (variable_struct_exists(_rp, "drink_num"))
++                    slot_data.drink_num = _rp.drink_num;
++                
++                if (variable_struct_exists(_rp, "mon_index"))
++                    slot_data.mon_index = array_create(array_length(_rp.mon_index), 0);
++                
++                if (variable_struct_exists(_rp, "blink_spr"))
++                    blink_spr = _rp.blink_spr;
++                
++                if (variable_struct_exists(_rp, "anim_struct_overrides"))
++                {
++                    var _ao = _rp.anim_struct_overrides;
++                    var _ao_keys = variable_struct_get_names(_ao);
++                    var _ao_n = array_length(_ao_keys);
++                    
++                    for (var _aoi = 0; _aoi < _ao_n; _aoi++)
+                     {
 -                        idle: scr_slot_h_state_idle,
 -                        h: [scr_slot_h_gb_1_sloop, scr_slot_h_gb_1_floop, scr_slot_h_gb_1_ej]
 -                    };
@@ -594,6 +618,11 @@
 -                    slot_data.spr_row_pos = UnknownEnum.Value_16;
 -                    slot_data.slot_dirt = 0;
 -                    slot_data.sign_y = -84 + irandom_range(-2, 2);
++                        var _aok = _ao_keys[_aoi];
++                        variable_struct_set(slot_data.anim_struct, _aok, variable_struct_get(_ao, _aok));
++                    }
++                }
++                
 +                if (variable_struct_exists(_rp, "visual"))
 +                    slot_data.visual = _rp.visual;
 +                
@@ -1826,7 +1855,7 @@
              }
              
              for (var i = 0; i < slot_data.max_mon_num; i++)
-@@ -864,7 +1025,7 @@
+@@ -864,7 +1056,7 @@
              
              for (var i = 0; i < _num; i++)
              {
@@ -1835,7 +1864,7 @@
                      slot_data.mod_index[i] = -1;
                  else
                      slot_data.mod_index[i] = 0;
-@@ -873,7 +1034,7 @@
+@@ -873,7 +1065,7 @@
              if (_wall != -1)
              {
                  spr_base = _wall;
@@ -1844,7 +1873,7 @@
                  slot_data.index = irandom_range(0, _num);
                  image_yscale = -74;
              }
-@@ -886,19 +1047,29 @@
+@@ -886,19 +1078,29 @@
              
              switch (slot_data.slot_type)
              {
@@ -1877,7 +1906,7 @@
      }
  }
  
-@@ -926,196 +1097,237 @@
+@@ -926,196 +1128,260 @@
      var _mon_type = arg0.mon_type;
      var _unit_class = arg0.class;
      var _unit_lvl = arg0.lvl;
@@ -1898,20 +1927,43 @@
 +        var _gnx_rc = ds_map_find_value(global.class_registry, _unit_class);
 +        var _has_bc = false;
 +        
-+        if (variable_struct_exists(_gnx_rc, "birth_class") && is_array(_gnx_rc.birth_class))
++        // GNX-FIX: _mon_type < array_length(...) = only read entries the list really has
++        if (variable_struct_exists(_gnx_rc, "birth_class") && is_array(_gnx_rc.birth_class) && _mon_type < array_length(_gnx_rc.birth_class))
 +        {
 +            _mon_class = _gnx_rc.birth_class[_mon_type];
 +            _has_bc = true;
 +        }
-+        else if (variable_struct_exists(_gnx_rc, "birth_classes") && is_array(_gnx_rc.birth_classes))
++        else if (variable_struct_exists(_gnx_rc, "birth_classes") && is_array(_gnx_rc.birth_classes) && _mon_type < array_length(_gnx_rc.birth_classes))
 +        {
 +            _mon_class = _gnx_rc.birth_classes[_mon_type];
 +            _has_bc = true;
 +        }
 +        
++        // GNX-FIX: a mod class without birth_class / birth_classes used to give nothing at birth
++        // (no monster, no exp). Now the newborn is monster class 0, and the log says so once per class.
++        if (!_has_bc)
++        {
++            _mon_class = 0;
++            _has_bc = true;
++            
++            if (!variable_global_exists("gnx_birth_warned"))
++                global.gnx_birth_warned = {};
++            
++            if (!variable_struct_exists(global.gnx_birth_warned, string(_unit_class)))
++            {
++                variable_struct_set(global.gnx_birth_warned, string(_unit_class), true);
++                var _bwl = gnx_log_open();
++                gnx_log_write(_bwl, "[GNX-WARN] class " + string(_unit_class) + " has no birth_class: newborns are monster class 0\n");
++                gnx_log_close(_bwl);
++            }
++        }
++        
++        // the monster class indexes gnx_br_unlock[type][0-3]: a number outside 0-3 would stop the game
++        _mon_class = clamp(floor(gnx_json_num(_mon_class, 0)), 0, 3);
++        
 +        if (_has_bc)
 +        {
-+            var _gnx_list = global.gnx_br_unlock[_mon_type][_mon_class];
++            var _gnx_list = global.val.gnx_br_unlock[_mon_type][_mon_class];
 +            
 +            if (!array_contains(_gnx_list, _unit_class))
 +                array_push(_gnx_list, _unit_class);
@@ -2188,7 +2240,7 @@
                      scr_mon_br_check(_mon_type, _mon_class, _unit_class, 1);
                      break;
              }
-@@ -1127,7 +1339,7 @@
+@@ -1127,7 +1393,7 @@
      scr_mon_exp_edit(_mon_type, _mon_class, _unit_lvl, 3, false);
      scr_mon_num_edit(_mon_type, _mon_class, 1, true);
      global.val.nest_num[0]++;
@@ -2197,7 +2249,7 @@
  }
  
  function scr_mon_br_check(arg0, arg1, arg2, arg3)
-@@ -1135,49 +1347,3 @@
+@@ -1135,49 +1401,3 @@
      if (global.val.br_unlock[arg0][arg1][arg3] == -1)
          global.val.br_unlock[arg0][arg1][arg3] = arg2;
  }

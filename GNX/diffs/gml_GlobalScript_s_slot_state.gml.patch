@@ -1,15 +1,19 @@
 --- gml_138/gml_GlobalScript_s_slot_state.gml	2026-09-02 08:45:16.527590000 +0200
-+++ gml/gml_GlobalScript_s_slot_state.gml	2026-10-15 10:26:14.561711100 +0200
-@@ -3,7 +3,7 @@
++++ gml/gml_GlobalScript_s_slot_state.gml	2026-10-26 08:07:39.140759600 +0100
+@@ -3,9 +3,10 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
 -        scr_set_slot_spr_part(UnknownEnum.Value_1);
 +        scr_set_slot_spr_part(1);
          slot_data.anim_struct.index = 0;
-         slot_data.anim_struct.frame_c = 2;
+-        slot_data.anim_struct.frame_c = 2;
++        // GNX-FRAMES: the cell's own idle count (physical.frames.idle), vanilla 2
++        slot_data.anim_struct.frame_c = gnx_cell_frames(1, 2);
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -16,7 +16,7 @@
+         slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
+     }
+@@ -16,7 +17,7 @@
      
      switch (slot_data.anim_struct.sp_state)
      {
@@ -18,7 +22,7 @@
              slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
              
              if (slot_data.anim_struct.sp_index >= 3)
-@@ -25,14 +25,14 @@
+@@ -25,14 +26,14 @@
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
                  {
@@ -35,7 +39,7 @@
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
              if (slot_data.anim_struct.sp_timer <= 0)
-@@ -43,14 +43,14 @@
+@@ -43,14 +44,14 @@
                  if (slot_data.anim_struct.sp_index >= 6)
                  {
                      slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -52,7 +56,15 @@
              slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
-@@ -79,7 +79,7 @@
+@@ -73,13 +74,14 @@
+         slot_data.anim_struct.ff = false;
+         slot_data.anim_struct.index = 0;
+         slot_data.anim_struct.anim_spd *= 2;
+-        slot_data.h_loop = choose(2, 3, 4);
++        // GNX-START: physical.start_loops sets how many times the start plays; vanilla 3-5 (h_loop 2-4 + 1)
++        slot_data.h_loop = gnx_start_loops(choose(2, 3, 4));
+         var _num = array_length(h_unit_list);
+         
          for (var i = 0; i < _num; i++)
          {
              with (h_unit_list[i])
@@ -61,8 +73,13 @@
          }
      }
      
-@@ -111,13 +111,13 @@
-         slot_data.anim_struct.frame_c = 5;
+@@ -108,19 +110,21 @@
+     {
+         slot_data.anim_struct.ff = false;
+         slot_data.anim_struct.index = 0;
+-        slot_data.anim_struct.frame_c = 5;
++        // GNX-FRAMES: the cell's own loop count (physical.frames.loop), vanilla 5
++        slot_data.anim_struct.frame_c = gnx_cell_frames(2, 5);
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
 -        scr_set_slot_spr_part(UnknownEnum.Value_2);
@@ -76,8 +93,22 @@
 +                scr_set_mon_spr_data(mon_data.slot_id, 2);
          }
          
-         slot_data.mon_timer[0] = irandom_range(360, 420);
-@@ -155,6 +155,8 @@
+-        slot_data.mon_timer[0] = irandom_range(360, 420);
++        // GNX-LOOP: 6-7 s, longer in proportion to the loop frames when the cell has "loop_scale": true
++        slot_data.mon_timer[0] = gnx_loop_time(irandom_range(360, 420));
+         spawn_part[0] = true;
+         spawn_stream = true;
+         
+@@ -139,7 +143,7 @@
+     if (floor(_old_index) != floor(slot_data.anim_struct.index))
+     {
+         scr_play_slap_sfx(2);
+-        scr_create_sq_effect(2, 0.3, 35, slot_data.slot_floor, 0);
++        scr_create_sq_effect(gnx_key_frame(2, 5), 0.3, 35, slot_data.slot_floor, 0);
+     }
+     
+     scr_animation_end(true, slot_data.anim_struct.frame_c);
+@@ -155,6 +159,8 @@
          slot_data.h_step++;
          slot_data.anim_struct.ff = true;
      }
@@ -86,16 +117,40 @@
  }
  
  function scr_slot_h_base_floop()
-@@ -164,7 +166,7 @@
+@@ -164,8 +170,9 @@
          slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
 -        scr_set_slot_spr_part(UnknownEnum.Value_2);
+-        slot_data.mon_timer[0] = irandom_range(360, 420);
 +        scr_set_slot_spr_part(2);
-         slot_data.mon_timer[0] = irandom_range(360, 420);
++        // GNX-LOOP: 6-7 s, longer in proportion to the loop frames when the cell has "loop_scale": true
++        slot_data.mon_timer[0] = gnx_loop_time(irandom_range(360, 420));
          unit_data.tired_c = 980;
      }
-@@ -192,6 +194,8 @@
+     
+@@ -175,10 +182,11 @@
+     if (floor(_old_index) != floor(slot_data.anim_struct.index))
+     {
+         scr_play_slap_sfx(2);
+-        scr_create_sq_effect(2, 0.5, 60, slot_data.slot_floor, 0);
++        scr_create_sq_effect(gnx_key_frame(2, 5), 0.5, 60, slot_data.slot_floor, 0);
+     }
+     
+-    scr_animation_end(true, 4);
++    // GNX-FRAMES: vanilla loops frames 0-3 of 5; own frames keep the same share (max 1 = at least one frame)
++    scr_animation_end(true, max(1, gnx_key_frame(4, 5)));
+     scr_mon_frame(slot_data.anim_struct.index);
+     
+     if (animation_end && irandom_range(0, 100) < 15)
+@@ -186,12 +194,14 @@
+     
+     slot_data.mon_timer[0] -= global.w_spd;
+     
+-    if (slot_data.mon_timer[0] <= 0 && floor(slot_data.anim_struct.index) == 1)
++    if (slot_data.mon_timer[0] <= 0 && floor(slot_data.anim_struct.index) == gnx_key_frame(1, 5))
+     {
+         slot_data.h_step++;
          slot_data.anim_struct.ff = true;
          slot_data.mon_timer[0] = 30;
      }
@@ -104,11 +159,15 @@
  }
  
  function scr_slot_h_base_ej()
-@@ -202,13 +206,13 @@
+@@ -201,32 +211,41 @@
+         slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
-         slot_data.anim_struct.index = 2;
+-        slot_data.anim_struct.index = 2;
 -        scr_set_slot_spr_part(UnknownEnum.Value_3);
++        // GNX-FRAMES: key frames of ej for this cell: [first, held, after the hold, count]; vanilla [2, 3, 4, 5]
++        slot_data.gnx_ej = gnx_ej_keys();
++        slot_data.anim_struct.index = slot_data.gnx_ej[0];
 +        scr_set_slot_spr_part(3);
          var _num = array_length(h_unit_list);
          
@@ -120,7 +179,40 @@
          }
          
          slot_data.mon_timer[0] = irandom_range(30, 60);
-@@ -234,7 +238,7 @@
+-        slot_data.h_loop = irandom_range(5, 7);
++        // GNX-EJ: physical.ej_holds sets the number of holds; vanilla 5-7
++        slot_data.h_loop = gnx_ej_holds(irandom_range(5, 7));
+         scr_create_sq_effect(slot_data.anim_struct.index, 0.7, 100, slot_data.slot_floor, 0);
+         scr_play_ej_sfx();
+     }
+     
++    // GNX-FRAMES: an ej started before this patch (old save) has no key frames yet
++    if (!variable_struct_exists(slot_data, "gnx_ej"))
++        slot_data.gnx_ej = gnx_ej_keys();
++    
++    var _ek = slot_data.gnx_ej;
+     slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
+-    scr_animation_end(false, 5);
++    scr_animation_end(false, _ek[3]);
++    var _ef = floor(slot_data.anim_struct.index);
+     
+-    switch (floor(slot_data.anim_struct.index))
++    // vanilla: frame 0 jumps to 2, frame 3 holds; with own frames the same happens on _ek[0] and _ek[1]
++    if (_ef == 0 && _ek[0] != 0)
++    {
++        slot_data.anim_struct.index = _ek[0];
++    }
++    else if (_ef == _ek[1])
+     {
+-        case 0:
+-            slot_data.anim_struct.index = 2;
+-            break;
+-        
+-        case 3:
+             slot_data.anim_struct.anim_spd = 0;
+             slot_data.mon_timer[0] -= global.w_spd;
+             
+@@ -234,7 +253,7 @@
              {
                  if (--slot_data.h_loop <= 0)
                  {
@@ -129,19 +221,35 @@
                      scr_check_frog_unit_swap(slot_data.h_type);
                  }
                  else
-@@ -252,6 +256,7 @@
-             break;
+@@ -243,15 +262,14 @@
+                         slot_data.mon_timer[0] = irandom_range(120, 180);
+                     else
+                         slot_data.mon_timer[0] = irandom_range(45, 90);
+-                    
+-                    slot_data.anim_struct.index = 4;
++                
++                slot_data.anim_struct.index = _ek[2];
+                     slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
+-                }
+             }
+-            
+-            break;
++        }
      }
      
 +    scr_slot_call_mon(true);
      scr_mon_frame(slot_data.anim_struct.index);
  }
  
-@@ -263,13 +268,13 @@
+@@ -262,27 +280,34 @@
+         slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 6;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
-         slot_data.anim_struct.index = 2;
+-        slot_data.anim_struct.index = 2;
 -        scr_set_slot_spr_part(UnknownEnum.Value_3);
++        // GNX-FRAMES: key frames of ej for this cell; vanilla [2, 3, 4, 5]
++        slot_data.gnx_ej = gnx_ej_keys();
++        slot_data.anim_struct.index = slot_data.gnx_ej[0];
 +        scr_set_slot_spr_part(3);
          var _num = array_length(h_unit_list);
          
@@ -153,7 +261,29 @@
          }
          
          slot_data.mon_timer[0] = irandom_range(30, 60);
-@@ -290,7 +295,7 @@
+-        slot_data.h_loop = irandom_range(5, 7);
++        // GNX-EJ: physical.ej_holds sets the number of holds; vanilla 5-7
++        slot_data.h_loop = gnx_ej_holds(irandom_range(5, 7));
+         scr_play_ej_sfx();
+     }
+     
++    if (!variable_struct_exists(slot_data, "gnx_ej"))
++        slot_data.gnx_ej = gnx_ej_keys();
++    
++    var _ek = slot_data.gnx_ej;
+     slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
+-    scr_animation_end(false, 5);
++    scr_animation_end(false, _ek[3]);
+     
+-    switch (floor(slot_data.anim_struct.index))
++    // vanilla: frame 3 holds, then back to 2; with own frames on _ek[1] and back to _ek[0]
++    if (floor(slot_data.anim_struct.index) == _ek[1])
+     {
+-        case 3:
+             slot_data.anim_struct.anim_spd = 0;
+             slot_data.mon_timer[0] -= global.w_spd;
+             
+@@ -290,7 +315,7 @@
              {
                  if (--slot_data.h_loop <= 0)
                  {
@@ -162,15 +292,27 @@
                      scr_check_frog_unit_swap(slot_data.h_type);
                  }
                  else
-@@ -308,6 +313,7 @@
-             break;
+@@ -299,15 +324,14 @@
+                         slot_data.mon_timer[0] = irandom_range(120, 180);
+                     else
+                         slot_data.mon_timer[0] = irandom_range(45, 90);
+-                    
+-                    slot_data.anim_struct.index = 2;
++                
++                slot_data.anim_struct.index = _ek[0];
+                     slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
+-                }
+             }
+-            
+-            break;
++        }
      }
      
 +    scr_slot_call_mon(true);
      scr_mon_frame(slot_data.anim_struct.index);
  }
  
-@@ -320,7 +326,7 @@
+@@ -320,7 +344,7 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -179,7 +321,7 @@
      }
      
      var _inf = false;
-@@ -328,13 +334,13 @@
+@@ -328,13 +352,13 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -195,7 +337,7 @@
          slot_data.anim_struct.ff = true;
          slot_data.h_step = 0;
      }
-@@ -353,7 +359,7 @@
+@@ -353,7 +377,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 1;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -204,7 +346,7 @@
          slot_data.h_wait = 3;
          var _data = 
          {
-@@ -361,7 +367,7 @@
+@@ -361,7 +385,7 @@
              class: unit_data.class,
              lvl: unit_data.lvl
          };
@@ -213,7 +355,7 @@
      }
      
      slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
-@@ -382,7 +388,7 @@
+@@ -382,7 +406,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -222,7 +364,7 @@
              slot_data.prop[i].prop_id.image_index = _index;
      }
  }
-@@ -393,7 +399,7 @@
+@@ -393,7 +417,7 @@
      
      switch (slot_data.h_type)
      {
@@ -231,7 +373,7 @@
              _auto = false;
              break;
      }
-@@ -405,7 +411,7 @@
+@@ -405,7 +429,7 @@
          slot_data.anim_struct.index = 0;
          unit_data.milk = true;
          
@@ -240,7 +382,7 @@
          {
              unit_data.preg = -1;
              
-@@ -422,7 +428,7 @@
+@@ -422,7 +446,7 @@
          
          for (var i = 0; i < _prop_num; i++)
          {
@@ -249,7 +391,7 @@
              {
                  slot_data.prop[i].prop_id.prop_data.spawn = !_auto;
                  slot_data.prop[i].prop_id.mask_index = slot_data.prop[i].prop_id.sprite_index;
-@@ -437,7 +443,7 @@
+@@ -437,7 +461,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -258,15 +400,19 @@
          {
              with (slot_data.prop[i].prop_id)
              {
-@@ -452,6 +458,7 @@
-                         scr_mon_birth(prop_data.mon_data, slot_id);
+@@ -449,9 +473,10 @@
+                     
+                     if (_auto)
+                     {
+-                        scr_mon_birth(prop_data.mon_data, slot_id);
++                        gnx_mon_birth(prop_data.mon_data, slot_id);
                          array_delete(slot_id.slot_data.prop, i, 1);
                          instance_destroy();
 +                        i = _prop_num;
                      }
                      else
                      {
-@@ -470,23 +477,23 @@
+@@ -470,23 +495,23 @@
              
              for (var i = 0; i < _prop_num; i++)
              {
@@ -294,7 +440,7 @@
              slot_data.anim_struct.ff = true;
              scr_check_frog_unit_swap(slot_data.h_type);
          }
-@@ -498,7 +505,7 @@
+@@ -498,7 +523,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -303,7 +449,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -518,7 +525,7 @@
+@@ -518,7 +543,7 @@
              var _display = false;
              var _mon = ds_list_find_value(_inst_list, i);
              
@@ -312,7 +458,7 @@
              {
                  if (irandom_range(1, 100) >= 50)
                  {
-@@ -532,7 +539,7 @@
+@@ -532,7 +557,7 @@
                      
                      if (_display)
                      {
@@ -321,7 +467,7 @@
                          mon_data.mood_timer = 180;
                      }
                  }
-@@ -555,6 +562,8 @@
+@@ -555,6 +580,8 @@
          slot_data.h_step++;
          slot_data.anim_struct.ff = true;
      }
@@ -330,7 +476,7 @@
  }
  
  function scr_slot_non_h_base_wait()
-@@ -583,7 +592,7 @@
+@@ -583,7 +610,7 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -339,7 +485,7 @@
      }
      
      unit_data.tired_c = scr_tired_timer(unit_data.tired_c, 1, 60);
-@@ -596,6 +605,12 @@
+@@ -596,6 +623,12 @@
  
  function scr_slot_h_milk_loop()
  {
@@ -352,7 +498,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
-@@ -603,7 +618,7 @@
+@@ -603,7 +636,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -361,7 +507,7 @@
          h_unit_list[0].visible = false;
          slot_data.mon_timer[0] = 0;
          slot_data.h_loop = 3;
-@@ -655,7 +670,7 @@
+@@ -655,7 +688,7 @@
              
              if (slot_data.mon_timer[0] >= 5 && slot_data.milk_step != -1)
              {
@@ -370,7 +516,7 @@
                  slot_data.milk_step = -1;
                  scr_play_milk_sfx();
              }
-@@ -701,7 +716,7 @@
+@@ -701,7 +734,7 @@
              
              if (slot_data.mon_timer[0] >= 5 && slot_data.milk_step != -1)
              {
@@ -379,7 +525,7 @@
                  slot_data.milk_step = -1;
                  scr_play_milk_sfx();
              }
-@@ -726,21 +741,21 @@
+@@ -726,21 +759,23 @@
          scr_unit_removal(false, false, false, false, -1);
          var _m_lvl = unit_data.lvl;
          
@@ -400,6 +546,8 @@
 +
          scr_add_milk_item(_m_lvl, 1);
 -        scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 50, 1, UnknownEnum.Value_1, false);
++        // GNX-PROP: the props next to the cell can react to the milk
++        gnx_cell_event(id, "milk");
 +        scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 50, 1, 1, false);
          unit_data.milk = false;
 -        slot_data.anim_struct.char_state = UnknownEnum.Value_0;
@@ -407,7 +555,7 @@
          slot_data.anim_struct.ff = true;
          slot_data.mon_timer[0] = 0;
          slot_data.h_loop = 0;
-@@ -753,7 +768,7 @@
+@@ -753,7 +788,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -416,7 +564,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 4;
-@@ -804,12 +819,12 @@
+@@ -804,12 +839,12 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.blink_index = -1;
@@ -431,7 +579,7 @@
          }
          
          slot_data.mon_timer[1] = irandom_range(360, 420);
-@@ -841,7 +856,7 @@
+@@ -841,7 +876,7 @@
          slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -440,7 +588,7 @@
          slot_data.mon_timer[1] = irandom_range(360, 420);
          unit_data.tired_c = 980;
      }
-@@ -872,12 +887,12 @@
+@@ -872,12 +907,12 @@
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 2;
@@ -455,7 +603,7 @@
          }
          
          slot_data.mon_timer[1] = irandom_range(30, 60);
-@@ -929,7 +944,7 @@
+@@ -929,7 +964,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -464,7 +612,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.h_step = 0;
          slot_data.mon_timer = [0, 0];
-@@ -957,23 +972,38 @@
+@@ -957,23 +992,38 @@
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 0;
@@ -507,7 +655,7 @@
      var _h = h_unit_list;
      
      if (slot_data.mon_placement[0] != -1)
-@@ -997,11 +1027,28 @@
+@@ -997,11 +1047,28 @@
              slot_data.mon_timer[0] = -1;
              scr_unit_removal(false, false, false, false, -1);
              
@@ -536,7 +684,7 @@
          }
          else
          {
-@@ -1020,11 +1067,28 @@
+@@ -1020,11 +1087,28 @@
              slot_data.mon_timer[1] = -1;
              scr_unit_removal(false, false, false, false, -1);
              
@@ -565,7 +713,7 @@
          }
          else
          {
-@@ -1034,7 +1098,7 @@
+@@ -1034,7 +1118,7 @@
      
      if ((slot_data.mon_timer[0] + slot_data.mon_timer[1]) == 0)
      {
@@ -574,7 +722,7 @@
          slot_data.anim_struct.ff = true;
      }
  }
-@@ -1065,7 +1129,7 @@
+@@ -1065,7 +1149,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -583,7 +731,7 @@
      }
      
      var _old_index = slot_data.anim_struct.index;
-@@ -1100,7 +1164,7 @@
+@@ -1100,7 +1184,7 @@
          slot_data.anim_struct.index = 0;
          
          if (unit_data != -1)
@@ -592,7 +740,7 @@
      }
      
      slot_data.h_wait += global.w_spd;
-@@ -1120,7 +1184,7 @@
+@@ -1120,7 +1204,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -601,7 +749,7 @@
      }
      
      slot_data.h_wait += global.w_spd;
-@@ -1135,12 +1199,12 @@
+@@ -1135,12 +1219,12 @@
          var _door = scr_find_nearest_door(_x, _y, _floor);
          _x = _door.x + floor(_door.image_xscale * 0.5);
          _y = _door.y;
@@ -616,7 +764,7 @@
              mon_data.mood_timer = 180;
              scr_mood_value_set(-0.25);
          }
-@@ -1158,7 +1222,7 @@
+@@ -1158,7 +1242,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -625,7 +773,7 @@
      }
  }
  
-@@ -1173,7 +1237,7 @@
+@@ -1173,7 +1257,7 @@
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          
          if (unit_data != -1)
@@ -634,7 +782,7 @@
      }
      
      unit_data.tired_c = scr_tired_timer(unit_data.tired_c, 1, 60);
-@@ -1189,7 +1253,7 @@
+@@ -1189,7 +1273,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -643,7 +791,7 @@
      }
  }
  
-@@ -1198,7 +1262,7 @@
+@@ -1198,7 +1282,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -652,16 +800,20 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -1206,7 +1270,7 @@
+@@ -1206,9 +1290,10 @@
          
          if (unit_data.preg != -1)
          {
 -            slot_data.anim_struct.char_state = UnknownEnum.Value_1;
 +            slot_data.anim_struct.char_state = 1;
              slot_data.anim_struct.ff = true;
-             slot_data.h_step = 3;
+-            slot_data.h_step = 3;
++            // GNX-INTER: the birth script's place in the list (3 unless intermissions were put in before it)
++            slot_data.h_step = gnx_h_step_of("scr_slot_h_tent_birth", 3);
          }
-@@ -1218,14 +1282,14 @@
+     }
+     
+@@ -1218,14 +1303,14 @@
      
      if (unit_data.tired_c == 0)
      {
@@ -678,7 +830,7 @@
              slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
              
              if (slot_data.anim_struct.sp_index >= 3)
-@@ -1234,14 +1298,14 @@
+@@ -1234,14 +1319,14 @@
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
                  {
@@ -695,7 +847,7 @@
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
              if (slot_data.anim_struct.sp_timer <= 0)
-@@ -1252,7 +1316,7 @@
+@@ -1252,7 +1337,7 @@
                  if (slot_data.anim_struct.sp_index >= 6)
                  {
                      slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -704,7 +856,7 @@
                      scr_create_sp_drip(slot_data, depth - 1, true);
                  }
              }
-@@ -1282,7 +1346,7 @@
+@@ -1282,7 +1367,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -713,7 +865,7 @@
          slot_data.h_wait = irandom_range(360, 420);
          spawn_part[0] = true;
          spawn_stream = true;
-@@ -1327,7 +1391,7 @@
+@@ -1327,7 +1412,7 @@
          slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -722,7 +874,7 @@
          slot_data.h_wait = irandom_range(360, 420);
          unit_data.tired_c = 980;
      }
-@@ -1365,7 +1429,7 @@
+@@ -1365,7 +1450,7 @@
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 2;
@@ -731,7 +883,7 @@
          slot_data.h_wait = irandom_range(30, 60);
          slot_data.h_loop = irandom_range(5, 7);
          scr_create_sq_effect(slot_data.anim_struct.index, 0.7, 100, slot_data.slot_floor, 0);
-@@ -1393,17 +1457,17 @@
+@@ -1393,17 +1478,17 @@
                      {
                          if (unit_data.preg == -1)
                          {
@@ -753,7 +905,7 @@
                              }
                          }
                          else
-@@ -1413,12 +1477,13 @@
+@@ -1413,12 +1498,13 @@
                      }
                      else
                      {
@@ -769,7 +921,7 @@
                  }
                  else
                  {
-@@ -1447,7 +1512,7 @@
+@@ -1447,7 +1533,7 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -778,7 +930,7 @@
          slot_data.h_wait = 3;
          var _data = 
          {
-@@ -1455,7 +1520,7 @@
+@@ -1455,7 +1541,7 @@
              class: unit_data.class,
              lvl: unit_data.lvl
          };
@@ -787,7 +939,7 @@
      }
      
      slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
-@@ -1474,7 +1539,7 @@
+@@ -1474,7 +1560,7 @@
      
      var _birth_end_index = 6;
      
@@ -796,7 +948,7 @@
          _birth_end_index = 5;
      
      var _index = slot_data.anim_struct.index + (max(0, unit_data.skin) * _birth_end_index);
-@@ -1482,7 +1547,7 @@
+@@ -1482,7 +1568,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -805,7 +957,7 @@
          {
              slot_data.prop[i].prop_id.image_index = _index;
              i = _prop_num;
-@@ -1499,7 +1564,7 @@
+@@ -1499,7 +1585,7 @@
          slot_data.anim_struct.index = 0;
          unit_data.milk = true;
          
@@ -814,7 +966,7 @@
          {
              unit_data.preg = -1;
              
-@@ -1516,7 +1581,7 @@
+@@ -1516,7 +1602,7 @@
          
          for (var i = 0; i < _prop_num; i++)
          {
@@ -823,7 +975,7 @@
              {
                  slot_data.prop[i].prop_id.image_index++;
                  i = _prop_num;
-@@ -1527,14 +1592,14 @@
+@@ -1527,14 +1613,14 @@
      var _next = false;
      var _birth_end_index = 6;
      
@@ -840,14 +992,25 @@
          {
              with (slot_data.prop[i].prop_id)
              {
-@@ -1557,13 +1622,13 @@
+@@ -1543,7 +1629,7 @@
+                 if (image_index >= ((max(0, other.unit_data.skin) + 1) * _birth_end_index))
+                 {
+                     _next = true;
+-                    scr_mon_birth(prop_data.mon_data, slot_id);
++                    gnx_mon_birth(prop_data.mon_data, slot_id);
+                     array_delete(slot_id.slot_data.prop, i, 1);
+                     instance_destroy();
+                 }
+@@ -1557,13 +1643,14 @@
      {
          if (unit_data.preg != -1)
          {
 -            slot_data.anim_struct.char_state = UnknownEnum.Value_1;
 +            slot_data.anim_struct.char_state = 1;
              slot_data.anim_struct.ff = true;
-             slot_data.h_step = 3;
+-            slot_data.h_step = 3;
++            // GNX-INTER: the birth script's place in the list (3 unless intermissions were put in before it)
++            slot_data.h_step = gnx_h_step_of("scr_slot_h_tent_birth", 3);
          }
          else
          {
@@ -856,7 +1019,7 @@
              slot_data.anim_struct.ff = true;
          }
          
-@@ -1580,12 +1645,12 @@
+@@ -1580,12 +1667,12 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -871,7 +1034,7 @@
          slot_data.anim_struct.ff = true;
      }
      else
-@@ -1612,7 +1677,7 @@
+@@ -1612,7 +1699,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -880,7 +1043,7 @@
          slot_data.h_wait = 900;
      }
      
-@@ -1631,26 +1696,26 @@
+@@ -1631,26 +1718,28 @@
          slot_data.h_wait = 900;
          var _m_lvl = unit_data.lvl;
          
@@ -896,6 +1059,8 @@
          
          scr_add_milk_item(_m_lvl, 1);
 -        scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 50, 1, UnknownEnum.Value_1, false);
++        // GNX-PROP: the props next to the cell can react to the milk
++        gnx_cell_event(id, "milk");
 +        scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 50, 1, 1, false);
          
          if (slot_data.milk_num == 0)
@@ -913,7 +1078,7 @@
              scr_check_frog_unit_swap(slot_data.h_type);
          }
      }
-@@ -1665,15 +1730,15 @@
+@@ -1665,15 +1754,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -932,7 +1097,7 @@
              }
          }
          
-@@ -1757,15 +1822,15 @@
+@@ -1757,15 +1846,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -951,7 +1116,7 @@
              }
          }
          
-@@ -1859,15 +1924,15 @@
+@@ -1859,15 +1948,15 @@
          }
          
          scr_play_ej_sfx();
@@ -970,7 +1135,7 @@
              }
          }
      }
-@@ -1924,7 +1989,7 @@
+@@ -1924,7 +2013,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -979,7 +1144,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -1937,7 +2002,7 @@
+@@ -1937,7 +2026,7 @@
      
      switch (slot_data.anim_struct.sp_state)
      {
@@ -988,7 +1153,7 @@
              slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
              
              if (slot_data.anim_struct.sp_index >= 3)
-@@ -1946,14 +2011,14 @@
+@@ -1946,14 +2035,14 @@
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
                  {
@@ -1005,7 +1170,7 @@
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
              if (slot_data.anim_struct.sp_timer <= 0)
-@@ -1964,7 +2029,7 @@
+@@ -1964,7 +2053,7 @@
                  if (slot_data.anim_struct.sp_index >= 6)
                  {
                      slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -1014,7 +1179,7 @@
                      
                      if (!slot_data.mod_index[1])
                          scr_create_sp_drip(slot_data, depth - 1, true);
-@@ -1973,7 +2038,7 @@
+@@ -1973,7 +2062,7 @@
              
              break;
          
@@ -1023,7 +1188,7 @@
              slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
-@@ -2001,7 +2066,7 @@
+@@ -2001,7 +2090,7 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1032,7 +1197,7 @@
          slot_data.h_wait = 3;
          var _data = 
          {
-@@ -2009,7 +2074,7 @@
+@@ -2009,7 +2098,7 @@
              class: unit_data.class,
              lvl: unit_data.lvl
          };
@@ -1041,7 +1206,7 @@
      }
      
      slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
-@@ -2032,7 +2097,7 @@
+@@ -2032,7 +2121,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -1050,7 +1215,7 @@
          {
              slot_data.prop[i].prop_id.image_index = _index;
              i = _prop_num;
-@@ -2056,7 +2121,7 @@
+@@ -2056,7 +2145,7 @@
          
          for (var i = 0; i < _prop_num; i++)
          {
@@ -1059,7 +1224,7 @@
              {
                  slot_data.prop[i].prop_id.image_index++;
                  i = _prop_num;
-@@ -2070,7 +2135,7 @@
+@@ -2070,7 +2159,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -1068,7 +1233,16 @@
          {
              with (slot_data.prop[i].prop_id)
              {
-@@ -2087,7 +2152,7 @@
+@@ -2079,7 +2168,7 @@
+                 if (image_index >= _birth_end_index)
+                 {
+                     _next = true;
+-                    scr_mon_birth(prop_data.mon_data, slot_id);
++                    gnx_mon_birth(prop_data.mon_data, slot_id);
+                     
+                     with (slot_id)
+                     {
+@@ -2087,7 +2176,7 @@
                          
                          for (i = 0; i < _num; i++)
                          {
@@ -1077,7 +1251,7 @@
                                  array_delete(slot_data.prop, i, 1);
                          }
                      }
-@@ -2105,7 +2170,7 @@
+@@ -2105,7 +2194,7 @@
          slot_data.h_step = 0;
          slot_data.h_wait = 0;
          slot_data.h_loop = 0;
@@ -1086,7 +1260,7 @@
          slot_data.anim_struct.ff = true;
          slot_data.h_wait = irandom_range(240, 360);
          scr_check_frog_unit_swap(slot_data.h_type);
-@@ -2117,7 +2182,7 @@
+@@ -2117,7 +2206,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -1095,7 +1269,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -2134,7 +2199,7 @@
+@@ -2134,7 +2223,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1104,7 +1278,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2143,14 +2208,14 @@
+@@ -2143,14 +2232,14 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1121,7 +1295,7 @@
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
-@@ -2161,14 +2226,14 @@
+@@ -2161,14 +2250,14 @@
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
                          slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -1138,7 +1312,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2194,15 +2259,15 @@
+@@ -2194,15 +2283,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1157,7 +1331,7 @@
              }
          }
          
-@@ -2259,7 +2324,7 @@
+@@ -2259,7 +2348,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1166,7 +1340,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2268,21 +2333,21 @@
+@@ -2268,21 +2357,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1191,7 +1365,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2293,7 +2358,7 @@
+@@ -2293,7 +2382,7 @@
                  
                  break;
              
@@ -1200,7 +1374,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2318,15 +2383,15 @@
+@@ -2318,15 +2407,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -1219,7 +1393,7 @@
              }
          }
          
-@@ -2377,7 +2442,7 @@
+@@ -2377,7 +2466,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1228,7 +1402,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2386,21 +2451,21 @@
+@@ -2386,21 +2475,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1253,7 +1427,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2411,7 +2476,7 @@
+@@ -2411,7 +2500,7 @@
                  
                  break;
              
@@ -1262,7 +1436,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2447,15 +2512,15 @@
+@@ -2447,15 +2536,15 @@
              scr_create_sq_effect_pos(38.5, -16, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -1281,7 +1455,7 @@
              }
          }
      }
-@@ -2503,7 +2568,7 @@
+@@ -2503,7 +2592,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1290,7 +1464,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2512,21 +2577,21 @@
+@@ -2512,21 +2601,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1315,7 +1489,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2537,7 +2602,7 @@
+@@ -2537,7 +2626,7 @@
                  
                  break;
              
@@ -1324,7 +1498,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2563,15 +2628,15 @@
+@@ -2563,15 +2652,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1343,7 +1517,7 @@
              }
          }
          
-@@ -2632,15 +2697,15 @@
+@@ -2632,15 +2721,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -1362,7 +1536,7 @@
              }
          }
          
-@@ -2703,15 +2768,15 @@
+@@ -2703,15 +2792,15 @@
              scr_create_sq_effect_pos(38.5, -25, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -1381,7 +1555,7 @@
              }
          }
      }
-@@ -2765,7 +2830,7 @@
+@@ -2765,7 +2854,7 @@
          var _food = 0;
          _food = (global.val.add_range + 1) * 3;
          global.val.food += _food;
@@ -1390,16 +1564,21 @@
      }
  }
  
-@@ -2788,7 +2853,7 @@
+@@ -2788,16 +2877,19 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
 -        scr_set_slot_spr_part(UnknownEnum.Value_0);
 +        scr_set_slot_spr_part(0);
++        // GNX-FRAMES: the start art has its own count (physical.frames.start); vanilla keeps the idle's 2
++        slot_data.anim_struct.frame_c = gnx_cell_frames(0, slot_data.anim_struct.frame_c);
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.anim_spd *= 2;
-         slot_data.h_loop = choose(2, 3, 4);
-@@ -2797,7 +2862,7 @@
+-        slot_data.h_loop = choose(2, 3, 4);
++        // GNX-START: physical.start_loops sets how many times the start plays; vanilla 3-5 (h_loop 2-4 + 1)
++        slot_data.h_loop = gnx_start_loops(choose(2, 3, 4));
+         var _num = array_length(h_unit_list);
+         
          for (var i = 0; i < _num; i++)
          {
              with (h_unit_list[i])
@@ -1408,7 +1587,7 @@
          }
      }
      
-@@ -2825,7 +2890,7 @@
+@@ -2825,7 +2917,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -1417,7 +1596,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -2842,7 +2907,7 @@
+@@ -2842,7 +2934,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1426,7 +1605,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2851,14 +2916,14 @@
+@@ -2851,14 +2943,14 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1443,7 +1622,7 @@
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
-@@ -2869,14 +2934,14 @@
+@@ -2869,14 +2961,14 @@
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
                          slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -1460,7 +1639,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2902,15 +2967,15 @@
+@@ -2902,15 +2994,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1479,7 +1658,7 @@
              }
          }
          
-@@ -2966,7 +3031,7 @@
+@@ -2966,7 +3058,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1488,7 +1667,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2975,21 +3040,21 @@
+@@ -2975,21 +3067,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1513,7 +1692,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3000,7 +3065,7 @@
+@@ -3000,7 +3092,7 @@
                  
                  break;
              
@@ -1522,7 +1701,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3025,15 +3090,15 @@
+@@ -3025,15 +3117,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -1541,7 +1720,7 @@
              }
          }
          
-@@ -3084,7 +3149,7 @@
+@@ -3084,7 +3176,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1550,7 +1729,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -3093,21 +3158,21 @@
+@@ -3093,21 +3185,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1575,7 +1754,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3118,7 +3183,7 @@
+@@ -3118,7 +3210,7 @@
                  
                  break;
              
@@ -1584,7 +1763,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3154,15 +3219,15 @@
+@@ -3154,15 +3246,15 @@
              scr_create_sq_effect_pos(38.5, -16, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -1603,7 +1782,7 @@
              }
          }
      }
-@@ -3210,7 +3275,7 @@
+@@ -3210,7 +3302,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1612,7 +1791,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -3219,21 +3284,21 @@
+@@ -3219,21 +3311,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1637,7 +1816,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3244,7 +3309,7 @@
+@@ -3244,7 +3336,7 @@
                  
                  break;
              
@@ -1646,13 +1825,1036 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3260,21 +3325,3 @@
-     
+@@ -3261,20 +3353,1378 @@
      scr_slot_call_mon(true);
  }
--
+ 
 -enum UnknownEnum
--{
++// =====================================================================================
++// GNX-UG: scene scripts for cells with per-phase frame counts (physical.frames in cells.json).
++// Phases (spr_type): 0 start, 1 idle, 2 loop, 3 ej, 4 birth, 5 milk.
++// The scene runs on its own like a tentacle cell (no monsters are called). scr_h must list
++// exactly: [ug_start, ug_loop, ug_ej, ug_birth, ug_milk] because these scripts jump by index.
++// Other cells never call these scripts, so their timing and frames stay unchanged.
++// =====================================================================================
++
++/// GNX-FRAMES: the own frame table of the current cell (physical.frames): the base scene scripts play
++/// these frames at the vanilla speed per frame. undefined for vanilla cells and cells without frames:
++/// then every helper below returns the vanilla value and nothing changes.
++function gnx_cell_speed_frames()
++{
++    var _cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    // || = or: GameMaker stops at the first true part, so .physical is read only when the cell exists
++    if (_cell == undefined || !variable_struct_exists(_cell.physical, "gnx_phase_frames"))
++        return undefined;
++    
++    return _cell.physical.gnx_phase_frames;
++}
++
++/// GNX-LOOP: length of one loop part (arg0 = vanilla length in game frames, 360-420 = 6-7 s). A cell with
++/// physical.loop_scale true gets it longer in proportion to its loop frames: loop frames / 5 (the vanilla
++/// count), so it plays as many loop cycles as vanilla. 10 frames = twice as long. Otherwise arg0 as it is.
++function gnx_loop_time(arg0)
++{
++    var _cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    // ! = not: no cell, no switch, or the switch is off -> vanilla length
++    if (_cell == undefined || !variable_struct_exists(_cell.physical, "gnx_loop_scale") || !_cell.physical.gnx_loop_scale)
++        return arg0;
++    
++    var _n = 5;
++    
++    // underground cells keep their counts in gnx_frames, other mod cells in gnx_phase_frames (phase 2 = loop)
++    if (variable_struct_exists(_cell.physical, "gnx_frames"))
++        _n = _cell.physical.gnx_frames.loop;
++    else if (variable_struct_exists(_cell.physical, "gnx_phase_frames") && _cell.physical.gnx_phase_frames[2] >= 1)
++        _n = _cell.physical.gnx_phase_frames[2];
++    
++    return arg0 * (_n / 5);
++}
++
++/// GNX-EJ: how many holds the ej makes (scripts count h_loop down to 0). physical.ej_holds = a number
++/// from 1, or [min, max] for a random count. Without the key: arg0, the vanilla irandom_range(5, 7).
++function gnx_ej_holds(arg0)
++{
++    var _cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    if (_cell == undefined || !variable_struct_exists(_cell.physical, "gnx_ej_holds"))
++        return arg0;
++    
++    var _r = _cell.physical.gnx_ej_holds;
++    return irandom_range(_r[0], _r[1]);
++}
++
++/// GNX-START: how many more times the start plays after the first one (scripts count h_loop down and
++/// leave the start when it goes below 0). physical.start_loops = plays in all: a number, or [min, max]
++/// for a random count. Without the key: arg0, the script's own value (vanilla choose(2, 3, 4) = 3-5
++/// plays, underground cell 0 = once).
++function gnx_start_loops(arg0)
++{
++    var _cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    if (_cell == undefined || !variable_struct_exists(_cell.physical, "gnx_start_loops"))
++        return arg0;
++    
++    var _r = _cell.physical.gnx_start_loops;
++    // irandom_range(a, b) = a whole number from a to b; - 1 because the first play is not counted
++    return irandom_range(_r[0], _r[1]) - 1;
++}
++
++/// GNX-FRAMES: frame count of phase arg0 (0 start, 1 idle, 2 loop, 3 ej, 4 birth) for the current cell.
++/// arg1 = what a vanilla cell keeps. A cell with own frames gets its count, or the vanilla count of
++/// that phase when the JSON leaves the phase out.
++function gnx_cell_frames(arg0, arg1)
++{
++    var _pf = gnx_cell_speed_frames();
++    
++    if (_pf == undefined || arg0 < 0 || arg0 >= array_length(_pf))
++        return arg1;
++    
++    var _van = [2, 2, 5, 5, 2, 2];
++    return (_pf[arg0] >= 1) ? _pf[arg0] : _van[arg0];
++}
++
++/// GNX-FRAMES: a frame number a vanilla script uses (arg0, out of arg1 vanilla frames), moved to the same
++/// place in the cell's own frames: frame 2 of 5 becomes frame 4 of 10. Vanilla cells get arg0 back.
++function gnx_key_frame(arg0, arg1)
++{
++    if (gnx_cell_speed_frames() == undefined)
++        return arg0;
++    
++    var _n = slot_data.anim_struct.frame_c;
++    
++    if (_n == arg1 || _n < 1)
++        return arg0;
++    
++    return clamp(round((arg0 * _n) / arg1), 0, _n - 1);
++}
++
++/// GNX-FRAMES: key frames of the ej phase for the current cell, counted in its ej frames (the loop
++/// frames in cells on vanilla scripts): [first frame, held frame, frame after the hold, frame count].
++/// Vanilla and 5 frames: [2, 3, 4, 5]. physical.ej_start / ej_hold set them; otherwise they move in
++/// proportion (2 and 3 of 5).
++function gnx_ej_keys()
++{
++    var _cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    // own counts: a mod cell with physical.frames, or an underground cell (gnx_frames); else vanilla
++    if (gnx_cell_speed_frames() == undefined && (_cell == undefined || !variable_struct_exists(_cell.physical, "gnx_frames")))
++        return [2, 3, 4, 5];
++    
++    var _p = _cell.physical;
++    var _n = max(1, slot_data.anim_struct.frame_c);
++    var _es = variable_struct_exists(_p, "gnx_ej_start") ? _p.gnx_ej_start : -1;
++    var _eh = variable_struct_exists(_p, "gnx_ej_hold") ? _p.gnx_ej_hold : -1;
++    var _s = (_es >= 0) ? _es : round((2 * _n) / 5);
++    var _h = (_eh >= 0) ? _eh : round((3 * _n) / 5);
++    // clamp(value, min, max): the first frame inside the strip, the held frame not before the first
++    _s = clamp(_s, 0, _n - 1);
++    _h = clamp(_h, _s, _n - 1);
++    return [_s, _h, _h + 1, _n];
++}
++
++/// GNX-UG: returns this cell's physical block if it has per-phase frames, otherwise undefined.
++function gnx_ug_cfg()
++{
++    var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    if (_c == undefined || !variable_struct_exists(_c.physical, "gnx_frames"))
++        return undefined;
++    
++    return _c.physical;
++}
++
++/// GNX-UG: begins a phase. arg0 = phase (spr_type), arg1 = frames in this phase, arg2 = speed in frames per second.
++function gnx_ug_phase_begin(arg0, arg1, arg2)
++{
++    slot_data.anim_struct.ff = false;
++    slot_data.anim_struct.index = 0;
++    slot_data.anim_struct.frame_c = arg1;
++    slot_data.anim_struct.spr_spd = arg2;
++    slot_data.anim_struct.anim_spd = arg2 / 60;
++    scr_set_slot_spr_part(arg0);
++}
++
++/// GNX-UG: switches the scene to step arg0 of scr_h (char_state 1 = scene running).
++function gnx_ug_goto(arg0)
++{
++    slot_data.anim_struct.char_state = 1;
++    slot_data.anim_struct.ff = true;
++    slot_data.h_step = arg0;
++}
++
++/// GNX-UG: ends the scene and returns to idle.
++function gnx_ug_to_idle()
++{
++    slot_data.anim_struct.char_state = 0;
++    slot_data.anim_struct.ff = true;
++    scr_check_frog_unit_swap(slot_data.h_type);
++}
++
++/// GNX-UG: idle. Waits until the captive is rested, then starts the scene; pregnancy goes to birth, milk to milking.
++function scr_slot_h_gnx_ug_idle()
++{
++    var _cfg = gnx_ug_cfg();
++    
++    if (_cfg == undefined)
++        exit;
++    
++    // GNX-UG: milking runs alongside this phase while the captive has milk
++    var _had_milk = unit_data.milk;
++    gnx_ug_milking_step(_cfg);
++    // && ! = she had milk before this step and has none now: the milk ran out while idle
++    var _milk_ended = _had_milk && !unit_data.milk;
++    
++    if (slot_data.anim_struct.ff)
++        gnx_ug_phase_begin(1, _cfg.gnx_frames.idle, _cfg.gnx_speed.idle * (sign(unit_data.tired_c) + 1));
++    
++    unit_data.tired_c = scr_tired_timer(unit_data.tired_c, 1, 60);
++    slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
++    scr_animation_end(true, slot_data.anim_struct.frame_c);
++    
++    // != -1 means "is pregnant"; && needs both sides true
++    // GNX-INTER: the scene starts with the idle_start intermission when the cell declares it (scr_h[5])
++    if (unit_data.preg != -1)
++        gnx_ug_goto(3);
++    else if (unit_data.tired_c == 0)
++        gnx_ug_goto(is_struct(gnx_cell_inter(0)) ? 5 : 0);
++    
++    // splash drips left after a scene (same state machine as the tentacle idle)
++    switch (slot_data.anim_struct.sp_state)
++    {
++        case 0:
++            slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
++            
++            if (slot_data.anim_struct.sp_index >= 3)
++            {
++                slot_data.anim_struct.sp_timer -= global.w_spd;
++                
++                if (slot_data.anim_struct.sp_timer <= 0)
++                {
++                    slot_data.anim_struct.sp_state = 1;
++                    slot_data.anim_struct.sp_timer = irandom_range(20, 40);
++                }
++            }
++            
++            break;
++        
++        case 1:
++            slot_data.anim_struct.sp_timer -= global.w_spd;
++            
++            if (slot_data.anim_struct.sp_timer <= 0)
++            {
++                slot_data.anim_struct.sp_timer = 0;
++                slot_data.anim_struct.sp_index = min(6, slot_data.anim_struct.sp_index + (0.13333333333333333 * global.w_spd));
++                
++                if (slot_data.anim_struct.sp_index >= 6)
++                {
++                    slot_data.anim_struct.sp_timer = irandom_range(120, 360);
++                    slot_data.anim_struct.sp_state = 2;
++                    scr_create_sp_drip(slot_data, depth - 1, true);
++                }
++            }
++            
++            break;
++        
++        case 2:
++            slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
++            slot_data.anim_struct.sp_timer -= global.w_spd;
++            
++            if (slot_data.anim_struct.sp_timer <= 0)
++            {
++                slot_data.anim_struct.sp_timer = irandom_range(120, 360);
++                scr_create_sp_drip(slot_data, depth - 1, false);
++            }
++            
++            break;
++    }
++    
++    // GNX-UG: the frog shrine waits for a used-up captive's milk (scr_check_frog_unit_swap), so check it
++    // again when the milk runs out while she is idle (char_state 0 = no scene started this step)
++    if (_milk_ended && slot_data.anim_struct.char_state == 0)
++        scr_check_frog_unit_swap(slot_data.h_type);
++}
++
++/// GNX-UG: start (scr_h[0]). Plays the start frames physical.start_loops times (default once), then the loop.
++function scr_slot_h_gnx_ug_start()
++{
++    var _cfg = gnx_ug_cfg();
++    
++    if (_cfg == undefined)
++        exit;
++    
++    // GNX-UG: milking runs alongside this phase while the captive has milk
++    gnx_ug_milking_step(_cfg);
++    
++    if (slot_data.anim_struct.ff)
++    {
++        gnx_ug_phase_begin(0, _cfg.gnx_frames.start, _cfg.gnx_speed.start);
++        // GNX-START: plays left after this one (start_loops - 1; without the key 0 = once)
++        slot_data.h_loop = gnx_start_loops(0);
++    }
++    
++    var _old = slot_data.anim_struct.index;
++    slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
++    
++    if (floor(_old) != floor(slot_data.anim_struct.index))
++        scr_play_tent_sfx(2);
++    
++    scr_animation_end(false, slot_data.anim_struct.frame_c);
++    
++    // --h_loop lowers the count first, then compares: below 0 = every play is done
++    // GNX-INTER: then the start_loop intermission when the cell declares it (scr_h[6]), else the loop
++    if (animation_end && --slot_data.h_loop < 0)
++        gnx_ug_goto(is_struct(gnx_cell_inter(1)) ? 6 : 1);
++}
++
++/// GNX-UG: loop (scr_h[1]). A slow part, then a fast part (h_loop 0 -> 1), each 6-7 s, then ej.
++function scr_slot_h_gnx_ug_loop()
++{
++    var _cfg = gnx_ug_cfg();
++    
++    if (_cfg == undefined)
++        exit;
++    
++    // GNX-UG: milking runs alongside this phase while the captive has milk
++    gnx_ug_milking_step(_cfg);
++    
++    if (slot_data.anim_struct.ff)
++    {
++        gnx_ug_phase_begin(2, _cfg.gnx_frames.loop, _cfg.gnx_speed.loop);
++        // GNX-LOOP: each part 6-7 s, longer in proportion to the loop frames with "loop_scale": true
++        slot_data.h_wait = gnx_loop_time(irandom_range(360, 420));
++        slot_data.h_loop = 0;
++        // scr_create_sq_effect reads spawn_part[0]; with max_mon_num 0 the array is empty,
++        // so create the entry here (writing index 0 grows the array), as the tentacle loop does
++        spawn_part[0] = true;
++
++        // clear an old splash before a new scene (as the tentacle loop does)
++        if (slot_data.anim_struct.sp_state != -1 && floor(slot_data.anim_struct.sp_index) != 7)
++        {
++            slot_data.anim_struct.sp_index = 0;
++            slot_data.anim_struct.sp_timer = 0;
++            slot_data.anim_struct.sp_state = -1;
++            scr_create_sp_drip(slot_data, depth - 1, true);
++        }
++    }
++    
++    var _old = slot_data.anim_struct.index;
++    slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
++    
++    if (floor(_old) != floor(slot_data.anim_struct.index))
++    {
++        scr_play_tent_sfx(2);
++        // GNX: a cell loaded mid-loop skips the phase start that creates spawn_part[0] (like the ej guard below)
++        if (array_length(spawn_part) < 1)
++            spawn_part[0] = true;
++        
++        scr_create_sq_effect(2, (slot_data.h_loop == 0) ? 0.3 : 0.5, (slot_data.h_loop == 0) ? 35 : 60, slot_data.slot_floor, 0);
++    }
++    
++    scr_animation_end(true, slot_data.anim_struct.frame_c);
++    
++    if (animation_end && irandom_range(0, 100) < 15)
++        scr_create_sp_drip(slot_data, depth - 1, false);
++    
++    slot_data.h_wait -= global.w_spd;
++    
++    if (slot_data.h_wait <= 0 && animation_end)
++    {
++        if (slot_data.h_loop == 0)
++        {
++            // switch to the fast part without restarting the phase
++            slot_data.h_loop = 1;
++            slot_data.anim_struct.spr_spd = _cfg.gnx_speed.loop_fast;
++            slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
++            slot_data.h_wait = gnx_loop_time(irandom_range(360, 420));
++            unit_data.tired_c = 980;
++        }
++        else
++        {
++            // GNX-INTER: the loop_ej intermission when the cell declares it (scr_h[7]), else the ej
++            gnx_ug_goto(is_struct(gnx_cell_inter(2)) ? 7 : 2);
++        }
++    }
++}
++
++/// GNX-UG: child species for a pregnancy in this cell: the class's preg_mon_type_override, otherwise tentacle (2).
++/// GNX-FIX: one place for this rule (gnx_ug_child_type_for), which also checks the value.
++function gnx_ug_child_type()
++{
++    return gnx_ug_child_type_for(unit_data.class);
++}
++
++/// GNX-UG: ej (scr_h[2]), as in the vanilla tentacle cells: the ej frames start on frame 2, hold on
++/// frame 3, go on with 4, and back to 2 for the next hold; 5-7 holds (physical.ej_holds), the first
++/// 0.5-1 s, the middle ones 0.75-1.5 s, the last 2-3 s. Key frames come from gnx_ej_keys() (5 frames:
++/// 2, 3, 4, 5; other counts move in proportion, or physical.ej_start / ej_hold). After the last hold
++/// the cell pays out and rolls the pregnancy.
++function scr_slot_h_gnx_ug_ej()
++{
++    var _cfg = gnx_ug_cfg();
++    
++    if (_cfg == undefined)
++        exit;
++    
++    // GNX-UG: milking runs alongside this phase while the captive has milk
++    gnx_ug_milking_step(_cfg);
++    
++    if (slot_data.anim_struct.ff)
++    {
++        gnx_ug_phase_begin(3, _cfg.gnx_frames.ej, _cfg.gnx_speed.ej);
++        slot_data.gnx_ej = gnx_ej_keys();
++        slot_data.anim_struct.index = slot_data.gnx_ej[0];
++        slot_data.h_wait = irandom_range(30, 60);
++        slot_data.h_loop = gnx_ej_holds(irandom_range(5, 7));
++        
++        // the squirt reads spawn_part[0]; after loading a save in ej the array can be empty
++        if (array_length(spawn_part) < 1)
++            spawn_part[0] = true;
++        
++        scr_create_sq_effect(slot_data.anim_struct.index, 0.7, 100, slot_data.slot_floor, 0);
++        scr_play_ej_sfx();
++    }
++    
++    // an ej started before this build (old save) has no key frames or hold count yet
++    if (!variable_struct_exists(slot_data, "gnx_ej"))
++    {
++        slot_data.gnx_ej = gnx_ej_keys();
++        slot_data.h_loop = max(1, slot_data.h_loop);
++    }
++    
++    var _ek = slot_data.gnx_ej;
++    slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
++    scr_animation_end(false, _ek[3]);
++    var _ef = floor(slot_data.anim_struct.index);
++    
++    // end of the strip wraps to 0: back to the first ej frame
++    if (_ef == 0 && _ek[0] != 0)
++    {
++        slot_data.anim_struct.index = _ek[0];
++        exit;
++    }
++    
++    // != : not on the held frame yet, keep playing
++    if (_ef != _ek[1])
++        exit;
++    
++    slot_data.anim_struct.anim_spd = 0;
++    slot_data.h_wait -= global.w_spd;
++    
++    if (slot_data.h_wait > 0)
++        exit;
++    
++    // --h_loop lowers the count first: above 0 = holds left, so go on after the held frame
++    if (--slot_data.h_loop > 0)
++    {
++        slot_data.h_wait = (slot_data.h_loop == 1) ? irandom_range(120, 180) : irandom_range(45, 90);
++        slot_data.anim_struct.index = _ek[2];
++        slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
++        exit;
++    }
++    
++    scr_slot_get_coin_data(slot_data.h_type, unit_data);
++    slot_data.anim_struct.sp_state = 0;
++    var _birth = false;
++    
++    // floor(preg_c) != 0: pregnancies left (-1 = unlimited); allow_preg from the JSON is respected here
++    if (slot_data.allow_preg && floor(unit_data.preg_c) != 0)
++    {
++        if (unit_data.preg == -1)
++        {
++            if (irandom_range(0, 100) <= unit_data.preg_prd || unit_data.class == 12)
++            {
++                unit_data.preg = gnx_ug_child_type();
++                unit_data.preg_prd = 10;
++                _birth = true;
++            }
++            else
++            {
++                unit_data.preg_prd += 10;
++            }
++        }
++        else
++        {
++            _birth = true;
++        }
++    }
++    
++    // GNX-INTER: a birth goes through the ej_birth intermission first when the cell declares it (scr_h[8])
++    if (_birth)
++        gnx_ug_goto(is_struct(gnx_cell_inter(3)) ? 8 : 3);
++    else
++        gnx_ug_to_idle();
++}
++
++/// GNX-UG: finds this cell's newborn prop (prop_type 40); returns the instance or noone.
++/// GNX-FIX: only a prop whose instance still exists counts (a destroyed one is noone).
++function gnx_ug_infant()
++{
++    var _n = array_length(slot_data.prop);
++    
++    for (var i = 0; i < _n; i++)
++    {
++        if (slot_data.prop[i].prop_type == 40 && instance_exists(slot_data.prop[i].prop_id))
++            return slot_data.prop[i].prop_id;
++    }
++    
++    return noone;
++}
++
++/// GNX-FIX: removes this cell's newborn prop arg0 (noone = none left) and every prop_type 40 entry of the
++/// cell, also entries whose instance is already gone.
++function gnx_ug_remove_infant(arg0)
++{
++    var _num = array_length(slot_data.prop);
++    
++    // from the end, so array_delete does not skip an entry
++    for (var i = _num - 1; i >= 0; i--)
++    {
++        if (slot_data.prop[i].prop_type == 40)
++            array_delete(slot_data.prop, i, 1);
++    }
++    
++    if (arg0 != noone && instance_exists(arg0))
++    {
++        with (arg0)
++            instance_destroy();
++    }
++}
++
++/// GNX-FIX: true when arg0 is usable child data: a struct with mon_type (a whole number 0-3), class (a
++/// whole number from 0) and lvl (a number from 0); numbers written as text count.
++function gnx_ug_child_data_ok(arg0)
++{
++    // ! = not, || = or: no struct, or a field missing
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "mon_type") || !variable_struct_exists(arg0, "class") || !variable_struct_exists(arg0, "lvl"))
++        return false;
++    
++    var _t = gnx_json_num(arg0.mon_type, -1);
++    var _c = gnx_json_num(arg0.class, -1);
++    var _l = gnx_json_num(arg0.lvl, -1);
++    // != floor(...): not a whole number
++    return _t >= 0 && _t <= 3 && _t == floor(_t) && _c >= 0 && _c == floor(_c) && _l >= 0;
++}
++
++/// GNX-FIX: gives the newborn of this birth to the nest, once. The child's data (species, mother's class
++/// and level) is kept in slot_data.gnx_ug_birth_payload from the start of the birth, so it does not depend
++/// on the newborn prop still being there; a birth started before this build falls back to the prop's data.
++/// With neither, the child is rebuilt from the mother, who is still in the cell: her class and level and
++/// the species this cell gives (gnx_ug_child_type), with a warning in the log.
++/// slot_data.gnx_ug_birth_awarded is true only once a child was really added (the nest count went up);
++/// a new birth clears it. Returns false when nothing could be given.
++/// on the newborn prop still being there; a save from before this build falls back to the prop's data.
++/// slot_data.gnx_ug_birth_awarded stops a second award; a new birth clears it. Returns false when there
++/// is no usable data (then nothing is given).
++function gnx_ug_award_child_once()
++{
++    // && = and: already given for this birth
++    if (variable_struct_exists(slot_data, "gnx_ug_birth_awarded") && slot_data.gnx_ug_birth_awarded)
++        return true;
++    
++    var _data = undefined;
++    var _src = "payload";
++    
++    if (variable_struct_exists(slot_data, "gnx_ug_birth_payload"))
++        _data = slot_data.gnx_ug_birth_payload;
++    
++    if (!gnx_ug_child_data_ok(_data))
++    {
++        var _inf = gnx_ug_infant();
++        _src = "prop";
++        _data = undefined;
++        
++        if (_inf != noone && variable_instance_exists(_inf, "prop_data") && is_struct(_inf.prop_data) && variable_struct_exists(_inf.prop_data, "mon_data"))
++            _data = _inf.prop_data.mon_data;
++    }
++    
++    // the fallback for a lost birth: the mother herself
++    if (!gnx_ug_child_data_ok(_data) && is_struct(unit_data))
++    {
++        _src = "mother";
++        _data = 
++        {
++            mon_type: gnx_ug_child_type(),
++            class: unit_data.class,
++            lvl: unit_data.lvl
++        };
++    }
++    
++    if (!gnx_ug_child_data_ok(_data))
++    // ! = not, || = or: no data, or a field missing
++    // a species outside 0-3, or not a whole number, cannot be born
++        return false;
++    
++    // set before the call: scr_mon_birth runs at once, the flag keeps any second path from giving again
++    slot_data.gnx_ug_birth_awarded = true;
++    var _before = global.val.nest_num[0];
++    // GNX-PROP: through gnx_mon_birth: the "birth" event only when a child was given
++    gnx_mon_birth(
++    {
++        mon_type: gnx_json_num(_data.mon_type, 0),
++        class: gnx_json_num(_data.class, 0),
++        lvl: gnx_json_num(_data.lvl, 0)
++    }, id);
++    
++    // scr_mon_birth adds 1 to nest_num[0] for every child it gives; <= = it gave none
++    if (global.val.nest_num[0] <= _before)
++    {
++        slot_data.gnx_ug_birth_awarded = false;
++        return false;
++    }
++    
++    if (_src == "mother")
++    {
++        var _wl = gnx_log_open();
++        gnx_log_write(_wl, "[GNX-WARN] underground birth h=" + string(slot_data.h_type) + " class=" + string(unit_data.class) + ": newborn data was lost (no saved data, no prop); the child was rebuilt from the mother (species " + string(gnx_ug_child_type()) + ")\n");
++        gnx_log_close(_wl);
++    }
++    
++    return true;
++}
++
++/// GNX-FIX: the birth is over but there was no child data to give: say so once per birth (no silent loss).
++function gnx_ug_award_failed()
++{
++    if (variable_struct_exists(slot_data, "gnx_ug_birth_error_logged") && slot_data.gnx_ug_birth_error_logged)
++        exit;
++    
++    slot_data.gnx_ug_birth_error_logged = true;
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-ERROR] underground birth h=" + string(slot_data.h_type) + " class=" + string(is_struct(unit_data) ? unit_data.class : "?") + ": no newborn could be added (no usable data) - the birth ends without a child\n");
++    gnx_log_close(_l);
++}
++
++/// GNX-UG: gives the newborn prop this cell's infant_spr and a frame timer that does not depend on image_index wrapping.
++function gnx_ug_infant_setup(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    var _spr = (_c != undefined && variable_struct_exists(_c, "gnx_infant")) ? _c.gnx_infant : -1;
++    
++    if (is_sprref(_spr))
++    {
++        var _bk = gnx_sprref_bake(_spr);
++        _spr = (_bk != -1) ? _bk : -1;
++    }
++    
++    with (arg0)
++    {
++        gnx_ug_t = 0;
++        gnx_ug_frames = (_spr != -1) ? sprite_get_number(_spr) : 0;
++        
++        // without infant_spr the newborn stays invisible (spr_empty) but the birth still completes
++        sprite_index = (_spr != -1) ? _spr : spr_empty;
++        gnx_birth_spr = _spr;
++        
++        image_speed = 0;
++        image_index = 0;
++    }
++}
++
++/// GNX-UG: birth (scr_h[3]). Labour: the captive loops the birth frames birth_rounds times (default 3)
++/// while the newborn shows its first infant_labour_frames frames in step with each loop (default as
++/// many as the birth frames). Then the newborn plays the rest of infant_spr at infant_speed frames per
++/// second (default 8; infant_time sets the length in seconds instead) and the child is added on its last
++/// frame (or after a short wait if there is no infant_spr). After that the captive rests: she keeps the
++/// birth frames for birth_rest seconds (default 2) and then goes to idle; a captive still pregnant
++/// (Bastet) starts the next birth at once.
++function scr_slot_h_gnx_ug_birth()
++{
++    var _cfg = gnx_ug_cfg();
++    
++    if (_cfg == undefined)
++        exit;
++    
++    // GNX-UG: milking runs alongside this phase while the captive has milk
++    gnx_ug_milking_step(_cfg);
++    
++    if (slot_data.anim_struct.ff)
++    {
++        gnx_ug_phase_begin(4, _cfg.gnx_frames.birth, _cfg.gnx_speed.birth);
++        // GNX-UG: labour rounds from physical.birth_rounds (vanilla tentacle cells: 3)
++        slot_data.h_wait = _cfg.gnx_birth_rounds;
++        slot_data.h_loop = 0;
++        
++        // GNX-FIX: the child's data is kept in slot_data for this birth (the pregnancy ends before the
++        // newborn is out, and the prop could be gone by then); a newborn already there keeps its own data
++        var _old_inf = gnx_ug_infant();
++        slot_data.gnx_ug_birth_awarded = false;
++        slot_data.gnx_ug_birth_error_logged = false;
++        slot_data.gnx_ug_birth_payload = 
++        {
++            mon_type: unit_data.preg,
++            class: unit_data.class,
++            lvl: unit_data.lvl
++        };
++        
++        if (_old_inf != noone && variable_instance_exists(_old_inf, "prop_data") && is_struct(_old_inf.prop_data) && variable_struct_exists(_old_inf.prop_data, "mon_data"))
++            slot_data.gnx_ug_birth_payload = _old_inf.prop_data.mon_data;
++        
++        if (_old_inf == noone)
++        {
++            var _data = 
++            {
++                mon_type: unit_data.preg,
++                class: unit_data.class,
++                lvl: unit_data.lvl
++            };
++            scr_create_prop(id, 40, _data, -1);
++        }
++    }
++    
++    var _inf = gnx_ug_infant();
++    
++    // after loading a save the newborn exists without our timer, so set it up again
++    if (_inf != noone && !variable_instance_exists(_inf, "gnx_ug_t"))
++        gnx_ug_infant_setup(_inf);
++    
++    slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
++    scr_animation_end(true, slot_data.anim_struct.frame_c);
++    
++    // GNX-UG: rest after the birth (h_loop 2): the birth frames go on until birth_rest is over, then
++    // idle on the end of a loop of the birth frames, so the pose does not jump in the middle
++    if (slot_data.h_loop == 2)
++    {
++        slot_data.h_wait -= global.w_spd;
++        
++        // <= 0 = the rest is over; && animation_end = only when the birth frames finish a loop
++        // (|| = or: birth speed 0 never ends a loop, so then the time alone decides)
++        if (slot_data.h_wait <= 0 && (animation_end || slot_data.anim_struct.anim_spd <= 0))
++            gnx_ug_to_idle();
++        
++        exit;
++    }
++    
++    // GNX-UG: newborn frames that go with the labour: physical.infant_labour_frames, default the birth frames
++    var _lab = (_cfg.gnx_infant_labour >= 1) ? _cfg.gnx_infant_labour : slot_data.anim_struct.frame_c;
++    
++    if (slot_data.h_loop == 0)
++    {
++        if (_inf != noone)
++            // the newborn's labour frames (_lab) spread over one loop of the captive's birth frames;
++            // with as many labour frames as birth frames this is simply the captive's frame
++            _inf.image_index = min(floor((slot_data.anim_struct.index * _lab) / slot_data.anim_struct.frame_c), _lab - 1, max(0, _inf.gnx_ug_frames - 1));
++        
++        // each finished round of labour frames lowers h_wait
++        if (animation_end)
++            slot_data.h_wait--;
++        
++        if (animation_end && slot_data.h_wait <= 0)
++        {
++            // labour is over: the pregnancy ends (Bastet keeps it with about 40 % chance, as in vanilla)
++            slot_data.h_loop = 1;
++            unit_data.tired_c = 980;
++            unit_data.milk = true;
++            
++            if (unit_data.class != 13 || (unit_data.class == 13 && irandom_range(1, 100) >= 40))
++            {
++                unit_data.preg = -1;
++                
++                if (unit_data.preg_c != -1)
++                {
++                    unit_data.preg_c = max(0, unit_data.preg_c - 1);
++                    
++                    if (floor(unit_data.preg_c) == 0)
++                        scr_check_softlock();
++                }
++            }
++            
++            if (_inf != noone)
++                _inf.gnx_ug_t = _lab;
++        }
++        
++        exit;
++    }
++    
++    // GNX-FIX: the newborn prop is gone: the child still comes from the data kept for this birth
++    if (_inf == noone)
++    {
++        if (!gnx_ug_award_child_once())
++            gnx_ug_award_failed();
++        
++        gnx_ug_remove_infant(noone);
++        gnx_ug_birth_done(_cfg);
++        exit;
++    }
++    
++    // the newborn's own timer, independent of image_index wrapping: infant_speed frames per second
++    // (default 8), or the rest of the strip in infant_time seconds
++    var _ifps = _cfg.gnx_infant_speed;
++    
++    if (_cfg.gnx_infant_time > 0)
++        _ifps = max(1, _inf.gnx_ug_frames - _lab) / _cfg.gnx_infant_time;
++    
++    _inf.gnx_ug_t += (_ifps / 60) * global.w_spd;
++    var _end = max(_lab + 4, _inf.gnx_ug_frames);
++    _inf.image_index = min(floor(_inf.gnx_ug_t), max(0, _inf.gnx_ug_frames - 1));
++    
++    if (_inf.gnx_ug_t >= _end)
++    {
++        // GNX-FIX: one place gives the child (once per birth), then the prop goes
++        if (!gnx_ug_award_child_once())
++            gnx_ug_award_failed();
++        
++        gnx_ug_remove_infant(_inf);
++        gnx_ug_birth_done(_cfg);
++    }
++}
++
++/// GNX-UG: the newborn is out (arg0 = the cell's physical settings). Still pregnant (Bastet keeps the
++/// pregnancy about 40 % of the time): the next birth starts at once, as in the vanilla tentacle cells.
++/// Otherwise the captive rests in the birth frames for birth_rest seconds (0 = straight to idle).
++function gnx_ug_birth_done(arg0)
++{
++    // != -1 = still pregnant
++    if (unit_data.preg != -1)
++    {
++        gnx_ug_goto(3);
++        exit;
++    }
++    
++    var _rest = variable_struct_exists(arg0, "gnx_birth_rest") ? arg0.gnx_birth_rest : 2;
++    
++    if (_rest <= 0)
++    {
++        gnx_ug_to_idle();
++        exit;
++    }
++    
++    // h_loop 2 = resting; h_wait = steps left (60 steps = 1 second at normal game speed)
++    slot_data.h_loop = 2;
++    slot_data.h_wait = _rest * 60;
++}
++
++/// GNX-UG: milking runs alongside the other phases now (gnx_ug_milking_step); this old scr_h[4] entry
++/// only sends the cell back to idle, so cells that still list it keep working.
++function scr_slot_h_gnx_ug_milk()
++{
++    gnx_ug_to_idle();
++}
++
++/// GNX-UG: milking alongside the scene, called by every GNX-UG phase script (arg0 = the cell's physical
++/// settings). While the captive has milk: one milk item every milk_interval frames (MILK 2 rhythm);
++/// after milk_items items the milk is used up. milk_items 0 turns milking off for the cell.
++function gnx_ug_milking_step(arg0)
++{
++    // ! = not, || = or: no milk, or a cell that does not milk
++    if (!unit_data.milk || arg0.gnx_milk_items <= 0)
++    {
++        slot_data.gnx_ug_milk_left = 0;
++        exit;
++    }
++    
++    // first step with milk: a new milking starts with the full count and a full wait
++    if (!variable_struct_exists(slot_data, "gnx_ug_milk_left") || slot_data.gnx_ug_milk_left <= 0)
++    {
++        slot_data.gnx_ug_milk_left = arg0.gnx_milk_items;
++        slot_data.gnx_ug_milk_t = arg0.gnx_milk_interval;
++        slot_data.gnx_ug_milk_f = 0;
++    }
++    
++    // GNX-UG: the milk's own clock, for milk strips that do not follow the captive's frames
++    // (speed.milk frames per second; 60 steps = 1 second; ? : picks the old value or 0 for old saves)
++    slot_data.gnx_ug_milk_f = (variable_struct_exists(slot_data, "gnx_ug_milk_f") ? slot_data.gnx_ug_milk_f : 0) + ((arg0.gnx_speed.milk / 60) * global.w_spd);
++    slot_data.gnx_ug_milk_t -= global.w_spd;
++    
++    // > 0: still waiting for the next item
++    if (slot_data.gnx_ug_milk_t > 0)
++        exit;
++    
++    slot_data.gnx_ug_milk_t = arg0.gnx_milk_interval;
++    slot_data.gnx_ug_milk_left--;
++    
++    // milk level as in vanilla MILK 1 and 2: unit level, Lilith 4, other classes from 8 up 1
++    var _m_lvl = unit_data.lvl;
++    
++    if (unit_data.class >= 8)
++        _m_lvl = (unit_data.class == 8) ? 4 : 1;
++    
++    scr_add_milk_item(_m_lvl, 1);
++    // GNX-PROP: the props next to the cell can react to the milk
++    gnx_cell_event(id, "milk");
++    scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 50, 1, 1, false);
++    
++    // <= 0: the last item of this milking was given
++    if (slot_data.gnx_ug_milk_left <= 0)
++    {
++        unit_data.milk = false;
++        
++        if (unit_data.class == 9 || unit_data.scr_unit == 0)
++            unit_data.scr_wait = 0;
++    }
++}
++
++/// GNX-INTER: intermission arg0 (0 idle_start, 1 start_loop, 2 loop_ej, 3 ej_birth) of the cell in this
++/// slot: its { frames, speed, loops } from physical.intermissions, or -1 when the cell has none.
++function gnx_cell_inter(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    
++    // == undefined: not a registered cell; ! = not: a cell without intermissions
++    if (_c == undefined || !variable_struct_exists(_c.physical, "gnx_inter"))
++        return -1;
++    
++    return _c.physical.gnx_inter[arg0];
++}
++
++/// GNX-INTER: place of script arg0 (its name) in this slot's scene list, or arg1 when it is not there.
++/// Intermissions put into a mod cell's list move the later scripts, so jumps use this instead of a number.
++function gnx_h_step_of(arg0, arg1)
++{
++    if (!is_struct(scr_slot) || !variable_struct_exists(scr_slot, "h"))
++        return arg1;
++    
++    var _h = scr_slot.h;
++    
++    for (var i = 0; i < array_length(_h); i++)
++    {
++        // a script that was not found is -1 and has no name
++        if (!(is_numeric(_h[i]) && _h[i] < 0) && script_get_name(_h[i]) == arg0)
++            return i;
++    }
++    
++    return arg1;
++}
++
++/// GNX-INTER: place of the ej script (base_ej, base_ej_2 or tent_ej) in this slot's scene list; 5 as in the
++/// vanilla base list when there is none.
++function gnx_ej_step()
++{
++    var _e = gnx_h_step_of("scr_slot_h_base_ej", -1);
++    
++    // == -1: not in the list, try the other ej scripts
++    if (_e == -1)
++        _e = gnx_h_step_of("scr_slot_h_base_ej_2", -1);
++    
++    if (_e == -1)
++        _e = gnx_h_step_of("scr_slot_h_tent_ej", 5);
++    
++    return _e;
++}
++
++/// GNX-INTER: plays intermission arg0 of this cell (see gnx_cell_inter): phase 6 + arg0 with its own frames
++/// and speed, loops times; the monsters get their intermission strips and follow the frame. An underground
++/// scene keeps milking meanwhile. Then gnx_inter_done goes on to the phase it leads into.
++function gnx_inter_step(arg0)
++{
++    var _ib = gnx_cell_inter(arg0);
++    // undefined outside underground scenes
++    var _ug = gnx_ug_cfg();
++    
++    if (_ug != undefined)
++        gnx_ug_milking_step(_ug);
++    
++    // ! is_struct: the cell no longer declares it (JSON changed since the save): go straight on
++    if (!is_struct(_ib))
++    {
++        gnx_inter_done(arg0, _ug != undefined);
++        exit;
++    }
++    
++    if (slot_data.anim_struct.ff)
++    {
++        gnx_ug_phase_begin(6 + arg0, _ib.frames, _ib.speed);
++        // plays left after this one: loops - 1 (irandom_range = a random whole number from min to max)
++        slot_data.h_loop = irandom_range(_ib.loops[0], _ib.loops[1]) - 1;
++        var _num = array_length(h_unit_list);
++        
++        for (var i = 0; i < _num; i++)
++        {
++            with (h_unit_list[i])
++            {
++                // only monsters (they have a slot in mon_data); && = and
++                if (variable_instance_exists(id, "mon_data") && is_struct(mon_data) && variable_struct_exists(mon_data, "slot_id"))
++                    scr_set_mon_spr_data(mon_data.slot_id, 6 + arg0);
++            }
++        }
++    }
++    
++    slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
++    scr_animation_end(false, slot_data.anim_struct.frame_c);
++    scr_mon_frame(slot_data.anim_struct.index);
++    
++    // --h_loop lowers the count first, then compares: below 0 = every play is done
++    if (animation_end && --slot_data.h_loop < 0)
++        gnx_inter_done(arg0, _ug != undefined);
++}
++
++/// GNX-INTER: intermission arg0 is over. arg1 = true in an underground scene: jump to the phase it leads
++/// into (start 0, loop 1, ej 2, birth 3 of its scr_h). Other cells: the intermission sits in the list
++/// right before that phase's script, so h_step++; first put back what that script takes over from the
++/// phase that normally comes before it.
++function gnx_inter_done(arg0, arg1)
++{
++    if (arg1)
++    {
++        var _to = [0, 1, 2, 3];
++        gnx_ug_goto(_to[arg0]);
++        exit;
++    }
++    
++    switch (arg0)
++    {
++        case 0:
++            // the start scripts go on from the idle: base_start keeps its art, frame count and speed,
++            // big_start doubles that speed (sign(tired_c) + 1 = 2 while tired, as in the idle)
++            scr_set_slot_spr_part(1);
++            slot_data.anim_struct.index = 0;
++            slot_data.anim_struct.frame_c = gnx_cell_frames(1, 2);
++            slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
++            slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
++            break;
++        
++        case 2:
++            // the ej scripts keep the loop's frame count
++            slot_data.anim_struct.frame_c = gnx_cell_frames(2, 5);
++            break;
++    }
++    
++    slot_data.h_step++;
++    slot_data.anim_struct.ff = true;
++}
++
++/// GNX-INTER: idle -> start intermission (physical.intermissions.idle_start), art phase_idle_start.
++function scr_slot_h_gnx_inter_idle_start()
++{
++    gnx_inter_step(0);
++}
++
++/// GNX-INTER: start -> loop intermission (physical.intermissions.start_loop), art phase_start_loop.
++function scr_slot_h_gnx_inter_start_loop()
++{
++    gnx_inter_step(1);
++}
++
++/// GNX-INTER: loop -> ej intermission (physical.intermissions.loop_ej), art phase_loop_ej.
++function scr_slot_h_gnx_inter_loop_ej()
++{
++    gnx_inter_step(2);
++}
++
++/// GNX-INTER: ej -> birth intermission (physical.intermissions.ej_birth), art phase_ej_birth.
++function scr_slot_h_gnx_inter_ej_birth()
++{
++    gnx_inter_step(3);
++}
++
++// =====================================================================================
++// GNX-PLACES: independent places. A mod cell whose scr_h is only ["scr_slot_h_gnx_places"] runs one small
++// scene per monster place instead of one scene for the whole cell. Each monster that arrives plays its own
++// start, slow loop, fast loop and ej on its own clock and leaves alone (payout, mon_exit for the props)
++// while the others go on. The captive shows her idle pictures while nobody is inside, her start pictures
++// while every monster inside is still starting, and her loop pictures as soon as one is past its start.
++// State per place in slot_data.gnx_pl (saved with the cell): st 0 empty, 1 start, 2 slow loop, 3 fast
++// loop, 4 ej; i = its frame; n = start plays / ej holds left; t = timer in game frames; s = its speed in
++// frames per second (varied by up to 10 % each cycle, so neighbours drift apart); hold = waiting on the
++// held ej frame; ek = its ej key frames.
++// =====================================================================================
++
++/// GNX-PLACES: a fresh, empty place (st 0 = no monster inside)
++function gnx_places_blank()
+ {
 -    Value_0,
 -    Value_1,
 -    Value_2,
@@ -1667,4 +2869,353 @@
 -    Value_28,
 -    Value_39 = 39,
 -    Value_40
--}
++    return 
++    {
++        st: 0,
++        i: 0,
++        n: 0,
++        t: 0,
++        s: 0,
++        hold: false,
++        ek: [2, 3, 4, 5]
++    };
++}
++
++/// GNX-PLACES: a frame number vanilla uses (arg0 of 5 frames) moved to a strip of arg1 frames, as
++/// gnx_key_frame does, but for the monster's own count (the captive may be in another phase)
++function gnx_places_key(arg0, arg1)
++{
++    // == 5 or < 1: vanilla strip (or nothing to scale), the frame stays
++    if (arg1 == 5 || arg1 < 1)
++        return arg0;
++    
++    // clamp keeps it inside the strip: 0 ... arg1 - 1
++    return clamp(round((arg0 * arg1) / 5), 0, arg1 - 1);
++}
++
++/// GNX-PLACES: ej key frames for a loop strip of arg0 frames: [first, held, after the hold, count], as
++/// gnx_ej_keys (physical.ej_start / ej_hold, else 2 and 3 of 5 moved in proportion)
++function gnx_places_ej_keys(arg0)
++{
++    var _cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    var _n = max(1, arg0);
++    // ? : the cell's own key frame when it has one, else -1 (= move vanilla's in proportion)
++    var _es = (_cell != undefined && variable_struct_exists(_cell.physical, "gnx_ej_start")) ? _cell.physical.gnx_ej_start : -1;
++    var _eh = (_cell != undefined && variable_struct_exists(_cell.physical, "gnx_ej_hold")) ? _cell.physical.gnx_ej_hold : -1;
++    var _s = (_es >= 0) ? _es : round((2 * _n) / 5);
++    var _h = (_eh >= 0) ? _eh : round((3 * _n) / 5);
++    _s = clamp(_s, 0, _n - 1);
++    _h = clamp(_h, _s, _n - 1);
++    return [_s, _h, _h + 1, _n];
++}
++
++/// GNX-PLACES: true when cell type arg0 runs independent places (physical scr_h ["scr_slot_h_gnx_places"])
++function gnx_cell_places(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++    
++    // && = and: the cell exists, has the flag, and it is on
++    return _c != undefined && variable_struct_exists(_c.physical, "gnx_places") && _c.physical.gnx_places;
++}
++
++/// GNX-PLACES: sets the pictures of monster arg0 for phase arg1 (0 start, 2 loop, 3 ej) and its frame
++/// count arg2, which its own strip has (the cell's count would be the captive's, maybe another phase)
++function gnx_places_mon_spr(arg0, arg1, arg2)
++{
++    with (arg0)
++    {
++        scr_set_mon_spr_data(mon_data.slot_id, arg1);
++        
++        if (is_struct(mon_data.spr_data))
++        {
++            mon_data.spr_data.base_frame_c = arg2;
++            mon_data.spr_data.mon_frame_c = arg2;
++        }
++    }
++}
++
++/// GNX-PLACES: the scene of a cell with independent places (its only scr_h entry). Runs while at least
++/// one monster is inside; scr_slot_h_state_idle runs while none is.
++function scr_slot_h_gnx_places()
++{
++    var _np = slot_data.max_mon_num;
++    
++    // the places' state; a new scene, an older save or a changed cell has none yet (! = not, || = or)
++    if (!variable_struct_exists(slot_data, "gnx_pl") || !is_array(slot_data.gnx_pl) || array_length(slot_data.gnx_pl) != _np)
++    {
++        slot_data.gnx_pl = array_create(_np, 0);
++        
++        for (var p = 0; p < _np; p++)
++            slot_data.gnx_pl[p] = gnx_places_blank();
++    }
++    
++    // ff is set by every monster that arrives; here it only means "look again", nothing is restarted
++    slot_data.anim_struct.ff = false;
++    // a big cell (human_spr base_body "big") has start pictures of its own (phase_0); others start with idle
++    var _rc = ds_map_find_value(global.cell_registry, slot_data.h_type);
++    var _big = _rc != undefined && variable_struct_exists(_rc, "human_spr") && is_struct(_rc.human_spr) && variable_struct_exists(_rc.human_spr, "base_body") && _rc.human_spr.base_body == "big";
++    // frame counts of the monsters' strips: start (the idle count outside big cells) and loop
++    var _fs = gnx_cell_frames(0, 2);
++    var _fl = gnx_cell_frames(2, 5);
++    var _w = global.w_spd;
++    var _leave = -1;
++    var _inside = 0;
++    var _starting = 0;
++    var _fast = false;
++    var _ej_now = false;
++    
++    for (var p = 0; p < _np; p++)
++    {
++        var _pl = slot_data.gnx_pl[p];
++        var _m = (p < array_length(slot_data.mon_placement)) ? slot_data.mon_placement[p] : -1;
++        
++        // no monster inside at this place (gone, or still on its way, mon_state 1 = inside): empty
++        if (_m == -1 || !gnx_is_live_inst(_m) || !is_struct(_m.mon_data) || _m.mon_data.mon_state != 1)
++        {
++            if (_pl.st != 0)
++                slot_data.gnx_pl[p] = gnx_places_blank();
++            
++            continue;
++        }
++        
++        _inside++;
++        
++        // a monster that just arrived begins its own start: 3-5 plays (or physical.start_loops), 2 frames
++        // per second as the vanilla start of a rested captive
++        if (_pl.st == 0)
++        {
++            _pl.st = 1;
++            _pl.i = 0;
++            _pl.n = gnx_start_loops(choose(2, 3, 4));
++            _pl.s = 2 * random_range(0.9, 1.1);
++            _pl.hold = false;
++            gnx_places_mon_spr(_m, 0, _fs);
++        }
++        else if (!is_struct(_m.mon_data.spr_data) || !variable_struct_exists(_m.mon_data.spr_data, "spr_type") || _m.mon_data.spr_data.spr_type == -1)
++        {
++            // pictures cleared (after loading): set again for the phase it is in
++            gnx_places_mon_spr(_m, (_pl.st == 1) ? 0 : ((_pl.st == 4) ? 3 : 2), (_pl.st == 1) ? _fs : _fl);
++        }
++        
++        // its own clock: frames per second / 60 per game frame, times the game speed
++        var _step = (_pl.s / 60) * _w;
++        
++        switch (_pl.st)
++        {
++            case 1:
++                _starting++;
++                _pl.i += _step;
++                
++                // >= : one play of the start is over; -- n < 0: the last one
++                if (_pl.i >= _fs)
++                {
++                    _pl.i = 0;
++                    
++                    if (--_pl.n < 0)
++                    {
++                        // slow loop, 9 fps, 6-7 s (longer with physical.loop_scale)
++                        _pl.st = 2;
++                        _pl.s = 9 * random_range(0.9, 1.1);
++                        _pl.t = gnx_loop_time(irandom_range(360, 420));
++                        gnx_places_mon_spr(_m, 2, _fl);
++                    }
++                }
++                
++                break;
++            
++            case 2:
++                _pl.i += _step;
++                _pl.t -= _w;
++                var _wrap2 = _pl.i >= _fl;
++                
++                if (_wrap2)
++                {
++                    _pl.i = 0;
++                    _pl.s = 9 * random_range(0.9, 1.1);
++                }
++                
++                // the time is up and a cycle just ended: the fast loop, 11 fps
++                if (_pl.t <= 0 && _wrap2)
++                {
++                    _pl.st = 3;
++                    _pl.s = 11 * random_range(0.9, 1.1);
++                    _pl.t = gnx_loop_time(irandom_range(360, 420));
++                }
++                
++                break;
++            
++            case 3:
++                _fast = true;
++                _pl.i += _step;
++                _pl.t -= _w;
++                // vanilla loops frames 0-3 of 5 here; max(1, ...) = at least one frame
++                var _fc3 = max(1, gnx_places_key(4, _fl));
++                
++                if (_pl.i >= _fc3)
++                {
++                    _pl.i = 0;
++                    _pl.s = 11 * random_range(0.9, 1.1);
++                }
++                
++                // the time is up from vanilla's frame 1 on: the ej (>= rather than ==, so a fast game speed
++                // that steps over frame 1 cannot keep it in the fast loop)
++                if (_pl.t <= 0 && floor(_pl.i) >= gnx_places_key(1, _fl))
++                {
++                    _pl.st = 4;
++                    _pl.ek = gnx_places_ej_keys(_fl);
++                    _pl.i = _pl.ek[0];
++                    _pl.n = gnx_ej_holds(irandom_range(5, 7));
++                    _pl.t = irandom_range(30, 60);
++                    _pl.s = 9;
++                    _pl.hold = false;
++                    gnx_places_mon_spr(_m, 3, _fl);
++                    _ej_now = true;
++                }
++                
++                break;
++            
++            case 4:
++                var _ek = _pl.ek;
++                
++                if (!_pl.hold)
++                {
++                    var _prev = _pl.i;
++                    _pl.i += _step;
++                    
++                    // past the last frame: back to the first ej frame (vanilla: 0, then jump to 2)
++                    if (_pl.i >= _ek[3])
++                        _pl.i = _ek[0];
++                    
++                    // reached the held frame on the way up (< and >= also catch a step over it at a fast game
++                    // speed; after a wrap _pl.i is below _prev, so it waits for the next step)
++                    if (_prev < (_ek[1] + 1) && _pl.i >= _ek[1] && _pl.i >= _prev)
++                    {
++                        _pl.i = _ek[1];
++                        _pl.hold = true;
++                    }
++                }
++                else
++                {
++                    _pl.t -= _w;
++                    
++                    if (_pl.t <= 0)
++                    {
++                        // -- n <= 0: that was the last hold, this monster is done
++                        if (--_pl.n <= 0)
++                        {
++                            if (_leave == -1)
++                                _leave = p;
++                        }
++                        else
++                        {
++                            // the last hold is long, the others short (as vanilla)
++                            _pl.t = (_pl.n == 1) ? irandom_range(120, 180) : irandom_range(45, 90);
++                            _pl.i = _ek[2];
++                            _pl.hold = false;
++                        }
++                    }
++                }
++                
++                break;
++        }
++        
++        // the monster draws its own frame, not the cell's
++        _m.mon_data.index = _pl.i;
++        
++        // its strip count for the draw (matters with mon_positions, where the row is the place)
++        if (is_struct(_m.mon_data.spr_data))
++        {
++            var _cnt = (_pl.st == 1) ? _fs : _fl;
++            _m.mon_data.spr_data.base_frame_c = _cnt;
++            _m.mon_data.spr_data.mon_frame_c = _cnt;
++        }
++    }
++    
++    // nobody inside (after loading, or all were called off): back to idle
++    if (_inside == 0)
++    {
++        slot_data.anim_struct.char_state = 0;
++        slot_data.anim_struct.ff = true;
++        exit;
++    }
++    
++    // the captive: loop pictures as soon as one monster is past its start, else start pictures (idle
++    // pictures outside big cells, as the vanilla base start)
++    var _loop = _inside > _starting;
++    var _ph = _loop ? 2 : (_big ? 0 : 1);
++    var _cfc = _loop ? _fl : (_big ? _fs : gnx_cell_frames(1, 2));
++    var _cspd = _loop ? (_fast ? 11 : 9) : 2;
++    
++    if (slot_data.anim_struct.spr_type != _ph || slot_data.anim_struct.frame_c != _cfc)
++    {
++        scr_set_slot_spr_part(_ph);
++        slot_data.anim_struct.index = 0;
++        slot_data.anim_struct.frame_c = _cfc;
++        slot_data.anim_struct.spr_spd = _cspd;
++        slot_data.anim_struct.anim_spd = _cspd / 60;
++        
++        // into the loop: splash and squirt as the vanilla slow loop starts them
++        if (_loop)
++        {
++            spawn_part[0] = true;
++            spawn_stream = true;
++            
++            if (slot_data.anim_struct.sp_state != -1 && floor(slot_data.anim_struct.sp_index) != 7)
++            {
++                slot_data.anim_struct.sp_index = 0;
++                slot_data.anim_struct.sp_timer = 0;
++                slot_data.anim_struct.sp_state = -1;
++                scr_create_sp_drip(slot_data, depth - 1, true);
++            }
++        }
++    }
++    else if (slot_data.anim_struct.spr_spd != _cspd)
++    {
++        slot_data.anim_struct.spr_spd = _cspd;
++        slot_data.anim_struct.anim_spd = _cspd / 60;
++    }
++    
++    var _old_index = slot_data.anim_struct.index;
++    slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * _w;
++    
++    // slap sound and squirt on the captive's loop, as the vanilla loops
++    if (_loop && floor(_old_index) != floor(slot_data.anim_struct.index))
++    {
++        scr_play_slap_sfx(2);
++        scr_create_sq_effect(gnx_key_frame(2, 5), _fast ? 0.5 : 0.3, _fast ? 60 : 35, slot_data.slot_floor, 0);
++    }
++    
++    scr_animation_end(true, slot_data.anim_struct.frame_c);
++    
++    if (_loop && animation_end && irandom_range(0, 100) < 15)
++        scr_create_sp_drip(slot_data, depth - 1, false);
++    
++    // a monster began its ej: its sound and a squirt now
++    if (_ej_now)
++    {
++        scr_create_sq_effect(floor(slot_data.anim_struct.index), 0.7, 100, slot_data.slot_floor, 0);
++        scr_play_ej_sfx();
++    }
++    
++    // one monster done: it alone leaves (payout, mon_exit); scr_unit_removal reads the place from
++    // gnx_leave_place and keeps the scene running for the others
++    if (_leave != -1)
++    {
++        slot_data.gnx_pl[_leave] = gnx_places_blank();
++        slot_data.gnx_leave_place = _leave;
++        scr_unit_removal(true, false, false, false, -1);
++        var _left = false;
++        
++        for (var p = 0; p < array_length(slot_data.mon_placement); p++)
++        {
++            if (slot_data.mon_placement[p] != -1)
++                _left = true;
++        }
++        
++        // the last one has left: the frog shrine may swap the captive now, as after a vanilla scene
++        if (!_left)
++            scr_check_frog_unit_swap(slot_data.h_type);
++    }
++    
++    scr_slot_call_mon(true);
+ }
