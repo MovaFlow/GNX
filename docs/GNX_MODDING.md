@@ -1616,7 +1616,7 @@ Starting values some vanilla cells need. Only the matching vanilla scripts read 
 
 `human_spr` is optional; without it, or without `mode`, the cell uses `base+class`. Without `base_body`, GNX takes it from `category`: `b_…` (or `slot_type` 2) gives `"big"`, `t_…` (or `slot_type` 3) gives `"tent"`, all others `"standard"` ([10.7](#107-categories-and-base_body)). With `fixed` or `class_map`, write both keys anyway.
 
-A [phase](#2-glossary) is an animation stage: 0 start, 1 idle, 2 loop, 3 ejaculation (uses the phase 2 table), 4 tentacle birth. Underground cells also read a `phase_3` table ([§24](#24-underground-cells)), and intermissions have tables of their own, `phase_<name>` ([§23](#23-intermissions)).
+A [phase](#2-glossary) is an animation stage: 0 start, 1 idle, 2 loop, 3 ejaculation (the phase 2 table, unless the cell has a `phase_3` table), 4 tentacle birth. A `fixed` or `class_map` cell can give the ejaculation its own `phase_3` table (below), underground cells too ([§24](#24-underground-cells)), and intermissions have tables of their own, `phase_<name>` ([§23](#23-intermissions)).
 
 ### 10.2 base+class
 
@@ -1657,7 +1657,7 @@ Every class looks the same in this cell. `phase_1` is used while idle (and for t
 | `phase_1` | idle; also the start on non-big cells | always |
 | `phase_2` | loops and ejaculation | always |
 | `phase_4` | tentacle birth | tentacle cells with a birth step |
-| `phase_3` | ejaculation, underground cells only ([§24](#24-underground-cells)) | no |
+| `phase_3` | ejaculation: the captive's own pose for it (`fixed` and `class_map` cells, and underground cells, [§24](#24-underground-cells)). It plays the loop's frames, so its strips need the loop's frame count; without it the ejaculation uses the `phase_2` table. In `class_map`, an entry without `phase_3` keeps the loop art for that class. | no |
 | `phase_idle_start`, `phase_start_loop`, `phase_loop_ej`, `phase_ej_birth` | intermissions ([§23](#23-intermissions)) | no |
 
 The positions are the slots of [7.7](#77-special-class-tables-spr_array-and-spr_c_array): `[0]` hair (only in `spr_c_array`, drawn with the captive's hair colour), `[1]` head, `[2]` breast, `[3]` hand, `[4]` leg, `[5]` leg part, `[6]` cape (only in `spr_array`). Write 7 positions in `spr_array` and at least 6 in `spr_c_array`, with `-1` for "nothing".
@@ -4011,7 +4011,7 @@ This is part of the `physical` block of a big fixed-mode cell such as BIG ALTAR 
 
 **What this example does**
 
-- `frames`: the idle strips have 4 frames, the start strips 6 and the loop strips 8; the ejaculation is drawn with the loop strips. Every strip of the cell, the monsters' too, needs these counts ([22.5](#225-the-frame-rule-for-every-mod-cell)).
+- `frames`: the idle strips have 4 frames, the start strips 6 and the loop strips 8; the ejaculation is drawn with the loop strips (or with a `phase_3` table of 8 frames, when the cell has one). Every strip of the cell, the monsters' too, needs these counts ([22.5](#225-the-frame-rule-for-every-mod-cell)).
 - `start_loops`: the start plays 2 or 3 times (vanilla 3–5).
 - `ej_holds`, `ej_start`, `ej_hold`: the ejaculation holds 4 to 6 times, starting on frame 3 and holding on frame 5 of the 8 loop frames.
 - `loop_scale`: each loop part lasts 8 / 5 times as long as in vanilla, so it plays as many cycles as vanilla.
@@ -4022,7 +4022,7 @@ This is part of the `physical` block of a big fixed-mode cell such as BIG ALTAR 
 |---|---|---|
 | `frames.idle` | 1, idle; also the start of cells that are not big | 2 |
 | `frames.start` | 0, the start of big cells (`base_body` `"big"` with `scr_slot_h_big_start`) | 2 |
-| `frames.loop` | 2 and 3, the loops and the ejaculation (drawn with the loop pictures) | 5 |
+| `frames.loop` | 2 and 3, the loops and the ejaculation (drawn with the loop pictures, or the cell's `phase_3` table) | 5 |
 | `frames.birth` | 4, birth | 2 |
 
 Each count is a whole number from 1 to 64; a phase left out keeps the vanilla count.

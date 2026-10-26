@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 10:31:06.949549600 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 10:42:14.928746200 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -88,7 +88,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +179,25882 @@
+@@ -167,12 +179,25933 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -16990,6 +16990,56 @@
 +    return arg0;
 +}
 +
++// the human_spr table the captive of the first occupied cell of type arg0 is drawn with right now: "phase_N"
++// of the fixed table or of a class_map entry (matched on the body sprite, spr_array[1]), else "none"
++function gnx_scn_captive_table(arg0)
++{
++    var _c = gnx_scn_occupied_cell(arg0);
++    var _rc = ds_map_find_value(global.cell_registry, arg0);
++    
++    if (_c == -1 || _rc == undefined || !is_struct(_rc.human_spr) || !is_array(_c.spr_slot))
++        return "none";
++    
++    var _cur = -1;
++    
++    for (var i = 0; i < array_length(_c.spr_slot); i++)
++    {
++        if (is_array(_c.spr_slot[i]) && _c.spr_slot[i][0] == 10)
++            _cur = _c.spr_slot[i][1];
++    }
++    
++    var _blocks = [_rc.human_spr];
++    
++    if (variable_struct_exists(_rc.human_spr, "classes"))
++    {
++        var _ck = variable_struct_get_names(_rc.human_spr.classes);
++        
++        for (var i = 0; i < array_length(_ck); i++)
++            array_push(_blocks, variable_struct_get(_rc.human_spr.classes, _ck[i]));
++    }
++    
++    if (variable_struct_exists(_rc.human_spr, "default"))
++        array_push(_blocks, variable_struct_get(_rc.human_spr, "default"));
++    
++    for (var b = 0; b < array_length(_blocks); b++)
++    {
++        for (var ph = 0; ph <= 4; ph++)
++        {
++            var _k = "phase_" + string(ph);
++            
++            if (variable_struct_exists(_blocks[b], _k))
++            {
++                var _t = variable_struct_get(_blocks[b], _k);
++                
++                if (is_struct(_t) && variable_struct_exists(_t, "spr_array") && is_array(_t.spr_array) && array_length(_t.spr_array) > 1 && _t.spr_array[1] == _cur)
++                    return _k;
++            }
++        }
++    }
++    
++    return "none";
++}
++
 +// sets the game language (global.val.language: 0 English; 1, 2, 3, 9 draw with the CJK font)
 +function gnx_scn_set_language(arg0)
 +{
@@ -24197,7 +24247,7 @@
 +/// only logged (a strip can be shared with a longer phase), fewer frames than one row is an error.
 +/// arg0 = cell JSON, arg1 = cell name, arg2 = "sprites" block, arg4 = true for an underground cell (its
 +/// tent_spr per phase is checked too; milk_spr fits any count, see gnx_milk_clock), arg5 = base_body. Only tables the game draws are
-+/// checked: outside underground cells phase_3 is never drawn (ej uses the loop art) and phase_0 only in
++/// checked: outside underground cells phase_3 is drawn for the ej with the loop's count, and phase_0 only in
 +/// big cells (other cells start with the idle art). A 1-frame strip is a still image and always fits.
 +/// Every problem is one mod error that names the strip and the count it needs; the game goes on (a wrong
 +/// strip only shows wrong frames).
@@ -24205,7 +24255,8 @@
 +{
 +    var _bad = 0;
 +    // phases whose captive tables are drawn: [start, idle, loop, ej, birth]
-+    var _used = arg4 ? [true, true, true, true, true] : [arg5 == "big", true, true, false, true];
++    // (GNX-EJ: a phase_3 table is drawn for the ej, with the loop's count, see gnx_ej_own_art)
++    var _used = arg4 ? [true, true, true, true, true] : [arg5 == "big", true, true, true, true];
 +    
 +    // captive: every phase_N table anywhere in human_spr (fixed, by_class, class_map entries, default)
 +    if (variable_struct_exists(arg0, "human_spr"))
@@ -25973,7 +26024,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +26065,181 @@
+@@ -183,42 +26116,181 @@
      Value_3,
      Value_4,
      Value_5,
