@@ -931,7 +931,7 @@ diff -uN gml_138/gml_GlobalScript_PropertyHolder.gml gml/gml_GlobalScript_Proper
 +}
 diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_button_activate.gml
 --- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-23 15:52:58.159096100 +0200
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-26 10:25:33.169318300 +0100
 @@ -29,6 +29,15 @@
              trigger = false;
              global.click_lock = false;
@@ -975,6 +975,31 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      with (source_id)
+@@ -112,18 +132,18 @@
+                             break;
+                         
+                         case 1:
+-                            var _num = array_length(global.unlock.edit_top);
+-                            scr_create_window_button_list(_slot_id, _x, _y, _num, UnknownEnum.Value_0, UnknownEnum.Value_7, scr_create_modify_prop, false);
++                            // GNX-PROPCAT: a row with props of several groups lists the groups first
++                            gnx_open_prop_row(_slot_id, _x, _y, global.unlock.edit_top, UnknownEnum.Value_7);
+                             break;
+                         
+                         case 2:
+-                            var _num = array_length(global.unlock.edit_mid);
+-                            scr_create_window_button_list(_slot_id, _x, _y, _num, UnknownEnum.Value_0, UnknownEnum.Value_8, scr_create_modify_prop, false);
++                            // GNX-PROPCAT: a row with props of several groups lists the groups first
++                            gnx_open_prop_row(_slot_id, _x, _y, global.unlock.edit_mid, UnknownEnum.Value_8);
+                             break;
+                         
+                         case 3:
+-                            var _num = array_length(global.unlock.edit_bot);
+-                            scr_create_window_button_list(_slot_id, _x, _y, _num, UnknownEnum.Value_0, UnknownEnum.Value_9, scr_create_modify_prop, false);
++                            // GNX-PROPCAT: a row with props of several groups lists the groups first
++                            gnx_open_prop_row(_slot_id, _x, _y, global.unlock.edit_bot, UnknownEnum.Value_9);
+                             break;
+                         
+                         case 4:
 @@ -182,7 +202,7 @@
                          {
                              slot_data.between_type = other.button_num;
@@ -1077,7 +1102,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -391,6 +427,80 @@
+@@ -391,6 +427,105 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1101,6 +1126,31 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
 +                    with (source_id)
 +                        instance_destroy();
 +                    
++                    break;
++                
++                case 9080:
++                    // GNX-PROPCAT: a group of the prop menu: the prop list of that group
++                    var _slot_id = source_id.source_id;
++                    var _po = global.gnx_prop_cat_open;
++                    global.gnx_prop_filter = gnx_prop_in_cat(_po.row, _po.cats[button_num]);
++                    scr_create_window_button_list(_slot_id, source_id.x, source_id.y, array_length(global.gnx_prop_filter), UnknownEnum.Value_0, _po.type, scr_create_modify_prop, false);
++                    
++                    // a back arrow left of the window's exit button (the swap button's place, never shown on a passage)
++                    with (obj_window)
++                    {
++                        if (!gui && source_id == _slot_id && interact_type == UnknownEnum.Value_0)
++                            scr_create_button((image_xscale - 24) - 12, -4, depth + 1, spr_button_arrow, 9081, id, scr_gnx_create_prop_back_button, scr_button_list_step, scr_draw_hover_button, 0, 0);
++                    }
++                    
++                    with (source_id)
++                        instance_destroy();
++                    
++                    break;
++                
++                case 9081:
++                    // GNX-PROPCAT: back from a group's props to the list of groups
++                    var _pb = global.gnx_prop_cat_open;
++                    gnx_open_prop_row(source_id.source_id, source_id.x, source_id.y, _pb.row, _pb.type);
 +                    break;
 +                
 +                case 95:
@@ -1158,7 +1208,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -402,6 +512,8 @@
+@@ -402,6 +537,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1167,7 +1217,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -413,6 +525,8 @@
+@@ -413,6 +550,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1176,7 +1226,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -424,6 +538,8 @@
+@@ -424,6 +563,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1185,7 +1235,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -435,6 +551,8 @@
+@@ -435,6 +576,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1194,7 +1244,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -446,6 +564,8 @@
+@@ -446,6 +589,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1203,7 +1253,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -465,7 +585,7 @@
+@@ -465,7 +610,7 @@
                          var _button_pos = floor(_button_num * 0.5);
                          var _mod_type = _icon_array[_button_pos];
                          var _mod_pos = _pos_array[_button_pos];
@@ -1212,7 +1262,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                          var _shift_min, _shift_max;
                          
                          switch (_mod_type)
-@@ -548,7 +668,7 @@
+@@ -548,7 +693,7 @@
                              var _cape_pos = -1;
                              var _mod_type = _icon_array[_button_num];
                              var _mod_pos = _pos_array[_button_num];
@@ -1221,7 +1271,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              slot_data.mod_index[_mod_pos] = !slot_data.mod_index[_mod_pos];
                              
                              if (slot_data.mod_index[_mod_pos] == 1)
-@@ -587,7 +707,9 @@
+@@ -587,7 +732,9 @@
                                              {
                                                  scr_unit_removal(false, true, true, false, -1);
                                              }
@@ -1232,7 +1282,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                              {
                                                  scr_unit_removal(false, true, true, false, -1);
                                                  slot_data.anim_struct.char_state = UnknownEnum.Value_0;
-@@ -713,6 +835,16 @@
+@@ -713,6 +860,16 @@
                      break;
                  
                  case UnknownEnum.Value_60:
@@ -1249,7 +1299,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      var _type = source_id.source_id.slot_data.slot_type;
                      var _base_type = -1;
                      var _spr = -1;
-@@ -758,6 +890,44 @@
+@@ -758,6 +915,44 @@
                                      }
                                  }
                              }
@@ -1294,7 +1344,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              else
                              {
                                  if (_spr == -1)
-@@ -838,6 +1008,38 @@
+@@ -838,6 +1033,38 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -1333,7 +1383,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              else
                              {
                                  if (_spr == -1)
-@@ -900,6 +1102,26 @@
+@@ -900,6 +1127,26 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -1360,7 +1410,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              else
                              {
                                  if (_spr == -1)
-@@ -935,6 +1157,11 @@
+@@ -935,6 +1182,11 @@
                                  source_id.source_id.spr_base = spr_slot_back;
                                  source_id.source_id.slot_data.base_type = UnknownEnum.Value_0;
                              }
@@ -1372,7 +1422,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              else
                              {
                                  source_id.source_id.spr_base = spr_big_slot_back;
-@@ -1091,12 +1318,13 @@
+@@ -1091,12 +1343,13 @@
                          
                          case 13:
                              scr_fullscreen_switch();
@@ -1387,7 +1437,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                      instance_destroy();
                              }
                              
-@@ -1148,22 +1376,41 @@
+@@ -1148,22 +1401,41 @@
                              break;
                          
                          case 15:
@@ -1444,7 +1494,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                      }
                      
-@@ -1189,7 +1436,7 @@
+@@ -1189,7 +1461,7 @@
                          
                          case 1:
                              _guide_create = true;
@@ -1453,7 +1503,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              _scr = scr_create_guide_raiding_button;
                              _scr_draw = scr_draw_guide_button;
                              break;
-@@ -1210,6 +1457,18 @@
+@@ -1210,6 +1482,18 @@
                                          instance_destroy();
                                      
                                      alpha_window = scr_create_alpha_window();
@@ -1472,7 +1522,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  }
                              }
                              
-@@ -1335,6 +1594,10 @@
+@@ -1335,6 +1619,10 @@
                                  case 7:
                                      _text = scr_guide_casualty;
                                      break;
@@ -1483,7 +1533,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              }
                              
                              break;
-@@ -1410,6 +1673,18 @@
+@@ -1410,6 +1698,18 @@
                              if (alpha_window == -1)
                              {
                                  alpha_window = scr_create_alpha_window();
@@ -1502,7 +1552,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              }
                              else
                              {
-@@ -1426,7 +1701,7 @@
+@@ -1426,7 +1726,7 @@
                                  
                                  with (obj_button)
                                  {
@@ -1511,7 +1561,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          instance_destroy();
                                  }
                              }
-@@ -1673,6 +1948,12 @@
+@@ -1673,6 +1973,12 @@
                      break;
                  
                  case UnknownEnum.Value_45:
@@ -1524,7 +1574,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
-@@ -1853,6 +2134,7 @@
+@@ -1853,6 +2159,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
                          scr_create_map_buttons();
@@ -1532,7 +1582,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      break;
-@@ -2046,6 +2328,17 @@
+@@ -2046,6 +2353,17 @@
                              break;
                          
                          case 3:
@@ -1550,7 +1600,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              game_end();
                              break;
                      }
-@@ -2056,43 +2349,43 @@
+@@ -2056,43 +2374,43 @@
                      switch (button_num)
                      {
                          case 0:
@@ -1604,7 +1654,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                      }
                      
-@@ -2135,6 +2428,9 @@
+@@ -2135,6 +2453,9 @@
                          switch (button_num)
                          {
                              case 0:
@@ -1614,7 +1664,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  if (source_id.load_data.ver > 0.43 && source_id.load_data.ver < 1.07)
                                  {
                                      scr_sfx_play(UnknownEnum.Value_1);
-@@ -2167,45 +2463,45 @@
+@@ -2167,45 +2488,45 @@
                                  
                                  switch (global.val.language)
                                  {
@@ -1670,7 +1720,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          _text = "Deletar arquivo salvo?";
                                          break;
                                  }
-@@ -2265,48 +2561,48 @@
+@@ -2265,48 +2586,48 @@
                          
                          switch (global.val.language)
                          {
@@ -1729,7 +1779,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  _text = "Sobrescrever arquivo salvo?";
                                  break;
                          }
-@@ -2481,6 +2777,315 @@
+@@ -2481,6 +2802,315 @@
                      
                      scr_reset_unit_window(-1);
                      break;
@@ -2047,7 +2097,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
      }
 diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_button_create.gml
 --- gml_138/gml_GlobalScript_s_button_create.gml	2026-09-02 08:45:16.422591300 +0200
-+++ gml/gml_GlobalScript_s_button_create.gml	2026-10-23 15:20:49.657681700 +0200
++++ gml/gml_GlobalScript_s_button_create.gml	2026-10-26 09:13:37.759021400 +0100
 @@ -75,19 +75,19 @@
              switch (button_num)
              {
@@ -2156,7 +2206,31 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
              break;
          
          case UnknownEnum.Value_6:
-@@ -159,19 +195,19 @@
+@@ -144,34 +180,40 @@
+             break;
+         
+         case UnknownEnum.Value_7:
+-            button_num = global.unlock.edit_top[button_num];
++            // GNX-PROPCAT: the chosen group of the row, else the whole row
++            var _prow = gnx_prop_row(global.unlock.edit_top);
++            button_num = _prow[button_num];
+             break;
+         
+         case UnknownEnum.Value_8:
+-            button_num = global.unlock.edit_mid[button_num];
++            // GNX-PROPCAT: the chosen group of the row, else the whole row
++            var _prow = gnx_prop_row(global.unlock.edit_mid);
++            button_num = _prow[button_num];
+             break;
+         
+         case UnknownEnum.Value_9:
+-            button_num = global.unlock.edit_bot[button_num];
++            // GNX-PROPCAT: the chosen group of the row, else the whole row
++            var _prow = gnx_prop_row(global.unlock.edit_bot);
++            button_num = _prow[button_num];
+             break;
+         
+         case UnknownEnum.Value_3:
              switch (button_num)
              {
                  case 0:
@@ -2179,7 +2253,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          instance_destroy();
                      
                      break;
-@@ -183,19 +219,19 @@
+@@ -183,19 +225,19 @@
              switch (button_num)
              {
                  case 0:
@@ -2202,7 +2276,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          instance_destroy();
                      
                      break;
-@@ -207,13 +243,13 @@
+@@ -207,13 +249,13 @@
              switch (button_num)
              {
                  case 0:
@@ -2218,7 +2292,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          instance_destroy();
                      
                      break;
-@@ -334,7 +370,7 @@
+@@ -334,7 +376,7 @@
                      {
                          var _val = ds_list_find_value(global.new_button_list, i);
                          
@@ -2227,7 +2301,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          {
                              _spr_new_result = _spr_point;
                              i = _num;
-@@ -356,6 +392,18 @@
+@@ -356,6 +398,18 @@
                      }
                      
                      break;
@@ -2246,7 +2320,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
              }
              
              break;
-@@ -366,15 +414,19 @@
+@@ -366,15 +420,19 @@
              switch (button_num)
              {
                  case 0:
@@ -2269,7 +2343,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                      break;
              }
              
-@@ -403,15 +455,19 @@
+@@ -403,15 +461,19 @@
              switch (button_num)
              {
                  case 0:
@@ -2292,7 +2366,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                      break;
              }
              
-@@ -452,11 +508,15 @@
+@@ -452,11 +514,15 @@
              switch (button_num)
              {
                  case 0:
@@ -2310,7 +2384,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                      break;
              }
              
-@@ -599,6 +659,23 @@
+@@ -599,6 +665,23 @@
              
              break;
          
@@ -2334,7 +2408,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
          case UnknownEnum.Value_2:
              var _unlock_array = -1;
              
-@@ -795,9 +872,17 @@
+@@ -795,9 +878,17 @@
  
  function scr_create_button_swap()
  {
@@ -2353,7 +2427,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
      {
          for (var i = 0; i < array_length(global.unlock.edit_between); i++)
          {
-@@ -815,7 +900,7 @@
+@@ -815,7 +906,7 @@
          }
      }
      
@@ -4020,7 +4094,7 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 09:02:32.843182200 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 10:31:06.949549600 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -4109,7 +4183,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +179,25669 @@
+@@ -167,12 +179,25882 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -10049,6 +10123,146 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    scr_gnx_apply_unlocks();
 +}
 +
++// GNX-PROPCAT: a prop's "category" (text, shown in capitals); "" when it has none or it is not text
++function gnx_prop_cat_key(arg0, arg1)
++{
++    if (!variable_struct_exists(arg0, "category"))
++        return "";
++    
++    if (!is_string(arg0.category) || string_length(arg0.category) == 0)
++    {
++        gnx_report_mod_error("Prop '" + arg1 + "': category must be text, not " + string(arg0.category) + "; the mod's name is used");
++        return "";
++    }
++    
++    return string_upper(arg0.category);
++}
++
++// GNX-PROPCAT: the group prop arg0 is listed under: its category, else its mod's name, else VANILLA
++function gnx_prop_cat_of(arg0)
++{
++    var _p = (arg0 >= 100) ? ds_map_find_value(global.prop_registry, arg0) : undefined;
++    
++    if (_p == undefined)
++        return "VANILLA";
++    
++    if (_p.category != "")
++        return _p.category;
++    
++    for (var i = 0; i < array_length(global.gnx_mod_list); i++)
++    {
++        var _e = global.gnx_mod_list[i];
++        
++        if (_e.folder == _p.mod_id || _e.mod_id == _p.mod_id)
++            return string_upper(_e.name);
++    }
++    
++    return string_upper(string(_p.mod_id));
++}
++
++// GNX-PROPCAT: the groups of a prop row (arg0 = global.unlock.edit_top / mid / bot), VANILLA first,
++// then in the order of the row
++function gnx_prop_cats(arg0)
++{
++    var _c = [];
++    var _v = false;
++    
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        var _k = gnx_prop_cat_of(arg0[i]);
++        
++        if (_k == "VANILLA")
++            _v = true;
++        else if (!array_contains(_c, _k))
++            array_push(_c, _k);
++    }
++    
++    if (_v)
++        array_insert(_c, 0, "VANILLA");
++    
++    return _c;
++}
++
++// GNX-PROPCAT: the props of row arg0 in group arg1, in the row's order
++function gnx_prop_in_cat(arg0, arg1)
++{
++    var _out = [];
++    
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        if (gnx_prop_cat_of(arg0[i]) == arg1)
++            array_push(_out, arg0[i]);
++    }
++    
++    return _out;
++}
++
++// GNX-PROPCAT: the props a prop list shows: the chosen group, else the whole row arg0
++function gnx_prop_row(arg0)
++{
++    return (variable_global_exists("gnx_prop_filter") && is_array(global.gnx_prop_filter)) ? global.gnx_prop_filter : arg0;
++}
++
++// GNX-PROPCAT: opens the props of row arg3 (list button type arg4: 7 top, 8 mid, 9 bot) for passage arg0 at
++// (arg1, arg2). A row whose props come from two groups or more first lists the groups (button type 9080).
++function gnx_open_prop_row(arg0, arg1, arg2, arg3, arg4)
++{
++    global.gnx_prop_filter = -1;
++    var _cats = gnx_prop_cats(arg3);
++    
++    if (array_length(_cats) >= 2)
++    {
++        global.gnx_prop_cat_open = { cats: _cats, row: arg3, type: arg4 };
++        scr_create_window_button_list(arg0, arg1, arg2, array_length(_cats), 0, 9080, scr_create_gnx_prop_cat_button, false);
++    }
++    else
++    {
++        scr_create_window_button_list(arg0, arg1, arg2, array_length(arg3), 0, arg4, scr_create_modify_prop, false);
++    }
++}
++
++// GNX-PROPCAT: the back arrow of a group's prop list (button type 9081: back to the groups)
++function scr_gnx_create_prop_back_button()
++{
++    scr_create_button_small();
++}
++
++// GNX-PROPCAT: one group button of the prop menu
++function scr_create_gnx_prop_cat_button()
++{
++    scr_create_button_slot(interact_type, button_num);
++    button_text = global.gnx_prop_cat_open.cats[button_num];
++    // the "new" dot while a prop of the group has not been seen yet, like the TOP / MID / BOT buttons
++    // (opening the group shows those props, which takes them off the new list)
++    var _ids = gnx_prop_in_cat(global.gnx_prop_cat_open.row, button_text);
++    
++    for (var i = 0; i < ds_list_size(global.new_button_list); i++)
++    {
++        var _nv = ds_list_find_value(global.new_button_list, i);
++        
++        if (_nv.prop_type != -1 && array_contains(_ids, _nv.prop_type))
++        {
++            spr_new_sel = spr_new_point;
++            break;
++        }
++    }
++    
++    // a long name (most often a mod's) is cut to the button's width, with ".." at the end, measured
++    // with the font the button draws in (scr_change_lang sets it per language)
++    scr_change_lang();
++    var _max = sprite_get_width(sprite_index) - 6;
++    
++    if (string_width(button_text) > _max)
++    {
++        while (string_length(button_text) > 1 && string_width(button_text + "..") > _max)
++            button_text = string_copy(button_text, 1, string_length(button_text) - 1);
++        
++        button_text += "..";
++    }
++    
++    draw_set_font(fnt_base_font_eng);
++}
++
 +function scr_gnx_apply_prop_unlocks()
 +{
 +    var _n = array_length(global.gnx_registered_props);
@@ -10776,6 +10990,8 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        xscale_random: variable_struct_exists(arg0, "xscale_random") && gnx_json_bool(arg0.xscale_random, false, "prop " + _full_id, "xscale_random"),
 +        locked: variable_struct_exists(arg0, "locked") && gnx_json_bool(arg0.locked, false, "prop " + _full_id, "locked"),
 +        mod_id: arg1,
++        // GNX-PROPCAT: the group the prop is listed under in the edit menu ("" = its mod's name)
++        category: gnx_prop_cat_key(arg0, _full_id),
 +        // GNX-PROP: the prop's own name (for the log), placement and animation
 +        gnx_name: _id_str,
 +        anchor: _anchor,
@@ -20869,6 +21085,77 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    return arg0;
 +}
 +
++// sets the game language (global.val.language: 0 English; 1, 2, 3, 9 draw with the CJK font)
++function gnx_scn_set_language(arg0)
++{
++    global.val.language = arg0;
++}
++
++// the first passage (slot type 5) of floor 0, or -1
++function gnx_scn_first_passage()
++{
++    for (var i = 0; i < ds_list_size(global.slot_list[0]); i++)
++    {
++        var _sl = ds_list_find_value(global.slot_list[0], i);
++        
++        if (_sl.slot_data.slot_type == 5)
++            return _sl;
++    }
++    
++    return -1;
++}
++
++// opens the edit menu of the first passage of floor 0 (type 2 buttons: 0 between, 1 top, 2 mid, 3 bot, 4 clear),
++// as the passage's edit button does (s_button_activate); the real row buttons are then pressed by the scenario
++function gnx_scn_open_edit_menu()
++{
++    var _sl = gnx_scn_first_passage();
++    
++    if (_sl != -1)
++        scr_create_window_button_list(_sl, 400, 200, 5, 0, 2, scr_create_modify_button, false);
++}
++
++// the first passage of floor 0 holds prop arg1 in row arg0 (7 top, 8 mid, 9 bot)
++function gnx_scn_passage_prop(arg0, arg1)
++{
++    var _sl = gnx_scn_first_passage();
++    return _sl != -1 && scr_check_prop_exists(_sl, arg0, arg1);
++}
++
++// the texts of the open buttons of type arg0 that show the "new" dot or tag, joined with "|"
++function gnx_scn_new_dots(arg0)
++{
++    var _t = "";
++    
++    with (obj_button)
++    {
++        if (interact_type == arg0 && variable_instance_exists(id, "spr_new_sel") && spr_new_sel != -1 && variable_instance_exists(id, "button_text"))
++            _t += ((_t != "") ? "|" : "") + string(button_text);
++    }
++    
++    return _t;
++}
++
++// the texts of the open buttons of type arg0, in button order, joined with "|"
++function gnx_scn_button_texts(arg0)
++{
++    var _b = [];
++    
++    with (obj_button)
++    {
++        if (interact_type == arg0 && variable_instance_exists(id, "button_text"))
++            array_push(_b, { p: x * 10000 + y, t: string(button_text) });
++    }
++    
++    array_sort(_b, function(_a, _c) { return _a.p - _c.p; });
++    var _t = "";
++    
++    for (var i = 0; i < array_length(_b); i++)
++        _t += ((i > 0) ? "|" : "") + _b[i].t;
++    
++    return _t;
++}
++
 +// puts prop arg2 in row arg3 (7 top, 8 mid, 9 bot) of the arg1-th slot of floor 0 whose slot_type is arg0
 +// (the game's own scr_create_prop, as the passage's prop menu does); logs every slot type of floor 0
 +function gnx_scn_place_prop(arg0, arg1, arg2, arg3)
@@ -29781,7 +30068,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +25852,181 @@
+@@ -183,42 +26065,181 @@
      Value_3,
      Value_4,
      Value_5,

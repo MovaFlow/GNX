@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-23 15:52:58.159096100 +0200
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-26 10:25:33.169318300 +0100
 @@ -29,6 +29,15 @@
              trigger = false;
              global.click_lock = false;
@@ -43,6 +43,31 @@
                      }
                      
                      with (source_id)
+@@ -112,18 +132,18 @@
+                             break;
+                         
+                         case 1:
+-                            var _num = array_length(global.unlock.edit_top);
+-                            scr_create_window_button_list(_slot_id, _x, _y, _num, UnknownEnum.Value_0, UnknownEnum.Value_7, scr_create_modify_prop, false);
++                            // GNX-PROPCAT: a row with props of several groups lists the groups first
++                            gnx_open_prop_row(_slot_id, _x, _y, global.unlock.edit_top, UnknownEnum.Value_7);
+                             break;
+                         
+                         case 2:
+-                            var _num = array_length(global.unlock.edit_mid);
+-                            scr_create_window_button_list(_slot_id, _x, _y, _num, UnknownEnum.Value_0, UnknownEnum.Value_8, scr_create_modify_prop, false);
++                            // GNX-PROPCAT: a row with props of several groups lists the groups first
++                            gnx_open_prop_row(_slot_id, _x, _y, global.unlock.edit_mid, UnknownEnum.Value_8);
+                             break;
+                         
+                         case 3:
+-                            var _num = array_length(global.unlock.edit_bot);
+-                            scr_create_window_button_list(_slot_id, _x, _y, _num, UnknownEnum.Value_0, UnknownEnum.Value_9, scr_create_modify_prop, false);
++                            // GNX-PROPCAT: a row with props of several groups lists the groups first
++                            gnx_open_prop_row(_slot_id, _x, _y, global.unlock.edit_bot, UnknownEnum.Value_9);
+                             break;
+                         
+                         case 4:
 @@ -182,7 +202,7 @@
                          {
                              slot_data.between_type = other.button_num;
@@ -145,7 +170,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -391,6 +427,80 @@
+@@ -391,6 +427,105 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -169,6 +194,31 @@
 +                    with (source_id)
 +                        instance_destroy();
 +                    
++                    break;
++                
++                case 9080:
++                    // GNX-PROPCAT: a group of the prop menu: the prop list of that group
++                    var _slot_id = source_id.source_id;
++                    var _po = global.gnx_prop_cat_open;
++                    global.gnx_prop_filter = gnx_prop_in_cat(_po.row, _po.cats[button_num]);
++                    scr_create_window_button_list(_slot_id, source_id.x, source_id.y, array_length(global.gnx_prop_filter), UnknownEnum.Value_0, _po.type, scr_create_modify_prop, false);
++                    
++                    // a back arrow left of the window's exit button (the swap button's place, never shown on a passage)
++                    with (obj_window)
++                    {
++                        if (!gui && source_id == _slot_id && interact_type == UnknownEnum.Value_0)
++                            scr_create_button((image_xscale - 24) - 12, -4, depth + 1, spr_button_arrow, 9081, id, scr_gnx_create_prop_back_button, scr_button_list_step, scr_draw_hover_button, 0, 0);
++                    }
++                    
++                    with (source_id)
++                        instance_destroy();
++                    
++                    break;
++                
++                case 9081:
++                    // GNX-PROPCAT: back from a group's props to the list of groups
++                    var _pb = global.gnx_prop_cat_open;
++                    gnx_open_prop_row(source_id.source_id, source_id.x, source_id.y, _pb.row, _pb.type);
 +                    break;
 +                
 +                case 95:
@@ -226,7 +276,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -402,6 +512,8 @@
+@@ -402,6 +537,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -235,7 +285,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -413,6 +525,8 @@
+@@ -413,6 +550,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -244,7 +294,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -424,6 +538,8 @@
+@@ -424,6 +563,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -253,7 +303,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -435,6 +551,8 @@
+@@ -435,6 +576,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -262,7 +312,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -446,6 +564,8 @@
+@@ -446,6 +589,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -271,7 +321,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -465,7 +585,7 @@
+@@ -465,7 +610,7 @@
                          var _button_pos = floor(_button_num * 0.5);
                          var _mod_type = _icon_array[_button_pos];
                          var _mod_pos = _pos_array[_button_pos];
@@ -280,7 +330,7 @@
                          var _shift_min, _shift_max;
                          
                          switch (_mod_type)
-@@ -548,7 +668,7 @@
+@@ -548,7 +693,7 @@
                              var _cape_pos = -1;
                              var _mod_type = _icon_array[_button_num];
                              var _mod_pos = _pos_array[_button_num];
@@ -289,7 +339,7 @@
                              slot_data.mod_index[_mod_pos] = !slot_data.mod_index[_mod_pos];
                              
                              if (slot_data.mod_index[_mod_pos] == 1)
-@@ -587,7 +707,9 @@
+@@ -587,7 +732,9 @@
                                              {
                                                  scr_unit_removal(false, true, true, false, -1);
                                              }
@@ -300,7 +350,7 @@
                                              {
                                                  scr_unit_removal(false, true, true, false, -1);
                                                  slot_data.anim_struct.char_state = UnknownEnum.Value_0;
-@@ -713,6 +835,16 @@
+@@ -713,6 +860,16 @@
                      break;
                  
                  case UnknownEnum.Value_60:
@@ -317,7 +367,7 @@
                      var _type = source_id.source_id.slot_data.slot_type;
                      var _base_type = -1;
                      var _spr = -1;
-@@ -758,6 +890,44 @@
+@@ -758,6 +915,44 @@
                                      }
                                  }
                              }
@@ -362,7 +412,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -838,6 +1008,38 @@
+@@ -838,6 +1033,38 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -401,7 +451,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -900,6 +1102,26 @@
+@@ -900,6 +1127,26 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -428,7 +478,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -935,6 +1157,11 @@
+@@ -935,6 +1182,11 @@
                                  source_id.source_id.spr_base = spr_slot_back;
                                  source_id.source_id.slot_data.base_type = UnknownEnum.Value_0;
                              }
@@ -440,7 +490,7 @@
                              else
                              {
                                  source_id.source_id.spr_base = spr_big_slot_back;
-@@ -1091,12 +1318,13 @@
+@@ -1091,12 +1343,13 @@
                          
                          case 13:
                              scr_fullscreen_switch();
@@ -455,7 +505,7 @@
                                      instance_destroy();
                              }
                              
-@@ -1148,22 +1376,41 @@
+@@ -1148,22 +1401,41 @@
                              break;
                          
                          case 15:
@@ -512,7 +562,7 @@
                              break;
                      }
                      
-@@ -1189,7 +1436,7 @@
+@@ -1189,7 +1461,7 @@
                          
                          case 1:
                              _guide_create = true;
@@ -521,7 +571,7 @@
                              _scr = scr_create_guide_raiding_button;
                              _scr_draw = scr_draw_guide_button;
                              break;
-@@ -1210,6 +1457,18 @@
+@@ -1210,6 +1482,18 @@
                                          instance_destroy();
                                      
                                      alpha_window = scr_create_alpha_window();
@@ -540,7 +590,7 @@
                                  }
                              }
                              
-@@ -1335,6 +1594,10 @@
+@@ -1335,6 +1619,10 @@
                                  case 7:
                                      _text = scr_guide_casualty;
                                      break;
@@ -551,7 +601,7 @@
                              }
                              
                              break;
-@@ -1410,6 +1673,18 @@
+@@ -1410,6 +1698,18 @@
                              if (alpha_window == -1)
                              {
                                  alpha_window = scr_create_alpha_window();
@@ -570,7 +620,7 @@
                              }
                              else
                              {
-@@ -1426,7 +1701,7 @@
+@@ -1426,7 +1726,7 @@
                                  
                                  with (obj_button)
                                  {
@@ -579,7 +629,7 @@
                                          instance_destroy();
                                  }
                              }
-@@ -1673,6 +1948,12 @@
+@@ -1673,6 +1973,12 @@
                      break;
                  
                  case UnknownEnum.Value_45:
@@ -592,7 +642,7 @@
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
-@@ -1853,6 +2134,7 @@
+@@ -1853,6 +2159,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
                          scr_create_map_buttons();
@@ -600,7 +650,7 @@
                      }
                      
                      break;
-@@ -2046,6 +2328,17 @@
+@@ -2046,6 +2353,17 @@
                              break;
                          
                          case 3:
@@ -618,7 +668,7 @@
                              game_end();
                              break;
                      }
-@@ -2056,43 +2349,43 @@
+@@ -2056,43 +2374,43 @@
                      switch (button_num)
                      {
                          case 0:
@@ -672,7 +722,7 @@
                              break;
                      }
                      
-@@ -2135,6 +2428,9 @@
+@@ -2135,6 +2453,9 @@
                          switch (button_num)
                          {
                              case 0:
@@ -682,7 +732,7 @@
                                  if (source_id.load_data.ver > 0.43 && source_id.load_data.ver < 1.07)
                                  {
                                      scr_sfx_play(UnknownEnum.Value_1);
-@@ -2167,45 +2463,45 @@
+@@ -2167,45 +2488,45 @@
                                  
                                  switch (global.val.language)
                                  {
@@ -738,7 +788,7 @@
                                          _text = "Deletar arquivo salvo?";
                                          break;
                                  }
-@@ -2265,48 +2561,48 @@
+@@ -2265,48 +2586,48 @@
                          
                          switch (global.val.language)
                          {
@@ -797,7 +847,7 @@
                                  _text = "Sobrescrever arquivo salvo?";
                                  break;
                          }
-@@ -2481,6 +2777,315 @@
+@@ -2481,6 +2802,315 @@
                      
                      scr_reset_unit_window(-1);
                      break;

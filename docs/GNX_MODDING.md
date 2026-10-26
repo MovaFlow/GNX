@@ -3441,6 +3441,7 @@ Props stand on [passages](#2-glossary), the narrow slots between cells. A passag
 | `display_name_key` | Button text in edit mode, shown as written in every language. Anything but text is a mod error, and the `id` is shown. | text | the `id` |
 | `code_text` | Stored, but nothing draws it for props. | text | `"?"` |
 | `position` | Menu group and default height: `"top"`, `"mid"` or `"bot"`. Any other text is a mod error, and `"bot"` is used. | text | `"bot"` |
+| `category` | The group the prop is listed under when a menu row has props of several groups ([19.4](#194-menu-placement-and-drawing)), for example `"Plushies"`; shown in capitals, and the same text in two mods makes one group. Not text: a mod error, and the mod's name is used. | text | the mod's name |
 | `sprite` | `"gnx:<key>"` or `"<key>"` from the `sprites` block. Without a usable sprite the prop draws nothing and the log has a mod error. | text | none |
 | `anchor` | Where the prop's x is counted from: `"center"` = the middle of the passage, as vanilla props; `"left"` = its left edge ([19.4](#194-menu-placement-and-drawing)). New in 1.4.9. | text | `"left"` |
 | `speed` | Frames per second of the prop's own animation, 0–60; `0` = frame 0 only ([19.7](#197-animation)). New in 1.4.9. | number | 8 for a sprite with 2 or more frames |
@@ -3479,6 +3480,8 @@ Same format as in `classes.json` and `cells.json` ([§5](#5-sprites)), with atla
 | `"bot"` | bottom group | 0 | in front of top and middle props |
 
 **Where on the passage.** `"anchor": "center"` counts the prop's x from the middle of the passage, as vanilla props do; the default `"left"` counts from the passage's left edge, as in GNX 1.4.8 (new in 1.4.9). For a new prop use `"center"` with the origin in the middle of the sprite. `x_random_range` and `y_offset` are added to that spot.
+
+**Groups.** When a row (top, middle or bottom) holds props of two groups or more, its button first lists the groups and each group opens only its props. VANILLA comes first, then the groups in the order their props were unlocked. A prop's group is its `category`, else its mod's name (from `manifest.json`); a name too long for the button ends in `..`. Group names are shown as written in every language, like `display_name_key`. A group's prop list has a back arrow to the groups. A group shows the "new" dot while one of its props has not been seen yet (unlocked by a quest or a tool action, for example), like the TOP / MIDDLE / BOTTOM buttons; opening the group clears it. A row with props of one group only opens the prop list directly, as before.
 
 With the mouse over a cell, its props get the same yellow highlight as vanilla props. With the mouse over a passage, every cell a reacting prop of that passage listens to gets a yellow outline ([19.10](#1910-reactions-to-a-cell-react)).
 

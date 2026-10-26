@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 09:02:32.843182200 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 10:31:06.949549600 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -88,7 +88,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +179,25669 @@
+@@ -167,12 +179,25882 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -6028,6 +6028,146 @@
 +    scr_gnx_apply_unlocks();
 +}
 +
++// GNX-PROPCAT: a prop's "category" (text, shown in capitals); "" when it has none or it is not text
++function gnx_prop_cat_key(arg0, arg1)
++{
++    if (!variable_struct_exists(arg0, "category"))
++        return "";
++    
++    if (!is_string(arg0.category) || string_length(arg0.category) == 0)
++    {
++        gnx_report_mod_error("Prop '" + arg1 + "': category must be text, not " + string(arg0.category) + "; the mod's name is used");
++        return "";
++    }
++    
++    return string_upper(arg0.category);
++}
++
++// GNX-PROPCAT: the group prop arg0 is listed under: its category, else its mod's name, else VANILLA
++function gnx_prop_cat_of(arg0)
++{
++    var _p = (arg0 >= 100) ? ds_map_find_value(global.prop_registry, arg0) : undefined;
++    
++    if (_p == undefined)
++        return "VANILLA";
++    
++    if (_p.category != "")
++        return _p.category;
++    
++    for (var i = 0; i < array_length(global.gnx_mod_list); i++)
++    {
++        var _e = global.gnx_mod_list[i];
++        
++        if (_e.folder == _p.mod_id || _e.mod_id == _p.mod_id)
++            return string_upper(_e.name);
++    }
++    
++    return string_upper(string(_p.mod_id));
++}
++
++// GNX-PROPCAT: the groups of a prop row (arg0 = global.unlock.edit_top / mid / bot), VANILLA first,
++// then in the order of the row
++function gnx_prop_cats(arg0)
++{
++    var _c = [];
++    var _v = false;
++    
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        var _k = gnx_prop_cat_of(arg0[i]);
++        
++        if (_k == "VANILLA")
++            _v = true;
++        else if (!array_contains(_c, _k))
++            array_push(_c, _k);
++    }
++    
++    if (_v)
++        array_insert(_c, 0, "VANILLA");
++    
++    return _c;
++}
++
++// GNX-PROPCAT: the props of row arg0 in group arg1, in the row's order
++function gnx_prop_in_cat(arg0, arg1)
++{
++    var _out = [];
++    
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        if (gnx_prop_cat_of(arg0[i]) == arg1)
++            array_push(_out, arg0[i]);
++    }
++    
++    return _out;
++}
++
++// GNX-PROPCAT: the props a prop list shows: the chosen group, else the whole row arg0
++function gnx_prop_row(arg0)
++{
++    return (variable_global_exists("gnx_prop_filter") && is_array(global.gnx_prop_filter)) ? global.gnx_prop_filter : arg0;
++}
++
++// GNX-PROPCAT: opens the props of row arg3 (list button type arg4: 7 top, 8 mid, 9 bot) for passage arg0 at
++// (arg1, arg2). A row whose props come from two groups or more first lists the groups (button type 9080).
++function gnx_open_prop_row(arg0, arg1, arg2, arg3, arg4)
++{
++    global.gnx_prop_filter = -1;
++    var _cats = gnx_prop_cats(arg3);
++    
++    if (array_length(_cats) >= 2)
++    {
++        global.gnx_prop_cat_open = { cats: _cats, row: arg3, type: arg4 };
++        scr_create_window_button_list(arg0, arg1, arg2, array_length(_cats), 0, 9080, scr_create_gnx_prop_cat_button, false);
++    }
++    else
++    {
++        scr_create_window_button_list(arg0, arg1, arg2, array_length(arg3), 0, arg4, scr_create_modify_prop, false);
++    }
++}
++
++// GNX-PROPCAT: the back arrow of a group's prop list (button type 9081: back to the groups)
++function scr_gnx_create_prop_back_button()
++{
++    scr_create_button_small();
++}
++
++// GNX-PROPCAT: one group button of the prop menu
++function scr_create_gnx_prop_cat_button()
++{
++    scr_create_button_slot(interact_type, button_num);
++    button_text = global.gnx_prop_cat_open.cats[button_num];
++    // the "new" dot while a prop of the group has not been seen yet, like the TOP / MID / BOT buttons
++    // (opening the group shows those props, which takes them off the new list)
++    var _ids = gnx_prop_in_cat(global.gnx_prop_cat_open.row, button_text);
++    
++    for (var i = 0; i < ds_list_size(global.new_button_list); i++)
++    {
++        var _nv = ds_list_find_value(global.new_button_list, i);
++        
++        if (_nv.prop_type != -1 && array_contains(_ids, _nv.prop_type))
++        {
++            spr_new_sel = spr_new_point;
++            break;
++        }
++    }
++    
++    // a long name (most often a mod's) is cut to the button's width, with ".." at the end, measured
++    // with the font the button draws in (scr_change_lang sets it per language)
++    scr_change_lang();
++    var _max = sprite_get_width(sprite_index) - 6;
++    
++    if (string_width(button_text) > _max)
++    {
++        while (string_length(button_text) > 1 && string_width(button_text + "..") > _max)
++            button_text = string_copy(button_text, 1, string_length(button_text) - 1);
++        
++        button_text += "..";
++    }
++    
++    draw_set_font(fnt_base_font_eng);
++}
++
 +function scr_gnx_apply_prop_unlocks()
 +{
 +    var _n = array_length(global.gnx_registered_props);
@@ -6755,6 +6895,8 @@
 +        xscale_random: variable_struct_exists(arg0, "xscale_random") && gnx_json_bool(arg0.xscale_random, false, "prop " + _full_id, "xscale_random"),
 +        locked: variable_struct_exists(arg0, "locked") && gnx_json_bool(arg0.locked, false, "prop " + _full_id, "locked"),
 +        mod_id: arg1,
++        // GNX-PROPCAT: the group the prop is listed under in the edit menu ("" = its mod's name)
++        category: gnx_prop_cat_key(arg0, _full_id),
 +        // GNX-PROP: the prop's own name (for the log), placement and animation
 +        gnx_name: _id_str,
 +        anchor: _anchor,
@@ -16848,6 +16990,77 @@
 +    return arg0;
 +}
 +
++// sets the game language (global.val.language: 0 English; 1, 2, 3, 9 draw with the CJK font)
++function gnx_scn_set_language(arg0)
++{
++    global.val.language = arg0;
++}
++
++// the first passage (slot type 5) of floor 0, or -1
++function gnx_scn_first_passage()
++{
++    for (var i = 0; i < ds_list_size(global.slot_list[0]); i++)
++    {
++        var _sl = ds_list_find_value(global.slot_list[0], i);
++        
++        if (_sl.slot_data.slot_type == 5)
++            return _sl;
++    }
++    
++    return -1;
++}
++
++// opens the edit menu of the first passage of floor 0 (type 2 buttons: 0 between, 1 top, 2 mid, 3 bot, 4 clear),
++// as the passage's edit button does (s_button_activate); the real row buttons are then pressed by the scenario
++function gnx_scn_open_edit_menu()
++{
++    var _sl = gnx_scn_first_passage();
++    
++    if (_sl != -1)
++        scr_create_window_button_list(_sl, 400, 200, 5, 0, 2, scr_create_modify_button, false);
++}
++
++// the first passage of floor 0 holds prop arg1 in row arg0 (7 top, 8 mid, 9 bot)
++function gnx_scn_passage_prop(arg0, arg1)
++{
++    var _sl = gnx_scn_first_passage();
++    return _sl != -1 && scr_check_prop_exists(_sl, arg0, arg1);
++}
++
++// the texts of the open buttons of type arg0 that show the "new" dot or tag, joined with "|"
++function gnx_scn_new_dots(arg0)
++{
++    var _t = "";
++    
++    with (obj_button)
++    {
++        if (interact_type == arg0 && variable_instance_exists(id, "spr_new_sel") && spr_new_sel != -1 && variable_instance_exists(id, "button_text"))
++            _t += ((_t != "") ? "|" : "") + string(button_text);
++    }
++    
++    return _t;
++}
++
++// the texts of the open buttons of type arg0, in button order, joined with "|"
++function gnx_scn_button_texts(arg0)
++{
++    var _b = [];
++    
++    with (obj_button)
++    {
++        if (interact_type == arg0 && variable_instance_exists(id, "button_text"))
++            array_push(_b, { p: x * 10000 + y, t: string(button_text) });
++    }
++    
++    array_sort(_b, function(_a, _c) { return _a.p - _c.p; });
++    var _t = "";
++    
++    for (var i = 0; i < array_length(_b); i++)
++        _t += ((i > 0) ? "|" : "") + _b[i].t;
++    
++    return _t;
++}
++
 +// puts prop arg2 in row arg3 (7 top, 8 mid, 9 bot) of the arg1-th slot of floor 0 whose slot_type is arg0
 +// (the game's own scr_create_prop, as the passage's prop menu does); logs every slot type of floor 0
 +function gnx_scn_place_prop(arg0, arg1, arg2, arg3)
@@ -25760,7 +25973,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +25852,181 @@
+@@ -183,42 +26065,181 @@
      Value_3,
      Value_4,
      Value_5,

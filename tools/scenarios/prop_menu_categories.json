@@ -1,0 +1,256 @@
+{
+  "about": "Prop menu groups (players asked for pages in the long prop list): a row whose props come from several groups first lists the groups (VANILLA first, then each prop's \"category\", else its mod's name, cut to the button width), and a group opens only its props. Test mod harness_props: BEAR and BUNNY in category Plushies / plushies (one group), CRATE without one (its mod's name). A row with one group only opens the prop list directly. Rows are opened with the passage's real edit-menu buttons; picking BEAR in its group places BEAR. The group list has a back arrow (9081) to the groups. A group shows the new dot while one of its props has not been seen: DOLL (locked) is unlocked by the unlock_prop action, PLUSHIES gets the dot, and opening the group clears it.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_props"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "call": "gnx_scn_open_edit_menu"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "press": {
+        "type": 2,
+        "num": 3
+      },
+      "why": "the real BOTTOM button"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_texts",
+      "args": [
+        9080
+      ],
+      "is": "VANILLA|PLUSHIES|HARNESS PR..",
+      "why": "the bottom row's groups"
+    },
+    {
+      "press": {
+        "type": 9080,
+        "num": 1
+      }
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_texts",
+      "args": [
+        9
+      ],
+      "is": "BEAR|BUNNY",
+      "why": "only the Plushies group"
+    },
+    {
+      "press": {
+        "type": 9081,
+        "num": 0
+      },
+      "why": "back arrow"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_texts",
+      "args": [
+        9080
+      ],
+      "is": "VANILLA|PLUSHIES|HARNESS PR..",
+      "why": "back to the groups"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_new_dots",
+      "args": [
+        9080
+      ],
+      "is": "",
+      "why": "no unseen mod prop yet"
+    },
+    {
+      "do": {
+        "type": "unlock_prop",
+        "prop_id": "harness_props.doll"
+      }
+    },
+    {
+      "call": "gnx_scn_open_edit_menu"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "press": {
+        "type": 2,
+        "num": 3
+      },
+      "why": "the real BOTTOM button"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_new_dots",
+      "args": [
+        9080
+      ],
+      "is": "PLUSHIES",
+      "why": "DOLL was never seen"
+    },
+    {
+      "press": {
+        "type": 9080,
+        "num": 1
+      }
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_texts",
+      "args": [
+        9
+      ],
+      "is": "BEAR|BUNNY|DOLL"
+    },
+    {
+      "press": {
+        "type": 9,
+        "num": 320
+      },
+      "why": "BEAR from the Plushies group"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_passage_prop",
+      "args": [
+        9,
+        320
+      ],
+      "is": 1,
+      "why": "the chosen prop is placed on the passage"
+    },
+    {
+      "call": "gnx_scn_open_edit_menu"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "press": {
+        "type": 2,
+        "num": 3
+      }
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": {
+        "type": 9080,
+        "num": 1
+      }
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": {
+        "type": 9081,
+        "num": 0
+      }
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_new_dots",
+      "args": [
+        9080
+      ],
+      "is": "",
+      "why": "opening the group showed DOLL"
+    },
+    {
+      "screenshot": "groups"
+    },
+    {
+      "call": "gnx_scn_open_edit_menu"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "press": {
+        "type": 2,
+        "num": 3
+      },
+      "why": "the real BOTTOM button"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": {
+        "type": 9080,
+        "num": 2
+      }
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_texts",
+      "args": [
+        9
+      ],
+      "is": "CRATE",
+      "why": "a prop without category is listed under its mod's name"
+    },
+    {
+      "call": "gnx_scn_open_edit_menu"
+    },
+    {
+      "wait": 10
+    },
+    {
+      "press": {
+        "type": 2,
+        "num": 1
+      },
+      "why": "the real TOP button"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_button_texts",
+      "args": [
+        9080
+      ],
+      "is": "",
+      "why": "the top row has vanilla props only: no group list"
+    }
+  ]
+}
