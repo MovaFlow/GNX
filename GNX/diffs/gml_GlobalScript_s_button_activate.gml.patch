@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-26 11:11:55.215067500 +0100
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-26 11:42:51.274864400 +0100
 @@ -29,6 +29,15 @@
              trigger = false;
              global.click_lock = false;
@@ -16,7 +16,7 @@
              switch (interact_type)
              {
                  case UnknownEnum.Value_0:
-@@ -39,7 +48,7 @@
+@@ -39,13 +48,20 @@
                      switch (button_num)
                      {
                          case 0:
@@ -25,7 +25,21 @@
                              break;
                          
                          case 1:
-@@ -92,6 +101,17 @@
++                            global.gnx_floor_edit = -1;  // GNX-FLOOR: this slot only
+                             scr_create_window_button_list(_slot_id, _x, _y, 5, UnknownEnum.Value_0, UnknownEnum.Value_2, scr_create_modify_button, false);
+                             break;
+-                        
++
++                        case 4:
++                            // GNX-FLOOR: the entrance's FLOOR: the same edit menu, for the entrance and every passage of the floor
++                            global.gnx_floor_edit = _slot_id;
++                            scr_create_window_button_list(_slot_id, _x, _y, 5, UnknownEnum.Value_0, UnknownEnum.Value_2, scr_create_modify_button, false);
++                            break;
++
+                         case 2:
+                             if (_slot_id.slot_data.slot_floor > 0)
+                                 scr_swap_floors(_slot_id.slot_data.slot_floor, _slot_id.slot_data.slot_floor - 1);
+@@ -92,6 +108,17 @@
                              var _pos = ds_list_find_index(global.slot_list[_floor], _slot_id) + 1;
                              scr_create_slot(UnknownEnum.Value_3, _floor, _pos, true);
                              break;
@@ -43,7 +57,13 @@
                      }
                      
                      with (source_id)
-@@ -112,18 +132,18 @@
+@@ -107,29 +134,36 @@
+                     switch (button_num)
+                     {
+                         case 0:
+-                            var _num = array_length(global.unlock.edit_between) - 1;
++                            var _num = array_length(global.unlock.edit_between) - (gnx_floor_edit_on(_slot_id) ? 0 : 1);  // GNX-FLOOR
+                             scr_create_window_button_list(_slot_id, _x, _y, _num, UnknownEnum.Value_0, UnknownEnum.Value_6, scr_create_modify_between, false);
                              break;
                          
                          case 1:
@@ -68,16 +88,199 @@
                              break;
                          
                          case 4:
-@@ -182,7 +202,7 @@
-                         {
-                             slot_data.between_type = other.button_num;
-                             spr_base = _spr;
+-                            scr_clear_prop_pos(_slot_id, UnknownEnum.Value_7);
+-                            scr_clear_prop_pos(_slot_id, UnknownEnum.Value_8);
+-                            scr_clear_prop_pos(_slot_id, UnknownEnum.Value_9);
++                            // GNX-FLOOR: the whole floor, or this slot
++                            var _clr = gnx_floor_edit_on(_slot_id) ? gnx_floor_slots(_slot_id.slot_data.slot_floor) : [_slot_id];
++
++                            for (var _ci = 0; _ci < array_length(_clr); _ci++)
++                            {
++                                scr_clear_prop_pos(_clr[_ci], UnknownEnum.Value_7);
++                                scr_clear_prop_pos(_clr[_ci], UnknownEnum.Value_8);
++                                scr_clear_prop_pos(_clr[_ci], UnknownEnum.Value_9);
++                            }
++
+                             break;
+                     }
+                     
+@@ -140,101 +174,43 @@
+                 
+                 case UnknownEnum.Value_6:
+                     var _slot_id = source_id.source_id;
+-                    var _diff = _slot_id.image_xscale + 2;
+-                    var _reset_prop = false;
+-                    var _noti = false;
+                     var _floor = _slot_id.slot_data.slot_floor;
+-                    var _scale, _spr;
+-                    
+-                    switch (button_num)
++
++                    // GNX-FLOOR: vanilla's style change, now in gnx_set_between; from the entrance's FLOOR menu, for
++                    // the whole floor (all or none)
++                    if (gnx_floor_edit_on(_slot_id))
+                     {
+-                        case UnknownEnum.Value_0:
+-                            _spr = spr_bet_plank;
+-                            _scale = 11;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_1:
+-                            _spr = spr_bet_pillar;
+-                            _scale = 20;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_4:
+-                            _spr = spr_bet_tent;
+-                            _scale = 11;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_2:
+-                            _spr = spr_bet_rock;
+-                            _scale = 15;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_3:
+-                            _spr = spr_bet_brick;
+-                            _scale = 13;
+-                            break;
+-                    }
+-                    
+-                    _diff = _scale - _diff;
+-                    
+-                    if ((global.slot_x[_floor] + _diff) <= room_width)
+-                    {
+-                        with (_slot_id)
+-                        {
+-                            slot_data.between_type = other.button_num;
+-                            spr_base = _spr;
 -                            var _num = sprite_get_number(_spr) - 1;
-+                            var _num = gnx_sprite_get_number(_spr) - 1;
-                             image_xscale += _diff;
-                             global.slot_x[slot_data.slot_floor] += _diff;
-                             scr_shift_slot(id, _diff, slot_data.slot_floor);
-@@ -293,19 +313,23 @@
+-                            image_xscale += _diff;
+-                            global.slot_x[slot_data.slot_floor] += _diff;
+-                            scr_shift_slot(id, _diff, slot_data.slot_floor);
+-                            _num = array_length(slot_data.prop);
+-                            
+-                            if (_reset_prop)
+-                            {
+-                                for (var i = 0; i < _num; i++)
+-                                {
+-                                    var _prop_id = slot_data.prop[i].prop_id;
+-                                    
+-                                    with (_prop_id)
+-                                        instance_destroy();
+-                                }
+-                                
+-                                slot_data.prop = [];
+-                            }
+-                            else
+-                            {
+-                                _diff = sign(_diff) * floor(abs(_diff * 0.5));
+-                                
+-                                for (var i = 0; i < _num; i++)
+-                                {
+-                                    var _prop_id = slot_data.prop[i].prop_id;
+-                                    
+-                                    if (_prop_id.center)
+-                                    {
+-                                        _prop_id.prop_data.shift_x += _diff;
+-                                        slot_data.prop[i] = _prop_id.prop_data;
+-                                    }
+-                                }
+-                            }
+-                        }
++                        if (!gnx_floor_set_between(_floor, button_num))
++                            scr_pop_up_create(UnknownEnum.Value_30);
+                     }
+                     else
+                     {
+-                        scr_pop_up_create(UnknownEnum.Value_30);
++                        if (!gnx_set_between(_slot_id, button_num))
++                            scr_pop_up_create(UnknownEnum.Value_30);
++
++                        scr_check_between_base(_floor, _slot_id);
+                     }
+-                    
+-                    scr_check_between_base(_floor, _slot_id);
+-                    
++
+                     with (source_id)
+                         instance_destroy();
+-                    
++
+                     break;
+-                
++
+                 case UnknownEnum.Value_7:
+                     var _slot_id = source_id.source_id;
+-                    var _exists = scr_clear_prop_pos(_slot_id, interact_type);
+-                    
+-                    if (_exists == -1 || (_exists != -1 && _exists != button_num))
+-                        scr_create_prop(_slot_id, button_num, interact_type, -1);
++
++                    // GNX-FLOOR: from the entrance's FLOOR menu, on every passage of the floor
++                    if (gnx_floor_edit_on(_slot_id))
++                    {
++                        gnx_floor_toggle_prop(_slot_id.slot_data.slot_floor, interact_type, button_num);
++                    }
++                    else
++                    {
++                        var _exists = scr_clear_prop_pos(_slot_id, interact_type);
++
++                        if (_exists == -1 || (_exists != -1 && _exists != button_num))
++                            scr_create_prop(_slot_id, button_num, interact_type, -1);
++                    }
+                     
+                     with (source_id)
+                         instance_destroy();
+@@ -243,10 +219,19 @@
+                 
+                 case UnknownEnum.Value_8:
+                     var _slot_id = source_id.source_id;
+-                    var _exists = scr_clear_prop_pos(_slot_id, interact_type);
+-                    
+-                    if (_exists == -1 || (_exists != -1 && _exists != button_num))
+-                        scr_create_prop(_slot_id, button_num, interact_type, -1);
++
++                    // GNX-FLOOR: from the entrance's FLOOR menu, on every passage of the floor
++                    if (gnx_floor_edit_on(_slot_id))
++                    {
++                        gnx_floor_toggle_prop(_slot_id.slot_data.slot_floor, interact_type, button_num);
++                    }
++                    else
++                    {
++                        var _exists = scr_clear_prop_pos(_slot_id, interact_type);
++
++                        if (_exists == -1 || (_exists != -1 && _exists != button_num))
++                            scr_create_prop(_slot_id, button_num, interact_type, -1);
++                    }
+                     
+                     with (source_id)
+                         instance_destroy();
+@@ -255,10 +240,19 @@
+                 
+                 case UnknownEnum.Value_9:
+                     var _slot_id = source_id.source_id;
+-                    var _exists = scr_clear_prop_pos(_slot_id, interact_type);
+-                    
+-                    if (_exists == -1 || (_exists != -1 && _exists != button_num))
+-                        scr_create_prop(_slot_id, button_num, interact_type, -1);
++
++                    // GNX-FLOOR: from the entrance's FLOOR menu, on every passage of the floor
++                    if (gnx_floor_edit_on(_slot_id))
++                    {
++                        gnx_floor_toggle_prop(_slot_id.slot_data.slot_floor, interact_type, button_num);
++                    }
++                    else
++                    {
++                        var _exists = scr_clear_prop_pos(_slot_id, interact_type);
++
++                        if (_exists == -1 || (_exists != -1 && _exists != button_num))
++                            scr_create_prop(_slot_id, button_num, interact_type, -1);
++                    }
+                     
+                     with (source_id)
+                         instance_destroy();
+@@ -293,19 +287,23 @@
                      switch (button_num)
                      {
                          case 0:
@@ -104,7 +307,7 @@
                      }
                      
                      with (source_id)
-@@ -321,14 +345,18 @@
+@@ -321,14 +319,18 @@
                      switch (button_num)
                      {
                          case 0:
@@ -125,7 +328,7 @@
                      }
                      
                      with (source_id)
-@@ -344,19 +372,23 @@
+@@ -344,19 +346,23 @@
                      switch (button_num)
                      {
                          case 0:
@@ -152,7 +355,7 @@
                      }
                      
                      with (source_id)
-@@ -369,6 +401,8 @@
+@@ -369,6 +375,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -161,7 +364,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -380,6 +414,8 @@
+@@ -380,6 +388,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -170,7 +373,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -391,6 +427,120 @@
+@@ -391,6 +401,120 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -291,7 +494,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -402,6 +552,8 @@
+@@ -402,6 +526,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -300,7 +503,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -413,6 +565,8 @@
+@@ -413,6 +539,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -309,7 +512,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -424,6 +578,8 @@
+@@ -424,6 +552,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -318,7 +521,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -435,6 +591,8 @@
+@@ -435,6 +565,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -327,7 +530,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -446,6 +604,8 @@
+@@ -446,6 +578,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -336,7 +539,7 @@
                      
                      with (source_id)
                          instance_destroy();
-@@ -465,7 +625,7 @@
+@@ -465,7 +599,7 @@
                          var _button_pos = floor(_button_num * 0.5);
                          var _mod_type = _icon_array[_button_pos];
                          var _mod_pos = _pos_array[_button_pos];
@@ -345,7 +548,7 @@
                          var _shift_min, _shift_max;
                          
                          switch (_mod_type)
-@@ -548,7 +708,7 @@
+@@ -548,7 +682,7 @@
                              var _cape_pos = -1;
                              var _mod_type = _icon_array[_button_num];
                              var _mod_pos = _pos_array[_button_num];
@@ -354,7 +557,7 @@
                              slot_data.mod_index[_mod_pos] = !slot_data.mod_index[_mod_pos];
                              
                              if (slot_data.mod_index[_mod_pos] == 1)
-@@ -587,7 +747,9 @@
+@@ -587,7 +721,9 @@
                                              {
                                                  scr_unit_removal(false, true, true, false, -1);
                                              }
@@ -365,7 +568,7 @@
                                              {
                                                  scr_unit_removal(false, true, true, false, -1);
                                                  slot_data.anim_struct.char_state = UnknownEnum.Value_0;
-@@ -713,6 +875,16 @@
+@@ -713,6 +849,16 @@
                      break;
                  
                  case UnknownEnum.Value_60:
@@ -382,7 +585,7 @@
                      var _type = source_id.source_id.slot_data.slot_type;
                      var _base_type = -1;
                      var _spr = -1;
-@@ -758,6 +930,44 @@
+@@ -758,6 +904,44 @@
                                      }
                                  }
                              }
@@ -427,7 +630,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -838,6 +1048,38 @@
+@@ -838,6 +1022,38 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -466,7 +669,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -900,6 +1142,26 @@
+@@ -900,6 +1116,26 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -493,7 +696,7 @@
                              else
                              {
                                  if (_spr == -1)
-@@ -935,6 +1197,11 @@
+@@ -935,6 +1171,11 @@
                                  source_id.source_id.spr_base = spr_slot_back;
                                  source_id.source_id.slot_data.base_type = UnknownEnum.Value_0;
                              }
@@ -505,7 +708,7 @@
                              else
                              {
                                  source_id.source_id.spr_base = spr_big_slot_back;
-@@ -1091,12 +1358,13 @@
+@@ -1091,12 +1332,13 @@
                          
                          case 13:
                              scr_fullscreen_switch();
@@ -520,7 +723,7 @@
                                      instance_destroy();
                              }
                              
-@@ -1148,22 +1416,42 @@
+@@ -1148,22 +1390,42 @@
                              break;
                          
                          case 15:
@@ -578,7 +781,7 @@
                              break;
                      }
                      
-@@ -1189,7 +1477,7 @@
+@@ -1189,7 +1451,7 @@
                          
                          case 1:
                              _guide_create = true;
@@ -587,7 +790,7 @@
                              _scr = scr_create_guide_raiding_button;
                              _scr_draw = scr_draw_guide_button;
                              break;
-@@ -1210,6 +1498,18 @@
+@@ -1210,6 +1472,18 @@
                                          instance_destroy();
                                      
                                      alpha_window = scr_create_alpha_window();
@@ -606,7 +809,7 @@
                                  }
                              }
                              
-@@ -1335,6 +1635,10 @@
+@@ -1335,6 +1609,10 @@
                                  case 7:
                                      _text = scr_guide_casualty;
                                      break;
@@ -617,7 +820,7 @@
                              }
                              
                              break;
-@@ -1410,6 +1714,18 @@
+@@ -1410,6 +1688,18 @@
                              if (alpha_window == -1)
                              {
                                  alpha_window = scr_create_alpha_window();
@@ -636,7 +839,7 @@
                              }
                              else
                              {
-@@ -1426,7 +1742,7 @@
+@@ -1426,7 +1716,7 @@
                                  
                                  with (obj_button)
                                  {
@@ -645,7 +848,7 @@
                                          instance_destroy();
                                  }
                              }
-@@ -1673,6 +1989,12 @@
+@@ -1673,6 +1963,12 @@
                      break;
                  
                  case UnknownEnum.Value_45:
@@ -658,7 +861,7 @@
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
-@@ -1853,6 +2175,7 @@
+@@ -1853,6 +2149,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
                          scr_create_map_buttons();
@@ -666,7 +869,7 @@
                      }
                      
                      break;
-@@ -2046,6 +2369,17 @@
+@@ -2046,6 +2343,17 @@
                              break;
                          
                          case 3:
@@ -684,7 +887,7 @@
                              game_end();
                              break;
                      }
-@@ -2056,43 +2390,43 @@
+@@ -2056,43 +2364,43 @@
                      switch (button_num)
                      {
                          case 0:
@@ -738,7 +941,7 @@
                              break;
                      }
                      
-@@ -2135,6 +2469,9 @@
+@@ -2135,6 +2443,9 @@
                          switch (button_num)
                          {
                              case 0:
@@ -748,7 +951,7 @@
                                  if (source_id.load_data.ver > 0.43 && source_id.load_data.ver < 1.07)
                                  {
                                      scr_sfx_play(UnknownEnum.Value_1);
-@@ -2167,45 +2504,45 @@
+@@ -2167,45 +2478,45 @@
                                  
                                  switch (global.val.language)
                                  {
@@ -804,7 +1007,7 @@
                                          _text = "Deletar arquivo salvo?";
                                          break;
                                  }
-@@ -2233,27 +2570,13 @@
+@@ -2233,27 +2544,13 @@
                              instance_destroy();
                      }
                      
@@ -836,7 +1039,7 @@
                          load_data = scr_set_save_date(button_pos);
                      }
                      else
-@@ -2265,48 +2588,48 @@
+@@ -2265,48 +2562,48 @@
                          
                          switch (global.val.language)
                          {
@@ -895,7 +1098,7 @@
                                  _text = "Sobrescrever arquivo salvo?";
                                  break;
                          }
-@@ -2481,6 +2804,315 @@
+@@ -2481,6 +2778,315 @@
                      
                      scr_reset_unit_window(-1);
                      break;

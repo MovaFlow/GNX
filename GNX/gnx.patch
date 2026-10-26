@@ -931,7 +931,7 @@ diff -uN gml_138/gml_GlobalScript_PropertyHolder.gml gml/gml_GlobalScript_Proper
 +}
 diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_button_activate.gml
 --- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-26 11:11:55.215067500 +0100
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-26 11:42:51.274864400 +0100
 @@ -29,6 +29,15 @@
              trigger = false;
              global.click_lock = false;
@@ -948,7 +948,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
              switch (interact_type)
              {
                  case UnknownEnum.Value_0:
-@@ -39,7 +48,7 @@
+@@ -39,13 +48,20 @@
                      switch (button_num)
                      {
                          case 0:
@@ -957,7 +957,21 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                          
                          case 1:
-@@ -92,6 +101,17 @@
++                            global.gnx_floor_edit = -1;  // GNX-FLOOR: this slot only
+                             scr_create_window_button_list(_slot_id, _x, _y, 5, UnknownEnum.Value_0, UnknownEnum.Value_2, scr_create_modify_button, false);
+                             break;
+-                        
++
++                        case 4:
++                            // GNX-FLOOR: the entrance's FLOOR: the same edit menu, for the entrance and every passage of the floor
++                            global.gnx_floor_edit = _slot_id;
++                            scr_create_window_button_list(_slot_id, _x, _y, 5, UnknownEnum.Value_0, UnknownEnum.Value_2, scr_create_modify_button, false);
++                            break;
++
+                         case 2:
+                             if (_slot_id.slot_data.slot_floor > 0)
+                                 scr_swap_floors(_slot_id.slot_data.slot_floor, _slot_id.slot_data.slot_floor - 1);
+@@ -92,6 +108,17 @@
                              var _pos = ds_list_find_index(global.slot_list[_floor], _slot_id) + 1;
                              scr_create_slot(UnknownEnum.Value_3, _floor, _pos, true);
                              break;
@@ -975,7 +989,13 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      with (source_id)
-@@ -112,18 +132,18 @@
+@@ -107,29 +134,36 @@
+                     switch (button_num)
+                     {
+                         case 0:
+-                            var _num = array_length(global.unlock.edit_between) - 1;
++                            var _num = array_length(global.unlock.edit_between) - (gnx_floor_edit_on(_slot_id) ? 0 : 1);  // GNX-FLOOR
+                             scr_create_window_button_list(_slot_id, _x, _y, _num, UnknownEnum.Value_0, UnknownEnum.Value_6, scr_create_modify_between, false);
                              break;
                          
                          case 1:
@@ -1000,16 +1020,199 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                          
                          case 4:
-@@ -182,7 +202,7 @@
-                         {
-                             slot_data.between_type = other.button_num;
-                             spr_base = _spr;
+-                            scr_clear_prop_pos(_slot_id, UnknownEnum.Value_7);
+-                            scr_clear_prop_pos(_slot_id, UnknownEnum.Value_8);
+-                            scr_clear_prop_pos(_slot_id, UnknownEnum.Value_9);
++                            // GNX-FLOOR: the whole floor, or this slot
++                            var _clr = gnx_floor_edit_on(_slot_id) ? gnx_floor_slots(_slot_id.slot_data.slot_floor) : [_slot_id];
++
++                            for (var _ci = 0; _ci < array_length(_clr); _ci++)
++                            {
++                                scr_clear_prop_pos(_clr[_ci], UnknownEnum.Value_7);
++                                scr_clear_prop_pos(_clr[_ci], UnknownEnum.Value_8);
++                                scr_clear_prop_pos(_clr[_ci], UnknownEnum.Value_9);
++                            }
++
+                             break;
+                     }
+                     
+@@ -140,101 +174,43 @@
+                 
+                 case UnknownEnum.Value_6:
+                     var _slot_id = source_id.source_id;
+-                    var _diff = _slot_id.image_xscale + 2;
+-                    var _reset_prop = false;
+-                    var _noti = false;
+                     var _floor = _slot_id.slot_data.slot_floor;
+-                    var _scale, _spr;
+-                    
+-                    switch (button_num)
++
++                    // GNX-FLOOR: vanilla's style change, now in gnx_set_between; from the entrance's FLOOR menu, for
++                    // the whole floor (all or none)
++                    if (gnx_floor_edit_on(_slot_id))
+                     {
+-                        case UnknownEnum.Value_0:
+-                            _spr = spr_bet_plank;
+-                            _scale = 11;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_1:
+-                            _spr = spr_bet_pillar;
+-                            _scale = 20;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_4:
+-                            _spr = spr_bet_tent;
+-                            _scale = 11;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_2:
+-                            _spr = spr_bet_rock;
+-                            _scale = 15;
+-                            break;
+-                        
+-                        case UnknownEnum.Value_3:
+-                            _spr = spr_bet_brick;
+-                            _scale = 13;
+-                            break;
+-                    }
+-                    
+-                    _diff = _scale - _diff;
+-                    
+-                    if ((global.slot_x[_floor] + _diff) <= room_width)
+-                    {
+-                        with (_slot_id)
+-                        {
+-                            slot_data.between_type = other.button_num;
+-                            spr_base = _spr;
 -                            var _num = sprite_get_number(_spr) - 1;
-+                            var _num = gnx_sprite_get_number(_spr) - 1;
-                             image_xscale += _diff;
-                             global.slot_x[slot_data.slot_floor] += _diff;
-                             scr_shift_slot(id, _diff, slot_data.slot_floor);
-@@ -293,19 +313,23 @@
+-                            image_xscale += _diff;
+-                            global.slot_x[slot_data.slot_floor] += _diff;
+-                            scr_shift_slot(id, _diff, slot_data.slot_floor);
+-                            _num = array_length(slot_data.prop);
+-                            
+-                            if (_reset_prop)
+-                            {
+-                                for (var i = 0; i < _num; i++)
+-                                {
+-                                    var _prop_id = slot_data.prop[i].prop_id;
+-                                    
+-                                    with (_prop_id)
+-                                        instance_destroy();
+-                                }
+-                                
+-                                slot_data.prop = [];
+-                            }
+-                            else
+-                            {
+-                                _diff = sign(_diff) * floor(abs(_diff * 0.5));
+-                                
+-                                for (var i = 0; i < _num; i++)
+-                                {
+-                                    var _prop_id = slot_data.prop[i].prop_id;
+-                                    
+-                                    if (_prop_id.center)
+-                                    {
+-                                        _prop_id.prop_data.shift_x += _diff;
+-                                        slot_data.prop[i] = _prop_id.prop_data;
+-                                    }
+-                                }
+-                            }
+-                        }
++                        if (!gnx_floor_set_between(_floor, button_num))
++                            scr_pop_up_create(UnknownEnum.Value_30);
+                     }
+                     else
+                     {
+-                        scr_pop_up_create(UnknownEnum.Value_30);
++                        if (!gnx_set_between(_slot_id, button_num))
++                            scr_pop_up_create(UnknownEnum.Value_30);
++
++                        scr_check_between_base(_floor, _slot_id);
+                     }
+-                    
+-                    scr_check_between_base(_floor, _slot_id);
+-                    
++
+                     with (source_id)
+                         instance_destroy();
+-                    
++
+                     break;
+-                
++
+                 case UnknownEnum.Value_7:
+                     var _slot_id = source_id.source_id;
+-                    var _exists = scr_clear_prop_pos(_slot_id, interact_type);
+-                    
+-                    if (_exists == -1 || (_exists != -1 && _exists != button_num))
+-                        scr_create_prop(_slot_id, button_num, interact_type, -1);
++
++                    // GNX-FLOOR: from the entrance's FLOOR menu, on every passage of the floor
++                    if (gnx_floor_edit_on(_slot_id))
++                    {
++                        gnx_floor_toggle_prop(_slot_id.slot_data.slot_floor, interact_type, button_num);
++                    }
++                    else
++                    {
++                        var _exists = scr_clear_prop_pos(_slot_id, interact_type);
++
++                        if (_exists == -1 || (_exists != -1 && _exists != button_num))
++                            scr_create_prop(_slot_id, button_num, interact_type, -1);
++                    }
+                     
+                     with (source_id)
+                         instance_destroy();
+@@ -243,10 +219,19 @@
+                 
+                 case UnknownEnum.Value_8:
+                     var _slot_id = source_id.source_id;
+-                    var _exists = scr_clear_prop_pos(_slot_id, interact_type);
+-                    
+-                    if (_exists == -1 || (_exists != -1 && _exists != button_num))
+-                        scr_create_prop(_slot_id, button_num, interact_type, -1);
++
++                    // GNX-FLOOR: from the entrance's FLOOR menu, on every passage of the floor
++                    if (gnx_floor_edit_on(_slot_id))
++                    {
++                        gnx_floor_toggle_prop(_slot_id.slot_data.slot_floor, interact_type, button_num);
++                    }
++                    else
++                    {
++                        var _exists = scr_clear_prop_pos(_slot_id, interact_type);
++
++                        if (_exists == -1 || (_exists != -1 && _exists != button_num))
++                            scr_create_prop(_slot_id, button_num, interact_type, -1);
++                    }
+                     
+                     with (source_id)
+                         instance_destroy();
+@@ -255,10 +240,19 @@
+                 
+                 case UnknownEnum.Value_9:
+                     var _slot_id = source_id.source_id;
+-                    var _exists = scr_clear_prop_pos(_slot_id, interact_type);
+-                    
+-                    if (_exists == -1 || (_exists != -1 && _exists != button_num))
+-                        scr_create_prop(_slot_id, button_num, interact_type, -1);
++
++                    // GNX-FLOOR: from the entrance's FLOOR menu, on every passage of the floor
++                    if (gnx_floor_edit_on(_slot_id))
++                    {
++                        gnx_floor_toggle_prop(_slot_id.slot_data.slot_floor, interact_type, button_num);
++                    }
++                    else
++                    {
++                        var _exists = scr_clear_prop_pos(_slot_id, interact_type);
++
++                        if (_exists == -1 || (_exists != -1 && _exists != button_num))
++                            scr_create_prop(_slot_id, button_num, interact_type, -1);
++                    }
+                     
+                     with (source_id)
+                         instance_destroy();
+@@ -293,19 +287,23 @@
                      switch (button_num)
                      {
                          case 0:
@@ -1036,7 +1239,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      with (source_id)
-@@ -321,14 +345,18 @@
+@@ -321,14 +319,18 @@
                      switch (button_num)
                      {
                          case 0:
@@ -1057,7 +1260,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      with (source_id)
-@@ -344,19 +372,23 @@
+@@ -344,19 +346,23 @@
                      switch (button_num)
                      {
                          case 0:
@@ -1084,7 +1287,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      with (source_id)
-@@ -369,6 +401,8 @@
+@@ -369,6 +375,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1093,7 +1296,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -380,6 +414,8 @@
+@@ -380,6 +388,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1102,7 +1305,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -391,6 +427,120 @@
+@@ -391,6 +401,120 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1223,7 +1426,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -402,6 +552,8 @@
+@@ -402,6 +526,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1232,7 +1435,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -413,6 +565,8 @@
+@@ -413,6 +539,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1241,7 +1444,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -424,6 +578,8 @@
+@@ -424,6 +552,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1250,7 +1453,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -435,6 +591,8 @@
+@@ -435,6 +565,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1259,7 +1462,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -446,6 +604,8 @@
+@@ -446,6 +578,8 @@
                      var _x = source_id.x;
                      var _y = source_id.y;
                      scr_set_slot_h_data(_slot_id, button_num);
@@ -1268,7 +1471,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      
                      with (source_id)
                          instance_destroy();
-@@ -465,7 +625,7 @@
+@@ -465,7 +599,7 @@
                          var _button_pos = floor(_button_num * 0.5);
                          var _mod_type = _icon_array[_button_pos];
                          var _mod_pos = _pos_array[_button_pos];
@@ -1277,7 +1480,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                          var _shift_min, _shift_max;
                          
                          switch (_mod_type)
-@@ -548,7 +708,7 @@
+@@ -548,7 +682,7 @@
                              var _cape_pos = -1;
                              var _mod_type = _icon_array[_button_num];
                              var _mod_pos = _pos_array[_button_num];
@@ -1286,7 +1489,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              slot_data.mod_index[_mod_pos] = !slot_data.mod_index[_mod_pos];
                              
                              if (slot_data.mod_index[_mod_pos] == 1)
-@@ -587,7 +747,9 @@
+@@ -587,7 +721,9 @@
                                              {
                                                  scr_unit_removal(false, true, true, false, -1);
                                              }
@@ -1297,7 +1500,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                              {
                                                  scr_unit_removal(false, true, true, false, -1);
                                                  slot_data.anim_struct.char_state = UnknownEnum.Value_0;
-@@ -713,6 +875,16 @@
+@@ -713,6 +849,16 @@
                      break;
                  
                  case UnknownEnum.Value_60:
@@ -1314,7 +1517,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      var _type = source_id.source_id.slot_data.slot_type;
                      var _base_type = -1;
                      var _spr = -1;
-@@ -758,6 +930,44 @@
+@@ -758,6 +904,44 @@
                                      }
                                  }
                              }
@@ -1359,7 +1562,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              else
                              {
                                  if (_spr == -1)
-@@ -838,6 +1048,38 @@
+@@ -838,6 +1022,38 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -1398,7 +1601,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              else
                              {
                                  if (_spr == -1)
-@@ -900,6 +1142,26 @@
+@@ -900,6 +1116,26 @@
                                      _base_type = UnknownEnum.Value_0;
                                  }
                              }
@@ -1425,7 +1628,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              else
                              {
                                  if (_spr == -1)
-@@ -935,6 +1197,11 @@
+@@ -935,6 +1171,11 @@
                                  source_id.source_id.spr_base = spr_slot_back;
                                  source_id.source_id.slot_data.base_type = UnknownEnum.Value_0;
                              }
@@ -1437,7 +1640,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              else
                              {
                                  source_id.source_id.spr_base = spr_big_slot_back;
-@@ -1091,12 +1358,13 @@
+@@ -1091,12 +1332,13 @@
                          
                          case 13:
                              scr_fullscreen_switch();
@@ -1452,7 +1655,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                      instance_destroy();
                              }
                              
-@@ -1148,22 +1416,42 @@
+@@ -1148,22 +1390,42 @@
                              break;
                          
                          case 15:
@@ -1510,7 +1713,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                      }
                      
-@@ -1189,7 +1477,7 @@
+@@ -1189,7 +1451,7 @@
                          
                          case 1:
                              _guide_create = true;
@@ -1519,7 +1722,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              _scr = scr_create_guide_raiding_button;
                              _scr_draw = scr_draw_guide_button;
                              break;
-@@ -1210,6 +1498,18 @@
+@@ -1210,6 +1472,18 @@
                                          instance_destroy();
                                      
                                      alpha_window = scr_create_alpha_window();
@@ -1538,7 +1741,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  }
                              }
                              
-@@ -1335,6 +1635,10 @@
+@@ -1335,6 +1609,10 @@
                                  case 7:
                                      _text = scr_guide_casualty;
                                      break;
@@ -1549,7 +1752,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              }
                              
                              break;
-@@ -1410,6 +1714,18 @@
+@@ -1410,6 +1688,18 @@
                              if (alpha_window == -1)
                              {
                                  alpha_window = scr_create_alpha_window();
@@ -1568,7 +1771,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              }
                              else
                              {
-@@ -1426,7 +1742,7 @@
+@@ -1426,7 +1716,7 @@
                                  
                                  with (obj_button)
                                  {
@@ -1577,7 +1780,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          instance_destroy();
                                  }
                              }
-@@ -1673,6 +1989,12 @@
+@@ -1673,6 +1963,12 @@
                      break;
                  
                  case UnknownEnum.Value_45:
@@ -1590,7 +1793,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
-@@ -1853,6 +2175,7 @@
+@@ -1853,6 +2149,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
                          scr_create_map_buttons();
@@ -1598,7 +1801,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      break;
-@@ -2046,6 +2369,17 @@
+@@ -2046,6 +2343,17 @@
                              break;
                          
                          case 3:
@@ -1616,7 +1819,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              game_end();
                              break;
                      }
-@@ -2056,43 +2390,43 @@
+@@ -2056,43 +2364,43 @@
                      switch (button_num)
                      {
                          case 0:
@@ -1670,7 +1873,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                      }
                      
-@@ -2135,6 +2469,9 @@
+@@ -2135,6 +2443,9 @@
                          switch (button_num)
                          {
                              case 0:
@@ -1680,7 +1883,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  if (source_id.load_data.ver > 0.43 && source_id.load_data.ver < 1.07)
                                  {
                                      scr_sfx_play(UnknownEnum.Value_1);
-@@ -2167,45 +2504,45 @@
+@@ -2167,45 +2478,45 @@
                                  
                                  switch (global.val.language)
                                  {
@@ -1736,7 +1939,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          _text = "Deletar arquivo salvo?";
                                          break;
                                  }
-@@ -2233,27 +2570,13 @@
+@@ -2233,27 +2544,13 @@
                              instance_destroy();
                      }
                      
@@ -1768,7 +1971,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                          load_data = scr_set_save_date(button_pos);
                      }
                      else
-@@ -2265,48 +2588,48 @@
+@@ -2265,48 +2562,48 @@
                          
                          switch (global.val.language)
                          {
@@ -1827,7 +2030,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  _text = "Sobrescrever arquivo salvo?";
                                  break;
                          }
-@@ -2481,6 +2804,315 @@
+@@ -2481,6 +2778,315 @@
                      
                      scr_reset_unit_window(-1);
                      break;
@@ -2145,7 +2348,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
      }
 diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_button_create.gml
 --- gml_138/gml_GlobalScript_s_button_create.gml	2026-09-02 08:45:16.422591300 +0200
-+++ gml/gml_GlobalScript_s_button_create.gml	2026-10-26 09:13:37.759021400 +0100
++++ gml/gml_GlobalScript_s_button_create.gml	2026-10-26 11:39:36.772530400 +0100
 @@ -75,19 +75,19 @@
              switch (button_num)
              {
@@ -2169,7 +2372,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          instance_destroy();
                      
                      break;
-@@ -97,40 +97,76 @@
+@@ -97,46 +97,84 @@
                          instance_destroy();
                      
                      break;
@@ -2254,7 +2457,16 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
              break;
          
          case UnknownEnum.Value_6:
-@@ -144,34 +180,40 @@
+             var _slot_id = source_id.source_id;
+             
+-            if (global.unlock.edit_between[button_num] >= _slot_id.slot_data.between_type)
++            if (gnx_floor_edit_on(_slot_id))
++                button_num = global.unlock.edit_between[button_num];  // GNX-FLOOR: every style
++            else if (global.unlock.edit_between[button_num] >= _slot_id.slot_data.between_type)
+                 button_num = global.unlock.edit_between[button_num + 1];
+             else
+                 button_num = global.unlock.edit_between[button_num];
+@@ -144,34 +182,40 @@
              break;
          
          case UnknownEnum.Value_7:
@@ -2301,7 +2513,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          instance_destroy();
                      
                      break;
-@@ -183,19 +225,19 @@
+@@ -183,19 +227,19 @@
              switch (button_num)
              {
                  case 0:
@@ -2324,7 +2536,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          instance_destroy();
                      
                      break;
-@@ -207,13 +249,13 @@
+@@ -207,13 +251,13 @@
              switch (button_num)
              {
                  case 0:
@@ -2340,7 +2552,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          instance_destroy();
                      
                      break;
-@@ -334,7 +376,7 @@
+@@ -334,7 +378,7 @@
                      {
                          var _val = ds_list_find_value(global.new_button_list, i);
                          
@@ -2349,7 +2561,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                          {
                              _spr_new_result = _spr_point;
                              i = _num;
-@@ -356,6 +398,18 @@
+@@ -356,6 +400,18 @@
                      }
                      
                      break;
@@ -2368,7 +2580,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
              }
              
              break;
-@@ -366,15 +420,19 @@
+@@ -366,15 +422,19 @@
              switch (button_num)
              {
                  case 0:
@@ -2391,7 +2603,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                      break;
              }
              
-@@ -403,15 +461,19 @@
+@@ -403,15 +463,19 @@
              switch (button_num)
              {
                  case 0:
@@ -2414,7 +2626,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                      break;
              }
              
-@@ -452,11 +514,15 @@
+@@ -452,11 +516,15 @@
              switch (button_num)
              {
                  case 0:
@@ -2432,7 +2644,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
                      break;
              }
              
-@@ -599,6 +665,23 @@
+@@ -599,6 +667,23 @@
              
              break;
          
@@ -2456,7 +2668,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
          case UnknownEnum.Value_2:
              var _unlock_array = -1;
              
-@@ -795,9 +878,17 @@
+@@ -795,9 +880,17 @@
  
  function scr_create_button_swap()
  {
@@ -2475,7 +2687,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
      {
          for (var i = 0; i < array_length(global.unlock.edit_between); i++)
          {
-@@ -815,7 +906,7 @@
+@@ -815,7 +908,7 @@
          }
      }
      
@@ -2486,7 +2698,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
      spr_sel = spr_button_small_sel;
 diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_button_text.gml
 --- gml_138/gml_GlobalScript_s_button_text.gml	2026-09-02 08:45:16.399590800 +0200
-+++ gml/gml_GlobalScript_s_button_text.gml	2026-10-23 15:20:49.672199400 +0200
++++ gml/gml_GlobalScript_s_button_text.gml	2026-10-26 11:39:36.642008700 +0100
 @@ -6,9 +6,27 @@
      var _code_text = -1;
      var _shop_price = -1;
@@ -2920,7 +3132,23 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
          scr_play_get_coin_sfx(_x, _y);
      }
      
-@@ -525,7 +568,7 @@
+@@ -521,11 +564,23 @@
+ 
+ function scr_create_between_button()
+ {
++    // GNX-FLOOR: an entrance's last button is FLOOR (button 4, whatever its place)
++    var _gnx_floor_btn = source_id.source_id.slot_data.slot_type == 4 && button_num == gnx_entrance_floor_button();
++
++    if (_gnx_floor_btn)
++        button_num = 4;
++
+     scr_create_button_slot(interact_type, button_num);
++
++    if (_gnx_floor_btn)
++    {
++        button_text = "FLOOR";
++        exit;
++    }
      
      switch (global.val.language)
      {
@@ -2929,7 +3157,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -547,7 +590,7 @@
+@@ -547,7 +602,7 @@
              
              break;
          
@@ -2938,7 +3166,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -569,7 +612,7 @@
+@@ -569,7 +624,7 @@
              
              break;
          
@@ -2947,7 +3175,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -591,7 +634,7 @@
+@@ -591,7 +646,7 @@
              
              break;
          
@@ -2956,7 +3184,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -613,7 +656,7 @@
+@@ -613,7 +668,7 @@
              
              break;
          
@@ -2965,7 +3193,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -635,7 +678,7 @@
+@@ -635,7 +690,7 @@
              
              break;
          
@@ -2974,7 +3202,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -657,7 +700,7 @@
+@@ -657,7 +712,7 @@
              
              break;
          
@@ -2983,7 +3211,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -679,7 +722,7 @@
+@@ -679,7 +734,7 @@
              
              break;
          
@@ -2992,7 +3220,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -701,7 +744,7 @@
+@@ -701,7 +756,7 @@
              
              break;
          
@@ -3001,7 +3229,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -723,7 +766,7 @@
+@@ -723,7 +778,7 @@
              
              break;
          
@@ -3010,7 +3238,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -762,7 +805,7 @@
+@@ -762,7 +817,7 @@
      
      switch (global.val.language)
      {
@@ -3019,7 +3247,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -788,7 +831,7 @@
+@@ -788,7 +843,7 @@
              
              break;
          
@@ -3028,7 +3256,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -814,7 +857,7 @@
+@@ -814,7 +869,7 @@
              
              break;
          
@@ -3037,7 +3265,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -840,7 +883,7 @@
+@@ -840,7 +895,7 @@
              
              break;
          
@@ -3046,7 +3274,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -866,7 +909,7 @@
+@@ -866,7 +921,7 @@
              
              break;
          
@@ -3055,7 +3283,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -892,7 +935,7 @@
+@@ -892,7 +947,7 @@
              
              break;
          
@@ -3064,7 +3292,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -918,7 +961,7 @@
+@@ -918,7 +973,7 @@
              
              break;
          
@@ -3073,7 +3301,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -944,7 +987,7 @@
+@@ -944,7 +999,7 @@
              
              break;
          
@@ -3082,7 +3310,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -970,7 +1013,7 @@
+@@ -970,7 +1025,7 @@
              
              break;
          
@@ -3091,7 +3319,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -996,7 +1039,7 @@
+@@ -996,7 +1051,7 @@
              
              break;
          
@@ -3100,7 +3328,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1029,7 +1072,7 @@
+@@ -1029,7 +1084,7 @@
      scr_create_button_slot(interact_type, button_num);
      button_text = scr_set_prop_text(button_num).text_type;
      
@@ -3109,7 +3337,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
          button_text = scr_lang_prop_text(button_num);
  }
  
-@@ -1047,30 +1090,30 @@
+@@ -1047,30 +1102,30 @@
      
      switch (global.val.language)
      {
@@ -3146,7 +3374,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "BRICK";
                      _code_text = "E";
                      break;
-@@ -1078,30 +1121,30 @@
+@@ -1078,30 +1133,30 @@
              
              break;
          
@@ -3183,7 +3411,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "磚";
                      _code_text = "E";
                      break;
-@@ -1109,30 +1152,30 @@
+@@ -1109,30 +1164,30 @@
              
              break;
          
@@ -3220,7 +3448,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "砖";
                      _code_text = "E";
                      break;
-@@ -1140,30 +1183,30 @@
+@@ -1140,30 +1195,30 @@
              
              break;
          
@@ -3257,7 +3485,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "レンガ";
                      _code_text = "E";
                      break;
-@@ -1171,30 +1214,30 @@
+@@ -1171,30 +1226,30 @@
              
              break;
          
@@ -3294,7 +3522,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "벽돌";
                      _code_text = "E";
                      break;
-@@ -1202,30 +1245,30 @@
+@@ -1202,30 +1257,30 @@
              
              break;
          
@@ -3331,7 +3559,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "КИРПИЧ";
                      _code_text = "E";
                      break;
-@@ -1233,30 +1276,30 @@
+@@ -1233,30 +1288,30 @@
              
              break;
          
@@ -3368,7 +3596,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "LADRILLO";
                      _code_text = "E";
                      break;
-@@ -1264,30 +1307,30 @@
+@@ -1264,30 +1319,30 @@
              
              break;
          
@@ -3405,7 +3633,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "BRIQUE";
                      _code_text = "E";
                      break;
-@@ -1295,30 +1338,30 @@
+@@ -1295,30 +1350,30 @@
              
              break;
          
@@ -3442,7 +3670,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "ZIEGEL";
                      _code_text = "E";
                      break;
-@@ -1326,30 +1369,30 @@
+@@ -1326,30 +1381,30 @@
              
              break;
          
@@ -3479,7 +3707,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
                      _name = "TIJOLO";
                      _code_text = "E";
                      break;
-@@ -1367,219 +1410,233 @@
+@@ -1367,219 +1422,233 @@
  
  function scr_set_prop_text(arg0)
  {
@@ -3753,7 +3981,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              _name = "PLAQUE";
              _code_text = "M";
              break;
-@@ -1595,10 +1652,16 @@
+@@ -1595,10 +1664,16 @@
  function scr_create_slot_category_button()
  {
      scr_create_button_slot(interact_type, button_num);
@@ -3771,7 +3999,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1616,7 +1679,7 @@
+@@ -1616,7 +1691,7 @@
              
              break;
          
@@ -3780,7 +4008,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1634,7 +1697,7 @@
+@@ -1634,7 +1709,7 @@
              
              break;
          
@@ -3789,7 +4017,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1652,7 +1715,7 @@
+@@ -1652,7 +1727,7 @@
              
              break;
          
@@ -3798,7 +4026,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1670,7 +1733,7 @@
+@@ -1670,7 +1745,7 @@
              
              break;
          
@@ -3807,7 +4035,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1688,7 +1751,7 @@
+@@ -1688,7 +1763,7 @@
              
              break;
          
@@ -3816,7 +4044,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1706,7 +1769,7 @@
+@@ -1706,7 +1781,7 @@
              
              break;
          
@@ -3825,7 +4053,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1724,7 +1787,7 @@
+@@ -1724,7 +1799,7 @@
              
              break;
          
@@ -3834,7 +4062,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1742,7 +1805,7 @@
+@@ -1742,7 +1817,7 @@
              
              break;
          
@@ -3843,7 +4071,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1760,7 +1823,7 @@
+@@ -1760,7 +1835,7 @@
              
              break;
          
@@ -3852,7 +4080,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1783,10 +1846,16 @@
+@@ -1783,10 +1858,16 @@
  function scr_create_big_slot_category_button()
  {
      scr_create_button_slot(interact_type, button_num);
@@ -3870,7 +4098,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1804,7 +1873,7 @@
+@@ -1804,7 +1885,7 @@
              
              break;
          
@@ -3879,7 +4107,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1822,7 +1891,7 @@
+@@ -1822,7 +1903,7 @@
              
              break;
          
@@ -3888,7 +4116,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1840,7 +1909,7 @@
+@@ -1840,7 +1921,7 @@
              
              break;
          
@@ -3897,7 +4125,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1858,7 +1927,7 @@
+@@ -1858,7 +1939,7 @@
              
              break;
          
@@ -3906,7 +4134,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1876,7 +1945,7 @@
+@@ -1876,7 +1957,7 @@
              
              break;
          
@@ -3915,7 +4143,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1894,7 +1963,7 @@
+@@ -1894,7 +1975,7 @@
              
              break;
          
@@ -3924,7 +4152,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1912,7 +1981,7 @@
+@@ -1912,7 +1993,7 @@
              
              break;
          
@@ -3933,7 +4161,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1930,7 +1999,7 @@
+@@ -1930,7 +2011,7 @@
              
              break;
          
@@ -3942,7 +4170,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1948,7 +2017,7 @@
+@@ -1948,7 +2029,7 @@
              
              break;
          
@@ -3951,7 +4179,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1971,10 +2040,16 @@
+@@ -1971,10 +2052,16 @@
  function scr_create_tent_category_button()
  {
      scr_create_button_slot(interact_type, button_num);
@@ -3969,7 +4197,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -1988,7 +2063,7 @@
+@@ -1988,7 +2075,7 @@
              
              break;
          
@@ -3978,7 +4206,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2002,7 +2077,7 @@
+@@ -2002,7 +2089,7 @@
              
              break;
          
@@ -3987,7 +4215,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2016,7 +2091,7 @@
+@@ -2016,7 +2103,7 @@
              
              break;
          
@@ -3996,7 +4224,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2030,7 +2105,7 @@
+@@ -2030,7 +2117,7 @@
              
              break;
          
@@ -4005,7 +4233,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2044,7 +2119,7 @@
+@@ -2044,7 +2131,7 @@
              
              break;
          
@@ -4014,7 +4242,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2058,7 +2133,7 @@
+@@ -2058,7 +2145,7 @@
              
              break;
          
@@ -4023,7 +4251,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2072,7 +2147,7 @@
+@@ -2072,7 +2159,7 @@
              
              break;
          
@@ -4032,7 +4260,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2086,7 +2161,7 @@
+@@ -2086,7 +2173,7 @@
              
              break;
          
@@ -4041,7 +4269,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2100,7 +2175,7 @@
+@@ -2100,7 +2187,7 @@
              
              break;
          
@@ -4050,7 +4278,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
              switch (button_num)
              {
                  case 0:
-@@ -2116,50 +2191,20 @@
+@@ -2116,50 +2203,20 @@
      }
  }
  
@@ -4142,7 +4370,7 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
              
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 11:17:08.742474400 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 14:18:17.995163100 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -4196,7 +4424,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.val.guide_unlock = 
      {
          num: 0,
-@@ -119,7 +129,12 @@
+@@ -119,7 +129,14 @@
      scr_set_encounter_reward();
      scr_set_shop_list();
      global.load_file = -1;
@@ -4206,11 +4434,13 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    global.gnx_save_page = 0;
 +    // GNX-SORT: the prison's last sort order (-1 = never sorted; see gnx_prison_sort)
 +    global.gnx_prison_sort = -1;
++    // GNX-FLOOR: the entrance whose edit menu edits its whole floor (-1 = the edit menu edits one slot)
++    global.gnx_floor_edit = -1;
 +global.mask_collision = false;
      global.dirt_fix = 0;
      global.death_fix = 0;
      global.trans_lock = false;
-@@ -132,19 +147,21 @@
+@@ -132,19 +149,21 @@
      global.w_spd = 1;
      global.zoom_target = 0;
      global.muffle = 1;
@@ -4245,7 +4475,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,26328 @@
+@@ -167,12 +186,26573 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -9134,6 +9364,154 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        _t += ((_i > 0) ? ", " : "") + _parts[_i];
 +
 +    return _t;
++}
++
++// GNX-FLOOR: width and sprite of passage style arg0 (between_type), as vanilla's style list sets them; -1 unknown
++function gnx_between_width(arg0)
++{
++    switch (arg0)
++    {
++        case 0: return 11;
++        case 1: return 20;
++        case 2: return 15;
++        case 3: return 13;
++        case 4: return 11;
++    }
++
++    return -1;
++}
++
++function gnx_between_spr(arg0)
++{
++    switch (arg0)
++    {
++        case 0: return spr_bet_plank;
++        case 1: return spr_bet_pillar;
++        case 2: return spr_bet_rock;
++        case 3: return spr_bet_brick;
++        case 4: return spr_bet_tent;
++    }
++
++    return -1;
++}
++
++// GNX-FLOOR: vanilla's style change of one passage / entrance arg0 to style arg1 (moved here from the style
++// list's button so the whole-floor edit can run it per slot): its width changes, the slots after it shift and
++// centred props move with it. false (nothing changed) when the floor would get wider than the room.
++// The caller runs scr_check_between_base afterwards, as vanilla did.
++function gnx_set_between(arg0, arg1)
++{
++    var _scale = gnx_between_width(arg1);
++
++    if (_scale == -1)
++        return false;
++
++    var _spr = gnx_between_spr(arg1);
++    var _diff = _scale - (arg0.image_xscale + 2);
++
++    if ((global.slot_x[arg0.slot_data.slot_floor] + _diff) > room_width)
++        return false;
++
++    with (arg0)
++    {
++        slot_data.between_type = arg1;
++        spr_base = _spr;
++        image_xscale += _diff;
++        global.slot_x[slot_data.slot_floor] += _diff;
++        scr_shift_slot(id, _diff, slot_data.slot_floor);
++        var _num = array_length(slot_data.prop);
++        var _half = sign(_diff) * floor(abs(_diff * 0.5));
++
++        for (var i = 0; i < _num; i++)
++        {
++            var _prop_id = slot_data.prop[i].prop_id;
++
++            if (_prop_id.center)
++            {
++                _prop_id.prop_data.shift_x += _half;
++                slot_data.prop[i] = _prop_id.prop_data;
++            }
++        }
++    }
++
++    return true;
++}
++
++// GNX-FLOOR: the entrance and passages of floor arg0 (slot types 4 and 5), left to right
++function gnx_floor_slots(arg0)
++{
++    var _out = [];
++
++    for (var i = 0; i < ds_list_size(global.slot_list[arg0]); i++)
++    {
++        var _s = ds_list_find_value(global.slot_list[arg0], i);
++
++        if (_s.slot_data.slot_type == 4 || _s.slot_data.slot_type == 5)
++            array_push(_out, _s);
++    }
++
++    return _out;
++}
++
++// GNX-FLOOR: style arg1 on every passage of floor arg0, all or none: false when the floor would not fit
++function gnx_floor_set_between(arg0, arg1)
++{
++    var _slots = gnx_floor_slots(arg0);
++    var _scale = gnx_between_width(arg1);
++
++    if (_scale == -1)
++        return false;
++
++    var _total = 0;
++
++    for (var i = 0; i < array_length(_slots); i++)
++        _total += _scale - (_slots[i].image_xscale + 2);
++
++    if ((global.slot_x[arg0] + _total) > room_width)
++        return false;
++
++    for (var i = 0; i < array_length(_slots); i++)
++    {
++        gnx_set_between(_slots[i], arg1);
++        scr_check_between_base(arg0, _slots[i]);
++    }
++
++    return true;
++}
++
++// GNX-FLOOR: prop arg2 in row arg1 (7 top, 8 mid, 9 bot) on every passage of floor arg0; when every one already
++// has it, it is taken off them all instead (the single passage's toggle, for the floor)
++function gnx_floor_toggle_prop(arg0, arg1, arg2)
++{
++    var _slots = gnx_floor_slots(arg0);
++    var _all = true;
++
++    for (var i = 0; i < array_length(_slots); i++)
++    {
++        if (!scr_check_prop_exists(_slots[i], arg1, arg2))
++            _all = false;
++    }
++
++    for (var i = 0; i < array_length(_slots); i++)
++    {
++        scr_clear_prop_pos(_slots[i], arg1);
++
++        if (!_all)
++            scr_create_prop(_slots[i], arg2, arg1, -1);
++    }
++}
++
++// GNX-FLOOR: the edit menu runs for the whole floor of entrance arg0
++function gnx_floor_edit_on(arg0)
++{
++    return global.gnx_floor_edit != -1 && global.gnx_floor_edit == arg0 && instance_exists(arg0);
++}
++
++// GNX-FLOOR: index of FLOOR in an entrance's menu (after NEW, EDIT and, from the second floor on, UP and DOWN:
++// moving a floor is offered on its entrance only, passages no longer have it)
++function gnx_entrance_floor_button()
++{
++    return 2 + (2 * max(0, sign(global.val.floor)));
 +}
 +
 +// GNX-SORT: the prison's sort orders, in the order the sort button cycles through them
@@ -21575,6 +21953,103 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    return "ok";
 +}
 +
++// opens the menu of floor arg0's entrance (arg1 = false) or of its first passage (true), as a click on it does
++function gnx_scn_open_slot_menu(arg0, arg1)
++{
++    for (var i = 0; i < ds_list_size(global.slot_list[arg0]); i++)
++    {
++        var _s = ds_list_find_value(global.slot_list[arg0], i);
++
++        if (_s.slot_data.slot_type == (arg1 ? 5 : 4))
++        {
++            var _n = arg1 ? 2 : (gnx_entrance_floor_button() + 1);
++            scr_create_window_button_list(_s, 400, 200, _n, 0, 0, scr_create_between_button, false);
++            exit;
++        }
++    }
++}
++
++// clicks the open button of type arg0 at place arg1 in creation order (for lists whose button_num is an id)
++function gnx_scn_press_nth(arg0, arg1)
++{
++    var _k = 0;
++
++    with (obj_button)
++    {
++        if (interact_type == arg0)
++        {
++            if (_k == arg1)
++            {
++                with (id)
++                    gnx_scn_click();
++
++                exit;
++            }
++
++            _k++;
++        }
++    }
++}
++
++// the button_num of the open button of type arg0 at place arg1 (creation order), else -1
++function gnx_scn_button_num_nth(arg0, arg1)
++{
++    var _k = 0;
++    var _r = -1;
++
++    with (obj_button)
++    {
++        if (interact_type == arg0)
++        {
++            if (_k == arg1)
++                _r = button_num;
++
++            _k++;
++        }
++    }
++
++    return _r;
++}
++
++// the styles (between_type) of floor arg0's entrance and passages, left to right, joined with ","
++function gnx_scn_floor_styles(arg0)
++{
++    var _sl = gnx_floor_slots(arg0);
++    var _t = "";
++
++    for (var i = 0; i < array_length(_sl); i++)
++        _t += ((i > 0) ? "," : "") + string(_sl[i].slot_data.between_type);
++
++    return _t;
++}
++
++// how many of floor arg0's entrance and passages hold prop arg2 in row arg1, and "/" how many there are
++function gnx_scn_floor_prop(arg0, arg1, arg2)
++{
++    var _sl = gnx_floor_slots(arg0);
++    var _n = 0;
++
++    for (var i = 0; i < array_length(_sl); i++)
++    {
++        if (scr_check_prop_exists(_sl[i], arg1, arg2))
++            _n++;
++    }
++
++    return string(_n) + "/" + string(array_length(_sl));
++}
++
++// how many props floor arg0's entrance and passages hold in all
++function gnx_scn_floor_prop_total(arg0)
++{
++    var _sl = gnx_floor_slots(arg0);
++    var _n = 0;
++
++    for (var i = 0; i < array_length(_sl); i++)
++        _n += array_length(_sl[i].slot_data.prop);
++
++    return _n;
++}
++
 +// file arg0 exists in the save folder (fn asserts call scripts only, not built-in functions)
 +function gnx_scn_file_exists(arg0)
 +{
@@ -30576,7 +31051,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +26516,181 @@
+@@ -183,42 +26763,181 @@
      Value_3,
      Value_4,
      Value_5,
@@ -35578,7 +36053,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_state.gml gml/gml_GlobalScript_s_mon_sta
          mon_data.ff = false;
 diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mouse_action.gml
 --- gml_138/gml_GlobalScript_s_mouse_action.gml	2026-09-02 08:45:16.155545700 +0200
-+++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-26 08:07:39.011438200 +0100
++++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-26 14:18:17.626060000 +0100
 @@ -1,6 +1,7 @@
  function scr_mouse_control()
  {
@@ -35625,7 +36100,24 @@ diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mous
                                          }
                                          else
                                          {
-@@ -923,7 +925,22 @@
+@@ -904,12 +906,14 @@
+                                         break;
+                                     
+                                     case UnknownEnum.Value_5:
+-                                        scr_create_window_button_list(_inst, _x, _y, 2 + (2 * max(0, sign(global.val.floor))), UnknownEnum.Value_0, UnknownEnum.Value_0, scr_create_between_button, false);
++                                        // GNX-FLOOR: NEW and EDIT only; moving the floor up or down is on the floor's entrance
++                                        scr_create_window_button_list(_inst, _x, _y, 2, UnknownEnum.Value_0, UnknownEnum.Value_0, scr_create_between_button, false);
+                                         scr_sfx_play(UnknownEnum.Value_18);
+                                         break;
+                                     
+                                     case UnknownEnum.Value_4:
+-                                        scr_create_window_button_list(_inst, _x, _y, 2 + (2 * max(0, sign(global.val.floor - 4))), UnknownEnum.Value_0, UnknownEnum.Value_0, scr_create_between_button, false);
++                                        // GNX-FLOOR: + FLOOR (the edit menu for the whole floor)
++                                        scr_create_window_button_list(_inst, _x, _y, gnx_entrance_floor_button() + 1, UnknownEnum.Value_0, UnknownEnum.Value_0, scr_create_between_button, false);
+                                         scr_sfx_play(UnknownEnum.Value_18);
+                                         break;
+                                     
+@@ -923,7 +927,22 @@
                                      case UnknownEnum.Value_2:
                                          if (slot_data.anim_struct == -1)
                                          {
@@ -35649,7 +36141,7 @@ diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mous
                                          }
                                          else
                                          {
-@@ -1021,7 +1038,7 @@
+@@ -1021,7 +1040,7 @@
                                              
                                              with (_slot_id)
                                              {
@@ -35658,7 +36150,7 @@ diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mous
                                                  var _shift_min, _shift_max;
                                                  
                                                  switch (_mod_type)
-@@ -1204,17 +1221,14 @@
+@@ -1204,17 +1223,14 @@
                                  if (mouse_check_button_pressed(global.val.select_click) && prop_data.spawn)
                                  {
                                      scr_sfx_play(UnknownEnum.Value_0);
@@ -35681,7 +36173,7 @@ diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mous
                                          
                                          if (slot_data.anim_struct.char_state != UnknownEnum.Value_0)
                                          {
-@@ -1565,20 +1579,23 @@
+@@ -1565,20 +1581,23 @@
                                          {
                                              if (mon_data.mon_type == UnknownEnum.Value_1 && mon_data.task == UnknownEnum.Value_3 && variable_struct_exists(mon_data, "carry_start_id") && mon_data.carry_start_id == other.id)
                                              {

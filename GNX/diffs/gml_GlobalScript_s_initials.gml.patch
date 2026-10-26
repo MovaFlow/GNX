@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 11:17:08.742474400 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 14:18:17.995163100 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -53,7 +53,7 @@
      global.val.guide_unlock = 
      {
          num: 0,
-@@ -119,7 +129,12 @@
+@@ -119,7 +129,14 @@
      scr_set_encounter_reward();
      scr_set_shop_list();
      global.load_file = -1;
@@ -63,11 +63,13 @@
 +    global.gnx_save_page = 0;
 +    // GNX-SORT: the prison's last sort order (-1 = never sorted; see gnx_prison_sort)
 +    global.gnx_prison_sort = -1;
++    // GNX-FLOOR: the entrance whose edit menu edits its whole floor (-1 = the edit menu edits one slot)
++    global.gnx_floor_edit = -1;
 +global.mask_collision = false;
      global.dirt_fix = 0;
      global.death_fix = 0;
      global.trans_lock = false;
-@@ -132,19 +147,21 @@
+@@ -132,19 +149,21 @@
      global.w_spd = 1;
      global.zoom_target = 0;
      global.muffle = 1;
@@ -102,7 +104,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +184,26328 @@
+@@ -167,12 +186,26573 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -4991,6 +4993,154 @@
 +        _t += ((_i > 0) ? ", " : "") + _parts[_i];
 +
 +    return _t;
++}
++
++// GNX-FLOOR: width and sprite of passage style arg0 (between_type), as vanilla's style list sets them; -1 unknown
++function gnx_between_width(arg0)
++{
++    switch (arg0)
++    {
++        case 0: return 11;
++        case 1: return 20;
++        case 2: return 15;
++        case 3: return 13;
++        case 4: return 11;
++    }
++
++    return -1;
++}
++
++function gnx_between_spr(arg0)
++{
++    switch (arg0)
++    {
++        case 0: return spr_bet_plank;
++        case 1: return spr_bet_pillar;
++        case 2: return spr_bet_rock;
++        case 3: return spr_bet_brick;
++        case 4: return spr_bet_tent;
++    }
++
++    return -1;
++}
++
++// GNX-FLOOR: vanilla's style change of one passage / entrance arg0 to style arg1 (moved here from the style
++// list's button so the whole-floor edit can run it per slot): its width changes, the slots after it shift and
++// centred props move with it. false (nothing changed) when the floor would get wider than the room.
++// The caller runs scr_check_between_base afterwards, as vanilla did.
++function gnx_set_between(arg0, arg1)
++{
++    var _scale = gnx_between_width(arg1);
++
++    if (_scale == -1)
++        return false;
++
++    var _spr = gnx_between_spr(arg1);
++    var _diff = _scale - (arg0.image_xscale + 2);
++
++    if ((global.slot_x[arg0.slot_data.slot_floor] + _diff) > room_width)
++        return false;
++
++    with (arg0)
++    {
++        slot_data.between_type = arg1;
++        spr_base = _spr;
++        image_xscale += _diff;
++        global.slot_x[slot_data.slot_floor] += _diff;
++        scr_shift_slot(id, _diff, slot_data.slot_floor);
++        var _num = array_length(slot_data.prop);
++        var _half = sign(_diff) * floor(abs(_diff * 0.5));
++
++        for (var i = 0; i < _num; i++)
++        {
++            var _prop_id = slot_data.prop[i].prop_id;
++
++            if (_prop_id.center)
++            {
++                _prop_id.prop_data.shift_x += _half;
++                slot_data.prop[i] = _prop_id.prop_data;
++            }
++        }
++    }
++
++    return true;
++}
++
++// GNX-FLOOR: the entrance and passages of floor arg0 (slot types 4 and 5), left to right
++function gnx_floor_slots(arg0)
++{
++    var _out = [];
++
++    for (var i = 0; i < ds_list_size(global.slot_list[arg0]); i++)
++    {
++        var _s = ds_list_find_value(global.slot_list[arg0], i);
++
++        if (_s.slot_data.slot_type == 4 || _s.slot_data.slot_type == 5)
++            array_push(_out, _s);
++    }
++
++    return _out;
++}
++
++// GNX-FLOOR: style arg1 on every passage of floor arg0, all or none: false when the floor would not fit
++function gnx_floor_set_between(arg0, arg1)
++{
++    var _slots = gnx_floor_slots(arg0);
++    var _scale = gnx_between_width(arg1);
++
++    if (_scale == -1)
++        return false;
++
++    var _total = 0;
++
++    for (var i = 0; i < array_length(_slots); i++)
++        _total += _scale - (_slots[i].image_xscale + 2);
++
++    if ((global.slot_x[arg0] + _total) > room_width)
++        return false;
++
++    for (var i = 0; i < array_length(_slots); i++)
++    {
++        gnx_set_between(_slots[i], arg1);
++        scr_check_between_base(arg0, _slots[i]);
++    }
++
++    return true;
++}
++
++// GNX-FLOOR: prop arg2 in row arg1 (7 top, 8 mid, 9 bot) on every passage of floor arg0; when every one already
++// has it, it is taken off them all instead (the single passage's toggle, for the floor)
++function gnx_floor_toggle_prop(arg0, arg1, arg2)
++{
++    var _slots = gnx_floor_slots(arg0);
++    var _all = true;
++
++    for (var i = 0; i < array_length(_slots); i++)
++    {
++        if (!scr_check_prop_exists(_slots[i], arg1, arg2))
++            _all = false;
++    }
++
++    for (var i = 0; i < array_length(_slots); i++)
++    {
++        scr_clear_prop_pos(_slots[i], arg1);
++
++        if (!_all)
++            scr_create_prop(_slots[i], arg2, arg1, -1);
++    }
++}
++
++// GNX-FLOOR: the edit menu runs for the whole floor of entrance arg0
++function gnx_floor_edit_on(arg0)
++{
++    return global.gnx_floor_edit != -1 && global.gnx_floor_edit == arg0 && instance_exists(arg0);
++}
++
++// GNX-FLOOR: index of FLOOR in an entrance's menu (after NEW, EDIT and, from the second floor on, UP and DOWN:
++// moving a floor is offered on its entrance only, passages no longer have it)
++function gnx_entrance_floor_button()
++{
++    return 2 + (2 * max(0, sign(global.val.floor)));
 +}
 +
 +// GNX-SORT: the prison's sort orders, in the order the sort button cycles through them
@@ -17432,6 +17582,103 @@
 +    return "ok";
 +}
 +
++// opens the menu of floor arg0's entrance (arg1 = false) or of its first passage (true), as a click on it does
++function gnx_scn_open_slot_menu(arg0, arg1)
++{
++    for (var i = 0; i < ds_list_size(global.slot_list[arg0]); i++)
++    {
++        var _s = ds_list_find_value(global.slot_list[arg0], i);
++
++        if (_s.slot_data.slot_type == (arg1 ? 5 : 4))
++        {
++            var _n = arg1 ? 2 : (gnx_entrance_floor_button() + 1);
++            scr_create_window_button_list(_s, 400, 200, _n, 0, 0, scr_create_between_button, false);
++            exit;
++        }
++    }
++}
++
++// clicks the open button of type arg0 at place arg1 in creation order (for lists whose button_num is an id)
++function gnx_scn_press_nth(arg0, arg1)
++{
++    var _k = 0;
++
++    with (obj_button)
++    {
++        if (interact_type == arg0)
++        {
++            if (_k == arg1)
++            {
++                with (id)
++                    gnx_scn_click();
++
++                exit;
++            }
++
++            _k++;
++        }
++    }
++}
++
++// the button_num of the open button of type arg0 at place arg1 (creation order), else -1
++function gnx_scn_button_num_nth(arg0, arg1)
++{
++    var _k = 0;
++    var _r = -1;
++
++    with (obj_button)
++    {
++        if (interact_type == arg0)
++        {
++            if (_k == arg1)
++                _r = button_num;
++
++            _k++;
++        }
++    }
++
++    return _r;
++}
++
++// the styles (between_type) of floor arg0's entrance and passages, left to right, joined with ","
++function gnx_scn_floor_styles(arg0)
++{
++    var _sl = gnx_floor_slots(arg0);
++    var _t = "";
++
++    for (var i = 0; i < array_length(_sl); i++)
++        _t += ((i > 0) ? "," : "") + string(_sl[i].slot_data.between_type);
++
++    return _t;
++}
++
++// how many of floor arg0's entrance and passages hold prop arg2 in row arg1, and "/" how many there are
++function gnx_scn_floor_prop(arg0, arg1, arg2)
++{
++    var _sl = gnx_floor_slots(arg0);
++    var _n = 0;
++
++    for (var i = 0; i < array_length(_sl); i++)
++    {
++        if (scr_check_prop_exists(_sl[i], arg1, arg2))
++            _n++;
++    }
++
++    return string(_n) + "/" + string(array_length(_sl));
++}
++
++// how many props floor arg0's entrance and passages hold in all
++function gnx_scn_floor_prop_total(arg0)
++{
++    var _sl = gnx_floor_slots(arg0);
++    var _n = 0;
++
++    for (var i = 0; i < array_length(_sl); i++)
++        _n += array_length(_sl[i].slot_data.prop);
++
++    return _n;
++}
++
 +// file arg0 exists in the save folder (fn asserts call scripts only, not built-in functions)
 +function gnx_scn_file_exists(arg0)
 +{
@@ -26433,7 +26680,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +26516,181 @@
+@@ -183,42 +26763,181 @@
      Value_3,
      Value_4,
      Value_5,
