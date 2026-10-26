@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 11:01:33.917301200 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 11:17:08.742474400 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -53,17 +53,21 @@
      global.val.guide_unlock = 
      {
          num: 0,
-@@ -119,6 +129,9 @@
+@@ -119,7 +129,12 @@
      scr_set_encounter_reward();
      scr_set_shop_list();
      global.load_file = -1;
+-    global.mask_collision = false;
 +    // GNX-SAVES: player save slots (1-3 vanilla, more shown 3 per page); 8 and 9 stay the harness's
 +    global.gnx_save_slots = 6;
 +    global.gnx_save_page = 0;
-     global.mask_collision = false;
++    // GNX-SORT: the prison's last sort order (-1 = never sorted; see gnx_prison_sort)
++    global.gnx_prison_sort = -1;
++global.mask_collision = false;
      global.dirt_fix = 0;
      global.death_fix = 0;
-@@ -132,19 +145,21 @@
+     global.trans_lock = false;
+@@ -132,19 +147,21 @@
      global.w_spd = 1;
      global.zoom_target = 0;
      global.muffle = 1;
@@ -98,7 +102,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +182,26115 @@
+@@ -167,12 +184,26328 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -4989,7 +4993,95 @@
 +    return _t;
 +}
 +
-+// GNX-SAVES: the file of save slot arg0 (0 = autosave, 1 .. gnx_save_slots), else -1
++// GNX-SORT: the prison's sort orders, in the order the sort button cycles through them
++function gnx_prison_sort_names()
++{
++    return ["CLASS", "LEVEL", "MILK", "FERTILITY"];
++}
++
++// GNX-SORT: sort key of prisoner arg0 for order arg1 (smaller comes first). Class ids are below 10000 and
++// levels 0-7, so each key packs the main criterion above the tie-breakers.
++function gnx_prison_sort_key(arg0, arg1)
++{
++    var _cls = variable_struct_exists(arg0, "class") ? clamp(arg0.class, 0, 9999) : 9999;
++    var _lvl = variable_struct_exists(arg0, "lvl") ? clamp(arg0.lvl, 0, 7) : 0;
++
++    switch (arg1)
++    {
++        case 0:
++            // class (vanilla order, then mod classes), higher level first
++            return (_cls * 10) + (7 - _lvl);
++
++        case 1:
++            // higher level first, then class
++            return ((7 - _lvl) * 10000) + _cls;
++
++        case 2:
++            // milk ready first, then class
++            var _milk = variable_struct_exists(arg0, "milk") && arg0.milk;
++            return ((_milk ? 0 : 1) * 10000) + _cls;
++
++        case 3:
++            // can get pregnant now (not pregnant, pregnancies left) first, most pregnancies left first, then class
++            var _pc = variable_struct_exists(arg0, "preg_c") ? clamp(arg0.preg_c, 0, 99) : 0;
++            var _fertile = (!variable_struct_exists(arg0, "preg") || arg0.preg == -1) && _pc > 0;
++            return ((_fertile ? 0 : 1) * 1000000) + ((99 - _pc) * 10000) + _cls;
++    }
++
++    return 0;
++}
++
++// GNX-SORT: sorts the prison (global.unit_list) by order arg0; prisoners keep their order among equals and
++// empty places (-1) go last
++function gnx_prison_sort(arg0)
++{
++    var _n = ds_list_size(global.unit_list);
++    var _u = [];
++
++    for (var i = 0; i < _n; i++)
++    {
++        var _v = ds_list_find_value(global.unit_list, i);
++
++        if (is_struct(_v))
++            array_push(_u, { k: gnx_prison_sort_key(_v, arg0), u: _v });
++    }
++
++    // insertion sort: stable, and a prison holds at most 66
++    for (var i = 1; i < array_length(_u); i++)
++    {
++        var _e = _u[i];
++        var j = i - 1;
++
++        while (j >= 0 && _u[j].k > _e.k)
++        {
++            _u[j + 1] = _u[j];
++            j--;
++        }
++
++        _u[j + 1] = _e;
++    }
++
++    for (var i = 0; i < _n; i++)
++        ds_list_set(global.unit_list, i, (i < array_length(_u)) ? _u[i].u : -1);
++}
++
++// GNX-SORT: the sort button: the next order, sorted at once, the window rebuilt, and a popup naming the order
++function gnx_prison_sort_next()
++{
++    var _names = gnx_prison_sort_names();
++    global.gnx_prison_sort = (global.gnx_prison_sort + 1) mod array_length(_names);
++    gnx_prison_sort(global.gnx_prison_sort);
++    scr_reset_unit_window(-1);
++    scr_gnx_pop_up_create("Prison sorted by " + string_lower(_names[global.gnx_prison_sort]) + ".");
++}
++
++// GNX-SORT: the sort button of the prison window (called inside the window; arg0 = the head grid's x start)
++function gnx_create_prison_sort_button(arg0)
++{
++    scr_create_button(arg0 - 2, -4, depth - 1, spr_sort_button, 9088, id, scr_create_sort_button, -1, scr_draw_sort_button, 0, 0);
++}
++
++// GNX-SAVES: the file of save slot arg0(0 = autosave, 1 .. gnx_save_slots), else -1
 +function gnx_save_file(arg0)
 +{
 +    if (arg0 == 0)
@@ -14782,6 +14874,10 @@
 +        {
 +            var _c = global.gnx_carry_captives[_i];
 +            var _slot = arg0 ? ds_list_find_index(global.unit_list, -1) : _c.from;
++            
++            // GNX-SORT: her old place may hold another prisoner since (prison sorted or rearranged): the first free one
++            if (_slot >= 0 && _slot < ds_list_size(global.unit_list) && ds_list_find_value(global.unit_list, _slot) != -1)
++                _slot = ds_list_find_index(global.unit_list, -1);
 +
 +            if (_slot >= 0 && _slot < ds_list_size(global.unit_list) && ds_list_find_value(global.unit_list, _slot) == -1)
 +                ds_list_set(global.unit_list, _slot, _c.unit);
@@ -17213,6 +17309,127 @@
 +    }
 +    
 +    return _n;
++}
++
++// "ok" when field arg0 of the prisoners never goes down (arg1 = 1) or never goes up (arg1 = -1) along the
++// prison; true / false count as 1 / 0. Reads the fields directly, independent of gnx_prison_sort_key.
++// arg2 = "fertile": only prisoners that can get pregnant now (not pregnant, preg_c > 0) are compared, and
++// they must all come before the others.
++function gnx_scn_prison_monotone(arg0, arg1, arg2)
++{
++    var _last = undefined;
++    var _past_fertile = false;
++    
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        var _v = ds_list_find_value(global.unit_list, i);
++        
++        if (!is_struct(_v))
++            continue;
++        
++        if (arg2 == "fertile")
++        {
++            var _fertile = _v.preg == -1 && _v.preg_c > 0;
++            
++            if (!_fertile)
++            {
++                _past_fertile = true;
++                continue;
++            }
++            
++            if (_past_fertile)
++                return "fertile prisoner after a non-fertile one at " + string(i);
++        }
++        
++        var _f = variable_struct_get(_v, arg0);
++        _f = is_bool(_f) ? (_f ? 1 : 0) : _f;
++        
++        if (!is_undefined(_last) && ((arg1 == 1 && _f < _last) || (arg1 == -1 && _f > _last)))
++            return arg0 + " out of order at " + string(i);
++        
++        _last = _f;
++    }
++    
++    return "ok";
++}
++
++// gives the prisoners mixed levels (1-4), milk (every third) and pregnancies left (0-5), in a pattern that
++// is not already in any sort order, so every order of prison_sort has to move them
++function gnx_scn_prison_vary()
++{
++    var _k = 0;
++    
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        var _v = ds_list_find_value(global.unit_list, i);
++        
++        if (!is_struct(_v))
++            continue;
++        
++        _v.lvl = 1 + ((_k * 3) mod 4);
++        _v.milk = (_k mod 3) == 1;
++        _v.preg_c = (_k * 5) mod 6;
++        _k++;
++    }
++}
++
++// remembers the prisoners (the structs themselves) so gnx_scn_prison_check can tell none was lost or doubled
++function gnx_scn_prison_mark()
++{
++    global.gnx_scn_prison = [];
++
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        var _v = ds_list_find_value(global.unit_list, i);
++
++        if (is_struct(_v))
++            array_push(global.gnx_scn_prison, _v);
++    }
++
++    return array_length(global.gnx_scn_prison);
++}
++
++// "ok" when the prison is in sort order arg0 (gnx_prison_sort_key never goes down), empty places come last,
++// and it holds exactly the prisoners gnx_scn_prison_mark saw, each once; else what is wrong
++function gnx_scn_prison_check(arg0)
++{
++    var _seen = [];
++    var _last = -1;
++    var _empty = false;
++
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        var _v = ds_list_find_value(global.unit_list, i);
++
++        if (!is_struct(_v))
++        {
++            _empty = true;
++            continue;
++        }
++
++        if (_empty)
++            return "prisoner after an empty place at " + string(i);
++
++        var _k = gnx_prison_sort_key(_v, arg0);
++
++        if (_k < _last)
++            return "out of order at " + string(i);
++
++        _last = _k;
++
++        if (array_contains(_seen, _v))
++            return "prisoner twice at " + string(i);
++
++        if (!array_contains(global.gnx_scn_prison, _v))
++            return "unknown prisoner at " + string(i);
++
++        array_push(_seen, _v);
++    }
++
++    if (array_length(_seen) != array_length(global.gnx_scn_prison))
++        return string(array_length(global.gnx_scn_prison) - array_length(_seen)) + " prisoner(s) lost";
++
++    return "ok";
 +}
 +
 +// file arg0 exists in the save folder (fn asserts call scripts only, not built-in functions)
@@ -26216,7 +26433,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +26301,181 @@
+@@ -183,42 +26516,181 @@
      Value_3,
      Value_4,
      Value_5,
