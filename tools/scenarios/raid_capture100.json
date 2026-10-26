@@ -1,0 +1,104 @@
+{
+  "about": "The GNX DEBUG toggle CAPTURE100 makes every capture roll succeed: a narrow stage-0 win (15 + 20 goblins, which on its own captures nobody) fills every cage slot. The toggle's hook in scr_raid_cal_stat was missing, so it did nothing.",
+  "fixture": "mid",
+  "fixture_on_map": "harness_map",
+  "mods": [
+    "tools/scenarios/mods/harness_map"
+  ],
+  "seed": 3,
+  "timeout": 120,
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "do": {
+        "type": "set_var",
+        "key": "gnx_force_capture_100",
+        "value": 1
+      },
+      "why": "GNX DEBUG CAPTURE100: every capture roll succeeds"
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "raid",
+      "state": 0
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "raid_stage": 0
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "raid",
+      "state": 0,
+      "stage": 0
+    },
+    {
+      "raid_clear_formation": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "raid",
+      "troops": 0,
+      "why": "the fixture comes with a saved formation"
+    },
+    {
+      "raid_formation": {
+        "front": [
+          [
+            0,
+            15
+          ]
+        ],
+        "back": [
+          [
+            1,
+            20
+          ]
+        ]
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "raid",
+      "troops": 35
+    },
+    {
+      "raid_go": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 1
+    },
+    {
+      "raid_finish": 1200
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 0,
+      "cage_full": 1,
+      "why": "every cage slot filled"
+    }
+  ]
+}

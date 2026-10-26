@@ -1,6 +1,39 @@
 --- gml_138/gml_GlobalScript_s_raid_cal_stat.gml	2026-09-02 08:45:16.522590500 +0200
-+++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-19 14:55:34.638527400 +0200
-@@ -282,8 +282,9 @@
++++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-26 15:56:42.204153900 +0100
+@@ -255,7 +255,10 @@
+         scr_check_steam_achievement(UnknownEnum.Value_7);
+         var _selene_grace = false;
+         var _cap_start = 1;
+-        
++        // GNX-NOCAP: an encounter of this map that captures nobody but bosses (map_info.no_capture)
++        var _gnx_nocap = gnx_no_capture_here(raid_data.stage, _stage_lvl);
++        var _gnx_nocap_boss = false;
++
+         for (var i = 0; i < array_length(global.val.cage); i++)
+         {
+             var _unit_list2 = [];
+@@ -277,13 +280,30 @@
+             
+             var _c_rate = ((((_over_diff - 1) / (1 + (_max_lvl * 0.3))) * 100) + (_cap_mul * 100)) * _cap_start;
+             _c_rate = max(floor(_c_rate), 0);
++
++            // GNX: the GNX DEBUG toggle CAPTURE100 (its flag was set but never read)
++            if (global.gnx_force_capture_100)
++                _c_rate = 100;
++
++            // GNX-NOCAP: in a no_capture encounter only a boss can be captured (its capture records the boss's
++            // defeat); without one left, nobody. Wins over CAPTURE100 for everyone else.
++            var _gnx_boss_at = -1;
++
++            if (_gnx_nocap)
++            {
++                _gnx_boss_at = gnx_raid_boss_index(_data.unit_list);
++
++                if (_gnx_boss_at == -1)
++                    _c_rate = 0;
++            }
+             
+             if (irandom_range(1, 100) <= _c_rate)
              {
                  var _a = irandom_range(0, _list_num - 1);
                  var _unit_data = _data.unit_list[_a];
@@ -11,3 +44,29 @@
                  {
                      var _aa = _a;
                      
+@@ -294,6 +314,14 @@
+                     _a = _aa;
+                 }
+                 
++                // GNX-NOCAP: the boss, whoever the roll picked
++                if (_gnx_boss_at != -1)
++                {
++                    _a = _gnx_boss_at;
++                    _unit_data = _data.unit_list[_a];
++                    _gnx_nocap_boss = true;
++                }
++
+                 _cap_start = _cap_start * 0.9;
+                 var _lvl_mul = scr_check_skill_data(UnknownEnum.Value_10);
+                 
+@@ -499,6 +527,10 @@
+         
+         if (_selene_grace)
+             scr_pop_up_create(UnknownEnum.Value_27);
++
++        // GNX-NOCAP: tell the player why the cage stays empty
++        if (_gnx_nocap)
++            scr_gnx_pop_up_create(_gnx_nocap_boss ? "Only the boss could be captured here." : "Nothing to capture here: this raid brings back loot only.");
+         
+         if (_destruction)
+             scr_pop_up_create(UnknownEnum.Value_28);

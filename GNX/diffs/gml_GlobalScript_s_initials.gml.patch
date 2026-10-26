@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 15:18:39.615457400 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-26 15:55:46.186054600 +0100
 @@ -1,8 +1,13 @@
  function scr_create_initials()
  {
@@ -104,7 +104,7 @@
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +186,26832 @@
+@@ -167,12 +186,26928 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -4998,7 +4998,73 @@
 +    return _t;
 +}
 +
-+// GNX-FLOOR: width and sprite of passage style arg0 (between_type), as vanilla's style list sets them; -1 unknown
++// GNX-NOCAP: map_info.no_capture of mod arg1 (arg0 = its map_info): a list of {"stage": 0-4, "level": 0-2}, the
++// raid encounters of that mod's map that can be fought and won (loot, quests) but capture nobody. Returns the
++// valid entries as "stage_level" texts; anything else is a mod error and left out.
++function gnx_parse_no_capture(arg0, arg1)
++{
++    var _out = [];
++
++    if (!variable_struct_exists(arg0, "no_capture"))
++        return _out;
++
++    var _l = arg0.no_capture;
++
++    if (!is_array(_l))
++    {
++        gnx_report_mod_error("Mod '" + arg1 + "': map_info.no_capture must be a list of {\"stage\", \"level\"}; ignored");
++        return _out;
++    }
++
++    for (var i = 0; i < array_length(_l); i++)
++    {
++        var _e = _l[i];
++        var _st = (is_struct(_e) && variable_struct_exists(_e, "stage")) ? gnx_json_num(_e.stage, -1) : -1;
++        var _lv = (is_struct(_e) && variable_struct_exists(_e, "level")) ? gnx_json_num(_e.level, -1) : -1;
++
++        if (_st < 0 || _st > 4 || _lv < 0 || _lv > 2 || _st != floor(_st) || _lv != floor(_lv))
++        {
++            gnx_report_mod_error("Mod '" + arg1 + "': map_info.no_capture entry " + string(i) + " needs \"stage\" 0-4 and \"level\" 0-2; ignored");
++            continue;
++        }
++
++        array_push(_out, string(_st) + "_" + string(_lv));
++    }
++
++    return _out;
++}
++
++// GNX-NOCAP: index in encounter unit list arg0 of a vanilla boss (classes 8-12: capturing one records the boss's
++// defeat), else -1
++function gnx_raid_boss_index(arg0)
++{
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        if (arg0[i].class >= 8 && arg0[i].class <= 12)
++            return i;
++    }
++
++    return -1;
++}
++
++// GNX-NOCAP: the raid encounter (stage arg0, encounter level arg1) of the map the player is on captures nobody
++function gnx_no_capture_here(arg0, arg1)
++{
++    if (!variable_global_exists("gnx_travel_locations") || !is_array(global.gnx_travel_locations))
++        return false;
++
++    for (var i = 0; i < array_length(global.gnx_travel_locations); i++)
++    {
++        var _tl = global.gnx_travel_locations[i];
++
++        if (_tl.target == global.gnx_active_map && variable_struct_exists(_tl, "no_capture"))
++            return array_contains(_tl.no_capture, string(arg0) + "_" + string(arg1));
++    }
++
++    return false;
++}
++
++// GNX-FLOOR: width and sprite of passage style arg0(between_type), as vanilla's style list sets them; -1 unknown
 +function gnx_between_width(arg0)
 +{
 +    switch (arg0)
@@ -7006,6 +7072,7 @@
 +            _tl.return_x = variable_struct_exists(_mb, "return_x") ? _mb.return_x : _tl.x;
 +            _tl.return_y = variable_struct_exists(_mb, "return_y") ? _mb.return_y : _tl.y;
 +            _tl.return_label = variable_struct_exists(_mb, "return_label") ? _mb.return_label : "Return";
++            _tl.no_capture = gnx_parse_no_capture(_mb, arg0);
 +            array_push(global.gnx_travel_locations, _tl);
 +            _log = gnx_log_open();
 +            gnx_log_write(_log, "[GNX-MAP] travel location: '" + _tl.label + "' -> " + _tl.target + " at (" + string(_tl.x) + "," + string(_tl.y) + ")\n");
@@ -9325,10 +9392,12 @@
 +function scr_gnx_pop_up_create(arg0)
 +{
 +    var _text = ds_map_find_value(global.gnx_popups, arg0);
-+    
++
 +    if (_text == undefined)
 +        _text = arg0;
-+    
++
++    global.gnx_last_popup = _text;  // the last GNX popup's text (scenarios check it after it has faded)
++
 +    var _x = 240;
 +    var _y = 27;
 +    var _exists = false;
@@ -16939,6 +17008,13 @@
 +            if (variable_struct_exists(arg0, "cage_min"))
 +                _r_ok = _r_ok && (_cage_n >= arg0.cage_min);
 +
++            if (variable_struct_exists(arg0, "loot_min"))
++                _r_ok = _r_ok && (ds_list_size(global.raid_inv_list) >= arg0.loot_min);
++            
++            // "cage_full": true = every cage slot holds a captive
++            if (variable_struct_exists(arg0, "cage_full"))
++                _r_ok = _r_ok && ((_cage_n == array_length(global.val.cage)) == (arg0.cage_full != 0));
++
 +            var _cage_cls = "";
 +            
 +            for (var _ci = 0; _ci < array_length(global.val.cage); _ci++)
@@ -17934,7 +18010,27 @@
 +    return _c;
 +}
 +
-+// file arg0 exists in the save folder (fn asserts call scripts only, not built-in functions)
++// the first enemy of stage arg0's selected encounter becomes a unit of class arg1 at level arg2 (a boss for the
++// no_capture tests); 1 when done
++function gnx_scn_encounter_unit(arg0, arg1, arg2)
++{
++    var _si = global.val.stage_info[arg0];
++    var _lv = min(global.val.stage_lvl_sel[arg0], 2);
++
++    if (_si == -1 || !is_array(_si.info[_lv].unit_list) || array_length(_si.info[_lv].unit_list) == 0)
++        return 0;
++
++    _si.info[_lv].unit_list[0] = scr_create_unit_base(arg1, arg2);
++    return 1;
++}
++
++// global.unlock.boss[arg0] (1 = that boss was captured on this map)
++function gnx_scn_boss_unlock(arg0)
++{
++    return global.unlock.boss[arg0];
++}
++
++// file arg0 exists in the save folder(fn asserts call scripts only, not built-in functions)
 +function gnx_scn_file_exists(arg0)
 +{
 +    return file_exists(arg0);
@@ -26939,7 +27035,7 @@
  }
  
  enum UnknownEnum
-@@ -183,42 +27022,181 @@
+@@ -183,42 +27118,181 @@
      Value_3,
      Value_4,
      Value_5,

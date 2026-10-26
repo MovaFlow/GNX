@@ -1,0 +1,145 @@
+{
+  "about": "map_info.no_capture: on harness_map_nocap's map, stage 0 is listed, so a won raid captures nobody, even with the GNX DEBUG toggle CAPTURE100 on (no_capture wins), and still brings loot. Same raid as mod_map_full_raid. Only the listed encounters: stage 1 is not listed. A bad entry (stage 7) is a mod error and left out.",
+  "fixture": "mid",
+  "fixture_on_map": "harness_nocap",
+  "mods": [
+    "tools/scenarios/mods/harness_map_nocap"
+  ],
+  "seed": 3,
+  "timeout": 120,
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_no_capture_here",
+      "args": [
+        0,
+        2
+      ],
+      "is": 1,
+      "why": "listed: stage 0, level 2"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_no_capture_here",
+      "args": [
+        1,
+        2
+      ],
+      "is": 0,
+      "why": "not listed: stage 1 still captures on this map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_no_capture_here",
+      "args": [
+        7,
+        1
+      ],
+      "is": 0,
+      "why": "the bad entry was left out"
+    },
+    {
+      "do": {
+        "type": "set_var",
+        "key": "gnx_force_capture_100",
+        "value": 1
+      },
+      "why": "GNX DEBUG CAPTURE100: every capture roll succeeds"
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_nocap"
+    },
+    {
+      "assert": "raid",
+      "state": 0
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "raid_stage": 0
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "raid",
+      "state": 0,
+      "stage": 0
+    },
+    {
+      "raid_clear_formation": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "raid",
+      "troops": 0,
+      "why": "the fixture comes with a saved formation"
+    },
+    {
+      "raid_formation": {
+        "front": [
+          [
+            0,
+            40
+          ]
+        ],
+        "back": [
+          [
+            1,
+            20
+          ]
+        ]
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "raid",
+      "troops": 60
+    },
+    {
+      "raid_go": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 1
+    },
+    {
+      "raid_finish": 1200
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 0,
+      "cage": 0,
+      "loot_min": 1,
+      "why": "won: loot, but nobody captured"
+    },
+    {
+      "screenshot": "back_home"
+    },
+    {
+      "assert": "global",
+      "name": "gnx_last_popup",
+      "is": "Nothing to capture here: this raid brings back loot only.",
+      "why": "the player is told why the cage is empty"
+    }
+  ],
+  "expect_dialog": "no_capture entry 3 needs"
+}

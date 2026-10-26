@@ -3921,6 +3921,14 @@ Useful log lines:
 - `map_info`: the travel menu entry, available once Mountain (stage 1) is cleared at `min_level` 2. Each trip to or from the Outpost costs 50 gold and 10 food and takes a day.
 - `map_start`: the first visit starts with one extra floor, 400 gold, 60 food, 5 goblins, 2 hobgoblins and a WALL 1 cell on floor 1.
 
+**Raids with nothing to capture.** For a dungeon fought for its loot or for quest progress, list its encounters in `no_capture`:
+
+```json
+"map_info": { "label": "Outpost", "no_capture": [{ "stage": 2, "level": 1 }, { "stage": 2, "level": 2 }] }
+```
+
+Winning Forest lvl 2 or lvl 3 on the Outpost then brings loot, and counts for quests and unlocks, but the cage stays empty; the player sees "Nothing to capture here". A vanilla boss among the enemies can still be captured, so boss progress on your map is never blocked. Pair it with `raid_spawns` for the enemies you want there ([§13](#13-raid-spawns-and-the-trade-shop)).
+
 > **When** a mod must also work for players still on GNX 1.4.8: `map_info` is new in 1.4.9; before, it was called `map_button`. GNX 1.4.9 still reads `map_button`, so a mod written with `map_button` works in both versions, but `travel_cost`, the new `map_start` keys and cell names in `map_start` work only in 1.4.9. A mod with both `map_info` and `map_button` gets `map_info` and a warning in the `Mod loading problem(s)` box.
 
 ### 21.1 map
@@ -3944,6 +3952,7 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 |---|---|---|---|
 | `label` | The map's name in the travel menu and on the load page. | text | the `map` ID |
 | `map_sprite` | PNG in your mod's `sprites/` folder (133 × 91), drawn as the raid panel's world map while on this map. | text | none |
+| `no_capture` | Raid encounters of this map that can be fought and won (loot, quest progress) but capture nobody, vanilla enemies included: a list of `{ "stage": 0-4, "level": 0-2 }` (stage and encounter level as in [13.1](#131-stages-and-encounter-levels)). Bosses (vanilla boss classes) stay capturable, since capturing one records its defeat. The player gets a note when the raid ends. Only on this mod's own map; the village's raids are never touched. A wrong entry is a mod error and left out. | list | none |
 | `return_label` | The village's name in the travel menu while on this map. | text | `"Return"` |
 | `travel` | What may be taken along to or from this map: `"simple"` (gold, food, basic goblins), `"advanced"` (also a TROOPS tab with every monster type, one section per type, amounts set with the game's number pad) or `"complex"` (also a CAPTIVES tab: prisoners are dragged into the destination's free prison places). A trip between two maps uses the higher setting. | text | `"simple"` |
 | `travel_cost` | What a trip to or from this map costs: `{ "gold": …, "food": …, "days": … }`, each optional ([21.4](#214-how-travel-works)). A trip between two maps uses the higher value of each. | object | free |
@@ -4493,6 +4502,7 @@ How a milk strip plays:
 | `[GNX-WARN] skipped drawing a sprite that does not exist (<value>), probably a missing mod file` | A sprite that was never loaded was to be drawn; nothing is drawn. | Look for a missing PNG or a misspelled `gnx:` key. |
 | `[GNX] ERROR: Mod '<folder>' needs '<mod>' (not installed); not loaded` | A mod in `requires` is missing. | Install it or remove it from `requires`. |
 | `[GNX] ERROR: Mod '<folder>' also declares map '<map>' (already owned by '<other>'); its map_info and map_start are ignored` | Two mods declare `map_info` (or its old name `map_button`) or `map_start` for the same map. | Keep them in one mod only ([§21](#21-multi-map-travel)). |
+| `[GNX] ERROR: Mod '<folder>': map_info.no_capture entry <n> needs "stage" 0-4 and "level" 0-2; ignored` | A `no_capture` entry with a missing or out-of-range stage or level ([21.2](#212-map_info)). | Fix the entry; the others still apply. |
 | `[GNX-WARN] class_map h=<N> unresolved ref: <ref>` | A `class_map` class name was not found after all mods loaded. | Check the spelling. |
 | `[GNX] raid_spawn skipped level=0 class=<N> stage=<S>` | `"level": 0` is allowed only for stage 4 (Tower). | Use level 1 or 2 for stages 0–3 ([§13](#13-raid-spawns-and-the-trade-shop)). |
 | `[GNX] portrait '<folder>.<key>': file not found (<path>)` | A quest portrait is missing. | Portraits are read from `<mod>/portraits/`. |
