@@ -1,0 +1,464 @@
+--- gml_138/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,461 @@
++// GNX: logging and small shared helpers
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++/// GNX-PROP: a shallow copy of struct arg0 (the same keys and values; lists and structs inside are shared)
++function gnx_struct_copy(arg0)
++{
++    var _c = {};
++    var _k = variable_struct_get_names(arg0);
++    
++    for (var i = 0; i < array_length(_k); i++)
++        variable_struct_set(_c, _k[i], variable_struct_get(arg0, _k[i]));
++    
++    return _c;
++}
++
++
++// ---------------------------------------------------------------------------
++// GNX debug log, buffered. Opening gnx_debug.txt costs ~20 ms per open (GameMaker's text append), and the
++// loader alone writes ~600 lines on every load and every map change: that was the load / travel lag.
++// Lines collect in memory and are written with one open per frame (gnx_log_flush: end of each frame in
++// scr_room_step, end of the loader, before game_end). A crash loses at most its own frame's lines.
++// ---------------------------------------------------------------------------
++
++function gnx_log_open()
++{
++    if (!variable_global_exists("gnx_log_buf"))
++        global.gnx_log_buf = "";
++    
++    return 1;
++}
++
++
++function gnx_log_write(arg0, arg1)
++{
++    global.gnx_log_buf += string(arg1);
++}
++
++
++function gnx_log_writeln(arg0)
++{
++    global.gnx_log_buf += chr(10);
++}
++
++
++function gnx_log_close(arg0)
++{
++}
++
++
++function gnx_log_flush()
++{
++    if (variable_global_exists("gnx_scn_buf") && global.gnx_scn_buf != "")
++    {
++        var _sf = file_text_open_append("gnx_scenario.txt");
++        file_text_write_string(_sf, global.gnx_scn_buf);
++        file_text_close(_sf);
++        global.gnx_scn_buf = "";
++    }
++
++    if (!variable_global_exists("gnx_log_buf") || global.gnx_log_buf == "")
++        exit;
++    
++    var _f = file_text_open_append("gnx_debug.txt");
++    file_text_write_string(_f, global.gnx_log_buf);
++    file_text_close(_f);
++    global.gnx_log_buf = "";
++}
++
++
++// one "[GNX-TIME] label = N ms" line (arg1 = get_timer() at the start)
++function gnx_time_log(arg0, arg1)
++{
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-TIME] " + arg0 + " = " + string((get_timer() - arg1) / 1000) + " ms" + chr(10));
++    gnx_log_close(_l);
++}
++
++
++function gnx_array_has(arg0, arg1)
++{
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        if (arg0[_i] == arg1)
++            return true;
++    }
++    
++    return false;
++}
++
++
++/// GNX-PROP: whole number arg0 as text, at least arg1 digits (leading zeros), built digit by digit, so
++/// the text never turns into "1e+09" or gets decimals whatever the number
++function gnx_int_text(arg0, arg1)
++{
++    var _n = max(0, floor(arg0));
++    var _s = "";
++    
++    // do ... until: runs at least once, so 0 gives "0"; mod 10 = the last digit, div 10 drops it
++    do
++    {
++        _s = chr(48 + (_n mod 10)) + _s;
++        _n = _n div 10;
++    }
++    until (_n <= 0);
++    
++    while (string_length(_s) < arg1)
++        _s = "0" + _s;
++    
++    return _s;
++}
++
++
++// 4629728 -> "4.6M", 18240 -> "18k" (short numbers for the selector's narrow columns)
++function gnx_short_num(arg0)
++{
++    if (arg0 < 10000)
++        return string(arg0);
++    
++    if (arg0 < 1000000)
++        return string(floor(arg0 / 1000)) + "k";
++    
++    return string_format(arg0 / 1000000, 1, 1) + "M";
++}
++
++
++// GNX UI mouse: the real one, or the scenario's stand-in (global.gnx_vmouse) so drags can be tested
++function gnx_mx()
++{
++    return is_struct(global.gnx_vmouse) ? global.gnx_vmouse.x : device_mouse_x_to_gui(0);
++}
++
++
++function gnx_my()
++{
++    return is_struct(global.gnx_vmouse) ? global.gnx_vmouse.y : device_mouse_y_to_gui(0);
++}
++
++
++function gnx_mb()
++{
++    return is_struct(global.gnx_vmouse) ? global.gnx_vmouse.down : mouse_check_button(mb_left);
++}
++
++
++function gnx_mb_pressed()
++{
++    return is_struct(global.gnx_vmouse) ? global.gnx_vmouse.pressed : mouse_check_button_pressed(mb_left);
++}
++
++
++function gnx_cli_has(arg0)
++{
++    // parameter_string(0) is the exe; user args are 1..parameter_count()
++    for (var _i = 1; _i <= parameter_count(); _i++)
++    {
++        if (parameter_string(_i) == arg0)
++            return true;
++    }
++
++    return false;
++}
++
++
++function gnx_cli_value(arg0)
++{
++    for (var _i = 1; _i < parameter_count(); _i++)
++    {
++        if (parameter_string(_i) == arg0)
++            return parameter_string(_i + 1);
++    }
++
++    return "";
++}
++
++
++function scr_gnx_trace(arg0, arg1, arg2)
++{
++    if (!global.gnx_trace_entities)
++        exit;
++    
++    var _f = gnx_log_open();
++    gnx_log_write(_f, "[TRACE:" + string(current_time) + ":" + string(arg0) + "] id=" + string(arg1) + " " + arg2);
++    gnx_log_writeln(_f);
++    gnx_log_close(_f);
++}
++
++
++function scr_gnx_watchdog()
++{
++    var _f = -1;
++    
++    with (obj_mon)
++    {
++        if (!variable_struct_exists(self, "mon_data"))
++            continue;
++        
++        if (!is_struct(mon_data))
++            continue;
++        
++        if (!variable_instance_exists(id, "scr_mon_draw") || scr_mon_draw == -1)
++        {
++            if (mon_data.mon_state != 1)
++                continue;
++            
++            if (mon_data.slot_id != -1 && instance_exists(mon_data.slot_id) && is_struct(mon_data.slot_id.unit_data) && variable_struct_exists(mon_data.slot_id, "slot_data") && mon_data.slot_id.slot_data.anim_struct != -1)
++            {
++                scr_set_mon_spr_data(mon_data.slot_id, -1);
++                
++                if (_f == -1)
++                    _f = gnx_log_open();
++                
++                gnx_log_write(_f, "[WATCHDOG] REPAIRED mon=" + string(id) + " slot=" + string(mon_data.slot_id) + " h=" + string(mon_data.slot_id.slot_data.h_type));
++                gnx_log_writeln(_f);
++            }
++            else if (mon_data.slot_id != -1 && instance_exists(mon_data.slot_id) && !is_struct(mon_data.slot_id.unit_data))
++            {
++                if (_f == -1)
++                    _f = gnx_log_open();
++                
++                gnx_log_write(_f, "[WATCHDOG] DETACH mon=" + string(id) + " slot=" + string(mon_data.slot_id) + " (no unit_data) state=" + string(mon_data.mon_state));
++                gnx_log_writeln(_f);
++                // POPRAWKA: usun z list celi i wyslij do drzwi (wczesniej zostawal niewidoczny potwor w stanie 1 bez celi)
++                gnx_mon_release_from_slot();
++                continue;
++            }
++        }
++        
++        if (visible && variable_struct_exists(mon_data, "slot_id"))
++        {
++            var _sid = mon_data.slot_id;
++            
++            if (_sid == -1 || !instance_exists(_sid))
++            {
++                if (_f == -1)
++                    _f = gnx_log_open();
++                
++                gnx_log_write(_f, "[WATCHDOG] obj_mon id=" + string(id) + " visible but slot_id destroyed");
++                gnx_log_writeln(_f);
++            }
++        }
++        
++        if (variable_struct_exists(mon_data, "spr_data") && is_struct(mon_data.spr_data) && variable_struct_exists(mon_data.spr_data, "h_type"))
++        {
++            var _ht = mon_data.spr_data.h_type;
++            
++            // POPRAWKA: is_numeric przepuszcza tez int64 (h_type celi z moda liczony przez gnx_hash_cell_id)
++            if (!is_numeric(_ht) || _ht < 0)
++            {
++                if (_f == -1)
++                    _f = gnx_log_open();
++                
++                gnx_log_write(_f, "[WATCHDOG] obj_mon id=" + string(id) + " spr_data.h_type invalid: " + string(_ht));
++                gnx_log_writeln(_f);
++            }
++        }
++    }
++    
++    with (obj_slot)
++    {
++        if (!variable_struct_exists(self, "slot_data"))
++            continue;
++        
++        if (!is_struct(slot_data))
++            continue;
++        
++        if (!variable_struct_exists(slot_data, "h_type"))
++            continue;
++        
++        if (is_struct(unit_data))
++        {
++            if (!is_struct(slot_data.anim_struct))
++            {
++                if (_f == -1)
++                    _f = gnx_log_open();
++                
++                gnx_log_write(_f, "[WATCHDOG] obj_slot id=" + string(id) + " has unit but no anim_struct, h_type=" + string(slot_data.h_type));
++                gnx_log_writeln(_f);
++            }
++        }
++    }
++    
++    if (_f != -1)
++        gnx_log_close(_f);
++}
++
++// ===== TEST EKONOMII (ECON PROBE) =====
++// Zdjecie stanu ekonomii: zloto, jedzenie, populacja potworow oraz ile cel z postacia jest w pasie, ktory dziala przy cullingu.
++function gnx_econ_snapshot()
++{
++    var _s =
++    {
++        money: global.val.money,
++        food: global.val.food,
++        day: global.val.day,
++        pop: 0,
++        cells: 0,
++        in_band: 0,
++        pregnant: 0,
++        t: current_time
++    };
++
++    // populacja: suma potworow wszystkich typow (-1 = typ zablokowany)
++    for (var _i = 0; _i < array_length(global.val.mon_num); _i++)
++    {
++        if (global.val.mon_num[_i] > 0)
++            _s.pop += global.val.mon_num[_i];
++    }
++
++    var _vy = camera_get_view_y(view_camera[0]);
++    var _vh = camera_get_view_height(view_camera[0]);
++
++    with (obj_slot)
++    {
++        if (!is_struct(unit_data))
++            continue;
++
++        _s.cells++;
++
++        // ten sam pas co culling krokow w obj_slot Step
++        if (y >= (_vy - 400) && y <= (_vy + _vh + 400))
++            _s.in_band++;
++
++        if (variable_struct_exists(unit_data, "preg") && unit_data.preg != -1)
++            _s.pregnant++;
++    }
++
++    return _s;
++}
++
++
++// Zapis jednej linii raportu do gnx_debug.txt
++function gnx_econ_log(arg0)
++{
++    var _f = gnx_log_open();
++    gnx_log_write(_f, arg0);
++    gnx_log_writeln(_f);
++    gnx_log_close(_f);
++}
++
++
++// Wywolywane co klatke. Po wlaczeniu ECON PROBE: start, raport po kazdym dniu gry, podsumowanie po wylaczeniu.
++function gnx_econ_probe_tick()
++{
++    if (!global.gnx_econ_on)
++    {
++        // wylaczono w trakcie pomiaru -> podsumowanie calego testu
++        if (is_struct(global.gnx_econ))
++        {
++            var _e = global.gnx_econ;
++            var _d = max(1, _e.days);
++            gnx_econ_log("[ECON] SUMMARY cull=" + (_e.cull ? "ON" : "OFF") + " days=" + string(_e.days) + " gold/day=" + string(round(_e.gold_sum / _d)) + " food/day=" + string(round(_e.food_sum / _d)) + " pop/day=" + string(_e.pop_sum / _d) + " avg_in_band=" + string(round(_e.band_sum / _d)) + "%");
++            global.gnx_econ = -1;
++        }
++
++        exit;
++    }
++
++    if (!instance_exists(obj_camera) || !instance_exists(obj_slot) || !variable_struct_exists(global.val, "day"))
++        exit;
++
++    var _cull = !global.gnx_cull_step_off;
++
++    if (!is_struct(global.gnx_econ))
++    {
++        var _s0 = gnx_econ_snapshot();
++        global.gnx_econ =
++        {
++            last: _s0,
++            days: 0,
++            cull: _cull,
++            gold_sum: 0,
++            food_sum: 0,
++            pop_sum: 0,
++            band_sum: 0
++        };
++        gnx_econ_log("[ECON] START cull=" + (_cull ? "ON" : "OFF") + " day=" + string(_s0.day) + " floors=" + string(global.val.floor + 1) + " cells_with_unit=" + string(_s0.cells) + " in_band=" + string(_s0.in_band) + " (" + string(round((_s0.in_band / max(1, _s0.cells)) * 100)) + "%) cam_y=" + string(round(camera_get_view_y(view_camera[0]))) + " zoom=" + string(obj_camera.zoom_num) + " speed=" + string(global.w_spd));
++        exit;
++    }
++
++    var _e = global.gnx_econ;
++
++    // zmiana przelacznika cullingu w trakcie psuje porownanie - zaczynamy pomiar od nowa
++    if (_e.cull != _cull)
++    {
++        gnx_econ_log("[ECON] culling toggled during probe - restarting measurement");
++        global.gnx_econ = -1;
++        exit;
++    }
++
++    if (global.val.day == _e.last.day)
++        exit;
++
++    var _now = gnx_econ_snapshot();
++    var _l = _e.last;
++    var _gold = _now.money - _l.money;
++    var _food = _now.food - _l.food;
++    var _pop = _now.pop - _l.pop;
++    var _band = round((_now.in_band / max(1, _now.cells)) * 100);
++    gnx_econ_log("[ECON] day " + string(_l.day) + "->" + string(_now.day) + " cull=" + (_cull ? "ON" : "OFF") + " gold=" + string(_gold) + " food=" + string(_food) + " pop=" + string(_pop) + " pregnant=" + string(_now.pregnant) + " cells_with_unit=" + string(_now.cells) + " in_band=" + string(_now.in_band) + " (" + string(_band) + "%) real_s=" + string(round((_now.t - _l.t) / 1000)) + " fps=" + string(round(fps_real)));
++    _e.days++;
++    _e.gold_sum += _gold;
++    _e.food_sum += _food;
++    _e.pop_sum += _pop;
++    _e.band_sum += _band;
++    _e.last = _now;
++}
++
++
++// true, gdy kursor jest nad widocznym paskiem przewijania albo pasek jest przeciagany
++function gnx_scrollbar_blocks_click()
++{
++    if (global.gnx_scrollbar_dragging)
++    {
++        if (mouse_check_button(global.val.select_click))
++            return true;
++
++        // przycisk puszczony - koniec przeciagania (inaczej flaga mogla zostac na zawsze i blokowac kazdy klik)
++        global.gnx_scrollbar_dragging = false;
++    }
++
++    if (!is_array(global.gnx_scrollbar_rect) || global.camera_lock)
++        return false;
++
++    // obj_gui jest niewidoczny przy zoomie 0.5 - wtedy pasek sie nie rysuje
++    if (!instance_exists(obj_gui) || !obj_gui.visible)
++        return false;
++
++    var _mx = device_mouse_x_to_gui(0);
++    var _my = device_mouse_y_to_gui(0);
++    var _r = global.gnx_scrollbar_rect;
++
++    if (!(_mx >= _r[0] && _mx <= _r[2] && _my >= _r[1] && _my <= _r[3]))
++        return false;
++
++    // przycisk GUI pod kursorem ma pierwszenstwo - nie blokujemy go
++    return !gnx_gui_under_mouse();
++}
++
++
++// true, gdy pod kursorem jest aktywny element GUI (przycisk, okno)
++function gnx_gui_under_mouse()
++{
++    var _ui = scr_mouse_least_depth_obj(device_mouse_x_to_gui(0), device_mouse_y_to_gui(0), -1);
++    return _ui != -1 && _ui.gui;
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

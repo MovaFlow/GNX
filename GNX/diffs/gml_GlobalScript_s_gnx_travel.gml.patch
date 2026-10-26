@@ -1,0 +1,2302 @@
+--- gml_138/gml_GlobalScript_s_gnx_travel.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_travel.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,2299 @@
++// GNX: multi-map travel: maps, selector, carry, troops
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++// The mod list entry for a folder / mod id, or undefined
++// A map's name for players: its travel label when its mod is loaded, else the name of the mod that made it
++// (from a save's mod record, arg1), else the map id
++function gnx_map_display_name(arg0, arg1)
++{
++    if (arg0 == "vanilla")
++        return "Village";
++    
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        if (global.gnx_travel_locations[_i].target == arg0)
++            return global.gnx_travel_locations[_i].label;
++    }
++    
++    if (is_array(arg1))
++    {
++        for (var _i = 0; _i < array_length(arg1); _i++)
++        {
++            if (is_struct(arg1[_i]) && variable_struct_exists(arg1[_i], "maps") && gnx_array_has(arg1[_i].maps, arg0))
++                return arg1[_i].name;
++        }
++    }
++    
++    return arg0;
++}
++
++
++// a mod's manifest "map": one map ID ("vanilla", "all", a map) or a list of them
++function gnx_map_decl_list(arg0)
++{
++    return is_array(arg0) ? arg0 : [arg0];
++}
++
++
++// does a mod declared for arg0 load on map arg1
++function gnx_map_decl_has(arg0, arg1)
++{
++    var _l = gnx_map_decl_list(arg0);
++
++    for (var _i = 0; _i < array_length(_l); _i++)
++    {
++        if (_l[_i] == arg1 || _l[_i] == "all")
++            return true;
++    }
++
++    return false;
++}
++
++
++// the mod maps (not "vanilla" / "all") a declaration names
++function gnx_map_decl_mod_maps(arg0)
++{
++    var _out = [];
++    var _l = gnx_map_decl_list(arg0);
++
++    for (var _i = 0; _i < array_length(_l); _i++)
++    {
++        if (is_string(_l[_i]) && _l[_i] != "vanilla" && _l[_i] != "all" && _l[_i] != "")
++            array_push(_out, _l[_i]);
++    }
++
++    return _out;
++}
++
++
++function scr_gnx_sanitize_maps()
++{
++    var _valid_maps = {};
++    variable_struct_set(_valid_maps, "vanilla", true);
++    var _decl_keys = variable_struct_get_names(global.gnx_mod_map_decl);
++    
++    for (var _i = 0; _i < array_length(_decl_keys); _i++)
++    {
++        var _map_val = gnx_map_decl_mod_maps(variable_struct_get(global.gnx_mod_map_decl, _decl_keys[_i]));
++
++        for (var _j = 0; _j < array_length(_map_val); _j++)
++            variable_struct_set(_valid_maps, _map_val[_j], true);
++    }
++    
++    var _inactive_keys = variable_struct_get_names(global.gnx_inactive_maps);
++    
++    for (var _i = 0; _i < array_length(_inactive_keys); _i++)
++    {
++        var _mk = _inactive_keys[_i];
++        
++        if (!variable_struct_exists(_valid_maps, _mk))
++        {
++            variable_struct_remove(global.gnx_inactive_maps, _mk);
++            var _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-SANITIZE] orphaned map snapshot '" + _mk + "' removed (mod no longer present)\n");
++            gnx_log_close(_log);
++        }
++    }
++    
++    if (global.gnx_active_map != "vanilla" && !variable_struct_exists(_valid_maps, global.gnx_active_map))
++    {
++        var _old = global.gnx_active_map;
++        global.gnx_active_map = "vanilla";
++        var _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX-SANITIZE] active map '" + _old + "' invalid (mod removed), reset to vanilla\n");
++        gnx_log_close(_log);
++    }
++}
++
++
++function scr_gnx_deferred_resolve_class_map()
++{
++    var _key = ds_map_find_first(global.cell_registry);
++    
++    repeat (ds_map_size(global.cell_registry))
++    {
++        var _cell = ds_map_find_value(global.cell_registry, _key);
++        
++        if (is_struct(_cell) && variable_struct_exists(_cell, "human_spr"))
++        {
++            var _hspr = _cell.human_spr;
++            
++            if (is_struct(_hspr) && variable_struct_exists(_hspr, "mode") && _hspr.mode == "class_map" && variable_struct_exists(_hspr, "classes"))
++            {
++                var _cls = _hspr.classes;
++                var _cls_keys = variable_struct_get_names(_cls);
++                var _needs_remap = false;
++                var _ci = 0;
++                
++                repeat (array_length(_cls_keys))
++                {
++                    var _ck = _cls_keys[_ci++];
++                    
++                    if (string_pos(".", _ck) > 0)
++                    {
++                        var _rid = ds_map_find_value(global.gnx_class_name_to_id, _ck);
++                        
++                        if (_rid != undefined)
++                        {
++                            var _val = variable_struct_get(_cls, _ck);
++                            variable_struct_remove(_cls, _ck);
++                            variable_struct_set(_cls, string(_rid), _val);
++                            _needs_remap = true;
++                        }
++                        else
++                        {
++                            var _log = gnx_log_open();
++                            gnx_log_write(_log, "[GNX-WARN] class_map h=" + string(_key) + " unresolved ref: " + _ck + "\n");
++                            gnx_log_close(_log);
++                        }
++                    }
++                }
++                
++                if (_needs_remap)
++                {
++                    var _log = gnx_log_open();
++                    gnx_log_write(_log, "[GNX] class_map h=" + string(_key) + " deferred refs resolved\n");
++                    gnx_log_close(_log);
++                }
++                
++                // GNX-UG: an underground cell takes only the classes it has sprites for
++                // (no "default" entry and no required_class of its own)
++                if (variable_struct_exists(_cell.physical, "gnx_ug_depth") && !variable_struct_exists(_cell.physical, "required_class") && !variable_struct_exists(_cls, "default"))
++                {
++                    var _ids = [];
++                    var _ug_keys = variable_struct_get_names(_cls);
++                    
++                    for (var _uk = 0; _uk < array_length(_ug_keys); _uk++)
++                    {
++                        // string_digits keeps only digits: equal means the key is a class id
++                        if (string_digits(_ug_keys[_uk]) == _ug_keys[_uk] && _ug_keys[_uk] != "")
++                            array_push(_ids, real(_ug_keys[_uk]));
++                    }
++                    
++                    if (array_length(_ids) > 0)
++                        _cell.physical.required_class = _ids;
++                }
++            }
++        }
++        
++        _key = ds_map_find_next(global.cell_registry, _key);
++    }
++}
++
++
++function scr_gnx_snapshot_map()
++{
++    var _save_data = {};
++    var _slot_hold_id = -1;
++    var _hold_id = obj_control.hold_id;
++    
++    if (_hold_id != -1 && _hold_id.drag_type == UnknownEnum.Value_2)
++        _slot_hold_id = _hold_id.source_id;
++    
++    var _slot_list = [];
++    var _slot_num = 0;
++    
++    for (var i = 0; i <= global.val.floor; i++)
++    {
++        _list = global.slot_list[i];
++        _num = ds_list_size(_list);
++        
++        for (var ii = 0; ii < _num; ii++)
++        {
++            var _slot_id = ds_list_find_value(_list, ii);
++            var _data = {};
++            
++            with (_slot_id)
++            {
++                _data.slot_data = slot_data;
++                
++                if (_slot_hold_id == _slot_id)
++                {
++                    _data.unit_data = _hold_id.unit_data;
++                    _data.slot_data.anim_struct.spr_type = UnknownEnum.Value_1;
++                }
++                else
++                {
++                    _data.unit_data = unit_data;
++                }
++                
++                _data.pos = ii;
++                var _prop_num = array_length(slot_data.prop);
++                
++                for (var iii = 0; iii < _prop_num; iii++)
++                {
++                    with (slot_data.prop[iii].prop_id)
++                    {
++                        _data.slot_data.prop[iii].x_pos = x;
++                        _data.slot_data.prop[iii].y_pos = y;
++                        _data.slot_data.prop[iii].d_pos = depth;
++                        _data.slot_data.prop[iii].xscale = image_xscale;
++                        _data.slot_data.prop[iii].yscale = image_yscale;
++                        _data.slot_data.prop[iii].iindex = image_index;
++                        
++                        if (prop_data.prop_type == UnknownEnum.Value_40)
++                            _data.slot_data.prop[iii].mon_data = prop_data.mon_data;
++                    }
++                }
++            }
++            
++            _slot_list[_slot_num] = _data;
++            _slot_num++;
++        }
++    }
++    
++    _save_data.slot_list = _slot_list;
++    var _mon_list = [];
++    var _num = 0;
++    
++    if (instance_exists(obj_mon))
++    {
++        with (obj_mon)
++        {
++            var _data = {};
++            _data.x_pos = x;
++            _data.y_pos = y;
++            _data.d_pos = depth;
++            _data.xscale = image_xscale;
++            _data.yscale = image_yscale;
++            _data.iindex = image_index;
++            _data.ispeed = image_speed;
++            _data.vis = visible;
++            _data.mon_data = mon_data;
++            _data.slot_pos = -1;
++            
++            if (mon_data.slot_id != -1)
++                _data.slot_pos = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.slot_id);
++            
++            switch (mon_data.task)
++            {
++                case UnknownEnum.Value_3:
++                    if (mon_data.placement_num == 0)
++                    {
++                        if (mon_data.carry_start_id != -1)
++                            _data.carry_start_id = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.carry_start_id);
++                        
++                        if (mon_data.carry_end_id != -1)
++                            _data.carry_end_id = ds_list_find_index(global.slot_list[mon_data.mon_floor], mon_data.carry_end_id);
++                    }
++                    
++                    break;
++            }
++            
++            _mon_list[_num] = _data;
++            _num++;
++        }
++    }
++    
++    _save_data.mon_list = _mon_list;
++    
++    with (obj_np.obj_raid)
++    {
++        raid_data.raid_pos = layer_sequence_get_headpos(seq_id);
++        _save_data.raid_data = raid_data;
++    }
++    
++    scr_gnx_save_quest_state();
++    var _global = {};
++    _global.val = global.val;
++    _global.unlock = global.unlock;
++    _global.unit_num = scr_all_fem_num_cal();
++    _global.mon_num = global.val.nest_num[0];
++    var _list = [];
++    _num = ds_list_size(global.unit_list);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.unit_list, i);
++    
++    _global.unit_list = _list;
++    _list = [];
++    _num = ds_list_size(global.front_row);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.front_row, i);
++    
++    _global.front_row = _list;
++    _list = [];
++    _num = ds_list_size(global.back_row);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.back_row, i);
++    
++    _global.back_row = _list;
++    _list = [];
++    _num = ds_list_size(global.new_button_list);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.new_button_list, i);
++    
++    _global.new_button_list = _list;
++    _list = [];
++    _num = ds_list_size(global.inv_list);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.inv_list, i);
++    
++    _global.inv_list = _list;
++    _list = [];
++    _num = ds_list_size(global.raid_inv_list);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.raid_inv_list, i);
++    
++    _global.raid_inv_list = _list;
++    _list = [];
++    _num = ds_list_size(global.quest_list);
++    
++    for (var i = 0; i < _num; i++)
++    {
++        var _qe = ds_list_find_value(global.quest_list, i);
++        
++        if (!variable_struct_exists(_qe, "gnx_event_id"))
++            array_push(_list, _qe);
++    }
++    
++    _global.quest_list = _list;
++    _list = [];
++    _num = ds_list_size(global.noti_list);
++    
++    for (var i = 0; i < _num; i++)
++    {
++        var _ne = ds_list_find_value(global.noti_list, i);
++        
++        if (!variable_struct_exists(_ne, "gnx_event_id"))
++            array_push(_list, _ne);
++    }
++    
++    _global.noti_list = _list;
++    _list = [];
++    _num = ds_list_size(global.new_guide_list);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.new_guide_list, i);
++    
++    _global.new_guide_list = _list;
++    _list = [];
++    _num = ds_list_size(global.front_row_save);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.front_row_save, i);
++    
++    _global.front_row_save = _list;
++    _list = [];
++    _num = ds_list_size(global.back_row_save);
++    
++    for (var i = 0; i < _num; i++)
++        _list[i] = ds_list_find_value(global.back_row_save, i);
++    
++    _global.back_row_save = _list;
++    // GNX-UG: floor height this map was saved with, so props and monsters can be moved if it changes
++    _global.gnx_floor_extra = global.gnx_floor_extra;
++    _save_data.global_list = _global;
++    return json_parse(json_stringify(_save_data));  // deep copy (~100 ms for a 1 MB map; see graphene performance)
++}
++
++
++// Why travel is not possible right now, as a player-facing reason ("" = travel allowed). Logs the cause.
++// Checked before the pre-travel selector opens (it would otherwise take the chosen goods first).
++function scr_gnx_travel_blocked()
++{
++    var _why = "";
++    var _log_why = "";
++    var _raid_state = 0;
++    
++    with (obj_np.obj_raid)
++        _raid_state = raid_data.raid_state;
++    
++    if (_raid_state != 0)
++    {
++        _why = "Can't travel while a raid is out.";
++        _log_why = "raid active";
++    }
++    else
++    {
++        var _blocking_types = "";
++        
++        with (obj_window)
++        {
++            if (interact_type == 2 || interact_type == 3 || interact_type == 5 || interact_type == 11 || interact_type == 28)
++                _blocking_types += (string(interact_type) + " ");
++        }
++        
++        if (_blocking_types != "")
++        {
++            _why = "Close the open window before travelling.";
++            _log_why = "window types=" + _blocking_types;
++        }
++        else if (obj_control.hold_id != -1)
++        {
++            _why = "Drop what you're holding before travelling.";
++            _log_why = "drag in progress";
++        }
++        else if (variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
++        {
++            _why = "Already travelling.";
++            _log_why = "load already pending";
++        }
++    }
++    
++    if (_log_why != "")
++    {
++        var _l = gnx_log_open();
++        gnx_log_write(_l, "[GNX-MAP] travel blocked: " + _log_why + "\n");
++        gnx_log_close(_l);
++    }
++    
++    return _why;
++}
++
++
++function scr_gnx_travel(arg0)
++{
++    if (!global.gnx_multimap_enabled)
++        return false;
++    
++    if (global.gnx_active_map == arg0)
++    {
++        var _l = gnx_log_open();
++        gnx_log_write(_l, "[GNX-MAP] travel skipped: already on " + arg0 + "\n");
++        gnx_log_close(_l);
++        return true;
++    }
++    
++    if (scr_gnx_travel_blocked() != "")
++        return false;
++    
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-MAP] travel: " + global.gnx_active_map + " -> " + arg0 + "\n");
++    gnx_log_close(_log);
++    var _gnx_st0 = get_timer();
++    // the inventory is shared: it leaves with the player, so the map left keeps none (merged on arrival)
++    global.gnx_carry_inv = [];
++
++    for (var _ii = 0; _ii < ds_list_size(global.inv_list); _ii++)
++        array_push(global.gnx_carry_inv, ds_list_find_value(global.inv_list, _ii));
++
++    ds_list_clear(global.inv_list);
++    var _snapshot = scr_gnx_snapshot_map();
++    if (variable_global_exists("gnx_scn") && global.gnx_scn != -1)
++        gnx_scn_log("TIME travel snapshot = " + string((get_timer() - _gnx_st0) / 1000) + " ms");
++    variable_struct_set(global.gnx_inactive_maps, global.gnx_active_map, _snapshot);
++    var _target_snapshot = variable_struct_get(global.gnx_inactive_maps, arg0);
++    global.gnx_active_map = arg0;
++    
++    if (_target_snapshot != undefined)
++    {
++        variable_struct_remove(global.gnx_inactive_maps, arg0);
++        global.gnx_travel_data = _target_snapshot;
++    }
++    else
++    {
++        global.gnx_travel_data = -1;
++    }
++    
++    global.gnx_carry_day = global.val.day + (is_struct(global.gnx_trip_cost) ? global.gnx_trip_cost.days : 0);  // travel_cost days pass
++    global.gnx_trip_cost = -1;
++    global.gnx_carry_timer = global.val.day_timer;
++    global.gnx_carry_unlock = json_parse(json_stringify(global.unlock));  // unlocks are shared by every map
++    global.gnx_trigger_load = true;
++    return true;
++}
++
++
++// The inventory is shared by every map: the items carried from the map we left (an array) are added to this
++// map's. Milk stacks by grade, torn blueprint pieces go through the game's own combine (pieces found on two maps
++// complete a blueprint), other items stack by type like scr_add_item. Returns how many entries were merged.
++function gnx_merge_inventory(arg0)
++{
++    if (!is_array(arg0))
++        return 0;
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        var _it = arg0[_i];
++
++        if (!is_struct(_it) || !variable_struct_exists(_it, "item_type"))
++            continue;
++
++        if (_it.item_type == 4)
++        {
++            scr_add_item(_it);
++        }
++        else if (_it.item_type == 5)
++        {
++            scr_combine_print(_it);
++        }
++        else
++        {
++            var _found = false;
++
++            for (var _j = 0; _j < ds_list_size(global.inv_list); _j++)
++            {
++                var _have = ds_list_find_value(global.inv_list, _j);
++
++                if (_have.item_type == _it.item_type)
++                {
++                    _have.num += _it.num;
++                    _have.num_draw = _have.num;
++                    _found = true;
++                    break;
++                }
++            }
++
++            if (!_found)
++                ds_list_add(global.inv_list, _it);
++        }
++    }
++
++    with (obj_np.obj_raid)
++        extra_row_num = scr_set_inventory_row();
++
++    return array_length(arg0);
++}
++
++
++// ---------------------------------------------------------------------------
++// Pre-travel selector (window 9060, buttons 9061). Tabs by tier: BASIC (gold, food; goblins too on simple maps),
++// TROOPS (advanced: monsters by kind, raid-formation style, vanilla number pad), CAPTIVES (complex: prisoners
++// dragged into the destination's free prison slots). A map mod sets its tier with map_button.travel.
++// Button numbers: 20 cancel, 21 travel, 30/31 ALL/NONE (travel_row), 40+tab, 50-55 steps -100..+100
++// (travel_row), 60+type monster category, 70+class take (number pad), 80+i party entry, 90/91 captive page.
++// ---------------------------------------------------------------------------
++
++// 0 simple, 1 advanced, 2 complex: the highest tier of the map left and the map reached
++// what a trip to arg0 costs: map_info.travel_cost {gold, food, days} of the destination and of the map we are
++// on, the higher of each (like the selector tier); the village costs nothing
++function gnx_travel_cost(arg0)
++{
++    var _c = { gold: 0, food: 0, days: 0 };
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++
++        if ((_tl.target == arg0 || _tl.target == global.gnx_active_map) && _tl.target != "vanilla" && variable_struct_exists(_tl, "cost"))
++        {
++            _c.gold = max(_c.gold, _tl.cost.gold);
++            _c.food = max(_c.food, _tl.cost.food);
++            _c.days = max(_c.days, _tl.cost.days);
++        }
++    }
++
++    return _c;
++}
++
++
++// "Trip: 50 gold, 10 food, 1 day" ("" when free)
++function gnx_travel_cost_text(arg0)
++{
++    var _parts = [];
++
++    if (arg0.gold > 0)
++        array_push(_parts, gnx_short_num(arg0.gold) + " gold");
++
++    if (arg0.food > 0)
++        array_push(_parts, gnx_short_num(arg0.food) + " food");
++
++    if (arg0.days > 0)
++        array_push(_parts, string(arg0.days) + ((arg0.days == 1) ? " day" : " days"));
++
++    var _t = "";
++
++    for (var _i = 0; _i < array_length(_parts); _i++)
++        _t += ((_i > 0) ? ", " : "") + _parts[_i];
++
++    return (_t == "") ? "" : ("Trip: " + _t);
++}
++
++
++function gnx_travel_tier(arg0)
++{
++    var _tier = 0;
++    var _names = ["simple", "advanced", "complex"];
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++
++        if ((_tl.target == arg0 || _tl.target == global.gnx_active_map) && _tl.target != "vanilla" && variable_struct_exists(_tl, "travel"))
++        {
++            for (var _k = 0; _k < 3; _k++)
++            {
++                if (_names[_k] == _tl.travel)
++                    _tier = max(_tier, _k);
++            }
++        }
++    }
++
++    return _tier;
++}
++
++
++// free prison slots on a map: its stored prison list, or a new nest's 5 empty slots
++function gnx_dest_prison_free(arg0)
++{
++    var _snap = variable_struct_exists(global.gnx_inactive_maps, arg0) ? variable_struct_get(global.gnx_inactive_maps, arg0) : undefined;
++
++    if (!is_struct(_snap) || !variable_struct_exists(_snap, "global_list") || !variable_struct_exists(_snap.global_list, "unit_list"))
++        return 5;
++
++    var _n = 0;
++    var _ul = _snap.global_list.unit_list;
++
++    for (var _i = 0; _i < array_length(_ul); _i++)
++    {
++        if (!is_struct(_ul[_i]))
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// how many monsters of a kind this map has (0 when the kind is locked)
++function gnx_mon_have(arg0, arg1)
++{
++    var _ar = scr_mon_type_construct(arg0);
++
++    if (arg1 >= array_length(_ar.num) || _ar.num[arg1] == -1)
++        return 0;
++
++    return _ar.num[arg1];
++}
++
++
++// add n monsters of a kind (a kind the map has not unlocked yet is unlocked with exactly n)
++function gnx_add_mons(arg0, arg1, arg2)
++{
++    if (arg2 == 0)
++        exit;
++
++    var _had = gnx_mon_have(arg0, arg1);
++    scr_mon_num_edit(arg0, arg1, arg2, true);
++    var _now = gnx_mon_have(arg0, arg1);
++
++    if (arg2 > 0 && _now != _had + arg2)  // e.g. a locked hobgoblin kind is set to 1 instead of n
++        scr_mon_num_edit(arg0, arg1, (_had + arg2) - _now, true);
++
++    global.val.nest_num[0] = scr_all_mon_num_cal();
++}
++
++
++function gnx_party_num(arg0, arg1, arg2)  // arg0 party, type, class: how many are in it
++{
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        if (arg0[_i].type == arg1 && arg0[_i].class == arg2)
++            return arg0[_i].num;
++    }
++
++    return 0;
++}
++
++
++function gnx_party_set(arg0, arg1, arg2, arg3)  // arg0 selector window, type, class, num (0 = remove)
++{
++    var _p = [];
++    var _done = false;
++
++    for (var _i = 0; _i < array_length(arg0.party); _i++)
++    {
++        var _e = arg0.party[_i];
++
++        if (_e.type == arg1 && _e.class == arg2)
++        {
++            _done = true;
++
++            if (arg3 > 0)
++                array_push(_p, { type: arg1, class: arg2, num: arg3 });
++        }
++        else
++        {
++            array_push(_p, _e);
++        }
++    }
++
++    if (!_done && arg3 > 0)
++        array_push(_p, { type: arg1, class: arg2, num: arg3 });
++
++    arg0.party = _p;
++}
++
++
++function gnx_party_total(arg0)
++{
++    var _n = 0;
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++        _n += arg0[_i].num;
++
++    return _n;
++}
++
++
++// warnings for the map being left, given what the selector would take ("" = none)
++function gnx_travel_warning(arg0)
++{
++    var _here = gnx_map_display_name(global.gnx_active_map, -1);
++    var _left = scr_all_mon_num_cal() - gnx_party_total(arg0.party);
++
++    if (global.val.money < (arg0.cost.gold + arg0.carry_gold) || global.val.food < (arg0.cost.food + arg0.carry_food))  // TRAVEL refuses
++        return "! Not enough for the trip (" + string_replace(gnx_travel_cost_text(arg0.cost), "Trip: ", "") + ").";
++
++    if (_left <= 0)
++        return "! " + _here + " keeps no monsters.";
++
++    if ((arg0.max_food - arg0.carry_food) <= 0)
++        return "! " + _here + " keeps 0 food: its monsters will starve.";
++
++    return "";
++}
++
++
++function scr_gnx_create_travel_selector(arg0)
++{
++    var _blocked = scr_gnx_travel_blocked();
++
++    if (_blocked != "")
++    {
++        scr_gnx_pop_up_create(_blocked);
++        return -1;
++    }
++
++    var _exists = false;
++
++    with (obj_window)
++    {
++        if (interact_type == 9060)
++            _exists = true;
++    }
++
++    if (_exists)
++        return -1;
++
++    var _prev_spd = global.w_spd;
++    global.w_spd = 0;
++    // trans toggles the raid window: only close it when it is open
++    var _raid_open = obj_np.obj_raid.activate;
++
++    if (_raid_open)
++        obj_np.obj_raid.trans = true;
++
++    with (obj_window)
++    {
++        if (interact_type == 1)
++            visible = false;
++    }
++
++    var _w = instance_create_depth(240, 135, -2500, obj_window);
++
++    with (_w)
++    {
++        interact_type = 9060;
++        gui = true;
++        prev_w_spd = _prev_spd;
++        reopen_raid = _raid_open;
++        target_mod = arg0.target;
++        target_label = (arg0.label == arg0.target) ? gnx_map_display_name(arg0.target, -1) : arg0.label;
++        tier = gnx_travel_tier(arg0.target);
++        tab = 0;
++        carry_gold = 0;
++        carry_food = 0;
++        carry_goblins = 0;  // simple tier: basic goblins (kind 0)
++        cost = gnx_travel_cost(arg0.target);  // map_info.travel_cost: paid on departure, not available to take along
++        max_gold = max(0, global.val.money - cost.gold);
++        max_food = max(0, global.val.food - cost.food);
++        max_goblins = gnx_mon_have(0, 0);
++        party = [];
++        captives = [];  // prison list indices taken along
++        cap_page = 0;
++        dest_free = gnx_dest_prison_free(arg0.target);
++        drag_idx = -1;
++        drag_moved = false;
++        sprite_index = spr_sure_window;  // the window's box blocks clicks on the nest below
++        image_xscale = 380 / 96;
++        image_yscale = 226 / 35;
++        scr_window_draw = scr_gnx_draw_travel_selector;
++        scr_window_step = scr_gnx_travel_selector_step;
++        scr_gnx_travel_selector_buttons();
++    }
++
++    var _dl = gnx_log_open();
++    gnx_log_write(_dl, "[GNX-MAP] Travel selector: " + arg0.target + " tier=" + string(_w.tier) + " dest_free=" + string(_w.dest_free) + "\n");
++    gnx_log_close(_dl);
++    return _w;
++}
++
++
++function gnx_sel_button(arg0, arg1, arg2, arg3, arg4)  // rel x, rel y, sprite, button_num, text / travel_row
++{
++    var _b = scr_create_button(arg0, arg1, depth - 1, arg2, 9061, id, scr_gnx_travel_btn_init, -1, scr_gnx_draw_travel_sel_button, arg3, 0);
++
++    if (_b != -1)
++    {
++        if (is_string(arg4))
++            _b.text = arg4;
++        else
++            _b.travel_row = arg4;
++    }
++
++    return _b;
++}
++
++
++function scr_gnx_travel_btn_init()
++{
++    gui = true;
++    act_resize = false;
++    spr_sel = (sprite_index == spr_button_sure) ? spr_button_sure_sel : ((sprite_index == spr_button_long) ? spr_button_bar_sel : -1);
++    text = "";
++    travel_row = -1;
++}
++
++
++function scr_gnx_draw_travel_sel_button()
++{
++    draw_sprite_ext(sprite_index, image_index, x, y, image_xscale, image_yscale, 0, c_white, image_alpha);
++    gnx_ui_rect("box", bbox_left, bbox_top, bbox_right, bbox_bottom, "button " + string(button_num));
++
++    if (hover != -1 && hover && !trigger)
++    {
++        if (spr_sel != -1)
++            draw_sprite_ext(spr_sel, 0, x, y, image_xscale, image_yscale, 0, c_white, image_alpha);
++
++        hover = false;
++    }
++
++    if (text != "")
++    {
++        draw_set_font(fnt_base_font_eng);
++        draw_set_halign(fa_center);
++        draw_set_color((image_index % 2 == 1) ? make_color_rgb(150, 120, 110) : c_white);
++        gnx_ui_text(x + 1, y - 3, text);
++        draw_set_color(c_white);
++        draw_set_halign(fa_left);
++    }
++}
++
++
++// rebuild the buttons for the current tab
++function scr_gnx_travel_selector_buttons()
++{
++    with (obj_button)
++    {
++        if (interact_type == 9061 && source_id == other.id)
++            instance_destroy();
++    }
++
++    // window centre = (240, 135); the panel spans (50, 22)-(430, 248). Content sits in y 62-196,
++    // the hint and warning lines at 204/216, CANCEL/TRAVEL at 234.
++    if (tier > 0)
++    {
++        var _names = ["BASIC", "TROOPS", "CAPTIVES"];
++
++        for (var _t = 0; _t <= tier; _t++)
++        {
++            var _tb = gnx_sel_button(-46 + (_t * 46), -89, spr_button_long, 40 + _t, _names[_t]);
++            _tb.image_index = (_t == tab) ? 0 : 1;
++        }
++    }
++
++    if (tab == 0)
++    {
++        var _rows = (tier == 0) ? 3 : 2;  // gold, food (+ goblins on simple maps)
++        var _steps = ["-100", "-10", "-1", "+1", "+10", "+100"];
++        var _sx = [-124, -96, -68, 42, 70, 98];
++
++        for (var _r = 0; _r < _rows; _r++)
++        {
++            var _ry = -43 + (_r * 26);
++
++            for (var _k = 0; _k < 6; _k++)
++            {
++                var _b = gnx_sel_button(_sx[_k], _ry, spr_button_sure, 50 + _k, _r);
++                _b.text = _steps[_k];
++            }
++
++            var _ba = gnx_sel_button(131, _ry, spr_button_sure, 30, _r);
++            _ba.text = "ALL";
++            _ba = gnx_sel_button(159, _ry, spr_button_sure, 31, _r);
++            _ba.text = "0";
++        }
++    }
++    else if (tab == 1)
++    {
++        // one section per monster type, one column per kind; the button shows how many travel
++        for (var _ty = 0; _ty < 4; _ty++)
++        {
++            var _ar = scr_mon_type_construct(_ty);
++            var _sec = gnx_troop_sec(_ty);
++
++            for (var _c = 0; _c < min(4, array_length(_ar.num)); _c++)
++            {
++                if (_ar.num[_c] <= 0)
++                    continue;
++
++                var _n = gnx_party_num(party, _ty, _c);
++                var _tk = gnx_sel_button((_sec[0] + 23 + (_c * 44)) - 240, (_sec[1] + 55) - 135, spr_button_sure, 70 + (_ty * 4) + _c, string(_n));
++                _tk.image_index = (_n > 0) ? 0 : 1;
++            }
++        }
++    }
++    else if (tab == 2)
++    {
++        if (array_length(gnx_prisoner_indices()) > 18)
++        {
++            var _pa = gnx_sel_button(-170, 51, spr_button_arrow, 90, "");
++            var _pb = gnx_sel_button(-16, 51, spr_button_arrow, 91, "");
++            _pb.image_xscale = -1;
++        }
++    }
++
++    var _bc = gnx_sel_button(-25, 99, spr_button_sure, 20, "CANCEL");
++    _bc.spr_sel = spr_button_sure_sel;
++    _bc = gnx_sel_button(25, 99, spr_button_sure, 21, "TRAVEL");
++    _bc.spr_sel = spr_button_sure_sel;
++}
++
++
++// prison list indices of this map's prisoners, in order
++function gnx_prisoner_indices()
++{
++    var _out = [];
++
++    for (var _i = 0; _i < ds_list_size(global.unit_list); _i++)
++    {
++        if (is_struct(ds_list_find_value(global.unit_list, _i)))
++            array_push(_out, _i);
++    }
++
++    return _out;
++}
++
++
++// troops tab: top-left corner of a monster type's section (2 x 2, each 179 x 65)
++function gnx_troop_sec(arg0)
++{
++    return [58 + ((arg0 mod 2) * 183), 62 + (floor(arg0 / 2) * 69)];
++}
++
++
++// captives tab: where prisoner k of the page is drawn (absolute GUI), and slot k of the destination strip
++function gnx_cap_pos(arg0)
++{
++    return [76 + ((arg0 mod 6) * 28), 92 + (floor(arg0 / 6) * 34)];
++}
++
++
++function gnx_slot_pos(arg0)
++{
++    return [282 + ((arg0 mod 5) * 24), 108 + (floor(arg0 / 5) * 52)];
++}
++
++
++// captives: drag (or click) a prisoner into the destination's free slots; click a taken one to put it back
++function scr_gnx_travel_selector_step()
++{
++    if (tab != 2)
++        exit;
++
++    var _mx = gnx_mx();
++    var _my = gnx_my();
++    var _list = gnx_prisoner_indices();
++    var _slots = min(10, dest_free);
++
++    if (gnx_mb_pressed())
++    {
++        for (var _k = cap_page * 18; _k < min(array_length(_list), (cap_page + 1) * 18); _k++)
++        {
++            var _p = gnx_cap_pos(_k - (cap_page * 18));
++
++            if (abs(_mx - _p[0]) <= 11 && abs(_my - _p[1]) <= 13 && !gnx_array_has(captives, _list[_k]))
++            {
++                drag_idx = _list[_k];
++                drag_moved = false;
++                drag_x0 = _mx;
++                drag_y0 = _my;
++            }
++        }
++
++        for (var _s = 0; _s < array_length(captives); _s++)
++        {
++            var _q = gnx_slot_pos(_s);
++
++            if (abs(_mx - _q[0]) <= 11 && abs(_my - _q[1]) <= 13)
++            {
++                array_delete(captives, _s, 1);
++                break;
++            }
++        }
++    }
++
++    if (drag_idx != -1)
++    {
++        if (abs(_mx - drag_x0) + abs(_my - drag_y0) > 4)
++            drag_moved = true;
++
++        if (!gnx_mb())
++        {
++            var _onto = _mx >= 244 && _mx <= 422 && _my >= 62 && _my <= 196;  // the destination half
++
++            if ((!drag_moved || _onto) && array_length(captives) < min(_slots, dest_free))
++                array_push(captives, drag_idx);
++
++            drag_idx = -1;
++        }
++    }
++}
++
++
++// a section box: dark fill, thin rim, white title in its top-left corner
++function gnx_sel_section(arg0, arg1, arg2, arg3, arg4)  // x0, y0, x1, y1, title
++{
++    var _fill = make_color_rgb(70, 23, 16);
++    var _edge = make_color_rgb(110, 52, 32);
++    draw_rectangle_color(arg0, arg1, arg2, arg3, _fill, _fill, _fill, _fill, false);
++    draw_rectangle_color(arg0, arg1, arg2, arg3, _edge, _edge, _edge, _edge, true);
++    gnx_ui_rect("box", arg0, arg1, arg2, arg3, arg4);
++
++    if (arg4 != "")
++    {
++        draw_set_halign(fa_left);
++        draw_set_color(c_white);
++        gnx_ui_text(arg0 + 6, arg1 + 3, arg4);
++    }
++}
++
++
++function scr_gnx_draw_travel_selector()
++{
++    scr_draw_backdrop();
++    var _px = 50;
++    var _py = 22;
++    var _pw = 380;
++    var _ph = 226;
++    var _bg = make_color_rgb(88, 29, 20);
++    var _rim = make_color_rgb(133, 76, 43);
++    var _dim = make_color_rgb(200, 170, 140);
++    var _faint = make_color_rgb(170, 140, 120);
++    draw_rectangle_color(_px, _py, _px + _pw, _py + _ph, _bg, _bg, _bg, _bg, false);
++    draw_rectangle_color(_px, _py, _px + _pw, _py + _ph, c_black, c_black, c_black, c_black, true);
++    draw_rectangle_color(_px + 2, _py + 2, (_px + _pw) - 2, (_py + _ph) - 2, _rim, _rim, _rim, _rim, true);
++    gnx_ui_rect("panel", _px, _py, _px + _pw, _py + _ph, "window");
++    draw_set_font(fnt_base_font_eng);
++    draw_set_halign(fa_center);
++    draw_set_color(c_white);
++    var _cost_txt = gnx_travel_cost_text(cost);
++    gnx_ui_text(240, _py + 4, "Travel to " + target_label + ((_cost_txt != "") ? ("  -  " + _cost_txt) : ""));
++    var _hint = "";
++
++    if (tab == 0)
++    {
++        var _labels = ["Gold", "Food", "Goblins"];
++        var _vals = [carry_gold, carry_food, carry_goblins];
++        var _maxs = [max_gold, max_food, max_goblins];
++        var _colors = [make_color_rgb(255, 220, 100), make_color_rgb(140, 200, 100), make_color_rgb(180, 180, 255)];
++        var _rows = (tier == 0) ? 3 : 2;
++
++        for (var _r = 0; _r < _rows; _r++)
++        {
++            var _ry = 92 + (_r * 26);
++            gnx_sel_section(58, _ry - 11, 420, _ry + 11, "");
++            draw_set_halign(fa_left);
++            draw_set_color(_colors[_r]);
++            gnx_ui_text(64, _ry - 5, _labels[_r]);
++            draw_set_halign(fa_right);
++            draw_set_color(c_white);
++            gnx_ui_text(222, _ry - 5, gnx_short_num(_vals[_r]));
++            draw_set_halign(fa_left);
++            draw_set_color(_faint);
++            gnx_ui_text(225, _ry - 5, "/ " + gnx_short_num(_maxs[_r]));
++        }
++
++        var _stay = "Stays here: " + gnx_short_num(max_gold - carry_gold) + " gold, " + gnx_short_num(max_food - carry_food) + " food";
++
++        if (tier == 0)
++            _stay += ", " + string(max_goblins - carry_goblins) + " goblins";
++
++        draw_set_halign(fa_center);
++        draw_set_color(_dim);
++        gnx_ui_text(240, 88 + (_rows * 26), _stay);
++
++        if (tier == 1)
++            _hint = "Goblins, hobgoblins and ogres travel from the TROOPS tab.";
++        else if (tier == 2)
++            _hint = "Troops: TROOPS tab.  Prisoners: CAPTIVES tab.";
++    }
++    else if (tab == 1)
++    {
++        var _type_names = ["GOBLINS", "HOBGOBLINS", "TENTACLES", "OGRES"];
++
++        for (var _ty = 0; _ty < 4; _ty++)
++        {
++            var _ar = scr_mon_type_construct(_ty);
++            var _sec = gnx_troop_sec(_ty);
++            var _shown = 0;
++            gnx_sel_section(_sec[0], _sec[1], _sec[0] + 179, _sec[1] + 65, _type_names[_ty]);
++            draw_set_halign(fa_right);
++            draw_set_color(_faint);
++            gnx_ui_text(_sec[0] + 173, _sec[1] + 3, gnx_short_num(global.val.mon_num[_ty]));
++            draw_set_halign(fa_center);
++
++            for (var _c = 0; _c < min(4, array_length(_ar.num)); _c++)
++            {
++                if (_ar.num[_c] == -1)  // kind not unlocked
++                    continue;
++
++                var _cx = _sec[0] + 23 + (_c * 44);
++
++                if (_ar.num[_c] == 0)
++                    draw_set_alpha(0.35);
++
++                gnx_ui_spr("leaf", spr_mon_icon_head, (_ty * 4) + _c, _cx, _sec[1] + 26, "head " + string(_ty) + "/" + string(_c));
++                draw_set_alpha(1);
++                draw_set_color(_dim);
++                gnx_ui_text(_cx, _sec[1] + 37, (_ar.num[_c] == 0) ? "none" : ("of " + gnx_short_num(_ar.num[_c])));
++                _shown++;
++            }
++
++            if (_shown == 0)
++            {
++                draw_set_color(_faint);
++                gnx_ui_text(_sec[0] + 90, _sec[1] + 30, "none here");
++            }
++        }
++
++        var _tot = gnx_party_total(party);
++        _hint = (_tot == 0) ? "Click the number under a kind to choose how many travel." : ("Taking " + string(_tot) + " troop" + ((_tot == 1) ? "" : "s") + ". Click a number to change it.");
++    }
++    else if (tab == 2)
++    {
++        var _list = gnx_prisoner_indices();
++        gnx_sel_section(58, 62, 236, 196, "PRISON HERE  (" + string(array_length(_list)) + ")");
++
++        for (var _k = cap_page * 18; _k < min(array_length(_list), (cap_page + 1) * 18); _k++)
++        {
++            var _p = gnx_cap_pos(_k - (cap_page * 18));
++            var _u = ds_list_find_value(global.unit_list, _list[_k]);
++
++            if (gnx_array_has(captives, _list[_k]))
++                draw_set_alpha(0.25);
++
++            scr_draw_stage_unit_head(_p[0], _p[1], _u, false);
++            draw_set_alpha(1);
++            gnx_ui_rect("leaf", _p[0] - 10, _p[1] - 13, _p[0] + 10, _p[1] + 13, "prisoner " + string(_k));
++        }
++
++        if (array_length(_list) > 18)
++        {
++            draw_set_halign(fa_center);
++            draw_set_color(_faint);
++            gnx_ui_text(147, 182, "page " + string(cap_page + 1) + " / " + string(ceil(array_length(_list) / 18)));
++        }
++
++        var _slots = min(10, dest_free);
++        gnx_sel_section(244, 62, 420, 196, "");
++        draw_set_halign(fa_center);
++        draw_set_color(c_white);
++        gnx_ui_text(332, 65, target_label + ": " + string(dest_free) + " free slot" + ((dest_free == 1) ? "" : "s"));
++
++        for (var _st = 0; _st < ceil(_slots / 5); _st++)
++            gnx_ui_spr("box", spr_unit_list_window_1, 0, 330, 80 + (_st * 52), "slot strip " + string(_st));
++
++        for (var _s = 0; _s < 10; _s++)
++        {
++            var _q = gnx_slot_pos(_s);
++
++            if (_s >= _slots && _s < (ceil(_slots / 5) * 5))  // a strip's boxes beyond the free slots
++                draw_rectangle_color(_q[0] - 10, _q[1] - 13, _q[0] + 10, _q[1] + 13, c_black, c_black, c_black, c_black, false);
++        }
++
++        for (var _s = 0; _s < array_length(captives); _s++)
++        {
++            var _q = gnx_slot_pos(_s);
++            scr_draw_stage_unit_head(_q[0], _q[1], ds_list_find_value(global.unit_list, captives[_s]), false);
++            gnx_ui_rect("leaf", _q[0] - 10, _q[1] - 13, _q[0] + 10, _q[1] + 13, "slot " + string(_s));
++        }
++
++        draw_set_halign(fa_center);
++        draw_set_color(_dim);
++
++        if (dest_free == 0)
++            gnx_ui_text(332, 110, "No free slot there.");
++        else
++            gnx_ui_text(332, 82 + (ceil(_slots / 5) * 52), string(array_length(captives)) + " / " + string(_slots) + " taken along" + ((array_length(captives) >= _slots) ? ": full" : ""));
++
++        _hint = "Drag a prisoner into a free slot, or click it. Click a slot to undo.";
++
++        if (drag_idx != -1 && drag_moved)
++            scr_draw_stage_unit_head(gnx_mx(), gnx_my(), ds_list_find_value(global.unit_list, drag_idx), false);
++    }
++
++    draw_set_halign(fa_center);
++
++    if (_hint != "")
++    {
++        draw_set_color(_faint);
++        gnx_ui_text(240, 203, _hint);
++    }
++
++    var _warn = gnx_travel_warning(id);
++
++    if (_warn != "")
++    {
++        draw_set_color(make_color_rgb(240, 90, 60));
++        gnx_ui_text(240, 214, _warn);
++    }
++
++    draw_set_halign(fa_left);
++    draw_set_color(c_white);
++}
++
++
++function scr_gnx_travel_selector_activate()
++{
++    if (!instance_exists(source_id) || source_id.interact_type != 9060)
++        exit;
++
++    var _w = source_id;
++
++    if (button_num == 20)  // CANCEL
++    {
++        global.w_spd = _w.prev_w_spd;
++
++        if (_w.reopen_raid)
++            obj_np.obj_raid.trans = true;
++
++        with (obj_window)
++        {
++            if (interact_type == 1)
++                visible = true;
++
++            if (interact_type == 3)  // an open number pad
++                instance_destroy();
++        }
++
++        with (obj_button)
++        {
++            if (interact_type == 9061)
++                instance_destroy();
++        }
++
++        with (_w)
++            instance_destroy();
++
++        exit;
++    }
++
++    if (button_num == 21)  // TRAVEL
++    {
++        if (array_length(_w.captives) > _w.dest_free)
++        {
++            scr_gnx_pop_up_create("Not enough free prison slots at " + _w.target_label + ".");
++            exit;
++        }
++
++        with (_w)
++            scr_gnx_travel_selector_enter();
++
++        exit;
++    }
++
++    if (button_num >= 40 && button_num <= 42)  // tabs
++    {
++        _w.tab = button_num - 40;
++
++        with (_w)
++            scr_gnx_travel_selector_buttons();
++
++        exit;
++    }
++
++    if (button_num == 30 || button_num == 31 || (button_num >= 50 && button_num <= 55))  // BASIC rows
++    {
++        var _d = 0;
++
++        if (button_num >= 50)
++        {
++            var _steps = [-100, -10, -1, 1, 10, 100];
++            _d = _steps[button_num - 50];
++        }
++
++        switch (travel_row)
++        {
++            case 0:
++                _w.carry_gold = (button_num == 30) ? _w.max_gold : ((button_num == 31) ? 0 : clamp(_w.carry_gold + _d, 0, _w.max_gold));
++                break;
++
++            case 1:
++                _w.carry_food = (button_num == 30) ? _w.max_food : ((button_num == 31) ? 0 : clamp(_w.carry_food + _d, 0, _w.max_food));
++                break;
++
++            case 2:
++                _w.carry_goblins = (button_num == 30) ? _w.max_goblins : ((button_num == 31) ? 0 : clamp(_w.carry_goblins + _d, 0, _w.max_goblins));
++                break;
++        }
++
++        exit;
++    }
++
++    if (button_num >= 70 && button_num <= 85)  // take n of a kind (70 + type * 4 + class): the game's number pad
++    {
++        var _typ = floor((button_num - 70) / 4);
++        var _cls = (button_num - 70) mod 4;
++        var _info = { save_num: gnx_party_num(_w.party, _typ, _cls), max_num: gnx_mon_have(_typ, _cls), sel: _w, type: _typ, class: _cls };
++        scr_create_window_num_sel(x, y - 35, id, _w.depth - 50, true, _info, -1, scr_gnx_travel_num_enter, -1);
++        exit;
++    }
++
++    if (button_num == 90 || button_num == 91)  // captives page
++    {
++        var _pages = max(1, ceil(array_length(gnx_prisoner_indices()) / 18));
++        _w.cap_page = clamp(_w.cap_page + ((button_num == 90) ? -1 : 1), 0, _pages - 1);
++        exit;
++    }
++}
++
++
++// number pad OK (runs in the pad): set how many of that kind travel
++function scr_gnx_travel_num_enter()
++{
++    var _sel = info.sel;
++
++    if (instance_exists(_sel))
++    {
++        gnx_party_set(_sel, info.type, info.class, clamp(num, 0, info.max_num));
++
++        with (_sel)
++            scr_gnx_travel_selector_buttons();
++    }
++
++    instance_destroy();
++}
++
++
++function scr_gnx_travel_selector_enter()
++{
++    var _cg = carry_gold;
++    var _cf = carry_food;
++
++    if (global.val.money < (cost.gold + _cg) || global.val.food < (cost.food + _cf))  // the trip itself costs this much (the warning line says so)
++        exit;
++
++    global.val.money -= cost.gold;
++    global.val.food -= cost.food;
++    global.gnx_trip_cost = cost;
++    var _target = target_mod;
++    var _label = target_label;
++    var _troops = [];
++
++    for (var _i = 0; _i < array_length(party); _i++)
++        array_push(_troops, party[_i]);
++
++    if (carry_goblins > 0)
++        array_push(_troops, { type: 0, class: 0, num: carry_goblins });
++
++    global.val.money -= _cg;
++    global.val.food -= _cf;
++
++    for (var _i = 0; _i < array_length(_troops); _i++)
++        gnx_add_mons(_troops[_i].type, _troops[_i].class, -_troops[_i].num);
++
++    var _caps = [];
++
++    for (var _i = 0; _i < array_length(captives); _i++)
++    {
++        var _u = ds_list_find_value(global.unit_list, captives[_i]);
++
++        if (is_struct(_u))
++        {
++            array_push(_caps, { unit: _u, from: captives[_i] });
++            ds_list_set(global.unit_list, captives[_i], -1);
++        }
++    }
++
++    if (array_length(_caps) > 0 && instance_exists(obj_np) && variable_instance_exists(obj_np, "unit_button") && instance_exists(obj_np.unit_button))
++        scr_reset_unit_window(-1);
++
++    global.gnx_carry_gold = _cg;
++    global.gnx_carry_food = _cf;
++    global.gnx_carry_troops = _troops;
++    global.gnx_carry_captives = _caps;
++    global.w_spd = prev_w_spd;
++
++    with (obj_button)
++    {
++        if (interact_type == 9061)
++            instance_destroy();
++    }
++
++    instance_destroy();
++    scr_gnx_travel_fx_start(_target, _label);
++}
++
++
++// travel carry of monsters and prisoners: arg0 = true on arrival (add / house them), false for a refund
++// (the travel was refused: back where they came from)
++function scr_gnx_apply_carry_units(arg0)
++{
++    if (variable_global_exists("gnx_carry_troops") && is_array(global.gnx_carry_troops))
++    {
++        for (var _i = 0; _i < array_length(global.gnx_carry_troops); _i++)
++            gnx_add_mons(global.gnx_carry_troops[_i].type, global.gnx_carry_troops[_i].class, global.gnx_carry_troops[_i].num);
++    }
++
++    if (variable_global_exists("gnx_carry_captives") && is_array(global.gnx_carry_captives))
++    {
++        var _homeless = 0;
++
++        for (var _i = 0; _i < array_length(global.gnx_carry_captives); _i++)
++        {
++            var _c = global.gnx_carry_captives[_i];
++            var _slot = arg0 ? ds_list_find_index(global.unit_list, -1) : _c.from;
++            
++            // GNX-SORT: her old place may hold another prisoner since (prison sorted or rearranged): the first free one
++            if (_slot >= 0 && _slot < ds_list_size(global.unit_list) && ds_list_find_value(global.unit_list, _slot) != -1)
++                _slot = ds_list_find_index(global.unit_list, -1);
++
++            if (_slot >= 0 && _slot < ds_list_size(global.unit_list) && ds_list_find_value(global.unit_list, _slot) == -1)
++                ds_list_set(global.unit_list, _slot, _c.unit);
++            else
++                _homeless++;
++        }
++
++        if (_homeless > 0)
++            scr_gnx_pop_up_create(string(_homeless) + " prisoner(s) had no free prison slot and were let go.");
++    }
++
++    global.gnx_carry_troops = -1;
++    global.gnx_carry_captives = -1;
++}
++
++
++// Travel transition: the screen fades to black while a goblin with a backpack walks across, then the travel
++// runs (the load happens behind the black screen), then it fades back in on the destination map. One
++// persistent obj_empty (gnx_travel_fx) carries it through the room change.
++// phase 0 = fading out, 1 = travelling (black until the new map is up), 2 = fading in
++function scr_gnx_travel_fx_start(arg0, arg1)
++{
++    with (obj_empty)
++    {
++        if (variable_instance_exists(id, "gnx_travel_fx"))
++            instance_destroy();
++    }
++
++    var _fx = instance_create_depth(0, 0, -9990, obj_empty);
++
++    with (_fx)
++    {
++        gnx_travel_fx = true;
++        persistent = true;
++        gui = true;
++        target = arg0;
++        label = arg1;
++        phase = 0;
++        t = 0;
++        walk = 0;
++        scr_empty_step = scr_gnx_travel_fx_step;
++        scr_empty_draw = scr_gnx_travel_fx_draw;
++    }
++
++    global.click_lock = true;
++}
++
++
++// True while a travel has been confirmed but the destination is not loaded yet (scenario runner waits on it)
++function scr_gnx_travel_pending()
++{
++    if (variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
++        return true;
++
++    var _p = false;
++
++    with (obj_empty)
++    {
++        if (variable_instance_exists(id, "gnx_travel_fx") && (phase == 0 || phase == 3))  // before scr_gnx_travel ran
++            _p = true;
++    }
++
++    return _p;
++}
++
++
++function scr_gnx_travel_fx_step()
++{
++    t++;
++    
++    // the goblin walks in (phase 0) and out (phase 2) only; it stands still while the map loads. The load runs
++    // in single frames (GameMaker has one thread), so it freezes the picture: on a still picture that shows
++    // as a pause, not a stutter.
++    if (phase == 0 || phase == 2)
++        walk++;
++
++    switch (phase)
++    {
++        case 0:
++            global.click_lock = true;
++
++            if (t >= 40)
++            {
++                phase = 3;  // stop walking and let a few still frames show before the heavy part
++                t = 0;
++            }
++
++            break;
++
++        case 3:
++            global.click_lock = true;
++
++            if (t >= 3)
++            {
++                if (scr_gnx_travel(target))
++                {
++                    phase = 1;
++                    t = 0;
++                }
++                else
++                {
++                    // refused at the last moment (scr_gnx_travel logged why): give back what the selector took
++                    global.val.money += max(0, global.gnx_carry_gold);
++                    global.val.food += max(0, global.gnx_carry_food);
++
++                    if (is_struct(global.gnx_trip_cost))  // the trip's own cost too
++                    {
++                        global.val.money += global.gnx_trip_cost.gold;
++                        global.val.food += global.gnx_trip_cost.food;
++                        global.gnx_trip_cost = -1;
++                    }
++
++                    scr_gnx_apply_carry_units(false);  // troops and prisoners back where they were
++                    global.gnx_carry_day = -1;
++                    global.gnx_carry_gold = -1;
++                    global.gnx_carry_food = -1;
++                    global.click_lock = false;
++                    scr_gnx_pop_up_create("Couldn't travel right now.");
++                    instance_destroy();
++                }
++            }
++
++            break;
++
++        case 1:
++            // hold black until the new map runs, plus a few frames for map_start / travel carry
++            if (room == rm_game && obj_np.load_state == 1 && instance_exists(obj_slot) && !global.gnx_trigger_load)
++            {
++                if (t > 10)
++                {
++                    phase = 2;
++                    t = 0;
++                }
++            }
++            else
++            {
++                t = 0;
++            }
++
++            global.click_lock = true;
++            break;
++
++        case 2:
++            if (t >= 40)
++            {
++                global.click_lock = false;
++                instance_destroy();
++            }
++
++            break;
++    }
++}
++
++
++function scr_gnx_travel_fx_draw()
++{
++    var _a = 1;
++
++    if (phase == 0)
++        _a = min(1, t / 14);
++    else if (phase == 2)
++        _a = 1 - (t / 40);
++
++    draw_set_alpha(_a);
++    draw_rectangle_color(0, 0, 480, 270, c_black, c_black, c_black, c_black, false);
++
++    // a goblin with a backpack walking along a dotted route (vanilla walk cycle + GNX backpack overlay)
++    var _sc = 2;
++    var _gx = 150 + (walk * 1.2) + ((phase == 2) ? (t * t * 0.2) : 0);  // walks off, speeding up, once there
++    var _gy = 200;
++    var _frame = (phase == 0 || phase == 2) ? (floor(walk / ((phase == 2) ? 3 : 5)) mod 8) : 0;  // stands while loading
++    var _bob = [0, 1, 1, 0, 0, 1, 1, 0];
++
++    var _dot = make_color_rgb(255, 209, 34);
++    
++    for (var _dx = 90; _dx < (_gx - 24); _dx += 10)
++        draw_rectangle_color(_dx, _gy + 1, _dx + 2, _gy + 3, _dot, _dot, _dot, _dot, false);
++
++    draw_sprite_ext(spr_goblin_walk, _frame, _gx, _gy, _sc, _sc, 0, c_white, _a);
++    var _pack = asset_get_index("spr_gnx_travel_pack");
++
++    if (_pack >= 0 && sprite_exists(_pack))
++        draw_sprite_ext(_pack, 0, _gx + ((-3 - 14) * _sc), _gy + ((18 + _bob[_frame] - 45) * _sc), _sc, _sc, 0, c_white, _a);
++
++    draw_set_font(fnt_base_font_eng);
++    draw_set_halign(fa_center);
++    draw_set_color(c_white);
++    draw_text(240, 70, ((phase == 2) ? "Arrived at " : "Travelling to ") + label + ((phase == 2) ? "" : "..."));
++    draw_set_halign(fa_left);
++    draw_set_alpha(1);
++}
++
++
++// has the player been on map arg0 (it is the current map, or a snapshot of it is kept)
++function gnx_map_visited(arg0)
++{
++    if (global.gnx_active_map == arg0)
++        return true;
++
++    return is_struct(global.gnx_inactive_maps) && variable_struct_exists(global.gnx_inactive_maps, arg0) && is_struct(variable_struct_get(global.gnx_inactive_maps, arg0));
++}
++
++
++// can map arg0 be travelled to: the village always; a mod map when it has a travel entry whose unlock
++// condition held once (or that has none). Reads only, never announces (see scr_gnx_map_unlocked).
++function gnx_map_is_unlocked(arg0)
++{
++    if (arg0 == "vanilla")
++        return true;
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++
++        if (_tl.target != arg0)
++            continue;
++
++        if (!variable_struct_exists(_tl, "unlock") || (!is_struct(_tl.unlock) && !is_array(_tl.unlock)))
++            return true;
++
++        return variable_struct_exists(global.unlock, "gnx_maps") && array_contains(global.unlock.gnx_maps, arg0);
++    }
++
++    return false;
++}
++
++
++// quest side effect unlock_map: unlocks map arg0 for good, like its map_info.unlock condition would (saved,
++// shared by every map, announced once). Unknown maps are logged and ignored.
++function gnx_unlock_map(arg0)
++{
++    var _tl = -1;
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        if (global.gnx_travel_locations[_i].target == arg0)
++            _tl = global.gnx_travel_locations[_i];
++    }
++
++    var _l = gnx_log_open();
++
++    if (!is_struct(_tl))
++    {
++        gnx_log_write(_l, "[GNX-WARN] unlock_map: no travel entry for map '" + string(arg0) + "' (map_info missing, or its mod is off)" + chr(10));
++        gnx_log_close(_l);
++        return;
++    }
++
++    gnx_log_close(_l);
++
++    if (!variable_struct_exists(global.unlock, "gnx_maps"))
++        global.unlock.gnx_maps = [];
++
++    if (array_contains(global.unlock.gnx_maps, arg0))
++        return;
++
++    array_push(global.unlock.gnx_maps, arg0);
++    _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-MAP] map unlocked by a quest: " + arg0 + chr(10));
++    gnx_log_close(_l);
++    scr_gnx_pop_up_create("New map: " + _tl.label + " (travel from the world map)");
++}
++
++
++// A map with a map_button "unlock" condition stays hidden (travel menu, world map) until the condition holds
++// once; it is then remembered in global.unlock.gnx_maps (saved, and shared by every map like other unlocks)
++// and announced. arg0 = a travel location.
++function scr_gnx_map_unlocked(arg0)
++{
++    if (!variable_struct_exists(arg0, "unlock") || (!is_struct(arg0.unlock) && !is_array(arg0.unlock)))
++        return true;
++    
++    if (!variable_struct_exists(global.unlock, "gnx_maps"))
++        global.unlock.gnx_maps = [];
++    
++    for (var _i = 0; _i < array_length(global.unlock.gnx_maps); _i++)
++    {
++        if (global.unlock.gnx_maps[_i] == arg0.target)
++            return true;
++    }
++    
++    var _conds = is_array(arg0.unlock) ? arg0.unlock : [arg0.unlock];
++    
++    for (var _i = 0; _i < array_length(_conds); _i++)
++    {
++        if (!is_struct(_conds[_i]) || !scr_gnx_eval_condition(_conds[_i], arg0.mod_name))
++            return false;
++    }
++    
++    array_push(global.unlock.gnx_maps, arg0.target);
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-MAP] map unlocked: " + arg0.target + chr(10));
++    gnx_log_close(_l);
++    
++    if (instance_exists(obj_slot))
++        scr_gnx_pop_up_create("New map: " + arg0.label + " (travel from the world map)");
++    
++    return true;
++}
++
++
++// obj_control step, every 60 frames: notice maps whose unlock condition has just been met
++function scr_gnx_check_map_unlocks()
++{
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++        
++        if (_tl.target != "vanilla" && _tl.target != global.gnx_active_map)
++            scr_gnx_map_unlocked(_tl);
++    }
++}
++
++
++// "new" for a map never visited, else "last here day N" (its stored state's day)
++function gnx_map_visit_note(arg0)
++{
++    var _snap = variable_struct_exists(global.gnx_inactive_maps, arg0) ? variable_struct_get(global.gnx_inactive_maps, arg0) : undefined;
++    
++    if (!is_struct(_snap) || !variable_struct_exists(_snap, "global_list"))
++        return "new";
++    
++    return "last here day " + string(_snap.global_list.val.day);
++}
++
++
++// Guide > RAIDING > TRAVEL (the guide's text box, like the vanilla entries; English in every language)
++function scr_gnx_guide_travel()
++{
++    scr_text("Travel", 41, "Your mods add other maps. Open the raid window: the round map button in the top-left corner of the world map lists every map you can travel to.");
++    scr_text("Travel", 41, "Each map is a nest of its own, with its own floors, goblins and prisoners. A map you leave waits for you, frozen, until you come back.");
++    scr_text("Travel", 41, "Before leaving you choose what comes along: gold and food, and on some maps troops and prisoners. Unlocks are shared by all your maps.");
++    scr_text("Travel", 41, "You can't travel while a raid is out. Some maps only appear once you meet their condition: you get a notice when one does.");
++}
++
++
++// Every map the player can travel to from the current one: the village plus each declared map, minus the
++// current map. [{target, label}]
++function scr_gnx_travel_destinations()
++{
++    var _out = [];
++    var _seen = {};
++    var _cur = global.gnx_active_map;
++
++    if (!global.gnx_multimap_enabled)
++        return _out;
++
++    if (_cur != "vanilla")
++    {
++        var _home = "Village";
++
++        for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++        {
++            var _r = global.gnx_travel_locations[_i];
++
++            if (_r.target == "vanilla" && _r.show_on == _cur)
++                _home = _r.label;
++        }
++
++        array_push(_out, { target: "vanilla", label: _home, note: gnx_map_visit_note("vanilla") });
++        variable_struct_set(_seen, "vanilla", true);
++    }
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++
++        if (_tl.target == "vanilla" || _tl.target == _cur || variable_struct_exists(_seen, _tl.target) || !scr_gnx_map_unlocked(_tl))
++            continue;
++
++        variable_struct_set(_seen, _tl.target, true);
++        array_push(_out, { target: _tl.target, label: _tl.label, note: gnx_map_visit_note(_tl.target) });
++    }
++
++    return _out;
++}
++
++
++// Map button in the top-left corner of the raid panel's world map, on every map: opens the travel menu.
++// Runs in the raid window (from scr_gnx_create_travel_buttons). Type 45 like the other world-map buttons,
++// so the raid window removes it on close; button_num 999 routes to the menu in the Value_45 handler.
++function scr_gnx_create_travel_menu_button()
++{
++    if (array_length(scr_gnx_travel_destinations()) == 0)
++        exit;
++
++    var _spr = asset_get_index("spr_gnx_travel_button");
++
++    if (_spr < 0 || !sprite_exists(_spr))
++        exit;
++
++    scr_create_button(186, 51, depth - 5, _spr, 45, id, scr_gnx_travel_hud_init, -1, scr_gnx_draw_travel_hud_button, 999, 0);
++}
++
++
++function scr_gnx_travel_hud_init()
++{
++    fail_shake = false;
++    hover = false;
++    gui = true;
++    act_resize = true;
++    spr_sel = -1;
++}
++
++
++function scr_gnx_draw_travel_hud_button()
++{
++    draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, 0, c_white, image_alpha);
++
++    if (hover != -1 && hover && !trigger)
++    {
++        gpu_set_blendmode(bm_add);
++        draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, 0, c_white, 0.25);
++        gpu_set_blendmode(bm_normal);
++        hover = false;
++    }
++}
++
++
++// Travel menu: one button per destination, then Close. A destination opens the pre-travel selector.
++function scr_gnx_open_travel_menu()
++{
++    var _open = -1;
++
++    with (obj_window)
++    {
++        if (interact_type == 9062)
++            _open = id;
++    }
++
++    if (_open != -1)
++    {
++        scr_gnx_close_travel_menu();
++        return -1;
++    }
++
++    var _blocked = scr_gnx_travel_blocked();
++
++    if (_blocked != "")
++    {
++        scr_gnx_pop_up_create(_blocked);
++        return -1;
++    }
++
++    var _dest = scr_gnx_travel_destinations();
++    var _n = array_length(_dest);
++    var _row = 18;
++    var _h = 30 + ((_n + 1) * _row);
++    var _w = instance_create_depth(240, 135, -2700, obj_window);
++
++    with (_w)
++    {
++        interact_type = 9062;
++        gui = true;
++        sprite_index = spr_sure_window;
++        dest = _dest;
++        menu_h = _h;
++        scr_window_draw = scr_gnx_draw_travel_menu;
++        var _top = (-_h / 2) + 28;
++
++        for (var _i = 0; _i <= _n; _i++)
++            scr_create_button(0, _top + (_i * _row), depth - 1, spr_button_menu, 9063, id, scr_gnx_travel_menu_btn_init, -1, scr_gnx_draw_travel_menu_button, (_i < _n) ? _i : 99, 0);
++    }
++
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-MAP] travel menu opened on '" + global.gnx_active_map + "': " + string(_n) + " destination(s)\n");
++    gnx_log_close(_l);
++    return _w;
++}
++
++
++function scr_gnx_close_travel_menu()
++{
++    with (obj_button)
++    {
++        if (interact_type == 9063)
++            instance_destroy();
++    }
++
++    with (obj_window)
++    {
++        if (interact_type == 9062)
++            instance_destroy();
++    }
++}
++
++
++function scr_gnx_travel_menu_btn_init()
++{
++    fail_shake = false;
++    hover = false;
++    gui = true;
++    act_resize = false;  // the press animation resets image_xscale, which is stretched to fit the label
++    spr_sel = spr_button_menu_sel;
++
++    if (button_num == 99)
++        text = "CLOSE";
++    else
++        text = source_id.dest[button_num].label + "  (" + source_id.dest[button_num].note + ")";
++
++    draw_set_font(fnt_base_font_eng);
++    image_xscale = max(1, (string_width(text) + 12) / sprite_get_width(spr_button_menu));
++}
++
++
++function scr_gnx_draw_travel_menu_button()
++{
++    scr_draw_hover_button();
++    draw_set_halign(fa_center);
++    draw_set_color(c_white);
++    draw_text(x, y - 4, text);
++    draw_set_halign(fa_left);
++}
++
++
++function scr_gnx_draw_travel_menu()
++{
++    scr_draw_backdrop();
++    var _wscale = 1.8;
++
++    with (obj_button)
++    {
++        if (interact_type == 9063)
++            _wscale = max(_wscale, ((sprite_get_width(spr_button_menu) * image_xscale) + 24) / sprite_get_width(spr_sure_window));
++    }
++
++    draw_sprite_ext(sprite_index, 0, x, y, _wscale, menu_h / sprite_get_height(sprite_index), 0, c_white, 1);
++    draw_set_halign(fa_center);
++    draw_set_color(c_white);
++    draw_text(x, (y - (menu_h / 2)) + 6, "Travel from " + gnx_map_display_name(global.gnx_active_map, -1));
++    draw_set_halign(fa_left);
++}
++
++
++function scr_gnx_travel_menu_activate()
++{
++    if (button_num == 99 || !instance_exists(source_id))
++    {
++        scr_gnx_close_travel_menu();
++        exit;
++    }
++
++    var _d = source_id.dest[button_num];
++    scr_gnx_close_travel_menu();
++    scr_gnx_create_travel_selector(_d);
++}
++
++
++function scr_gnx_load_deferred_map_mods()
++{
++    if (!global.gnx_multimap_enabled)
++        exit;
++    
++    if (global.gnx_active_map == "vanilla")
++        exit;
++    
++    if (array_length(global.gnx_map_deferred_mods) == 0)
++        exit;
++    
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-MAP] deferred load: active_map='" + global.gnx_active_map + "', " + string(array_length(global.gnx_map_deferred_mods)) + " deferred mod(s)\n");
++    gnx_log_close(_log);
++    // Mav (1.4.7.5): the name maps from boot stay: create them only if missing
++    if (!variable_global_exists("gnx_class_name_to_id") || !ds_exists(global.gnx_class_name_to_id, ds_type_map))
++    global.gnx_class_name_to_id = ds_map_create();
++    if (!variable_global_exists("gnx_cell_name_to_id") || !ds_exists(global.gnx_cell_name_to_id, ds_type_map))
++    global.gnx_cell_name_to_id = ds_map_create();
++    var _loaded = 0;
++    var _gnx_dlist = [];
++    
++    for (var _i = 0; _i < array_length(global.gnx_map_deferred_mods); _i++)
++    {
++        var _mod_name = global.gnx_map_deferred_mods[_i];
++        var _mod_map = variable_struct_get(global.gnx_mod_map_decl, _mod_name);
++        
++        if (gnx_map_decl_has(_mod_map, global.gnx_active_map))
++        {
++            array_push(_gnx_dlist, _mod_name);
++            _loaded++;
++        }
++    }
++    
++    // Mav (1.4.7.5): these mods load in phases too (classes -> cells -> the rest)
++    scr_gnx_load_mod_list(_gnx_dlist);
++    _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-MAP] deferred load: " + string(_loaded) + " mod(s) loaded\n");
++    gnx_log_close(_log);
++    
++    if (_loaded > 0)
++    {
++        scr_gnx_resolve_birth_classes();
++        scr_gnx_deferred_resolve_class_map();
++        scr_gnx_apply_unlocks();
++        scr_gnx_apply_prop_unlocks();
++        scr_gnx_register_goblin_sprites();
++    }
++    
++    // Mav (1.4.7.5): the name maps stay for later trips
++    var _rx = 200;
++    var _ry = 80;
++    var _rl = "Return";
++    
++    for (var _ti = 0; _ti < array_length(global.gnx_travel_locations); _ti++)
++    {
++        if (global.gnx_travel_locations[_ti].target == global.gnx_active_map)
++        {
++            _rx = global.gnx_travel_locations[_ti].return_x;
++            _ry = global.gnx_travel_locations[_ti].return_y;
++            _rl = global.gnx_travel_locations[_ti].return_label;
++            global.gnx_map_sprite = global.gnx_travel_locations[_ti].map_sprite;
++            break;
++        }
++    }
++    
++    var _ret = {};
++    _ret.target = "vanilla";
++    _ret.show_on = global.gnx_active_map;
++    _ret.label = _rl;
++    _ret.x = _rx;
++    _ret.y = _ry;
++    _ret.mod_name = "_gnx";
++    _ret.map_sprite = -1;
++    array_push(global.gnx_travel_locations, _ret);
++}
++
++
++// a captive of class arg0 at level arg1 (clamped like the create_unit tool) into the first free prison place;
++// false when the prison is full
++function gnx_add_prisoner(arg0, arg1)
++{
++    var _lvl = arg1;
++    var _cr = ds_map_find_value(global.class_registry, arg0);
++
++    if (is_struct(_cr) && variable_struct_exists(_cr, "is_special") && _cr.is_special)
++    {
++        if (_lvl != 6 && _lvl != 7)
++            _lvl = 5;
++    }
++    else if (_lvl != 6 && _lvl > 4)
++    {
++        _lvl = 4;
++    }
++
++    for (var _ui = 0; _ui < ds_list_size(global.unit_list); _ui++)
++    {
++        if (ds_list_find_value(global.unit_list, _ui) == -1)
++        {
++            ds_list_set(global.unit_list, _ui, scr_create_unit_base(arg0, max(0, _lvl)));
++            return true;
++        }
++    }
++
++    return false;
++}
++
++
++function scr_gnx_apply_map_start(arg0)
++{
++    if (!variable_struct_exists(global.gnx_map_start_decl, arg0))
++        exit;
++    
++    var _ms = variable_struct_get(global.gnx_map_start_decl, arg0);
++    var _owner = variable_struct_exists(global.gnx_map_owner, arg0) ? variable_struct_get(global.gnx_map_owner, arg0) : "";  // for "Name" refs
++    
++    // GNX-FIX: every number of map_start goes through gnx_json_num, so "400" works and a typo is skipped
++    if (variable_struct_exists(_ms, "money") && gnx_json_num(_ms.money, undefined) != undefined)
++        global.val.money = gnx_json_num(_ms.money, 0);
++    
++    if (variable_struct_exists(_ms, "food") && gnx_json_num(_ms.food, undefined) != undefined)
++        global.val.food = gnx_json_num(_ms.food, 0);
++    
++    if (variable_struct_exists(_ms, "mood") && gnx_json_num(_ms.mood, undefined) != undefined)
++        global.val.mood = gnx_json_num(_ms.mood, 0);
++    
++    var _floors = variable_struct_exists(_ms, "floors") ? max(0, floor(gnx_json_num(_ms.floors, 0))) : 0;
++    
++    for (var _f = 0; _f < _floors; _f++)
++    {
++        global.val.floor++;
++        array_push(global.slot_x, -1);
++        array_push(global.slot_list, ds_list_create());
++        var _sid = scr_create_slot(4, global.val.floor, 0, false);
++        
++        with (_sid)
++            scr_create_slot(3, global.val.floor, 1, true);
++    }
++    
++    var _ncells = 0;
++    
++    if (variable_struct_exists(_ms, "cells") && is_array(_ms.cells))
++    {
++        var _cells = _ms.cells;
++        
++        for (var _c = 0; _c < array_length(_cells); _c++)
++        {
++            var _cd = _cells[_c];
++            
++            if (!is_struct(_cd) || !variable_struct_exists(_cd, "h_type"))
++                continue;
++
++            var _cht = gnx_tool_resolve_cell(_cd.h_type, _owner);  // a number, or "mod.CELL NAME"
++
++            if (_cht == -1)
++                continue;
++            
++            // GNX-FIX: a cell number that no cell has would make a cell without data
++            if (!ds_map_exists(global.cell_registry, _cht))
++            {
++                gnx_report_mod_error("map_start of '" + arg0 + "': cell " + string(_cd.h_type) + " does not exist, skipped");
++                continue;
++            }
++            
++            var _st = variable_struct_exists(_cd, "slot_type") ? floor(gnx_json_num(_cd.slot_type, 0)) : 0;
++            var _fl = variable_struct_exists(_cd, "floor") ? floor(gnx_json_num(_cd.floor, 0)) : 0;
++            
++            if (_fl < 0 || _fl >= array_length(global.slot_list))
++                continue;
++            
++            var _ix = ds_list_size(global.slot_list[_fl]);
++            var _sep = scr_create_slot(_st, _fl, _ix, true);
++
++            // with arg3=true scr_create_slot returns the separator it adds after the cell; the cell sits right before it
++            var _sep_pos = ds_list_find_index(global.slot_list[_fl], _sep);
++            var _slot = (_sep_pos > 0) ? ds_list_find_value(global.slot_list[_fl], _sep_pos - 1) : -1;
++
++            if (_slot != -1)
++            {
++                scr_set_slot_h_data(_slot, _cht);
++                _ncells++;
++            }
++        }
++    }
++    
++    var _goblins = variable_struct_exists(_ms, "goblins") ? floor(gnx_json_num(_ms.goblins, 5)) : 5;
++    
++    if (_goblins > 0)
++    {
++        scr_mon_num_edit(0, 0, _goblins, true);
++        global.val.nest_num[0] = scr_all_mon_num_cal();
++    }
++    
++    // troops: [{"type": "hobgoblin", "kind": 0, "num": 3}], type a name or 0-3, kind 0-3 (default 0)
++    var _ntroops = 0;
++
++    if (variable_struct_exists(_ms, "troops") && is_array(_ms.troops))
++    {
++        for (var _t = 0; _t < array_length(_ms.troops); _t++)
++        {
++            var _td = _ms.troops[_t];
++
++            if (!is_struct(_td) || !variable_struct_exists(_td, "type") || !variable_struct_exists(_td, "num"))
++                continue;
++
++            var _tt = gnx_mon_type_ref(_td.type);
++            var _tk = variable_struct_exists(_td, "kind") ? clamp(floor(gnx_json_num(_td.kind, 0)), 0, 3) : 0;
++            var _tn = floor(gnx_json_num(_td.num, 0));
++            
++            if (_tt == -1 || _tn <= 0)
++                continue;
++            
++            gnx_add_mons(_tt, _tk, _tn);
++            _ntroops += _tn;
++        }
++    }
++    
++    // prisoners: [{"class": 3 | "mod.NAME", "level": 2, "num": 1}] into free prison places
++    var _npris = 0;
++
++    if (variable_struct_exists(_ms, "prisoners") && is_array(_ms.prisoners))
++    {
++        for (var _p = 0; _p < array_length(_ms.prisoners); _p++)
++        {
++            var _pd = _ms.prisoners[_p];
++
++            if (!is_struct(_pd) || !variable_struct_exists(_pd, "class"))
++                continue;
++
++            var _pc = gnx_tool_resolve_class(_pd.class, _owner);
++
++            if (_pc < 0 || !ds_map_exists(global.class_registry, _pc))
++                continue;
++            
++            var _pn = variable_struct_exists(_pd, "num") ? floor(gnx_json_num(_pd.num, 1)) : 1;
++            var _plv = variable_struct_exists(_pd, "level") ? floor(gnx_json_num(_pd.level, 0)) : 0;
++            
++            for (var _pi = 0; _pi < _pn; _pi++)
++            {
++                if (!gnx_add_prisoner(_pc, _plv))
++                    break;
++
++                _npris++;
++            }
++        }
++    }
++
++    // unlock_cells: [h_type | "mod.CELL NAME"] added to the build menu (like a blueprint, without the notice)
++    var _nunl = 0;
++
++    if (variable_struct_exists(_ms, "unlock_cells") && is_array(_ms.unlock_cells))
++    {
++        for (var _u = 0; _u < array_length(_ms.unlock_cells); _u++)
++        {
++            var _uh = gnx_tool_resolve_cell(_ms.unlock_cells[_u], _owner);
++
++            if (_uh == -1 || !ds_map_exists(global.cell_registry, _uh) || gnx_cell_unlocked(_uh))
++                continue;
++
++            scr_add_new_slot_h_type(_uh, false);
++            _nunl++;
++        }
++    }
++
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-MAP] map_start applied for '" + arg0 + "' (floors+=" + string(_floors) + " cells=" + string(_ncells) + " goblins=" + string(_goblins) + " troops=" + string(_ntroops) + " prisoners=" + string(_npris) + " unlocked=" + string(_nunl) + ")\n");
++    gnx_log_close(_log);
++}
++
++
++// World map: the map-selector button (travel menu) is the only travel control. Per-map buttons ("flags")
++// were removed in 1.4.8; map_button.x / y are no longer used.
++function scr_gnx_create_travel_buttons()
++{
++    if (!global.gnx_multimap_enabled)
++        exit;
++    
++    scr_gnx_create_travel_menu_button();
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

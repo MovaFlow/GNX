@@ -1,0 +1,530 @@
+--- gml_138/gml_GlobalScript_s_gnx_sound.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_sound.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,527 @@
++// GNX: sounds.json, voices, sfx, ambience
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++function gnx_resolve_sound(arg0, arg1)
++{
++    var _cache_key = arg0 + arg1;
++    
++    if (ds_map_exists(global.gnx_sound_cache, _cache_key))
++    {
++        var _cached = ds_map_find_value(global.gnx_sound_cache, _cache_key);
++        
++        if (audio_exists(_cached))
++            return _cached;
++        
++        ds_map_delete(global.gnx_sound_cache, _cache_key);
++    }
++    
++    var _path = arg0 + "sounds/" + arg1;
++    
++    if (!file_exists(_path))
++    {
++        _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX-SOUND] file not found: " + _path + "\n");
++        gnx_log_close(_log);
++        return -1;
++    }
++    
++    var _snd = audio_create_stream(_path);
++    
++    if (_snd != -1)
++    {
++        array_push(global.gnx_runtime_sounds, _snd);
++        ds_map_set(global.gnx_sound_cache, _cache_key, _snd);
++    }
++    
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-SOUND] loaded " + arg1 + " idx=" + string(_snd) + "\n");
++    gnx_log_close(_log);
++    return _snd;
++}
++
++
++function gnx_cleanup_sounds()
++{
++    if (!variable_global_exists("gnx_runtime_sounds"))
++        exit;
++    
++    var _arr = global.gnx_runtime_sounds;
++    
++    for (var i = 0; i < array_length(_arr); i++)
++    {
++        if (audio_exists(_arr[i]))
++            audio_destroy_stream(_arr[i]);
++    }
++    
++    global.gnx_runtime_sounds = [];
++}
++
++
++function scr_gnx_load_sounds(arg0, arg1)
++{
++    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
++    
++    if (!file_exists(_path))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': sounds file '" + arg1 + "' not found");
++        exit;
++    }
++    
++    var _f = file_text_open_read(_path);
++    var _json = "";
++    
++    while (!file_text_eof(_f))
++        _json += file_text_readln(_f);
++    
++    file_text_close(_f);
++    var _data;
++    
++    try
++    {
++        _data = json_parse(_json);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': sounds.json parse error");
++        exit;
++    }
++    
++    var _base_dir = global.gnx_mods_root + arg0 + "/";
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-SOUND] loading sounds for mod '" + arg0 + "'\n");
++    gnx_log_close(_log);
++    
++    if (variable_struct_exists(_data, "voice_banks"))
++    {
++        var _vb = _data.voice_banks;
++        var _vb_keys = variable_struct_get_names(_vb);
++        
++        for (var _vi = 0; _vi < array_length(_vb_keys); _vi++)
++        {
++            var _bank_name = arg0 + "." + _vb_keys[_vi];
++            var _bank_def = variable_struct_get(_vb, _vb_keys[_vi]);
++            
++            if (!variable_struct_exists(_bank_def, "clips"))
++                continue;
++            
++            var _clips = _bank_def.clips;
++            var _snd_arr = [];
++            
++            for (var _ci = 0; _ci < array_length(_clips); _ci++)
++            {
++                var _snd = gnx_resolve_sound(_base_dir, _clips[_ci]);
++                
++                if (_snd != -1)
++                    array_push(_snd_arr, _snd);
++            }
++            
++            if (array_length(_snd_arr) > 0)
++            {
++                ds_map_set(global.gnx_voice_banks, _bank_name, _snd_arr);
++                array_push(global.gnx_voice_bank_names, _bank_name);
++            }
++
++            if (variable_struct_exists(_bank_def, "orgasm") && is_array(_bank_def.orgasm))  // the bank's own orgasm clips
++            {
++                var _org_arr = [];
++
++                for (var _oi = 0; _oi < array_length(_bank_def.orgasm); _oi++)
++                {
++                    var _osnd = gnx_resolve_sound(_base_dir, _bank_def.orgasm[_oi]);
++
++                    if (_osnd != -1)
++                        array_push(_org_arr, _osnd);
++                }
++
++                if (array_length(_org_arr) > 0)
++                    ds_map_set(global.gnx_voice_orgasm, _bank_name, _org_arr);
++            }
++            
++            _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-SOUND] bank '" + _bank_name + "' clips=" + string(array_length(_snd_arr)) + "\n");
++            gnx_log_close(_log);
++        }
++    }
++    
++    if (variable_struct_exists(_data, "voice_map"))
++    {
++        var _vm = _data.voice_map;
++        var _vm_keys = variable_struct_get_names(_vm);
++        
++        for (var _mi = 0; _mi < array_length(_vm_keys); _mi++)
++        {
++            var _cls_key = _vm_keys[_mi];
++            var _cls_id = real(_cls_key);
++            var _entry = variable_struct_get(_vm, _cls_key);
++            
++            if (!variable_struct_exists(_entry, "bank") && !variable_struct_exists(_entry, "by_mon_type"))
++                continue;
++            
++            var _mapped = 
++            {
++                bank: variable_struct_exists(_entry, "bank") ? (arg0 + "." + _entry.bank) : -1,
++                pitch: variable_struct_exists(_entry, "pitch") ? _entry.pitch : -1,
++                by_mon: variable_struct_exists(_entry, "by_mon_type") ? gnx_parse_voice_by_mon(_entry.by_mon_type, arg0) : -1
++            };
++            ds_map_set(global.gnx_voice_class_map, _cls_id, _mapped);
++            _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-SOUND] voice_map class=" + string(_cls_id) + " bank='" + string(_mapped.bank) + "' by_mon_type=" + string(is_array(_mapped.by_mon)) + " pitch=" + string(_mapped.pitch) + "\n");
++            gnx_log_close(_log);
++        }
++    }
++    
++    if (variable_struct_exists(_data, "sfx"))
++    {
++        var _sfx = _data.sfx;
++        var _sfx_map = [["orgasm", "gnx_sfx_orgasm"], ["bj_slurp", "gnx_sfx_bj_slurp"], ["bj_gag", "gnx_sfx_bj_gag"], ["bj_moan", "gnx_sfx_bj_moan"], ["bj_breathe", "gnx_sfx_bj_breathe"]];
++        
++        for (var _si = 0; _si < array_length(_sfx_map); _si++)
++        {
++            var _key = _sfx_map[_si][0];
++            
++            if (!variable_struct_exists(_sfx, _key))
++                continue;
++            
++            var _clips = variable_struct_get(_sfx, _key);
++            var _target = variable_global_get(_sfx_map[_si][1]);
++            
++            for (var _ci = 0; _ci < array_length(_clips); _ci++)
++            {
++                var _snd = gnx_resolve_sound(_base_dir, _clips[_ci]);
++                
++                if (_snd != -1)
++                    array_push(_target, _snd);
++            }
++        }
++    }
++    
++    if (variable_struct_exists(_data, "ambience"))
++    {
++        var _amb = _data.ambience;
++        var _amb_variants = ["balanced", "three_lane", "individual"];
++        
++        if (variable_struct_exists(_amb, "variants") && is_array(_amb.variants))
++            _amb_variants = _amb.variants;
++        
++        for (var _avi = 0; _avi < array_length(_amb_variants); _avi++)
++        {
++            var _av = _amb_variants[_avi];
++            
++            if ((_av == "balanced" || _av == "three_lane" || _av == "individual") && !array_contains(global.gnx_ambience_variants, _av))
++                array_push(global.gnx_ambience_variants, _av);
++        }
++        
++        var _amb_species = variable_struct_exists(_amb, "species") ? _amb.species : {};
++        var _sp_names = ["goblin", "hobgoblin", "ogre"];
++        var _kind_names = ["ambient", "breeding", "victory", "defeat"];
++        var _amb_loaded = 0;
++        
++        for (var _spi = 0; _spi < array_length(_sp_names); _spi++)
++        {
++            var _spk = _sp_names[_spi];
++            
++            if (!variable_struct_exists(_amb_species, _spk))
++                continue;
++            
++            var _sp_def = variable_struct_get(_amb_species, _spk);
++            var _sp_pool = variable_struct_get(global.gnx_ambience, _spk);
++            
++            for (var _ki = 0; _ki < array_length(_kind_names); _ki++)
++            {
++                var _kk = _kind_names[_ki];
++                
++                if (!variable_struct_exists(_sp_def, _kk))
++                    continue;
++                
++                var _kclips = variable_struct_get(_sp_def, _kk);
++                
++                if (!is_array(_kclips))
++                    continue;
++                
++                var _ktarget = variable_struct_get(_sp_pool, _kk);
++                
++                for (var _kci = 0; _kci < array_length(_kclips); _kci++)
++                {
++                    var _ksnd = gnx_resolve_sound(_base_dir, _kclips[_kci]);
++                    
++                    if (_ksnd != -1)
++                    {
++                        array_push(_ktarget, _ksnd);
++                        _amb_loaded++;
++                    }
++                }
++            }
++        }
++        
++        if (_amb_loaded > 0)
++        {
++            global.gnx_has_ambience = true;
++            
++            if (!variable_struct_exists(global.val, "gnx_ambience_mode"))
++                global.val.gnx_ambience_mode = 0;
++            
++            if (!variable_struct_exists(global.val, "gnx_ambient_vol"))
++                global.val.gnx_ambient_vol = 1;
++        }
++        
++        _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX-SOUND] ambience: mod '" + arg0 + "' loaded " + string(_amb_loaded) + " clips, variants=" + string(global.gnx_ambience_variants) + "\n");
++        gnx_log_close(_log);
++    }
++    
++    var _has_moan_content = array_length(global.gnx_voice_bank_names) > 0 || array_length(global.gnx_sfx_orgasm) > 0 || array_length(global.gnx_sfx_bj_slurp) > 0 || array_length(global.gnx_sfx_bj_gag) > 0 || array_length(global.gnx_sfx_bj_moan) > 0 || array_length(global.gnx_sfx_bj_breathe) > 0;
++    
++    if (_has_moan_content && !global.gnx_has_sounds)
++    {
++        if (variable_struct_exists(_data, "settings_defaults"))
++        {
++            var _sd = _data.settings_defaults;
++            
++            if (variable_struct_exists(_sd, "moan_vol"))
++                global.val.moan_vol = _sd.moan_vol;
++            
++            if (variable_struct_exists(_sd, "moan_frq"))
++                global.val.moan_frq = _sd.moan_frq;
++            
++            if (variable_struct_exists(_sd, "orgasm_frq"))
++                global.val.orgasm_frq = _sd.orgasm_frq;
++            
++            if (variable_struct_exists(_sd, "plap_vol"))
++                global.val.plap_vol = _sd.plap_vol;
++            
++            if (variable_struct_exists(_sd, "ej_vol"))
++                global.val.ej_vol = _sd.ej_vol;
++            
++            if (variable_struct_exists(_sd, "bj_vol"))
++                global.val.bj_vol = _sd.bj_vol;
++        }
++        else
++        {
++            global.val.moan_vol = 0.5;
++            global.val.moan_frq = 15;
++            global.val.orgasm_frq = 5;
++            global.val.plap_vol = 0.5;
++            global.val.ej_vol = 0.5;
++            global.val.bj_vol = 0.5;
++        }
++    }
++    
++    if (_has_moan_content)
++        global.gnx_has_sounds = true;
++    
++    _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-SOUND] mod '" + arg0 + "' sounds loaded (moan=" + string(_has_moan_content) + " ambience=" + string(global.gnx_has_ambience) + ")\n");
++    gnx_log_close(_log);
++}
++
++
++// voice by monster type: {"goblin": "bank" | {"bank", "pitch"}, "hobgoblin": ..., "tentacle": ..., "ogre": ...}
++// -> [4] of -1 or {bank, pitch} (bank names prefixed with the mod id arg1, like the class / voice_map banks)
++function gnx_parse_voice_by_mon(arg0, arg1)
++{
++    var _out = [-1, -1, -1, -1];
++    var _names = ["goblin", "hobgoblin", "tentacle", "ogre"];
++
++    if (!is_struct(arg0))
++        return _out;
++
++    for (var _t = 0; _t < 4; _t++)
++    {
++        if (!variable_struct_exists(arg0, _names[_t]))
++            continue;
++
++        var _e = variable_struct_get(arg0, _names[_t]);
++
++        if (is_string(_e))
++            _out[_t] = { bank: arg1 + "." + _e, pitch: -1 };
++        else if (is_struct(_e) && variable_struct_exists(_e, "bank"))
++            _out[_t] = { bank: arg1 + "." + _e.bank, pitch: variable_struct_exists(_e, "pitch") ? _e.pitch : -1 };
++    }
++
++    return _out;
++}
++
++
++// the voice a captive of class arg0 uses with monster type arg1 (0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre):
++// {bank, pitch} from sounds.json voice_map, else from the class's voice.by_mon_type; -1 = her usual voice
++function gnx_voice_for_mon(arg0, arg1)
++{
++    if (arg1 < 0 || arg1 > 3)
++        return -1;
++
++    if (ds_map_exists(global.gnx_voice_class_map, arg0))
++    {
++        var _vm = ds_map_find_value(global.gnx_voice_class_map, arg0);
++
++        if (variable_struct_exists(_vm, "by_mon") && is_array(_vm.by_mon) && is_struct(_vm.by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _vm.by_mon[arg1].bank))
++            return _vm.by_mon[arg1];
++    }
++
++    if (ds_map_exists(global.class_registry, arg0))
++    {
++        var _rc = ds_map_find_value(global.class_registry, arg0);
++
++        if (is_struct(_rc) && variable_struct_exists(_rc, "voice_by_mon") && is_array(_rc.voice_by_mon) && is_struct(_rc.voice_by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _rc.voice_by_mon[arg1].bank))
++            return _rc.voice_by_mon[arg1];
++    }
++
++    return -1;
++}
++
++
++// bank name for gnx_voice_for_mon, "" when she keeps her usual voice (scenario checks)
++function gnx_voice_bank_for_mon(arg0, arg1)
++{
++    var _v = gnx_voice_for_mon(arg0, arg1);
++    return is_struct(_v) ? _v.bank : "";
++}
++
++
++function scr_gnx_generate_voice(arg0)
++{
++    var _force_random = (argument_count > 1) ? argument[1] : false;
++    var _result = 
++    {
++        moan_voice: -1,
++        moan_pitch: -1
++    };
++    
++    if (!global.gnx_has_sounds || array_length(global.gnx_voice_bank_names) == 0)
++        return _result;
++    
++    if (!_force_random)
++    {
++        if (ds_map_exists(global.gnx_voice_class_map, arg0))
++        {
++            var _vm = ds_map_find_value(global.gnx_voice_class_map, arg0);
++            
++            if (ds_map_exists(global.gnx_voice_banks, _vm.bank))
++            {
++                _result.moan_voice = _vm.bank;
++                _result.moan_pitch = (_vm.pitch != -1) ? _vm.pitch : (0.9 + random(0.25));
++                return _result;
++            }
++        }
++        
++        if (ds_map_exists(global.class_registry, arg0))
++        {
++            var _rc = ds_map_find_value(global.class_registry, arg0);
++            
++            if (is_struct(_rc) && variable_struct_exists(_rc, "voice_bank") && _rc.voice_bank != -1 && ds_map_exists(global.gnx_voice_banks, _rc.voice_bank))
++            {
++                _result.moan_voice = _rc.voice_bank;
++                _result.moan_pitch = (_rc.voice_pitch != -1) ? _rc.voice_pitch : (0.9 + random(0.25));
++                return _result;
++            }
++        }
++    }
++    
++    _result.moan_voice = global.gnx_voice_bank_names[irandom(array_length(global.gnx_voice_bank_names) - 1)];
++    _result.moan_pitch = 0.9 + random(0.25);
++    return _result;
++}
++
++
++function scr_gnx_check_voice(arg0)
++{
++    if (!global.gnx_has_sounds)
++        exit;
++    
++    if (!is_struct(arg0))
++        exit;
++    
++    var _needs_gen = false;
++    
++    if (!variable_struct_exists(arg0, "moan_voice") || !variable_struct_exists(arg0, "moan_pitch"))
++        _needs_gen = true;
++    else if (arg0.moan_voice == -1 || arg0.moan_pitch == -1)
++        _needs_gen = true;
++    
++    if (_needs_gen)
++    {
++        var _class = variable_struct_exists(arg0, "class") ? arg0.class : 0;
++        var _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 0;
++        var _force_random = _lvl == 6 || _lvl == 7;
++        var _v = scr_gnx_generate_voice(_class, _force_random);
++        arg0.moan_voice = _v.moan_voice;
++        arg0.moan_pitch = _v.moan_pitch;
++    }
++}
++
++
++function scr_gnx_create_amb_arrow()
++{
++    gui = true;
++    act_resize = true;
++    
++    if ((button_num % 2) == 0)
++        image_xscale = -1;
++}
++
++
++function scr_gnx_draw_sound_window()
++{
++    gnx_draw_sprite_ext(spr_option_window, image_index, x, y, 1, 1, image_angle, image_blend, image_alpha);
++    var _x = x - 32;
++    var _y = y + 8;
++    var _width = 55;
++    draw_set_color(c_white);
++    draw_set_halign(fa_left);
++    
++    if (global.gnx_has_sounds)
++    {
++        draw_text(_x, _y, "MOAN VOL");
++        draw_text(_x, _y + 12, "MOAN FRQ");
++        draw_text(_x, _y + 24, "ORGASM FRQ");
++        draw_text(_x, _y + 36, "PLAP VOL");
++        draw_text(_x, _y + 48, "EJ VOL");
++        draw_text(_x, _y + 61, "BJ VOL");
++        draw_set_halign(fa_center);
++        draw_text(_x + _width, _y, string(round(global.val.moan_vol * 100)) + "%");
++        draw_text(_x + _width, _y + 12, string(global.val.moan_frq) + "%");
++        draw_text(_x + _width, _y + 24, string(global.val.orgasm_frq) + "%");
++        draw_text(_x + _width, _y + 36, string(round(global.val.plap_vol * 100)) + "%");
++        draw_text(_x + _width, _y + 48, string(round(global.val.ej_vol * 100)) + "%");
++        draw_text(_x + _width, _y + 61, string(round(global.val.bj_vol * 100)) + "%");
++        draw_set_halign(fa_left);
++    }
++    
++    if (global.gnx_has_ambience)
++    {
++        var _ay = global.gnx_has_sounds ? 74 : 0;
++        draw_text(_x, _y + _ay, "GOB VOL");
++        draw_text(_x, _y + _ay + 13, "AMB GOB");
++        draw_set_halign(fa_center);
++        draw_text(_x + _width, _y + _ay, string(round(global.val.gnx_ambient_vol * 100)) + "%");
++        draw_text(_x + _width, _y + _ay + 13, scr_gnx_goblin_mode_label());
++        draw_set_halign(fa_left);
++    }
++    
++    draw_text(_x, _y + 100, "GUIDE");
++    draw_text(_x + 43, _y + 100, "BACK");
++    _x = x - 74;
++    _y = y + 6;
++    var _height = 34;
++    // GNX-SAVES: centred like the options window's labels (they were left-aligned here), between the page arrows
++    draw_set_halign(fa_center);
++    draw_text(_x, _y, gnx_save_label(0));
++    draw_text(_x, _y + _height, gnx_save_label(1));
++    draw_text(_x, _y + (_height * 2), gnx_save_label(2));
++    draw_set_halign(fa_left);
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

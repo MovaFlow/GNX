@@ -1,0 +1,2397 @@
+--- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,2394 @@
++// GNX: mod loading, per-mod state, mod menu, save mod records
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++// ---------------------------------------------------------------------------
++// Mod menu (main menu > MODS). The off-list (save folder, gnx_mods_off.json: folder names) is a game-wide
++// setting: listed mods stay in GNX_mods but are not loaded. A manifest's "requires": ["mod_id", ...] names
++// mods it needs; when one of them is off or missing the mod is skipped and reported.
++// ---------------------------------------------------------------------------
++
++function scr_gnx_read_mods_off()
++{
++    var _off = [];
++    
++    if (!file_exists("gnx_mods_off.json"))
++        return _off;
++    
++    var _f = file_text_open_read("gnx_mods_off.json");
++    var _raw = "";
++    
++    while (!file_text_eof(_f))
++        _raw += file_text_readln(_f);
++    
++    file_text_close(_f);
++    
++    try
++    {
++        var _d = json_parse(_raw);
++        
++        if (is_array(_d))
++            _off = _d;
++    }
++    catch (_e)
++    {
++        _off = [];
++    }
++    
++    return _off;
++}
++
++
++function scr_gnx_write_mods_off(arg0)
++{
++    var _f = file_text_open_write("gnx_mods_off.json");
++    file_text_write_string(_f, json_stringify(arg0));
++    file_text_close(_f);
++}
++
++
++// [{folder, mod_id, name, version, requires, status, why}] for every folder in GNX_mods (arg0, sorted).
++// status: "on" (loads), "off" (off-list), "needs" (a required mod is off or missing), "bad" (manifest
++// unreadable). Off-list entries whose folder is gone are dropped, so a reinstalled mod comes back on.
++function scr_gnx_build_mod_list(arg0)
++{
++    var _off = scr_gnx_read_mods_off();
++    var _kept = [];
++    
++    for (var _i = 0; _i < array_length(_off); _i++)
++    {
++        if (gnx_array_has(arg0, _off[_i]))
++            array_push(_kept, _off[_i]);
++    }
++    
++    if (array_length(_kept) != array_length(_off))
++        scr_gnx_write_mods_off(_kept);
++    
++    var _list = [];
++    
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        var _e = { folder: arg0[_i], mod_id: arg0[_i], name: arg0[_i], version: "?", requires: [], status: "on", why: "" };
++        var _f = file_text_open_read(global.gnx_mods_root + arg0[_i] + "/manifest.json");
++        var _raw = "";
++        
++        while (!file_text_eof(_f))
++            _raw += file_text_readln(_f);
++        
++        file_text_close(_f);
++        
++        try
++        {
++            var _m = json_parse(_raw);
++            
++            if (variable_struct_exists(_m, "mod_id"))
++                _e.mod_id = string(_m.mod_id);
++            
++            if (variable_struct_exists(_m, "name"))
++                _e.name = string(_m.name);
++            
++            if (variable_struct_exists(_m, "version"))
++                _e.version = string(_m.version);
++            
++            if (variable_struct_exists(_m, "requires") && is_array(_m.requires))
++                _e.requires = _m.requires;
++            
++            if (variable_struct_exists(_m, "map"))
++                _e.map = string(_m.map);
++            
++            if (variable_struct_exists(_m, "description"))
++                _e.description = string(_m.description);
++            
++            if (variable_struct_exists(_m, "author"))
++                _e.author = string(_m.author);
++        }
++        catch (_ex)
++        {
++            _e.status = "bad";
++            _e.why = "manifest.json unreadable";
++        }
++        
++        if (_e.status == "on" && gnx_array_has(_kept, _e.folder))
++            _e.status = "off";
++        
++        array_push(_list, _e);
++    }
++    
++    // a mod whose required mod is not loading is skipped; repeat until stable (chains of requirements)
++    var _changed = true;
++    
++    while (_changed)
++    {
++        _changed = false;
++        
++        for (var _i = 0; _i < array_length(_list); _i++)
++        {
++            var _e = _list[_i];
++            
++            if (_e.status != "on")
++                continue;
++            
++            for (var _r = 0; _r < array_length(_e.requires); _r++)
++            {
++                var _req = string(_e.requires[_r]);
++                var _found = undefined;
++                
++                for (var _j = 0; _j < array_length(_list); _j++)
++                {
++                    if (_list[_j].mod_id == _req || _list[_j].folder == _req)
++                        _found = _list[_j];
++                }
++                
++                if (_found == undefined || _found.status != "on")
++                {
++                    _e.status = "needs";
++                    _e.why = "needs '" + _req + "' (" + ((_found == undefined) ? "not installed" : "off") + ")";
++                    if (_found == undefined)  // turned off in the mod menu: shown there, no popup
++                        gnx_report_mod_error("Mod '" + _e.folder + "' " + _e.why + "; not loaded");
++                    _changed = true;
++                    break;
++                }
++            }
++        }
++    }
++    
++    var _log = gnx_log_open();
++    
++    for (var _i = 0; _i < array_length(_list); _i++)
++    {
++        if (_list[_i].status != "on")
++            gnx_log_write(_log, "[GNX] mod '" + _list[_i].folder + "' not loaded: " + _list[_i].status + ((_list[_i].why != "") ? " - " + _list[_i].why : "") + chr(10));
++    }
++    
++    gnx_log_close(_log);
++    return _list;
++}
++
++
++// Count, per mod, what a save-format struct (a save, or a stored map's snapshot) uses: cells (h_type of a
++// mod cell) and characters (units of a mod class in cells, the prison list and the cage).
++// arg1 = {mod folder: {cells, units, maps}}
++function scr_gnx_count_mod_usage(arg0, arg1)
++{
++    var _units = [];
++
++    if (variable_struct_exists(arg0, "slot_list") && is_array(arg0.slot_list))
++    {
++        for (var _i = 0; _i < array_length(arg0.slot_list); _i++)
++        {
++            var _s = arg0.slot_list[_i];
++
++            if (!is_struct(_s))
++                continue;
++
++            if (variable_struct_exists(_s, "slot_data") && is_struct(_s.slot_data) && variable_struct_exists(_s.slot_data, "h_type"))
++            {
++                var _h = _s.slot_data.h_type;
++
++                if (is_real(_h) && _h >= 43 && ds_map_exists(global.cell_registry, _h))
++                {
++                    var _cm = ds_map_find_value(global.cell_registry, _h);
++
++                    if (is_struct(_cm) && variable_struct_exists(_cm, "mod_name"))
++                        gnx_usage_add(arg1, _cm.mod_name, "cells");
++                }
++            }
++
++            if (variable_struct_exists(_s, "unit_data") && is_struct(_s.unit_data))
++                array_push(_units, _s.unit_data);
++        }
++    }
++
++    if (variable_struct_exists(arg0, "global_list") && is_struct(arg0.global_list))
++    {
++        var _g = arg0.global_list;
++
++        if (variable_struct_exists(_g, "unit_list") && is_array(_g.unit_list))
++        {
++            for (var _i = 0; _i < array_length(_g.unit_list); _i++)
++            {
++                if (is_struct(_g.unit_list[_i]))
++                    array_push(_units, _g.unit_list[_i]);
++            }
++        }
++
++        if (variable_struct_exists(_g, "val") && is_struct(_g.val) && variable_struct_exists(_g.val, "cage") && is_array(_g.val.cage))
++        {
++            for (var _i = 0; _i < array_length(_g.val.cage); _i++)
++            {
++                if (is_struct(_g.val.cage[_i]))
++                    array_push(_units, _g.val.cage[_i]);
++            }
++        }
++    }
++
++    for (var _i = 0; _i < array_length(_units); _i++)
++    {
++        var _c = variable_struct_exists(_units[_i], "class") ? _units[_i].class : -1;
++
++        if (is_real(_c) && _c >= 14 && ds_map_exists(global.class_registry, _c))
++        {
++            var _cr = ds_map_find_value(global.class_registry, _c);
++
++            if (is_struct(_cr) && variable_struct_exists(_cr, "mod_name"))
++                gnx_usage_add(arg1, _cr.mod_name, "units");
++        }
++    }
++}
++
++
++// arg0 usage struct, arg1 mod folder, arg2 "cells" / "units" / "" (only make sure the entry exists)
++function gnx_usage_add(arg0, arg1, arg2)
++{
++    if (!variable_struct_exists(arg0, arg1))
++        variable_struct_set(arg0, arg1, { cells: 0, units: 0, maps: [] });
++
++    var _u = variable_struct_get(arg0, arg1);
++
++    if (arg2 != "")
++        variable_struct_set(_u, arg2, variable_struct_get(_u, arg2) + 1);
++
++    return _u;
++}
++
++
++// The save's mod record: [{id, name, version, cells, units, maps}] for every loaded mod, with what the save
++// (active map + every stored map) uses from it. A stored map whose mod is not loaded now keeps the entry it
++// had in the save it was loaded from (global.gnx_loaded_mod_record), so the warning survives re-saving.
++function scr_gnx_save_mod_record(arg0)
++{
++    var _use = {};
++    scr_gnx_count_mod_usage(arg0, _use);
++    var _maps = (variable_struct_exists(arg0, "gnx_maps") && is_struct(arg0.gnx_maps)) ? arg0.gnx_maps : {};
++    var _mk = variable_struct_get_names(_maps);
++
++    for (var _i = 0; _i < array_length(_mk); _i++)
++    {
++        var _snap = variable_struct_get(_maps, _mk[_i]);
++
++        if (is_struct(_snap))
++            scr_gnx_count_mod_usage(_snap, _use);
++    }
++
++    // map mods: the save holds that map's state (as the active map or a stored one)
++    var _active = variable_struct_exists(arg0, "gnx_active_map") ? arg0.gnx_active_map : "vanilla";
++    var _owned = variable_struct_get_names(global.gnx_map_owner);
++
++    for (var _i = 0; _i < array_length(_owned); _i++)
++    {
++        var _map = _owned[_i];
++
++        if (_map == _active || variable_struct_exists(_maps, _map))
++            array_push(gnx_usage_add(_use, variable_struct_get(global.gnx_map_owner, _map), "").maps, _map);
++    }
++
++    var _rec = [];
++
++    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
++    {
++        var _e = global.gnx_mod_list[_i];
++
++        if (_e.status != "on")
++            continue;
++
++        var _u = variable_struct_exists(_use, _e.folder) ? variable_struct_get(_use, _e.folder) : { cells: 0, units: 0, maps: [] };
++        array_push(_rec, { id: _e.folder, name: _e.name, version: _e.version, cells: _u.cells, units: _u.units, maps: _u.maps });
++    }
++
++    if (variable_global_exists("gnx_loaded_mod_record") && is_array(global.gnx_loaded_mod_record))
++    {
++        for (var _i = 0; _i < array_length(global.gnx_loaded_mod_record); _i++)
++        {
++            var _old = global.gnx_loaded_mod_record[_i];
++
++            if (!is_struct(_old) || !variable_struct_exists(_old, "maps") || !is_array(_old.maps))
++                continue;
++
++            var _kept = false;
++
++            for (var _j = 0; _j < array_length(_rec); _j++)
++            {
++                if (_rec[_j].id == _old.id)
++                    _kept = true;
++            }
++
++            if (_kept)
++                continue;
++
++            for (var _m = 0; _m < array_length(_old.maps); _m++)
++            {
++                if (variable_struct_exists(_maps, _old.maps[_m]))
++                {
++                    array_push(_rec, _old);
++                    break;
++                }
++            }
++        }
++    }
++
++    return _rec;
++}
++
++
++// ---------------------------------------------------------------------------
++// Mod menu UI (main menu > MODS) and save warnings.
++// interact types: 9070 MODS button, 9071 mod page window, 9072 row toggle (button_num = row), 9073 page
++// arrow (0 prev / 1 next), 9074 APPLY, 9075 BACK, 9076 confirm window, 9077 confirm button (0 yes / 1 cancel
++// / 2 open the mod page).
++// ---------------------------------------------------------------------------
++
++// What a save file says about mods. {exists, rec (array or -1 for saves made before the mod menu), data}
++function scr_gnx_read_save_mod_info(arg0)
++{
++    var _info = { exists: false, rec: -1, data: -1 };
++
++    if (!file_exists(arg0))
++        return _info;
++
++    var _buff = buffer_load(arg0);
++    var _json = buffer_read(_buff, buffer_text);
++    buffer_delete(_buff);
++
++    try
++    {
++        _info.data = json_parse(_json);
++        _info.exists = true;
++
++        if (variable_struct_exists(_info.data, "gnx_mods") && is_array(_info.data.gnx_mods))
++            _info.rec = _info.data.gnx_mods;
++    }
++    catch (_e)
++    {
++        _info.exists = false;
++    }
++
++    return _info;
++}
++
++
++function gnx_mod_entry(arg0)
++{
++    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
++    {
++        var _e = global.gnx_mod_list[_i];
++
++        if (_e.folder == arg0 || _e.mod_id == arg0)
++            return _e;
++    }
++
++    return undefined;
++}
++
++
++// Mods a save needs that are not loaded right now: [{id, name, why ("off" / "not installed" / "needs ..."),
++// cells, units, maps}]. arg0 = the parsed save. Saves made before the mod menu have no record: their content
++// that no installed mod owns is counted instead, as one entry named "unknown mods".
++function scr_gnx_save_missing(arg0)
++{
++    var _out = [];
++
++    if (!is_struct(arg0))
++        return _out;
++
++    if (variable_struct_exists(arg0, "gnx_mods") && is_array(arg0.gnx_mods))
++    {
++        for (var _i = 0; _i < array_length(arg0.gnx_mods); _i++)
++        {
++            var _r = arg0.gnx_mods[_i];
++
++            if (!is_struct(_r) || !variable_struct_exists(_r, "id"))
++                continue;
++
++            var _used = _r.cells + _r.units + array_length(_r.maps);
++            var _e = gnx_mod_entry(_r.id);
++
++            if (_used <= 0 || (_e != undefined && _e.status == "on"))
++                continue;
++
++            var _why = (_e == undefined) ? "not installed" : ((_e.status == "off") ? "off" : _e.why);
++            array_push(_out, { id: _r.id, name: _r.name, why: _why, cells: _r.cells, units: _r.units, maps: _r.maps });
++        }
++
++        return _out;
++    }
++
++    // no record: count what no installed mod owns
++    var _cells = 0;
++    var _units = 0;
++    var _structs = [arg0];
++
++    if (variable_struct_exists(arg0, "gnx_maps") && is_struct(arg0.gnx_maps))
++    {
++        var _mk = variable_struct_get_names(arg0.gnx_maps);
++
++        for (var _i = 0; _i < array_length(_mk); _i++)
++        {
++            var _snap = variable_struct_get(arg0.gnx_maps, _mk[_i]);
++
++            if (is_struct(_snap))
++                array_push(_structs, _snap);
++        }
++    }
++
++    for (var _si = 0; _si < array_length(_structs); _si++)
++    {
++        var _sv = _structs[_si];
++
++        if (!variable_struct_exists(_sv, "slot_list") || !is_array(_sv.slot_list))
++            continue;
++
++        for (var _i = 0; _i < array_length(_sv.slot_list); _i++)
++        {
++            var _s = _sv.slot_list[_i];
++
++            if (!is_struct(_s))
++                continue;
++
++            if (variable_struct_exists(_s, "slot_data") && is_struct(_s.slot_data) && variable_struct_exists(_s.slot_data, "h_type") && is_real(_s.slot_data.h_type) && _s.slot_data.h_type >= 43 && !ds_map_exists(global.cell_registry, _s.slot_data.h_type))
++                _cells++;
++
++            if (variable_struct_exists(_s, "unit_data") && is_struct(_s.unit_data) && variable_struct_exists(_s.unit_data, "class") && is_real(_s.unit_data.class) && _s.unit_data.class >= 14 && !ds_map_exists(global.class_registry, _s.unit_data.class))
++                _units++;
++        }
++    }
++
++    if (_cells + _units > 0)
++        array_push(_out, { id: "", name: "unknown mods", why: "saved before GNX 1.4.8, or a mod was removed", cells: _cells, units: _units, maps: [] });
++
++    return _out;
++}
++
++
++// One line per missing mod, for the load page and the confirm dialog
++function gnx_missing_line(arg0)
++{
++    var _t = arg0.name + " (" + arg0.why + ")";
++    var _parts = [];
++
++    if (arg0.cells > 0)
++        array_push(_parts, string(arg0.cells) + " cell" + ((arg0.cells == 1) ? "" : "s"));
++
++    if (arg0.units > 0)
++        array_push(_parts, string(arg0.units) + " character" + ((arg0.units == 1) ? "" : "s"));
++
++    if (array_length(arg0.maps) > 0)
++        array_push(_parts, "its map");
++
++    if (array_length(_parts) > 0)
++    {
++        _t += ": ";
++
++        for (var _i = 0; _i < array_length(_parts); _i++)
++            _t += ((_i > 0) ? ", " : "") + _parts[_i];
++    }
++
++    return _t;
++}
++
++
++// main menu (load_state 4, after the vanilla buttons): MODS goes third, the column moves up to fit five
++function scr_gnx_menu_add_mods_button()
++{
++    with (obj_button)
++    {
++        if (interact_type == 51)
++        {
++            var _dy = (button_num <= 1) ? -10 : 10;
++            y += _dy;
++
++            if (variable_instance_exists(id, "yto"))
++                yto += _dy;
++
++            if (variable_instance_exists(id, "ystart"))
++                ystart += _dy;
++        }
++    }
++
++    scr_create_button(240, 211, 0, spr_button_menu, 9070, id, scr_create_menu_button, -1, scr_gnx_draw_label_button, 0, 0);
++
++    with (obj_button)
++    {
++        if (interact_type == 9070)
++            text = "MODS";
++    }
++
++    if (variable_global_exists("gnx_reopen_mod_menu") && global.gnx_reopen_mod_menu)
++    {
++        global.gnx_reopen_mod_menu = false;
++        scr_gnx_open_mod_menu();
++    }
++}
++
++
++// sprite button with a centred text label (`text`); frame 1 drawn dim
++function scr_gnx_draw_label_button()
++{
++    scr_draw_hover_button();
++    draw_set_halign(fa_center);
++    draw_set_font(fnt_base_font_eng);
++    draw_set_color((image_index % 2 == 1) ? make_color_rgb(150, 120, 110) : c_white);
++    draw_text(x + 1, y - 3, text);
++    draw_set_color(c_white);
++    draw_set_halign(fa_left);
++}
++
++
++function scr_gnx_init_label_button()
++{
++    scr_create_gui_base_button();
++    spr_sel = (sprite_index == spr_button_long) ? spr_button_bar_sel : -1;
++    image_index = 0;
++    text = "";
++}
++
++
++function scr_gnx_open_mod_menu()
++{
++    with (obj_button)
++        instance_destroy();
++
++    with (obj_window)
++    {
++        if (interact_type == 9071 || interact_type == 9076)
++            instance_destroy();
++    }
++
++    if (instance_exists(obj_menu))
++    {
++        obj_menu.title = false;
++        obj_menu.bg = false;
++    }
++
++    var _w = instance_create_depth(0, 0, -100, obj_window);
++
++    with (_w)
++    {
++        interact_type = 9071;
++        gui = true;
++        sprite_index = spr_pixel;
++        image_xscale = 1;
++        image_yscale = 1;
++        scr_window_draw = scr_gnx_draw_mod_menu;
++        page = 0;
++        pending = scr_gnx_read_mods_off();
++        dirty = false;
++        rows = scr_gnx_mod_menu_rows();
++        scr_gnx_mod_menu_buttons();
++    }
++
++    return _w;
++}
++
++
++function gnx_mod_row_on(arg0, arg1)  // arg0 = page window, arg1 = row: on after APPLY?
++{
++    return arg1.installed && arg1.status != "bad" && !gnx_array_has(arg0.pending, arg1.folder);
++}
++
++
++function scr_gnx_mod_menu_buttons()
++{
++    with (obj_button)
++    {
++        if (interact_type >= 9072 && interact_type <= 9075)
++            instance_destroy();
++    }
++
++    var _n = array_length(rows);
++    var _pages = max(1, ceil(_n / gnx_mods_per_page()));
++    page = clamp(page, 0, _pages - 1);
++
++    for (var _i = page * gnx_mods_per_page(); _i < min(_n, (page + 1) * gnx_mods_per_page()); _i++)
++    {
++        var _row = rows[_i];
++
++        if (!_row.installed || _row.status == "bad")
++            continue;
++
++        var _y = 46 + ((_i - (page * gnx_mods_per_page())) * 22);
++        var _b = scr_create_button(90, _y, depth - 1, spr_button_long, 9072, id, scr_gnx_init_label_button, -1, scr_gnx_draw_label_button, _i, 0);
++
++        if (_b != -1)
++        {
++            var _on = gnx_mod_row_on(id, _row);
++            _b.image_index = _on ? 0 : 1;
++            _b.text = _on ? "ON" : "OFF";
++        }
++    }
++
++    if (_pages > 1)
++    {
++        scr_create_button(210, 197, depth - 1, spr_button_arrow, 9073, id, scr_gnx_create_tool_page_button, -1, scr_draw_hover_button, 0, 0);
++        scr_create_button(250, 197, depth - 1, spr_button_arrow, 9073, id, scr_gnx_create_tool_page_button, -1, scr_draw_hover_button, 1, 0);
++    }
++
++    var _b = scr_create_button(330, 233, depth - 1, spr_button_long, 9074, id, scr_gnx_init_label_button, -1, scr_gnx_draw_apply_button, 0, 0);
++    _b.text = "APPLY";
++    _b = scr_create_button(385, 233, depth - 1, spr_button_long, 9075, id, scr_gnx_init_label_button, -1, scr_gnx_draw_label_button, 0, 0);
++    _b.text = "BACK";
++}
++
++
++function gnx_fit(arg0, arg1)  // cut a text to arg1 pixels
++{
++    var _t = string(arg0);
++
++    if (string_width(_t) <= arg1)
++        return _t;
++
++    while (string_length(_t) > 1 && string_width(_t + "..") > arg1)
++        _t = string_copy(_t, 1, string_length(_t) - 1);
++
++    return _t + "..";
++}
++
++
++function gnx_same_set(arg0, arg1)
++{
++    if (array_length(arg0) != array_length(arg1))
++        return false;
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        if (!gnx_array_has(arg1, arg0[_i]))
++            return false;
++    }
++
++    return true;
++}
++
++
++// confirm dialog: arg0 = lines, arg1 = labels for buttons 0 / 1 / 2 ("" = no button), arg2 = what "yes" does
++// ("off:<row>" turn a mod off, "load:<slot>" load a save), arg3 = the window that asked
++function scr_gnx_mod_confirm(arg0, arg1, arg2, arg3)
++{
++    var _w = instance_create_depth(0, 0, -300, obj_window);
++
++    with (_w)
++    {
++        interact_type = 9076;
++        gui = true;
++        sprite_index = spr_pixel;
++        lines = arg0;
++        action = arg2;
++        asker = arg3;
++        scr_window_draw = scr_gnx_draw_mod_confirm;
++        box_h = 34 + (array_length(lines) * 11);
++        var _by = 135 + (box_h / 2) - 12;
++        var _nb = 0;
++
++        for (var _i = 0; _i < 3; _i++)
++        {
++            if (arg1[_i] != "")
++                _nb++;
++        }
++
++        var _bi = 0;
++
++        for (var _i = 0; _i < 3; _i++)
++        {
++            if (arg1[_i] == "")
++                continue;
++
++            var _x3 = [175, 305, 240];  // 3 buttons: 0 left, 2 middle, 1 right
++            var _bx = (_nb == 2) ? ((_bi == 0) ? 200 : 280) : _x3[_i];
++            var _b = scr_create_button(_bx, _by, depth - 1, spr_button_long, 9077, id, scr_gnx_init_label_button, -1, scr_gnx_draw_label_button, _i, 0);
++            _b.text = arg1[_i];
++            _bi++;
++        }
++    }
++
++    return _w;
++}
++
++
++function scr_gnx_draw_mod_confirm()
++{
++    draw_set_alpha(0.6);
++    draw_rectangle_color(0, 0, 480, 270, c_black, c_black, c_black, c_black, false);
++    draw_set_alpha(1);
++    var _bw = 300;
++    var _bx = 240 - (_bw / 2);
++    var _by = 135 - (box_h / 2);
++    var _bg = make_color_rgb(88, 29, 20);
++    var _rim = make_color_rgb(133, 76, 43);
++    draw_rectangle_color(_bx, _by, _bx + _bw, _by + box_h, _bg, _bg, _bg, _bg, false);
++    draw_rectangle_color(_bx, _by, _bx + _bw, _by + box_h, c_black, c_black, c_black, c_black, true);
++    draw_rectangle_color(_bx + 2, _by + 2, (_bx + _bw) - 2, (_by + box_h) - 2, _rim, _rim, _rim, _rim, true);
++    draw_set_font(fnt_base_font_eng);
++    draw_set_halign(fa_left);
++
++    for (var _i = 0; _i < array_length(lines); _i++)
++    {
++        draw_set_color((_i == 0) ? make_color_rgb(255, 210, 120) : c_white);
++        draw_text(_bx + 8, _by + 6 + (_i * 11), gnx_fit(lines[_i], _bw - 16));
++    }
++
++    draw_set_color(c_white);
++}
++
++
++function gnx_close_mod_confirm()
++{
++    with (obj_button)
++    {
++        if (interact_type == 9077)
++            instance_destroy();
++    }
++
++    with (obj_window)
++    {
++        if (interact_type == 9076)
++            instance_destroy();
++    }
++}
++
++
++// what turning a row off means for the saves and the other mods (lines for the confirm dialog, [] = nothing)
++function scr_gnx_mod_off_impact(arg0, arg1)  // arg0 page window, arg1 row
++{
++    var _lines = [];
++
++    if (array_length(arg1.used) > 0)
++    {
++        var _slots = gnx_used_text(arg1.used);
++        
++        array_push(_lines, arg1.name + " is used by " + _slots + ".");
++
++        if (arg1.cells + arg1.units > 0)
++            array_push(_lines, "(" + string(arg1.cells) + " cells, " + string(arg1.units) + " characters)");
++
++        array_push(_lines, "Loading those saves without it replaces its cells with");
++        array_push(_lines, "basic cells and its characters with peasants.");
++        array_push(_lines, "Loading is safe; saving afterwards makes it permanent.");
++    }
++
++    for (var _k = 0; _k < array_length(arg0.rows); _k++)
++    {
++        var _o = arg0.rows[_k];
++
++        if (_o == arg1 || !gnx_mod_row_on(arg0, _o))
++            continue;
++
++        for (var _r = 0; _r < array_length(_o.requires); _r++)
++        {
++            if (string(_o.requires[_r]) == arg1.folder || string(_o.requires[_r]) == arg1.mod_id)
++                array_push(_lines, _o.name + " needs it and will not load either.");
++        }
++    }
++
++    if (array_length(_lines) > 0)
++        array_insert(_lines, 0, "Turn off " + arg1.name + "?");
++
++    return _lines;
++}
++
++
++function gnx_mod_set_off(arg0, arg1, arg2)  // arg0 page window, arg1 folder, arg2 off?
++{
++    var _new = [];
++
++    for (var _i = 0; _i < array_length(arg0.pending); _i++)
++    {
++        if (arg0.pending[_i] != arg1)
++            array_push(_new, arg0.pending[_i]);
++    }
++
++    if (arg2)
++        array_push(_new, arg1);
++
++    arg0.pending = _new;
++}
++
++
++// re-run the loader with the new off-list (same path as quit-to-menu: re-initialise, back to the menu room,
++// whose room start reloads language and volumes); the menu reopens on the mod page
++function scr_gnx_mod_menu_apply(arg0)
++{
++    scr_gnx_write_mods_off(arg0.pending);
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX] mod menu: apply, off = " + json_stringify(arg0.pending) + chr(10));
++    gnx_log_close(_l);
++    global.gnx_reopen_mod_menu = true;
++
++    with (obj_button)
++        instance_destroy();
++
++    with (obj_window)
++        instance_destroy();
++
++    var _lists = [global.unit_list, global.front_row, global.back_row, global.new_button_list, global.noti_list, global.inv_list, global.raid_inv_list, global.quest_list, global.new_guide_list, global.front_row_save, global.back_row_save];
++    
++    for (var _i = 0; _i < array_length(_lists); _i++)
++    {
++        if (ds_exists(_lists[_i], ds_type_list))
++            ds_list_destroy(_lists[_i]);
++    }
++    
++    scr_create_initials();
++    room_goto(rm_menu);
++}
++
++
++// back to the main menu's buttons (BACK on the mod page)
++function gnx_mod_menu_leave()
++{
++    with (obj_window)
++        instance_destroy();
++
++    with (obj_button)
++        instance_destroy();
++
++    with (obj_np)
++    {
++        load_state = 4;
++        obj_menu.title = true;
++        obj_menu.bg = true;
++    }
++}
++
++
++function scr_gnx_mod_menu_activate()
++{
++    switch (interact_type)
++    {
++        case 9070:
++            scr_gnx_open_mod_menu();
++            break;
++
++        case 9072:
++            var _w = source_id;
++            var _row = _w.rows[button_num];
++
++            if (gnx_mod_row_on(_w, _row))
++            {
++                var _lines = scr_gnx_mod_off_impact(_w, _row);
++
++                if (array_length(_lines) > 0)
++                {
++                    scr_gnx_mod_confirm(_lines, ["TURN OFF", "CANCEL", ""], "off:" + string(button_num), _w);
++                    break;
++                }
++
++                gnx_mod_set_off(_w, _row.folder, true);
++            }
++            else
++            {
++                gnx_mod_set_off(_w, _row.folder, false);
++            }
++
++            with (_w)
++                scr_gnx_mod_menu_buttons();
++
++            break;
++
++        case 9073:
++            var _w = source_id;
++            _w.page += (button_num == 0) ? -1 : 1;
++
++            with (_w)
++                scr_gnx_mod_menu_buttons();
++
++            break;
++
++        case 9074:
++            var _w = source_id;
++
++            if (gnx_same_set(_w.pending, scr_gnx_read_mods_off()))
++                break;
++
++            scr_gnx_mod_menu_apply(_w);
++            break;
++
++        case 9075:
++            if (instance_exists(source_id) && variable_instance_exists(source_id, "dirty") && source_id.dirty)
++            {
++                scr_gnx_mod_confirm(["Leave without applying?", "Your changes to the mod list are not applied yet.", "APPLY loads the mods you chose; DISCARD forgets them."], ["APPLY", "STAY", "DISCARD"], "back", source_id);
++                break;
++            }
++
++            gnx_mod_menu_leave();
++            break;
++
++        case 9077:
++            var _c = source_id;
++            var _act = _c.action;
++            var _asker = _c.asker;
++            var _btn = button_num;
++            gnx_close_mod_confirm();
++
++            if (_btn == 1)
++                break;
++
++            if (_act == "back")  // leaving the mod page with changes: 0 APPLY, 2 DISCARD (1 STAY returned above)
++            {
++                if (_btn == 0)
++                    scr_gnx_mod_menu_apply(_asker);
++                else
++                    gnx_mod_menu_leave();
++
++                break;
++            }
++
++            if (_btn == 2)  // MODS (from the load warning)
++            {
++                with (obj_window)
++                    instance_destroy();
++
++                scr_gnx_open_mod_menu();
++                break;
++            }
++
++            if (string_copy(_act, 1, 4) == "off:")
++            {
++                var _ri = real(string_delete(_act, 1, 4));
++                gnx_mod_set_off(_asker, _asker.rows[_ri].folder, true);
++
++                with (_asker)
++                    scr_gnx_mod_menu_buttons();
++            }
++            else if (string_copy(_act, 1, 5) == "load:")
++            {
++                scr_sfx_play(0);
++                global.load_file = real(string_delete(_act, 1, 5));
++                global.click_lock = true;
++                obj_np.load_state = 6;
++            }
++
++            break;
++    }
++}
++
++
++// load page, LOAD pressed: a save that needs mods that are off or missing asks first. true = handled here
++function scr_gnx_load_confirm(arg0)  // arg0 = the load-file window
++{
++    if (!is_struct(arg0.load_data) || !variable_struct_exists(arg0.load_data, "gnx_missing") || array_length(arg0.load_data.gnx_missing) == 0)
++        return false;
++
++    var _lines = [arg0.load_data.title + " uses mods that are off or missing:"];
++    var _miss = arg0.load_data.gnx_missing;
++
++    for (var _i = 0; _i < min(4, array_length(_miss)); _i++)
++        array_push(_lines, "  " + gnx_missing_line(_miss[_i]));
++
++    if (array_length(_miss) > 4)
++        array_push(_lines, "  and " + string(array_length(_miss) - 4) + " more");
++
++    array_push(_lines, "Their cells become basic cells and their characters");
++    array_push(_lines, "peasants. Loading is safe; saving makes it permanent.");
++    scr_gnx_mod_confirm(_lines, ["LOAD", "CANCEL", "MODS"], "load:" + string(arg0.button_num), arg0);
++    return true;
++}
++
++
++// rows: installed mods (gnx_mod_list) then mods the saves use that are not installed.
++// row = {folder, mod_id, name, version, status, why, installed, used ([0..3] = autosave, saves 1-3), cells,
++// units, requires, description, author, adds}
++function scr_gnx_mod_menu_rows()
++{
++    var _files = [];
++
++    // GNX-SAVES: autosave and every save slot (used[] indexes this list: 0 = autosave, n = save n)
++    for (var _sf = 0; _sf <= global.gnx_save_slots; _sf++)
++        array_push(_files, gnx_save_file(_sf));
++
++    var _rows = [];
++
++    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
++    {
++        var _e = global.gnx_mod_list[_i];
++        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: variable_struct_exists(_e, "description") ? _e.description : "", author: variable_struct_exists(_e, "author") ? _e.author : "", adds: gnx_mod_adds(_e) });
++    }
++
++    for (var _f = 0; _f < array_length(_files); _f++)
++    {
++        var _info = gnx_save_info_cached(_files[_f]);
++
++        if (!_info.exists || !is_array(_info.rec))
++            continue;
++
++        for (var _r = 0; _r < array_length(_info.rec); _r++)
++        {
++            var _rec = _info.rec[_r];
++
++            if (!is_struct(_rec) || (_rec.cells + _rec.units + array_length(_rec.maps)) <= 0)
++                continue;
++
++            var _row = undefined;
++
++            for (var _k = 0; _k < array_length(_rows); _k++)
++            {
++                if (_rows[_k].folder == _rec.id || _rows[_k].mod_id == _rec.id)
++                    _row = _rows[_k];
++            }
++
++            if (_row == undefined)
++            {
++                _row = { folder: _rec.id, name: _rec.name, version: _rec.version, status: "missing", why: "not installed", installed: false, used: [], cells: 0, units: 0, requires: [], mod_id: _rec.id, description: "", author: "", adds: "" };
++                array_push(_rows, _row);
++            }
++
++            if (!gnx_array_has(_row.used, _f))
++                array_push(_row.used, _f);
++
++            _row.cells += _rec.cells;
++            _row.units += _rec.units;
++        }
++    }
++
++    return _rows;
++}
++
++
++// "3 classes, 2 cells, a map" for a loaded mod (empty when off or nothing registered)
++function gnx_mod_adds(arg0)
++{
++    if (arg0.status != "on")
++        return variable_struct_exists(arg0, "map") ? "a map" : "";
++
++    var _cls = 0;
++    var _cells = 0;
++    var _k = ds_map_keys_to_array(global.class_registry);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _c = ds_map_find_value(global.class_registry, _k[_i]);
++
++        if (is_struct(_c) && variable_struct_exists(_c, "mod_name") && _c.mod_name == arg0.folder)
++            _cls++;
++    }
++
++    _k = ds_map_keys_to_array(global.cell_registry);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _c = ds_map_find_value(global.cell_registry, _k[_i]);
++
++        if (is_struct(_c) && variable_struct_exists(_c, "mod_name") && _c.mod_name == arg0.folder)
++            _cells++;
++    }
++
++    var _parts = [];
++
++    if (_cls > 0)
++        array_push(_parts, string(_cls) + " class" + ((_cls == 1) ? "" : "es"));
++
++    if (_cells > 0)
++        array_push(_parts, string(_cells) + " cell" + ((_cells == 1) ? "" : "s"));
++
++    if (variable_struct_exists(arg0, "map"))
++        array_push(_parts, "a map");
++
++    var _t = "";
++
++    for (var _i = 0; _i < array_length(_parts); _i++)
++        _t += ((_i > 0) ? ", " : "") + _parts[_i];
++
++    return _t;
++}
++
++
++// "Save 1, autosave" from a row's used list(indices into autosave, saves 1-3)
++function gnx_used_text(arg0)
++{
++    var _t = "";
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++        _t += ((_i > 0) ? ", " : "") + ((arg0[_i] == 0) ? "autosave" : ("Save " + string(arg0[_i])));
++
++    return _t;
++}
++
++
++function scr_gnx_draw_mod_menu()
++{
++    draw_set_alpha(0.75);
++    draw_rectangle_color(0, 0, 480, 270, c_black, c_black, c_black, c_black, false);
++    draw_set_alpha(1);
++    var _px = 60;
++    var _py = 18;
++    var _pw = 360;
++    var _ph = 226;
++    var _bg = make_color_rgb(88, 29, 20);
++    var _rim = make_color_rgb(133, 76, 43);
++    var _row_bg = make_color_rgb(70, 23, 16);
++    var _row_hi = make_color_rgb(104, 46, 32);
++    var _red = make_color_rgb(240, 90, 60);
++    var _amber = make_color_rgb(255, 200, 90);
++    draw_rectangle_color(_px, _py, _px + _pw, _py + _ph, _bg, _bg, _bg, _bg, false);
++    draw_rectangle_color(_px, _py, _px + _pw, _py + _ph, c_black, c_black, c_black, c_black, true);
++    draw_rectangle_color(_px + 2, _py + 2, (_px + _pw) - 2, (_py + _ph) - 2, _rim, _rim, _rim, _rim, true);
++    draw_set_font(fnt_base_font_eng);
++    draw_set_halign(fa_left);
++    draw_set_color(c_white);
++    draw_text(_px + 10, _py + 6, "MODS");
++    var _on_n = 0;
++    var _inst = 0;
++
++    for (var _i = 0; _i < array_length(rows); _i++)
++    {
++        if (rows[_i].installed)
++        {
++            _inst++;
++
++            if (gnx_mod_row_on(id, rows[_i]) && rows[_i].status != "error")  // a mod that failed to load is not "on"
++                _on_n++;
++        }
++    }
++
++    dirty = !gnx_same_set(pending, scr_gnx_read_mods_off());
++    draw_set_halign(fa_right);
++
++    if (dirty)
++    {
++        draw_set_color(_amber);
++        draw_text((_px + _pw) - 10, _py + 6, "Changes not applied: press APPLY");
++    }
++    else
++    {
++        draw_set_color(make_color_rgb(200, 170, 140));
++        draw_text((_px + _pw) - 10, _py + 6, string(_inst) + " installed, " + string(_on_n) + " on");
++    }
++
++    draw_set_halign(fa_left);
++    var _n = array_length(rows);
++    var _mx = device_mouse_x_to_gui(0);
++    var _my = device_mouse_y_to_gui(0);
++    var _hover = -1;
++
++    for (var _i = page * gnx_mods_per_page(); _i < min(_n, (page + 1) * gnx_mods_per_page()); _i++)
++    {
++        var _row = rows[_i];
++        var _y = 46 + ((_i - (page * gnx_mods_per_page())) * 22);
++        var _over = _mx >= (_px + 8) && _mx <= ((_px + _pw) - 8) && _my >= (_y - 9) && _my <= (_y + 9);
++
++        if (_over)
++            _hover = _i;
++
++        var _rc = _over ? _row_hi : _row_bg;
++        draw_rectangle_color(_px + 8, _y - 9, (_px + _pw) - 8, _y + 9, _rc, _rc, _rc, _rc, false);
++
++        if (!_row.installed || _row.status == "bad")
++        {
++            draw_set_halign(fa_center);
++            draw_set_color(c_gray);
++            draw_text(90, _y - 4, _row.installed ? "BROKEN" : "MISSING");
++            draw_set_halign(fa_left);
++        }
++
++        var _on = gnx_mod_row_on(id, _row);
++        draw_set_color(_on ? c_white : c_gray);
++        draw_text(_px + 58, _y - 4, gnx_fit(_row.name, 98));
++        draw_set_color(make_color_rgb(170, 140, 120));
++        draw_text(_px + 160, _y - 4, gnx_fit("v" + string(_row.version), 34));
++        var _note = "";
++        var _note_c = _red;
++
++        if (!_row.installed)
++            _note = "not installed, used by " + gnx_used_text(_row.used);
++        else if (_row.status == "bad" || _row.status == "error")
++            _note = "not loaded: " + _row.why;
++        else if (!_on && array_length(_row.used) > 0)
++            _note = "off, but used by " + gnx_used_text(_row.used);
++        else if (_on && gnx_mod_row_missing_req(id, _row) != "")
++            _note = "needs " + gnx_mod_row_missing_req(id, _row);
++        else if (_on && _row.status == "needs")
++            _note = "needs a mod that is off";
++        else if (_row.status == "on" && _row.why != "")
++        {
++            _note = "loaded with problems";
++            _note_c = _amber;
++        }
++        else if (array_length(_row.used) > 0)
++        {
++            _note = "used by " + gnx_used_text(_row.used);
++            _note_c = make_color_rgb(140, 180, 220);
++        }
++
++        if (_note != "")
++        {
++            draw_set_color(_note_c);
++            draw_text(_px + 198, _y - 4, gnx_fit(_note, 152));
++        }
++    }
++
++    // details of the row under the mouse
++    draw_set_color(make_color_rgb(200, 170, 140));
++
++    if (_hover != -1)
++    {
++        var _h = rows[_hover];
++        var _l1 = _h.name;
++
++        if (_h.author != "")
++            _l1 += " by " + _h.author;
++
++        if (_h.adds != "")
++            _l1 += "  -  adds " + _h.adds;
++
++        var _l2 = (_h.description != "") ? _h.description : "";
++
++        if (_h.why != "" && _h.status != "on")
++            _l2 = _h.why;
++        else if (array_length(_h.requires) > 0)
++            _l2 = ((_l2 != "") ? _l2 + "  -  " : "") + "needs " + gnx_req_names(id, _h);
++
++        if (array_length(_h.used) > 0 && (_h.cells + _h.units) > 0)
++            _l2 = ((_l2 != "") ? _l2 + "  -  " : "") + "in saves: " + string(_h.cells) + " cells, " + string(_h.units) + " characters";
++
++        draw_text(_px + 12, 205, gnx_fit(_l1, _pw - 24));
++        draw_set_color(make_color_rgb(170, 140, 120));
++        draw_text(_px + 12, 215, gnx_fit(_l2, _pw - 24));
++    }
++    else
++    {
++        draw_text(_px + 12, 210, "Point at a mod for details.");
++    }
++
++    var _pages = max(1, ceil(_n / gnx_mods_per_page()));
++
++    if (_pages > 1)
++    {
++        draw_set_halign(fa_center);
++        draw_set_color(c_gray);
++        draw_text(230, 193, string(page + 1) + "/" + string(_pages));
++        draw_set_halign(fa_left);
++    }
++
++    draw_set_color(c_white);
++}
++
++
++// names of the mods a row requires, joined
++function gnx_req_names(arg0, arg1)
++{
++    var _t = "";
++
++    for (var _r = 0; _r < array_length(arg1.requires); _r++)
++    {
++        var _req = string(arg1.requires[_r]);
++        var _nm = _req;
++
++        for (var _k = 0; _k < array_length(arg0.rows); _k++)
++        {
++            if (arg0.rows[_k].folder == _req || arg0.rows[_k].mod_id == _req)
++                _nm = arg0.rows[_k].name;
++        }
++
++        _t += ((_r > 0) ? ", " : "") + _nm;
++    }
++
++    return _t;
++}
++
++
++// the name of a required mod that will not be on after APPLY ("" = none). arg0 = page window, arg1 = row
++function gnx_mod_row_missing_req(arg0, arg1)
++{
++    for (var _r = 0; _r < array_length(arg1.requires); _r++)
++    {
++        var _req = string(arg1.requires[_r]);
++        var _ok = false;
++        var _nm = _req;
++
++        for (var _k = 0; _k < array_length(arg0.rows); _k++)
++        {
++            var _o = arg0.rows[_k];
++
++            if (_o.folder == _req || _o.mod_id == _req)
++            {
++                _nm = _o.name;
++
++                if (gnx_mod_row_on(arg0, _o))
++                    _ok = true;
++            }
++        }
++
++        if (!_ok)
++            return _nm;
++    }
++
++    return "";
++}
++
++
++// cached parse of a save file for the menus (mod page + load page parse each save once per change)
++function gnx_save_info_cached(arg0)
++{
++    if (!variable_global_exists("gnx_save_info_cache") || !is_struct(global.gnx_save_info_cache))
++        global.gnx_save_info_cache = {};
++    
++    if (variable_struct_exists(global.gnx_save_info_cache, arg0))
++        return variable_struct_get(global.gnx_save_info_cache, arg0);
++    
++    var _info = scr_gnx_read_save_mod_info(arg0);
++    variable_struct_set(global.gnx_save_info_cache, arg0, _info);
++    return _info;
++}
++
++
++function gnx_save_cache_clear()
++{
++    global.gnx_save_info_cache = {};
++}
++
++
++// main menu corner: " - 12 mods on" (+ ", 2 off")
++function gnx_mods_on_text()
++{
++    if (!variable_global_exists("gnx_mod_list") || !is_array(global.gnx_mod_list))
++        return " enabled";
++    
++    var _on = 0;
++    var _off = 0;
++    
++    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
++    {
++        if (global.gnx_mod_list[_i].status == "on")
++            _on++;
++        else
++            _off++;
++    }
++    
++    return " - " + string(_on) + " mod" + ((_on == 1) ? "" : "s") + " on" + ((_off > 0) ? ", " + string(_off) + " off" : "");
++}
++
++
++function gnx_mods_per_page()
++{
++    return 7;
++}
++
++
++function scr_gnx_load_mods()
++{
++    var _gnx_boot_t0 = get_timer();
++    global.gnx_mods_root = program_directory + "GNX_mods/";
++    global.gnx_log_buf = "";  // a new run of the loader starts a new log
++    var _trunc = file_text_open_write("gnx_debug.txt");  // a real file: truncate the log
++    file_text_close(_trunc);
++    var _log;
++    _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] loader start\n");
++    gnx_log_write(_log, "[GNX] mods_root=" + global.gnx_mods_root + "\n");
++    gnx_log_close(_log);
++    global.gnx_indexed_mods = [];
++    global.gnx_loaded_mods = [];
++    global.gnx_map_deferred_mods = [];
++    global.gnx_mod_map_decl = {};
++    global.gnx_multimap_enabled = true;
++    
++    if (variable_global_exists("gnx_in_travel") && global.gnx_in_travel)
++    {
++        if (!variable_global_exists("gnx_active_map"))
++            global.gnx_active_map = "vanilla";
++        
++        if (!variable_global_exists("gnx_inactive_maps"))
++            global.gnx_inactive_maps = {};
++    }
++    else
++    {
++        // A loaded save's map is restored inside scr_load_slot (s_save_load), before the sanitizer runs
++        global.gnx_active_map = "vanilla";
++        global.gnx_inactive_maps = {};
++    }
++
++    if (!variable_global_exists("gnx_travel_data") || global.gnx_travel_data == -1)
++        global.gnx_travel_data = -1;
++    
++    global.gnx_trigger_load = false;
++    
++    if (!variable_global_exists("gnx_in_travel"))
++        global.gnx_in_travel = false;
++    
++    global.gnx_travel_locations = [];
++    global.gnx_map_sprite = -1;
++    global.gnx_map_start_decl = {};
++    global.gnx_map_owner = {};  // map id -> mod that owns its travel button + map_start
++    global.gnx_pending_map_start = "";
++    global.gnx_pending_notice = "";  // shown as an in-game toast once the nest exists (obj_control step)
++    global.gnx_map_unlock_tick = 0;
++    // a travel re-runs initials before the carry is applied (obj_control step): keep it then
++    if (!global.gnx_in_travel)
++    {
++        global.gnx_carry_day = -1;
++        global.gnx_carry_timer = -1;
++        global.gnx_carry_gold = -1;
++        global.gnx_carry_food = -1;
++        global.gnx_carry_troops = -1;    // [{type, class, num}] monsters taken along
++        global.gnx_carry_captives = -1;  // [{unit, from}] prisoners taken along
++        global.gnx_carry_unlock = -1;
++        global.gnx_carry_inv = -1;  // the inventory, moved to the destination on arrival (shared by every map)
++        global.gnx_trip_cost = -1;  // {gold, food, days} paid for the trip under way (refunded if it is refused)
++        global.gnx_loaded_mod_record = -1;  // the mod record of the save last loaded (s_save_load)
++    }
++
++    global.gnx_vmouse = -1;    // scenario stand-in mouse {x, y, down, pressed} (gnx_mx/gnx_my/gnx_mb)
++    global.gnx_ui_rects = -1;  // an array while a scenario's layout_check records what GNX UI draws
++    global.gnx_draw_spy = -1;  // an array while a scenario probe records the sprites gnx_draw_sprite_ext draws
++    // GNX-UG: extra px of each floor's band (empty = all 0, as vanilla), whether any cell with
++    // physical.underground is registered, the band sprite, and the clip line used below the floor
++    global.gnx_floor_extra = [];
++    global.gnx_ug_any = false;
++    global.gnx_ug_band = -1;
++    global.gnx_ug_assets = gnx_ug_load_assets();
++    global.gnx_clip_top = undefined;
++    global.gnx_ug_logged = false;
++    // GNX-LOOP-STRIP: sprites whose JSON has "loop" (frames per row), filled while the mods load
++    global.gnx_loop_strips = {};
++    // GNX-FIX: which sprites already had their loop set (gnx_loop_mark), so a clash can be reported
++    global.gnx_loop_seen = {};
++    global.gnx_runtime_sprites = [];
++    // GNX-PROP: baked ring glows are runtime sprites too: forget them (and their memory count) with the list
++    global.gnx_glow_bake_cache = {};
++    global.gnx_glow_bake_bytes = 0;
++    global.gnx_glow_bake_n = 0;
++    global.gnx_glow_bake_ms = 0;
++    global.gnx_glow_bake_skipped = 0;
++    global.gnx_mod_errors = [];
++    // Mav (1.4.7.5): destroy the name maps left by a previous load first, so they do not leak
++    if (variable_global_exists("gnx_class_name_to_id") && ds_exists(global.gnx_class_name_to_id, ds_type_map))
++        ds_map_destroy(global.gnx_class_name_to_id);
++    if (variable_global_exists("gnx_cell_name_to_id") && ds_exists(global.gnx_cell_name_to_id, ds_type_map))
++        ds_map_destroy(global.gnx_cell_name_to_id);
++    global.gnx_class_name_to_id = ds_map_create();
++    global.gnx_cell_name_to_id = ds_map_create();
++    
++    if (variable_global_exists("gnx_quest_events") && ds_exists(global.gnx_quest_events, ds_type_map))
++        ds_map_destroy(global.gnx_quest_events);
++    
++    global.gnx_quest_events = ds_map_create();
++    global.gnx_quest_triggers = [];
++    global.gnx_active_quests = [];
++    global.gnx_active_notis = [];
++    
++    if (variable_global_exists("gnx_portraits") && ds_exists(global.gnx_portraits, ds_type_map))
++        ds_map_destroy(global.gnx_portraits);
++    
++    global.gnx_portraits = ds_map_create();
++    
++    if (variable_global_exists("gnx_popups") && ds_exists(global.gnx_popups, ds_type_map))
++        ds_map_destroy(global.gnx_popups);
++    
++    global.gnx_popups = ds_map_create();
++    
++    if (!variable_global_exists("gnx_sprite_cache") || !ds_exists(global.gnx_sprite_cache, ds_type_map))
++        global.gnx_sprite_cache = ds_map_create();
++    
++    if (!variable_global_exists("gnx_sound_cache") || !ds_exists(global.gnx_sound_cache, ds_type_map))
++        global.gnx_sound_cache = ds_map_create();
++    
++    if (!directory_exists(global.gnx_mods_root))
++    {
++        _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX] mods/ folder not found, no mods loaded\n");
++        gnx_log_close(_log);
++        exit;
++    }
++    
++    var _name = file_find_first(global.gnx_mods_root + "*", 16);
++    
++    while (_name != "")
++    {
++        if (_name != "." && _name != ".." && directory_exists(global.gnx_mods_root + _name))
++        {
++            if (file_exists(global.gnx_mods_root + _name + "/manifest.json"))
++            {
++                array_push(global.gnx_indexed_mods, _name);
++            }
++            else
++            {
++                _log = gnx_log_open();
++                gnx_log_write(_log, "[GNX-WARN] folder '" + _name + "' has no manifest.json, skipped\n");
++                gnx_log_close(_log);
++            }
++        }
++        
++        _name = file_find_next();
++    }
++    
++    file_find_close();
++    array_sort(global.gnx_indexed_mods, true);
++    // mod menu: the off-list and "requires" decide what loads; gnx_indexed_mods keeps only those
++    global.gnx_mod_list = scr_gnx_build_mod_list(global.gnx_indexed_mods);
++    global.gnx_indexed_mods = [];
++    
++    for (var _mi = 0; _mi < array_length(global.gnx_mod_list); _mi++)
++    {
++        if (global.gnx_mod_list[_mi].status == "on")
++            array_push(global.gnx_indexed_mods, global.gnx_mod_list[_mi].folder);
++    }
++    
++    // Mav (1.4.7.5): load in phases (classes -> cells -> the rest) instead of one whole mod at a time: folder order no longer matters
++    scr_gnx_load_mod_list(global.gnx_indexed_mods);
++    
++    // mod menu truth: a mod meant to load that did not (wrong game version, broken manifest) is "error";
++    // a loaded one with problems keeps "on" with the first problem as its note
++    for (var _mi = 0; _mi < array_length(global.gnx_mod_list); _mi++)
++    {
++        var _me = global.gnx_mod_list[_mi];
++        
++        if (_me.status != "on")
++            continue;
++        
++        var _err = "";
++        
++        for (var _ei = 0; _ei < array_length(global.gnx_mod_errors); _ei++)
++        {
++            var _msg = global.gnx_mod_errors[_ei];
++            
++            if (_err == "" && string_pos("'" + _me.folder + "'", _msg) > 0)
++                _err = string_replace(string_replace(_msg, "Mod '" + _me.folder + "': ", ""), "Mod '" + _me.folder + "' ", "");
++        }
++        
++        if (!gnx_array_has(global.gnx_loaded_mods, _me.folder))
++        {
++            _me.status = "error";
++            _me.why = (_err != "") ? _err : "did not load";
++        }
++        else if (_err != "")
++        {
++            _me.why = _err;
++        }
++    }
++    
++    scr_gnx_resolve_birth_classes();
++    scr_gnx_deferred_resolve_class_map();
++    var _cp = gnx_log_open();
++    gnx_log_write(_cp, "[GNX-TIME] cp1 after resolve = " + string((get_timer() - _gnx_boot_t0) / 1000) + " ms\n");
++    gnx_log_close(_cp);
++    var _total_rt = array_length(global.gnx_runtime_sprites);
++    var _atlas_mods = ds_map_keys_to_array(global.gnx_mod_atlases);
++    var _n_atlas_mods = array_length(_atlas_mods);
++    var _pages_atlas = 0;
++    
++    for (var _i = 0; _i < _n_atlas_mods; _i++)
++    {
++        var _mid = _atlas_mods[_i];
++        var _adata = ds_map_find_value(global.gnx_mod_atlases, _mid);
++        var _n = 0;
++        // GNX-FIX: page size too (RGBA, uncompressed), to see which mod fills the video memory
++        var _mb = 0;
++        
++        for (var _pg = 0; _pg < array_length(_adata.atlas_sprites); _pg++)
++        {
++            var _ps = _adata.atlas_sprites[_pg];
++            
++            if (_ps != -1 && sprite_exists(_ps))
++            {
++                _n++;
++                _mb += ((sprite_get_width(_ps) * sprite_get_height(_ps) * 4) / 1024 / 1024);
++            }
++        }
++        
++        _pages_atlas += _n;
++        var _n_entries = array_length(variable_struct_get_names(_adata.sprrefs));
++        var _log_p = gnx_log_open();
++        gnx_log_write(_log_p, "[GNX-PERF] mod \"" + _mid + "\" atlas mode: " + string(_n) + " texture pages (~" + string_format(_mb, 1, 1) + " MB), " + string(_n_entries) + " sprite refs");
++        
++        // GNX-FIX: what went wrong with the atlas, if anything (from gnx_load_atlas_mod / gnx_resolve_sprite_raw)
++        if (variable_struct_exists(_adata, "failed_pages"))
++            gnx_log_write(_log_p, ", " + string(_adata.failed_pages) + " page(s) failed to load, " + string(_adata.skipped_entries) + " entr(y/ies) left out, " + string(_adata.strip_loads) + " strip(s) loaded outside the atlas");
++        
++        gnx_log_write(_log_p, "\n");
++        gnx_log_close(_log_p);
++    }
++    
++    var _pages_legacy = _total_rt - _pages_atlas;
++    var _log_p2 = gnx_log_open();
++    gnx_log_write(_log_p2, "[GNX-PERF] TOTAL runtime sprites (texture pages) added by GNX: " + string(_total_rt) + " (" + string(_pages_atlas) + " atlas, " + string(_pages_legacy) + " legacy/strip)\n");
++    gnx_log_close(_log_p2);
++    var _seen_tex = ds_map_create();
++    var _vram_bytes = 0;
++    var _uniq_tex = 0;
++    
++    for (var _si = 0; _si < _total_rt; _si++)
++    {
++        var _spr = global.gnx_runtime_sprites[_si];
++        
++        if (!sprite_exists(_spr))
++            continue;
++        
++        var _n_sub = sprite_get_number(_spr);
++        
++        for (var _sui = 0; _sui < _n_sub; _sui++)
++        {
++            var _tex = sprite_get_texture(_spr, _sui);
++            var _tkey = string(_tex);
++            
++            if (ds_map_exists(_seen_tex, _tkey))
++                continue;
++            
++            ds_map_add(_seen_tex, _tkey, true);
++            _uniq_tex++;
++            var _tw = round(1 / max(texture_get_texel_width(_tex), 0.00000001));
++            var _th = round(1 / max(texture_get_texel_height(_tex), 0.00000001));
++            _vram_bytes += (_tw * _th * 4);
++        }
++    }
++    
++    ds_map_destroy(_seen_tex);
++    var _log_vr = gnx_log_open();
++    gnx_log_write(_log_vr, "[GNX-PERF] VRAM (GNX runtime): " + string(_uniq_tex) + " unique texture pages, ~" + string(_vram_bytes / 1024 / 1024) + " MB RGBA uncompressed\n");
++    gnx_log_close(_log_vr);
++    _cp = gnx_log_open();
++    gnx_log_write(_cp, "[GNX-TIME] cp2 after VRAM block = " + string((get_timer() - _gnx_boot_t0) / 1000) + " ms\n");
++    gnx_log_close(_cp);
++    scr_gnx_build_spawn_tools();
++    // Mav (1.4.7.5): the name maps stay (mods loaded later for another map may reference these mods' classes and cells)
++    scr_gnx_apply_unlocks();
++    scr_gnx_apply_prop_unlocks();
++    scr_gnx_register_goblin_sprites();
++    _cp = gnx_log_open();
++    gnx_log_write(_cp, "[GNX-TIME] cp3 after unlocks = " + string((get_timer() - _gnx_boot_t0) / 1000) + " ms\n");
++    gnx_log_close(_cp);
++    var _gnx_fw_entry = 
++    {
++        mod_name: "_gnx",
++        categories: [
++        {
++            label: "GNX DEBUG",
++            categories: [],
++            buttons: [
++            {
++                label: "PERF LOG",
++                toggle: "perf",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_perf_enabled",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_perf_enabled",
++                    value: 0
++                }],
++                popup: "Perf logging ON (gnx_debug.txt)",
++                undo_popup: "Perf logging OFF",
++                guard: -1,
++                guard_fail_popup: ""
++            }, 
++            {
++                label: "VERBOSE",
++                toggle: "verbose",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_debug_verbose",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_debug_verbose",
++                    value: 0
++                }],
++                popup: "Verbose debug logging ON",
++                undo_popup: "Verbose debug logging OFF",
++                guard: -1,
++                guard_fail_popup: ""
++            }, 
++            {
++                label: "FREE COPY",
++                toggle: "free_floor_copy",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_free_floor_copy",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_free_floor_copy",
++                    value: 0
++                }],
++                popup: "Floor copies are free",
++                undo_popup: "Floor copies cost the build price again",
++                guard: -1,
++                guard_fail_popup: ""
++            },
++            {
++                label: "CAPT100",
++                toggle: "capture100",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_force_capture_100",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_force_capture_100",
++                    value: 0
++                }],
++                popup: "Raid capture rate forced to 100%",
++                undo_popup: "Raid capture rate back to normal",
++                guard: -1,
++                guard_fail_popup: ""
++            }, 
++            {
++                label: "TRACE",
++                toggle: "trace",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_trace_entities",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_trace_entities",
++                    value: 0
++                }],
++                popup: "Entity lifecycle tracing ON (gnx_debug.txt)",
++                undo_popup: "Entity lifecycle tracing OFF",
++                guard: -1,
++                guard_fail_popup: ""
++            }, 
++            {
++                label: "OVERLAY",
++                toggle: "overlay",
++                actions: [
++                {
++                    type: "show_debug_overlay",
++                    enable: true
++                }],
++                undo_actions: [
++                {
++                    type: "show_debug_overlay",
++                    enable: false
++                }],
++                popup: "GameMaker debug overlay ON (FPS, memory, textures)",
++                undo_popup: "GameMaker debug overlay OFF",
++                guard: -1,
++                guard_fail_popup: ""
++            }, 
++            {
++                label: "PERF HUD",
++                toggle: "perfhud",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_perf_hud",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_perf_hud",
++                    value: 0
++                }],
++                popup: "GNX perf HUD ON (FPS, sprites, VRAM)",
++                undo_popup: "GNX perf HUD OFF",
++                guard: -1,
++                guard_fail_popup: ""
++            },
++            {
++                label: "RUN ALL",
++                toggle: "cullstep",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_cull_step_off",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_cull_step_off",
++                    value: 0
++                }],
++                popup: "Off-screen cells now RUN (step culling OFF)",
++                undo_popup: "Off-screen cells frozen again (step culling ON)",
++                guard: -1,
++                guard_fail_popup: ""
++            },
++            {
++                label: "ECON",
++                toggle: "econ",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_econ_on",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_econ_on",
++                    value: 0
++                }],
++                popup: "Economy probe ON - report every game day in gnx_debug.txt",
++                undo_popup: "Economy probe OFF - summary written",
++                guard: -1,
++                guard_fail_popup: ""
++            }]
++        }]
++    };
++    array_push(global.gnx_tool_registry, _gnx_fw_entry);
++    global.gnx_has_tools = true;
++    global.gnx_tools_enabled = true;
++    global.gnx_spawn_rank = 0;
++    global.gnx_continuous_effects = [];
++    _log = gnx_log_open();
++    
++    // GNX-PROP: one line for all ring glows baked while loading (audit 17)
++    if (variable_global_exists("gnx_glow_bake_n") && (global.gnx_glow_bake_n > 0 || global.gnx_glow_bake_skipped > 0))
++        gnx_log_write(_log, "[GNX-PERF] ring glows: " + string(global.gnx_glow_bake_n) + " baked, ~" + string(floor(global.gnx_glow_bake_bytes / 1024)) + " KB estimated RGBA, " + string(floor(global.gnx_glow_bake_ms)) + " ms, " + string(global.gnx_glow_bake_skipped) + " left out over budget\n");
++    
++    gnx_log_write(_log, "[GNX] loader done\n");
++    
++    if (global.gnx_has_tools)
++        gnx_log_write(_log, "[GNX] tool system available (" + string(array_length(global.gnx_tool_registry)) + " mod(s) with tools)\n");
++    
++    if (global.gnx_has_sounds)
++        gnx_log_write(_log, "[GNX] sound system active (banks=" + string(array_length(global.gnx_voice_bank_names)) + " orgasm=" + string(array_length(global.gnx_sfx_orgasm)) + " bj=" + string(array_length(global.gnx_sfx_bj_slurp) + array_length(global.gnx_sfx_bj_gag) + array_length(global.gnx_sfx_bj_moan) + array_length(global.gnx_sfx_bj_breathe)) + ")\n");
++    
++    gnx_log_close(_log);
++    var _tl_end = gnx_log_open();
++    gnx_log_write(_tl_end, "[GNX-TIME] TOTAL loader = " + string((get_timer() - _gnx_boot_t0) / 1000) + " ms\n");
++    gnx_log_close(_tl_end);
++    gnx_log_flush();
++    
++    if (global.gnx_multimap_enabled && global.gnx_active_map != "vanilla")
++    {
++        var _rx = 200;
++        var _ry = 80;
++        var _rl = "Return";
++        
++        for (var _ti = 0; _ti < array_length(global.gnx_travel_locations); _ti++)
++        {
++            if (global.gnx_travel_locations[_ti].target == global.gnx_active_map)
++            {
++                _rx = global.gnx_travel_locations[_ti].return_x;
++                _ry = global.gnx_travel_locations[_ti].return_y;
++                _rl = global.gnx_travel_locations[_ti].return_label;
++                global.gnx_map_sprite = global.gnx_travel_locations[_ti].map_sprite;
++                break;
++            }
++        }
++        
++        var _ret = {};
++        _ret.target = "vanilla";
++        _ret.show_on = global.gnx_active_map;
++        _ret.label = _rl;
++        _ret.x = _rx;
++        _ret.y = _ry;
++        _ret.mod_name = "_gnx";
++        _ret.map_sprite = -1;
++        array_push(global.gnx_travel_locations, _ret);
++    }
++    else
++    {
++        global.gnx_map_sprite = -1;
++    }
++    
++    if (global.gnx_multimap_enabled)
++        scr_gnx_sanitize_maps();
++    
++    if (array_length(global.gnx_mod_errors) > 0)
++    {
++        var _msg = "Mod loading problem(s):\n\n";
++        
++        for (var _ei = 0; _ei < array_length(global.gnx_mod_errors); _ei++)
++            _msg += ("- " + global.gnx_mod_errors[_ei] + "\n");
++        
++        _msg += "\nDetails in gnx_debug.txt.";
++
++        // the loader re-runs on every travel and menu return: show the same problems only once per session
++        if (!variable_global_exists("gnx_mod_errors_shown") || global.gnx_mod_errors_shown != _msg)
++        {
++            global.gnx_mod_errors_shown = _msg;
++            show_message(_msg);
++        }
++    }
++}
++
++
++function scr_gnx_cleanup_sprites()
++{
++    if (!variable_global_exists("gnx_runtime_sprites"))
++        exit;
++    
++    var _arr = global.gnx_runtime_sprites;
++    var _n = array_length(_arr);
++    
++    for (var _i = 0; _i < _n; _i++)
++    {
++        if (gnx_sprite_exists(_arr[_i]))
++            sprite_delete(_arr[_i]);
++    }
++    
++    global.gnx_runtime_sprites = [];
++    // GNX-PROP: baked ring glows are runtime sprites too: forget them (and their memory count) with the list
++    global.gnx_glow_bake_cache = {};
++    global.gnx_glow_bake_bytes = 0;
++    global.gnx_glow_bake_n = 0;
++    global.gnx_glow_bake_ms = 0;
++    global.gnx_glow_bake_skipped = 0;
++}
++
++
++// Mav (1.4.7.5): loads a list of mods in three phases, so references between mods do not depend on folder names:
++// 1) manifest + classes of every mod, 2) cells of every mod, 3) quests, tools, sounds, props.
++// Mods that failed or are deferred to another map store no manifest, so phases 2-3 skip them.
++function scr_gnx_load_mod_list(arg0)
++{
++    global.gnx_staged_load = true;
++    global.gnx_staged_manifests = {};
++    for (var _i = 0; _i < array_length(arg0); _i++)
++        scr_gnx_load_mod(arg0[_i]);
++    global.gnx_staged_load = false;
++    // phase 2: cells of every mod
++    for (var _j = 0; _j < array_length(arg0); _j++)
++    {
++        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_j]))
++            scr_gnx_load_mod_stage(arg0[_j], variable_struct_get(global.gnx_staged_manifests, arg0[_j]), 2);
++    }
++    // conditions in classes.json may name cells ("h_type": "Mod.Cell"): every cell exists now
++    scr_gnx_reresolve_class_conditions();
++    // phase 3: quests, tools, sounds, props of every mod
++    for (var _k = 0; _k < array_length(arg0); _k++)
++    {
++        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_k]))
++            scr_gnx_load_mod_stage(arg0[_k], variable_struct_get(global.gnx_staged_manifests, arg0[_k]), 3);
++    }
++    global.gnx_staged_manifests = {};
++}
++
++function scr_gnx_load_mod(arg0)
++{
++    var _manifest_path = global.gnx_mods_root + arg0 + "/manifest.json";
++    
++    if (!file_exists(_manifest_path))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': manifest.json not found");
++        exit;
++    }
++    
++    var _f = file_text_open_read(_manifest_path);
++    var _raw = "";
++    
++    while (!file_text_eof(_f))
++        _raw += file_text_readln(_f);
++    
++    file_text_close(_f);
++    var _manifest = undefined;
++    
++    try
++    {
++        _manifest = json_parse(_raw);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': manifest.json invalid (" + string(_e.message) + ")");
++        exit;
++    }
++    
++    // "map_info" is the map's settings (name, picture, travel tier, unlock); "map_button" is its old name, still read
++    if (variable_struct_exists(_manifest, "map_info"))
++    {
++        if (variable_struct_exists(_manifest, "map_button"))
++            gnx_report_mod_error("Mod '" + arg0 + "' declares both map_info and map_button (its old name): map_info is used");
++
++        _manifest.map_button = _manifest.map_info;
++    }
++
++    var _versions = variable_struct_exists(_manifest, "compatible_game_versions") ? _manifest.compatible_game_versions : [];
++    var _game_ver = string(global.val.version);
++    var _ok = false;
++    
++    for (var _i = 0; _i < array_length(_versions); _i++)
++    {
++        for (var _j = 0; _j < array_length(global.gnx_accepted_versions); _j++)
++        {
++            if (_versions[_i] == global.gnx_accepted_versions[_j])
++            {
++                _ok = true;
++                break;
++            }
++        }
++        
++        if (_ok)
++            break;
++    }
++    
++    if (!_ok)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': incompatible with game version " + _game_ver + " (compatible: " + string(_versions) + ")");
++        exit;
++    }
++    
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] loading: " + string(_manifest.name) + " v" + string(_manifest.version) + "\n");
++    gnx_log_close(_log);
++    scr_gnx_init_mod_state(arg0, _manifest);
++    global.gnx_current_loading_mod = arg0;
++    var _atlas_root = global.gnx_mods_root + arg0 + "/atlas/";
++    
++    if (file_exists(_atlas_root + "uv.json") && !ds_map_exists(global.gnx_mod_atlases, arg0))
++    {
++        var _atref = gnx_load_atlas_mod(global.gnx_mods_root + arg0 + "/", arg0);
++        
++        if (_atref != undefined)
++            ds_map_add(global.gnx_mod_atlases, arg0, _atref);
++    }
++    
++    var _mod_map = variable_struct_exists(_manifest, "map") ? _manifest.map : "vanilla";  // one map ID or a list of them
++
++    if (is_array(_mod_map) && array_length(_mod_map) == 0)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': 'map' is an empty list, so it would load on no map; it is treated as the village");
++        _mod_map = "vanilla";
++    }
++    variable_struct_set(global.gnx_mod_map_decl, arg0, _mod_map);
++    var _own_maps = gnx_map_decl_mod_maps(_mod_map);
++    var _own_map = (array_length(_own_maps) == 1) ? _own_maps[0] : "";  // the map map_info/map_start describe
++
++    if (global.gnx_multimap_enabled)
++    {
++        // The first mod (load order) to declare a button or map_start for a map owns it. A later one is
++        // treated as content for that map only: its button/map_start are ignored and reported.
++        var _not_owner = false;
++        var _declares = variable_struct_exists(_manifest, "map_button") || variable_struct_exists(_manifest, "map_start");
++
++        if (_declares && array_length(_own_maps) > 1)  // a list may name several mod maps, but then it owns none
++        {
++            _not_owner = true;
++            gnx_report_mod_error("Mod '" + arg0 + "' lists " + string(array_length(_own_maps)) + " mod maps in 'map': map_info and map_start need exactly one, so they are ignored");
++        }
++        else if (_declares && _own_map != "")
++        {
++            if (!variable_struct_exists(global.gnx_map_owner, _own_map))
++            {
++                variable_struct_set(global.gnx_map_owner, _own_map, arg0);
++            }
++            else if (variable_struct_get(global.gnx_map_owner, _own_map) != arg0)
++            {
++                _not_owner = true;
++                gnx_report_mod_error("Mod '" + arg0 + "' also declares map '" + _own_map + "' (already owned by '" + variable_struct_get(global.gnx_map_owner, _own_map) + "'); its map_info and map_start are ignored");
++            }
++        }
++
++        if (variable_struct_exists(_manifest, "map_button") && _own_map != "" && !_not_owner)
++        {
++            var _mb = _manifest.map_button;
++            var _tl = {};
++            _tl.target = _own_map;
++            _tl.show_on = "vanilla";
++            _tl.label = variable_struct_exists(_mb, "label") ? _mb.label : _own_map;
++            _tl.x = variable_struct_exists(_mb, "x") ? _mb.x : 210;
++            _tl.y = variable_struct_exists(_mb, "y") ? _mb.y : 70;
++            _tl.mod_name = arg0;
++            _tl.travel = variable_struct_exists(_mb, "travel") ? string(_mb.travel) : "simple";  // pre-travel selector tier
++            var _tc = (variable_struct_exists(_mb, "travel_cost") && is_struct(_mb.travel_cost)) ? _mb.travel_cost : {};
++            _tl.cost = { gold: variable_struct_exists(_tc, "gold") ? max(0, gnx_json_num(_tc.gold, 0)) : 0, food: variable_struct_exists(_tc, "food") ? max(0, gnx_json_num(_tc.food, 0)) : 0, days: variable_struct_exists(_tc, "days") ? max(0, floor(gnx_json_num(_tc.days, 0))) : 0 };
++            _tl.unlock = -1;
++            
++            if (variable_struct_exists(_mb, "unlock"))  // condition (or array of conditions, all needed) to show the map
++            {
++                _tl.unlock = _mb.unlock;
++                var _ucl = is_array(_tl.unlock) ? _tl.unlock : [_tl.unlock];
++                
++                for (var _uci = 0; _uci < array_length(_ucl); _uci++)
++                {
++                    if (is_struct(_ucl[_uci]))
++                        scr_gnx_resolve_condition_refs(_ucl[_uci], arg0);
++                }
++            }
++            
++            if (variable_struct_exists(_mb, "map_sprite"))
++            {
++                var _ms_path = global.gnx_mods_root + arg0 + "/sprites/" + _mb.map_sprite;
++                var _ms_cache = _ms_path;
++                
++                if (ds_map_exists(global.gnx_sprite_cache, _ms_cache) && gnx_sprite_exists(ds_map_find_value(global.gnx_sprite_cache, _ms_cache)))
++                {
++                    _tl.map_sprite = ds_map_find_value(global.gnx_sprite_cache, _ms_cache);
++                }
++                else
++                {
++                    var _ms = sprite_add(_ms_path, 1, false, false, 0, 0);
++                    
++                    if (_ms != -1)
++                    {
++                        array_push(global.gnx_runtime_sprites, _ms);
++                        ds_map_set(global.gnx_sprite_cache, _ms_cache, _ms);
++                    }
++                    
++                    _tl.map_sprite = _ms;
++                }
++            }
++            else
++            {
++                _tl.map_sprite = -1;
++            }
++            
++            _tl.return_x = variable_struct_exists(_mb, "return_x") ? _mb.return_x : _tl.x;
++            _tl.return_y = variable_struct_exists(_mb, "return_y") ? _mb.return_y : _tl.y;
++            _tl.return_label = variable_struct_exists(_mb, "return_label") ? _mb.return_label : "Return";
++            _tl.no_capture = gnx_parse_no_capture(_mb, arg0);
++            array_push(global.gnx_travel_locations, _tl);
++            _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-MAP] travel location: '" + _tl.label + "' -> " + _tl.target + " at (" + string(_tl.x) + "," + string(_tl.y) + ")\n");
++            gnx_log_close(_log);
++        }
++        
++        if (variable_struct_exists(_manifest, "map_start") && _own_map != "" && !_not_owner)
++            variable_struct_set(global.gnx_map_start_decl, _own_map, _manifest.map_start);
++
++        if (!gnx_map_decl_has(_mod_map, global.gnx_active_map))
++        {
++            _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX] mod '" + arg0 + "' deferred (map=" + string(_mod_map) + ", active='" + global.gnx_active_map + "')\n");
++            gnx_log_close(_log);
++            
++            if (is_array(global.gnx_loaded_mods))
++                array_push(global.gnx_loaded_mods, arg0);
++            
++            array_push(global.gnx_map_deferred_mods, arg0);
++            exit;
++        }
++    }
++    
++    var _tmp_t0 = get_timer();
++    
++    if (variable_struct_exists(_manifest, "classes"))
++        scr_gnx_load_classes(arg0, _manifest.classes);
++    
++    var _tmp_lg = gnx_log_open();
++    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " classes = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++    gnx_log_close(_tmp_lg);
++    _tmp_t0 = get_timer();
++    
++    // Mav (1.4.7.5): in a staged load (scr_gnx_load_mod_list) phase 1 (manifest + classes) ends here.
++    // The manifest is kept; scr_gnx_load_mod_stage loads cells and the rest once ALL mods' classes are known.
++    if (variable_global_exists("gnx_staged_load") && global.gnx_staged_load)
++    {
++        variable_struct_set(global.gnx_staged_manifests, arg0, _manifest);
++        exit;
++    }
++    // one mod on its own (old path): phases 2 and 3 right away
++    scr_gnx_load_mod_stage(arg0, _manifest, 2);
++    scr_gnx_load_mod_stage(arg0, _manifest, 3);
++}
++
++// Mav (1.4.7.5): phase 2 or 3 of loading mod arg0 with manifest arg1.
++// arg2 == 2: cells.json; arg2 == 3: quests, tools, sounds, props (+ warnings and the loaded-mods entry).
++function scr_gnx_load_mod_stage(arg0, arg1, arg2)
++{
++    var _manifest = arg1;
++    var _tmp_t0 = get_timer();
++    var _tmp_lg, _log;
++    // sprites and the atlas look in the "currently loading" mod: set it again for each phase
++    global.gnx_current_loading_mod = arg0;
++    if (arg2 == 2)
++    {
++        if (variable_struct_exists(_manifest, "cells"))
++            scr_gnx_load_cells(arg0, _manifest.cells);
++    
++        _tmp_lg = gnx_log_open();
++        gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " cells = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++        gnx_log_close(_tmp_lg);
++        _tmp_t0 = get_timer();
++    
++        exit;
++    }
++    if (variable_struct_exists(_manifest, "quests"))
++        scr_gnx_load_quests(arg0, _manifest.quests);
++    
++    _tmp_lg = gnx_log_open();
++    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " quests = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++    gnx_log_close(_tmp_lg);
++    _tmp_t0 = get_timer();
++    
++    if (variable_struct_exists(_manifest, "tools"))
++        scr_gnx_load_tools(arg0, _manifest.tools);
++    
++    _tmp_lg = gnx_log_open();
++    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " tools = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++    gnx_log_close(_tmp_lg);
++    _tmp_t0 = get_timer();
++    
++    if (variable_struct_exists(_manifest, "sounds"))
++        scr_gnx_load_sounds(arg0, _manifest.sounds);
++    
++    _tmp_lg = gnx_log_open();
++    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " sounds = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++    gnx_log_close(_tmp_lg);
++    _tmp_t0 = get_timer();
++    
++    if (variable_struct_exists(_manifest, "props"))
++        scr_gnx_load_props(arg0, _manifest.props);
++    
++    _tmp_lg = gnx_log_open();
++    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++    gnx_log_close(_tmp_lg);
++    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json"];
++    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props"];
++    var _mod_dir = global.gnx_mods_root + arg0 + "/";
++    
++    for (var _wi = 0; _wi < array_length(_data_files); _wi++)
++    {
++        if (file_exists(_mod_dir + _data_files[_wi]) && !variable_struct_exists(_manifest, _data_keys[_wi]))
++        {
++            _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-WARN] mod '" + arg0 + "': " + _data_files[_wi] + " exists but is not declared in manifest.json\n");
++            gnx_log_close(_log);
++        }
++    }
++    
++    if (is_array(global.gnx_loaded_mods))
++        array_push(global.gnx_loaded_mods, arg0);
++}
++
++
++function scr_gnx_init_mod_state(arg0, arg1)
++{
++    var _mod_name = arg0;
++    var _has_save_state = variable_struct_exists(arg1, "save_state");
++    var _defaults = {};
++    var _schema_ver = 0;
++    
++    if (_has_save_state)
++    {
++        var _ss = arg1.save_state;
++        _schema_ver = variable_struct_exists(_ss, "version") ? _ss.version : 1;
++        
++        if (variable_struct_exists(_ss, "fields"))
++            _defaults = _ss.fields;
++    }
++    
++    variable_struct_set(global.gnx_save_state_defaults, _mod_name, 
++    {
++        version: _schema_ver,
++        fields: _defaults
++    });
++    var _existing = variable_struct_exists(global.val.gnx_mod_data, _mod_name) ? variable_struct_get(global.val.gnx_mod_data, _mod_name) : undefined;
++    
++    if (_existing == undefined)
++    {
++        var _state = {};
++        _state._version = _schema_ver;
++        var _keys = variable_struct_get_names(_defaults);
++        
++        for (var _i = 0; _i < array_length(_keys); _i++)
++            variable_struct_set(_state, _keys[_i], variable_struct_get(_defaults, _keys[_i]));
++        
++        variable_struct_set(global.val.gnx_mod_data, _mod_name, _state);
++        _existing = _state;
++    }
++    else
++    {
++        var _keys = variable_struct_get_names(_defaults);
++        
++        for (var _i = 0; _i < array_length(_keys); _i++)
++        {
++            var _k = _keys[_i];
++            
++            if (!variable_struct_exists(_existing, _k))
++                variable_struct_set(_existing, _k, variable_struct_get(_defaults, _k));
++        }
++        
++        var _saved_ver = variable_struct_exists(_existing, "_version") ? _existing._version : 0;
++        
++        if (_schema_ver > _saved_ver)
++            _existing._version = _schema_ver;
++    }
++    
++    variable_struct_set(global.gnx_mod_state, _mod_name, _existing);
++    var _log = gnx_log_open();
++    var _n_keys = array_length(variable_struct_get_names(_existing));
++    gnx_log_write(_log, "[GNX] mod_state init: " + _mod_name + " v" + string(_existing._version) + " keys=" + string(_n_keys) + "\n");
++    gnx_log_close(_log);
++}
++
++
++function scr_gnx_get_state(arg0, arg1)
++{
++    if (!variable_struct_exists(global.gnx_mod_state, arg0))
++        return undefined;
++    
++    var _state = variable_struct_get(global.gnx_mod_state, arg0);
++    
++    if (!variable_struct_exists(_state, arg1))
++        return undefined;
++    
++    return variable_struct_get(_state, arg1);
++}
++
++
++function scr_gnx_set_state(arg0, arg1, arg2)
++{
++    if (!variable_struct_exists(global.gnx_mod_state, arg0))
++    {
++        _state = 
++        {
++            _version: 0
++        };
++        variable_struct_set(global.val.gnx_mod_data, arg0, _state);
++        variable_struct_set(global.gnx_mod_state, arg0, _state);
++    }
++    
++    var _state = variable_struct_get(global.gnx_mod_state, arg0);
++    var _prev = variable_struct_exists(_state, arg1) ? variable_struct_get(_state, arg1) : undefined;
++    variable_struct_set(_state, arg1, arg2);
++    return _prev;
++}
++
++
++function scr_gnx_window_quit_to_menu_enter()
++{
++    if (enter)
++    {
++        for (var i = 0; i <= global.val.floor; i++)
++            ds_list_destroy(global.slot_list[i]);
++        
++        ds_list_destroy(global.unit_list);
++        ds_list_destroy(global.front_row);
++        ds_list_destroy(global.back_row);
++        ds_list_destroy(global.new_button_list);
++        ds_list_destroy(global.noti_list);
++        ds_list_destroy(global.inv_list);
++        ds_list_destroy(global.raid_inv_list);
++        ds_list_destroy(global.quest_list);
++        ds_list_destroy(global.new_guide_list);
++        ds_list_destroy(global.front_row_save);
++        ds_list_destroy(global.back_row_save);
++        scr_create_initials();
++        room_goto(rm_menu);
++    }
++    else
++    {
++        scr_sfx_play(UnknownEnum.Value_1);
++    }
++    
++    with (obj_button)
++    {
++        if (interact_type == UnknownEnum.Value_56)
++            instance_destroy();
++    }
++    
++    instance_destroy();
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

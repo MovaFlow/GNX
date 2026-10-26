@@ -1,0 +1,933 @@
+--- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,930 @@
++// GNX: quests, triggers, dialogs, popups, rewards
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++// Mav (1.4.7.5): re-resolves names in classes.json conditions (raid_spawns, cage_escape, tower_boss_condition).
++// No cell existed yet while classes loaded, so "h_type": "Mod.Cell" stayed a string.
++// Already resolved values (numbers) are skipped, so it is safe to call more than once.
++function scr_gnx_reresolve_class_conditions()
++{
++    if (variable_global_exists("gnx_encounter_pools") && ds_exists(global.gnx_encounter_pools, ds_type_map))
++    {
++        var _pk = ds_map_find_first(global.gnx_encounter_pools);
++        while (!is_undefined(_pk))
++        {
++            var _pool = ds_map_find_value(global.gnx_encounter_pools, _pk);
++            if (!is_undefined(_pool) && ds_exists(_pool, ds_type_list))
++            {
++                for (var _pi = 0; _pi < ds_list_size(_pool); _pi++)
++                {
++                    var _pe = ds_list_find_value(_pool, _pi);
++                    if (is_struct(_pe) && variable_struct_exists(_pe, "condition") && is_struct(_pe.condition) && variable_struct_exists(_pe, "mod_name"))
++                        scr_gnx_resolve_condition_refs(_pe.condition, _pe.mod_name);
++                }
++            }
++            _pk = ds_map_find_next(global.gnx_encounter_pools, _pk);
++        }
++    }
++    var _ck = ds_map_find_first(global.class_registry);
++    while (!is_undefined(_ck))
++    {
++        var _rc = ds_map_find_value(global.class_registry, _ck);
++        if (is_struct(_rc) && variable_struct_exists(_rc, "mod_name"))
++        {
++            if (variable_struct_exists(_rc, "post_raid") && is_struct(_rc.post_raid) && variable_struct_exists(_rc.post_raid, "cage_escape") && is_struct(_rc.post_raid.cage_escape) && variable_struct_exists(_rc.post_raid.cage_escape, "condition") && is_struct(_rc.post_raid.cage_escape.condition))
++                scr_gnx_resolve_condition_refs(_rc.post_raid.cage_escape.condition, _rc.mod_name);
++            if (variable_struct_exists(_rc, "tower_boss_condition") && is_struct(_rc.tower_boss_condition))
++                scr_gnx_resolve_condition_refs(_rc.tower_boss_condition, _rc.mod_name);
++        }
++        _ck = ds_map_find_next(global.class_registry, _ck);
++    }
++}
++
++function scr_gnx_load_quests(arg0, arg1)
++{
++    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
++    
++    if (!file_exists(_path))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': quests file '" + arg1 + "' not found");
++        exit;
++    }
++    
++    var _f = file_text_open_read(_path);
++    var _raw = "";
++    
++    while (!file_text_eof(_f))
++        _raw += file_text_readln(_f);
++    
++    file_text_close(_f);
++    var _data;
++    
++    try
++    {
++        _data = json_parse(_raw);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': " + arg1 + " invalid (" + string(_e.message) + ")");
++        exit;
++    }
++    
++    var _base_dir = global.gnx_mods_root + arg0 + "/";
++    var _log = gnx_log_open();
++    var _portrait_count = 0;
++    var _popup_count = 0;
++    var _event_count = 0;
++    var _trigger_count = 0;
++    
++    if (variable_struct_exists(_data, "portraits"))
++    {
++        var _pkeys = variable_struct_get_names(_data.portraits);
++        
++        for (var _pi = 0; _pi < array_length(_pkeys); _pi++)
++        {
++            var _pk = _pkeys[_pi];
++            var _pdef = variable_struct_get(_data.portraits, _pk);
++            var _strip_path = _base_dir + "portraits/" + _pdef.strip;
++            var _frames = variable_struct_exists(_pdef, "frames") ? _pdef.frames : 1;
++            var _full_key = arg0 + "." + _pk;
++            
++            if (file_exists(_strip_path))
++            {
++                var _cache_key = _strip_path;
++                var _spr = ds_map_find_value(global.gnx_sprite_cache, _cache_key);
++                
++                if (_spr == undefined)
++                {
++                    _spr = sprite_add(_strip_path, _frames, false, false, 0, 0);
++                    
++                    if (_spr != -1)
++                    {
++                        array_push(global.gnx_runtime_sprites, _spr);
++                        ds_map_add(global.gnx_sprite_cache, _cache_key, _spr);
++                    }
++                }
++                
++                if (_spr != -1)
++                {
++                    ds_map_add(global.gnx_portraits, _full_key, _spr);
++                    _portrait_count++;
++                }
++                else
++                {
++                    gnx_log_write(_log, "[GNX] portrait '" + _full_key + "': sprite_add failed\n");
++                }
++            }
++            else
++            {
++                gnx_log_write(_log, "[GNX] portrait '" + _full_key + "': file not found (" + _strip_path + ")\n");
++            }
++        }
++    }
++    
++    if (variable_struct_exists(_data, "popups"))
++    {
++        var _pkeys = variable_struct_get_names(_data.popups);
++        
++        for (var _pi = 0; _pi < array_length(_pkeys); _pi++)
++        {
++            var _pk = _pkeys[_pi];
++            var _full_key = arg0 + "." + _pk;
++            var _text = variable_struct_get(_data.popups, _pk);
++            ds_map_add(global.gnx_popups, _full_key, _text);
++            gnx_log_write(_log, "[GNX] popup " + _full_key + " = \"" + string(_text) + "\"\n");
++            _popup_count++;
++        }
++    }
++    
++    if (variable_struct_exists(_data, "events"))
++    {
++        var _ekeys = variable_struct_get_names(_data.events);
++        
++        for (var _ei = 0; _ei < array_length(_ekeys); _ei++)
++        {
++            var _ek = _ekeys[_ei];
++            var _edef = variable_struct_get(_data.events, _ek);
++            var _full_id = arg0 + "." + _ek;
++            _edef.mod_name = arg0;
++            _edef.event_id = _full_id;
++            
++            if (variable_struct_exists(_edef, "dialog"))
++            {
++                var _dlines = _edef.dialog;
++                
++                for (var _di = 0; _di < array_length(_dlines); _di++)
++                {
++                    var _line = _dlines[_di];
++                    
++                    if (is_string(_line.portrait))
++                    {
++                        var _pref = arg0 + "." + _line.portrait;
++                        var _pspr = ds_map_find_value(global.gnx_portraits, _pref);
++                        _line.portrait_spr = (_pspr != undefined) ? _pspr : -1;
++                    }
++                    else
++                    {
++                        _line.portrait_spr = _line.portrait;
++                    }
++                }
++            }
++            
++            if (variable_struct_exists(_edef, "next_event") && is_string(_edef.next_event))
++                _edef.next_event = arg0 + "." + _edef.next_event;
++            
++            if (variable_struct_exists(_edef, "completion"))
++                scr_gnx_resolve_condition_refs(_edef.completion, arg0);
++            
++            if (variable_struct_exists(_edef, "side_effects"))
++            {
++                var _se = _edef.side_effects;
++                
++                for (var _si = 0; _si < array_length(_se); _si++)
++                    scr_gnx_resolve_side_effect_refs(_se[_si], arg0);
++            }
++            
++            ds_map_add(global.gnx_quest_events, _full_id, _edef);
++            gnx_log_write(_log, "[GNX] event " + _full_id + " type=" + _edef.type);
++            
++            if (_edef.type == "quest")
++                gnx_log_write(_log, " text=\"" + string(_edef.quest_text) + "\"");
++            
++            if (variable_struct_exists(_edef, "dialog"))
++                gnx_log_write(_log, " dialog=" + string(array_length(_edef.dialog)) + " lines");
++            
++            if (variable_struct_exists(_edef, "next_event") && _edef.next_event != undefined)
++                gnx_log_write(_log, " next=" + string(_edef.next_event));
++            
++            gnx_log_write(_log, "\n");
++            _event_count++;
++        }
++    }
++    
++    if (variable_struct_exists(_data, "triggers"))
++    {
++        var _trigs = _data.triggers;
++        
++        for (var _ti = 0; _ti < array_length(_trigs); _ti++)
++        {
++            var _tdef = _trigs[_ti];
++            _tdef.mod_name = arg0;
++            
++            if (is_string(_tdef.event))
++                _tdef.event = arg0 + "." + _tdef.event;
++            
++            if (variable_struct_exists(_tdef, "conditions"))
++            {
++                var _conds = _tdef.conditions;
++                
++                for (var _ci = 0; _ci < array_length(_conds); _ci++)
++                    scr_gnx_resolve_condition_refs(_conds[_ci], arg0);
++            }
++            
++            array_push(global.gnx_quest_triggers, _tdef);
++            var _nconds = variable_struct_exists(_tdef, "conditions") ? array_length(_tdef.conditions) : 0;
++            gnx_log_write(_log, "[GNX] trigger hook=" + _tdef.hook + " event=" + string(_tdef.event) + " conditions=" + string(_nconds) + "\n");
++            _trigger_count++;
++        }
++    }
++    
++    gnx_log_write(_log, "[GNX] quests loaded: " + string(_event_count) + " events, " + string(_trigger_count) + " triggers, " + string(_portrait_count) + " portraits, " + string(_popup_count) + " popups\n");
++    gnx_log_close(_log);
++}
++
++
++function scr_gnx_resolve_condition_refs(arg0, arg1)
++{
++    if (variable_struct_exists(arg0, "class") && is_string(arg0.class))
++    {
++        var _ref = arg0.class;
++        
++        if (string_pos(".", _ref) == 0)
++            _ref = arg1 + "." + _ref;
++        
++        var _cid = ds_map_find_value(global.gnx_class_name_to_id, _ref);
++        
++        if (_cid != undefined)
++            arg0.class = _cid;
++    }
++    
++    if (variable_struct_exists(arg0, "h_type") && is_string(arg0.h_type))
++    {
++        var _ref = arg0.h_type;
++        
++        if (string_pos(".", _ref) == 0)
++            _ref = arg1 + "." + _ref;
++        
++        var _hid = ds_map_find_value(global.gnx_cell_name_to_id, _ref);
++        
++        if (_hid != undefined)
++            arg0.h_type = _hid;
++    }
++}
++
++
++function scr_gnx_resolve_side_effect_refs(arg0, arg1)
++{
++    if (variable_struct_exists(arg0, "h_type") && is_string(arg0.h_type))
++    {
++        var _ref = arg0.h_type;
++        
++        if (string_pos(".", _ref) == 0)
++            _ref = arg1 + "." + _ref;
++        
++        var _hid = ds_map_find_value(global.gnx_cell_name_to_id, _ref);
++        
++        if (_hid != undefined)
++            arg0.h_type = _hid;
++    }
++    
++    if (variable_struct_exists(arg0, "class") && is_string(arg0.class))
++    {
++        var _ref = arg0.class;
++        
++        if (string_pos(".", _ref) == 0)
++            _ref = arg1 + "." + _ref;
++        
++        var _cid = ds_map_find_value(global.gnx_class_name_to_id, _ref);
++        
++        if (_cid != undefined)
++            arg0.class = _cid;
++    }
++}
++
++
++function scr_gnx_check_triggers(arg0)
++{
++    var _n = array_length(global.gnx_quest_triggers);
++    
++    for (var _i = 0; _i < _n; _i++)
++    {
++        var _trig = global.gnx_quest_triggers[_i];
++        
++        if (_trig.hook != arg0)
++            continue;
++        
++        var _pass = true;
++        
++        if (variable_struct_exists(_trig, "conditions"))
++        {
++            var _conds = _trig.conditions;
++            
++            for (var _ci = 0; _ci < array_length(_conds); _ci++)
++            {
++                if (!scr_gnx_eval_condition(_conds[_ci], _trig.mod_name))
++                {
++                    _pass = false;
++                    break;
++                }
++            }
++        }
++        
++        if (_pass)
++            scr_gnx_fire_event(_trig.event);
++    }
++}
++
++
++function scr_gnx_eval_condition(arg0, arg1)
++{
++    var _type = arg0.type;
++    
++    switch (_type)
++    {
++        case "state_equals":
++            return scr_gnx_get_state(arg1, arg0.key) == arg0.value;
++        
++        case "state_gte":
++            var _v = scr_gnx_get_state(arg1, arg0.key);
++            return _v != undefined && _v >= arg0.value;
++        
++        case "state_lte":
++            _v = scr_gnx_get_state(arg1, arg0.key);
++            return _v != undefined && _v <= arg0.value;
++        
++        case "stage_discovered":
++            var _s = arg0.stage;
++            return global.val.stage_info[_s] != -1;
++        
++        case "stage_cleared":
++            _s = arg0.stage;
++            var _ml = arg0.min_level;
++            return global.val.stage_info[_s] != -1 && global.val.stage_info[_s].max_lvl >= _ml;
++        
++        case "boss_captured":
++            var _cls = arg0.class;
++            var _cage = global.val.cage;
++            
++            for (var _ci = 0; _ci < array_length(_cage); _ci++)
++            {
++                if (_cage[_ci] != -1 && is_struct(_cage[_ci]) && variable_struct_exists(_cage[_ci], "class") && _cage[_ci].class == _cls)
++                    return true;
++            }
++            
++            return false;
++        
++        case "cell_built":
++            var _h = arg0.h_type;
++            
++            if (instance_exists(obj_slot))
++            {
++                with (obj_slot)
++                {
++                    if (slot_data.h_type == _h)
++                        return true;
++                }
++            }
++            
++            return false;
++        
++        case "cell_occupied":
++            _h = arg0.h_type;
++            
++            if (instance_exists(obj_slot))
++            {
++                with (obj_slot)
++                {
++                    if (slot_data.h_type == _h && unit_data != -1)
++                        return true;
++                }
++            }
++            
++            return false;
++        
++        case "unit_count":
++            var _need = variable_struct_exists(arg0, "value") ? arg0.value : 1;
++            
++            if (variable_struct_exists(arg0, "class"))
++            {
++                var _cls_ref = arg0.class;
++                
++                if (is_string(_cls_ref))
++                {
++                    var _resolved = ds_map_find_value(global.gnx_class_name_to_id, _cls_ref);
++                    
++                    if (_resolved != undefined)
++                        _cls_ref = _resolved;
++                    else
++                        return false;
++                }
++                
++                _count = 0;
++                var _unum = ds_list_size(global.unit_list);
++                
++                for (var _ui = 0; _ui < _unum; _ui++)
++                {
++                    var _ud = ds_list_find_value(global.unit_list, _ui);
++                    
++                    if (_ud != -1 && is_struct(_ud) && variable_struct_exists(_ud, "class") && _ud.class == _cls_ref)
++                        _count++;
++                }
++                
++                return _count >= _need;
++            }
++            
++            return scr_all_mon_num_cal() >= _need;
++        
++        case "raid_won":
++            return true;
++        
++        case "gold_gte":
++            return global.val.money >= arg0.value;
++        
++        case "floor_gte":
++            return global.val.floor >= arg0.value;
++        
++        case "on_map":  // {"type": "on_map", "map": "outpost"}: the player is on that map ("vanilla" = the village)
++            return variable_struct_exists(arg0, "map") && global.gnx_active_map == arg0.map;
++        
++        case "map_visited":  // {"type": "map_visited", "map": "outpost"}: the player has been there (or is there now)
++            return variable_struct_exists(arg0, "map") && gnx_map_visited(arg0.map);
++        
++        case "map_unlocked":  // {"type": "map_unlocked", "map": "outpost"}: the map can be travelled to
++            return variable_struct_exists(arg0, "map") && gnx_map_is_unlocked(arg0.map);
++        
++        case "cell_count":
++            _h = arg0.h_type;
++            _need = variable_struct_exists(arg0, "value") ? arg0.value : 1;
++            var _count = 0;
++            
++            if (instance_exists(obj_slot))
++            {
++                with (obj_slot)
++                {
++                    if (slot_data.h_type == _h)
++                        _count++;
++                }
++            }
++            
++            return _count >= _need;
++    }
++    
++    return false;
++}
++
++
++function scr_gnx_pop_up_create(arg0)
++{
++    var _text = ds_map_find_value(global.gnx_popups, arg0);
++
++    if (_text == undefined)
++        _text = arg0;
++
++    global.gnx_last_popup = _text;  // the last GNX popup's text (scenarios check it after it has faded)
++
++    var _x = 240;
++    var _y = 27;
++    var _exists = false;
++    
++    if (instance_exists(obj_pop_up))
++    {
++        _exists = true;
++        
++        with (obj_pop_up)
++        {
++            if (pop_up_data.timer > 60)
++                pop_up_data.timer = max(60, floor(pop_up_data.timer * 0.5));
++            
++            pop_up_data.yto -= 10;
++        }
++    }
++    
++    with (instance_create_depth(_x, _y, -9998, obj_pop_up))
++    {
++        pop_up_data.timer = 180 + (7 * _exists);
++        pop_up_data.scr_pop_up_step = scr_pop_up_step_timer;
++        pop_up_data.scr_pop_up_draw = scr_pop_up_draw;
++        pop_up_data.text_type = _text;
++        pop_up_data.yto = _y;
++    }
++}
++
++
++function scr_gnx_fire_event(arg0)
++{
++    var _evt = ds_map_find_value(global.gnx_quest_events, arg0);
++    
++    if (_evt == undefined)
++        exit;
++    
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-QUEST] fire event: " + arg0 + " type=" + _evt.type + "\n");
++    gnx_log_close(_log);
++    
++    if (_evt.type == "notification")
++    {
++        var _gnx_has_dialog = variable_struct_exists(_evt, "dialog") && array_length(_evt.dialog) > 0;
++        
++        if (!_gnx_has_dialog)
++        {
++            if (variable_struct_exists(_evt, "side_effects"))
++                scr_gnx_apply_side_effects(_evt.side_effects, _evt.mod_name);
++            
++            if (variable_struct_exists(_evt, "next_event") && _evt.next_event != undefined)
++                scr_gnx_fire_event(_evt.next_event);
++            
++            exit;
++        }
++        
++        var _nnum = ds_list_size(global.noti_list);
++        
++        for (var _i = 0; _i < _nnum; _i++)
++        {
++            var _existing = ds_list_find_value(global.noti_list, _i);
++            
++            if (variable_struct_exists(_existing, "gnx_event_id") && _existing.gnx_event_id == arg0)
++                exit;
++        }
++        
++        var _data = {};
++        _data.noti_type = arg0;
++        _data.text_type = scr_gnx_dialog_render;
++        _data.event_after = -1;
++        _data.gnx_event_id = arg0;
++        _data.gnx_event = _evt;
++        _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++        _data.gnx_mod_name = _evt.mod_name;
++        
++        if (variable_struct_exists(_evt, "side_effects"))
++            scr_gnx_apply_side_effects(_evt.side_effects, _evt.mod_name);
++        
++        ds_list_add(global.noti_list, _data);
++        var _btn_exists = false;
++        
++        if (instance_exists(obj_button))
++        {
++            with (obj_button)
++            {
++                if (interact_type == UnknownEnum.Value_33)
++                    _btn_exists = true;
++            }
++        }
++        
++        if (!_btn_exists)
++        {
++            with (obj_np)
++                scr_create_button(416, 242, -2000, spr_notification, UnknownEnum.Value_33, -1, scr_create_notification_button, -1, scr_draw_hover_button, 0, 0);
++        }
++    }
++    else if (_evt.type == "quest")
++    {
++        var _qnum = ds_list_size(global.quest_list);
++        
++        for (var _i = 0; _i < _qnum; _i++)
++        {
++            var _existing = ds_list_find_value(global.quest_list, _i);
++            
++            if (variable_struct_exists(_existing, "gnx_event_id") && _existing.gnx_event_id == arg0)
++                exit;
++        }
++        
++        var _data = {};
++        _data.quest_clear = false;
++        _data.quest_type = arg0;
++        _data.quest_text = _evt.quest_text;
++        _data.quest_reward = scr_gnx_make_reward(_evt.reward, variable_struct_exists(_evt, "mod_name") ? _evt.mod_name : "");
++        _data.gnx_event_id = arg0;
++        _data.gnx_event = _evt;
++        _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++        _data.gnx_mod_name = _evt.mod_name;
++        _data.event_after = -1;
++        ds_list_add(global.quest_list, _data);
++        scr_pop_up_create(UnknownEnum.Value_12);
++        
++        with (obj_np.quest_button)
++        {
++            global.val.quest_new = true;
++            
++            with (child_window)
++            {
++                var _y = 0;
++                
++                with (quest_slider)
++                {
++                    _y = y - y_start;
++                    instance_destroy();
++                }
++                
++                quest_slider = scr_create_quest_slider(_y);
++            }
++        }
++    }
++}
++
++
++function scr_gnx_apply_side_effects(arg0, arg1)
++{
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        var _se = arg0[_i];
++        var _type = _se.type;
++        
++        switch (_type)
++        {
++            case "set_state":
++                scr_gnx_set_state(arg1, _se.key, _se.value);
++                break;
++            
++            case "unlock_map":  // {"type": "unlock_map", "map": "outpost"}: opens that map in the travel menu for good
++                // GNX-FIX: skipped with a log line when "map" is missing
++                if (variable_struct_exists(_se, "map"))
++                gnx_unlock_map(_se.map);
++                else
++                    gnx_report_mod_error("unlock_map without \"map\": skipped");
++                
++                break;
++            
++            case "add_gold":
++                global.val.money += _se.amount;
++                break;
++            
++            case "add_food":
++                global.val.food += _se.amount;
++                break;
++            
++            case "unlock_cell":
++                scr_add_new_slot_h_type(_se.h_type, false);
++                break;
++            
++            case "unlock_class":
++                var _cls = _se.class;
++                
++                if (ds_map_exists(global.class_registry, _cls))
++                {
++                    var _cr = ds_map_find_value(global.class_registry, _cls);
++                    
++                    if (variable_struct_exists(_cr, "raid_spawns"))
++                    {
++                        var _rs = _cr.raid_spawns;
++                        
++                        for (var _ri = 0; _ri < array_length(_rs); _ri++)
++                        {
++                            var _sp = _rs[_ri];
++                            var _stage = _sp.stage;
++                            var _pool = ds_map_find_value(global.gnx_encounter_pools, _stage);
++                            
++                            if (_pool != undefined)
++                            {
++                                ds_list_add(_pool, 
++                                {
++                                    class_id: _cls,
++                                    level_range: _sp.level_range,
++                                    weight: variable_struct_exists(_sp, "weight") ? _sp.weight : 1
++                                });
++                            }
++                        }
++                    }
++                }
++                
++                break;
++            
++            case "add_shop_item":
++                break;
++        }
++    }
++}
++
++
++function scr_gnx_make_reward(arg0, arg1 = "")
++{
++    if (arg0 == undefined || arg0 == -1)
++        return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
++    
++    var _type = arg0.type;
++    
++    if (_type == "gold")
++    {
++        return scr_set_item_data(UnknownEnum.Value_0, arg0.amount, -1);
++    }
++    else if (_type == "food")
++    {
++        return scr_set_item_data(UnknownEnum.Value_1, arg0.amount, -1);
++    }
++    else if (_type == "blueprint")
++    {
++        var _lvl = UnknownEnum.Value_3;
++        
++        if (variable_struct_exists(arg0, "fragment") && arg0.fragment == true)
++            _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1;
++        
++        return scr_set_item_data(UnknownEnum.Value_5, arg0.h_type, _lvl);
++    }
++    else if (_type == "prop")
++    {
++        // GNX-PROP: prop_id may be a name ("Mod.id", or "id" of the quest's own mod, arg1)
++        var _rpid = gnx_prop_resolve_id(arg0.prop_id, arg1);
++        
++        if (_rpid != -1)
++            return scr_set_item_data(UnknownEnum.Value_7, _rpid, 0);
++        
++        return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
++    }
++    
++    return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
++}
++
++
++function scr_gnx_check_quest_completion(arg0)
++{
++    if (!ds_exists(global.quest_list, ds_type_list))
++        exit;
++    
++    var _qnum = ds_list_size(global.quest_list);
++    
++    for (var _i = 0; _i < _qnum; _i++)
++    {
++        var _q = ds_list_find_value(global.quest_list, _i);
++        
++        if (!variable_struct_exists(_q, "gnx_event"))
++            continue;
++        
++        if (_q.quest_clear)
++            continue;
++        
++        var _evt = _q.gnx_event;
++        var _hook = variable_struct_exists(_evt, "completion_hook") ? _evt.completion_hook : "frame";
++        
++        if (_hook != arg0)
++            continue;
++        
++        var _comp = _evt.completion;
++        
++        if (scr_gnx_eval_condition(_comp, _q.gnx_mod_name))
++        {
++            _q.quest_clear = true;
++            global.val.quest_clear = true;
++            var _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-QUEST] quest complete: " + _q.gnx_event_id + "\n");
++            gnx_log_close(_log);
++            
++            if (variable_struct_exists(_q, "gnx_next") && _q.gnx_next != undefined)
++                scr_gnx_fire_event(_q.gnx_next);
++        }
++    }
++}
++
++
++function scr_gnx_save_quest_state()
++{
++    var _qs = {};
++    _qs.quests = [];
++    _qs.notis = [];
++    
++    for (var _i = 0; _i < ds_list_size(global.quest_list); _i++)
++    {
++        var _q = ds_list_find_value(global.quest_list, _i);
++        
++        if (variable_struct_exists(_q, "gnx_event_id"))
++        {
++            array_push(_qs.quests, 
++            {
++                event_id: _q.gnx_event_id,
++                quest_clear: _q.quest_clear
++            });
++        }
++    }
++    
++    for (var _i = 0; _i < ds_list_size(global.noti_list); _i++)
++    {
++        var _n = ds_list_find_value(global.noti_list, _i);
++        
++        if (variable_struct_exists(_n, "gnx_event_id"))
++        {
++            array_push(_qs.notis, 
++            {
++                event_id: _n.gnx_event_id
++            });
++        }
++    }
++    
++    global.val.gnx_quest_state = _qs;
++}
++
++
++function scr_gnx_restore_quest_state()
++{
++    if (!variable_struct_exists(global.val, "gnx_quest_state"))
++        exit;
++    
++    var _qs = global.val.gnx_quest_state;
++    
++    if (variable_struct_exists(_qs, "quests"))
++    {
++        for (var _i = 0; _i < array_length(_qs.quests); _i++)
++        {
++            var _saved = _qs.quests[_i];
++            var _evt = ds_map_find_value(global.gnx_quest_events, _saved.event_id);
++            
++            if (_evt == undefined)
++                continue;
++            
++            var _data = {};
++            _data.quest_clear = _saved.quest_clear;
++            _data.quest_type = _saved.event_id;
++            _data.quest_text = _evt.quest_text;
++            _data.quest_reward = scr_gnx_make_reward(_evt.reward, variable_struct_exists(_evt, "mod_name") ? _evt.mod_name : "");
++            _data.gnx_event_id = _saved.event_id;
++            _data.gnx_event = _evt;
++            _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++            _data.gnx_mod_name = _evt.mod_name;
++            _data.event_after = -1;
++            ds_list_add(global.quest_list, _data);
++        }
++    }
++    
++    if (variable_struct_exists(_qs, "notis"))
++    {
++        for (var _i = 0; _i < array_length(_qs.notis); _i++)
++        {
++            var _saved = _qs.notis[_i];
++            var _evt = ds_map_find_value(global.gnx_quest_events, _saved.event_id);
++            
++            if (_evt == undefined)
++                continue;
++            
++            if (!variable_struct_exists(_evt, "dialog") || array_length(_evt.dialog) == 0)
++                continue;
++            
++            var _data = {};
++            _data.noti_type = _saved.event_id;
++            _data.text_type = scr_gnx_dialog_render;
++            _data.event_after = -1;
++            _data.gnx_event_id = _saved.event_id;
++            _data.gnx_event = _evt;
++            _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++            _data.gnx_mod_name = _evt.mod_name;
++            ds_list_add(global.noti_list, _data);
++        }
++    }
++    
++    if (variable_struct_exists(_qs, "notis") && array_length(_qs.notis) > 0 && ds_list_size(global.noti_list) > 0)
++    {
++        var _btn_exists = false;
++        
++        if (instance_exists(obj_button))
++        {
++            with (obj_button)
++            {
++                if (interact_type == UnknownEnum.Value_33)
++                    _btn_exists = true;
++            }
++        }
++        
++        if (!_btn_exists)
++        {
++            with (obj_np)
++                scr_create_button(416, 242, -2000, spr_notification, UnknownEnum.Value_33, -1, scr_create_notification_button, -1, scr_draw_hover_button, 0, 0);
++        }
++    }
++    
++    if (variable_struct_exists(_qs, "quests") && array_length(_qs.quests) > 0)
++    {
++        with (obj_np.quest_button.child_window)
++        {
++            var _y = 0;
++            
++            with (quest_slider)
++            {
++                _y = y - y_start;
++                instance_destroy();
++            }
++            
++            quest_slider = scr_create_quest_slider(_y);
++        }
++    }
++}
++
++
++function scr_gnx_dialog_render()
++{
++    if (!is_struct(text_data.gnx_event) || !variable_struct_exists(text_data.gnx_event, "dialog"))
++        exit;
++    
++    var _dialog = text_data.gnx_event.dialog;
++    
++    for (var _i = 0; _i < array_length(_dialog); _i++)
++    {
++        var _line = _dialog[_i];
++        var _portrait = _line.portrait_spr;
++        
++        if (_portrait == -1)
++            _portrait = UnknownEnum.Value_4;
++        
++        scr_text(_line.speaker, _portrait, _line.text);
++    }
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

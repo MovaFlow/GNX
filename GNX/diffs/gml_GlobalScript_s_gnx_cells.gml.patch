@@ -1,0 +1,1570 @@
+--- gml_138/gml_GlobalScript_s_gnx_cells.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_cells.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,1567 @@
++// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++/// GNX-LOOP-STRIP: arg0 = a resolved sprite (a sprite or a GNX sprite struct), arg1 = its JSON
++/// definition. "loop": true = the whole strip is one row that loops; "loop": n = n frames per row
++/// (a strip with several rows, e.g. one per skin). Sprites are remembered in global.gnx_loop_strips,
++/// GNX sprite structs carry the count themselves.
++function gnx_loop_mark(arg0, arg1, arg2 = "")
++{
++    // == -1: nothing was loaded
++    if (!is_struct(arg0) && arg0 == -1)
++        exit;
++    
++    // frames per row of the loop; -1 = this definition does not loop
++    var _n = -1;
++    
++    if (is_struct(arg1) && variable_struct_exists(arg1, "loop"))
++    {
++        var _lv = arg1.loop;
++        
++        // GNX-FIX: JSON true / false arrive as 1 / 0 (not as booleans), so: 1 (= true) loops the whole strip,
++        // 0 (= false) does not loop, 2 or more is the frames per row (a row of 1 frame could not loop anyway)
++        var _lnum = floor(gnx_json_num(_lv, -1));
++        
++        if (_lnum == 1)
++            _n = variable_struct_exists(arg1, "frames") ? (is_array(arg1.frames) ? array_length(arg1.frames) : floor(gnx_json_num(arg1.frames, 1))) : 1;
++        else
++            _n = _lnum;
++        
++        if (_n < 1)
++            _n = -1;
++    }
++    
++    if (!variable_global_exists("gnx_loop_strips") || !is_struct(global.gnx_loop_strips))
++        global.gnx_loop_strips = {};
++    
++    if (!variable_global_exists("gnx_loop_seen") || !is_struct(global.gnx_loop_seen))
++        global.gnx_loop_seen = {};
++    
++    // GNX-FIX: the same PNG with the same frames and origin is loaded once and shared (sprite cache, atlas
++    // entries), and the loop belongs to that shared sprite. Two definitions that disagree (loop 2 and
++    // loop 5, or a loop and none) used to leave the last one in force for both, silently. Now the first
++    // definition stays and the clash is a mod error.
++    var _key = is_struct(arg0) ? "" : string(arg0);
++    var _seen = is_struct(arg0) ? variable_struct_exists(arg0, "gnx_loop_seen") : variable_struct_exists(global.gnx_loop_seen, _key);
++    
++    if (_seen)
++    {
++        var _prev = gnx_loop_frames(arg0);
++        
++        // != : this definition wants another loop than the first one did
++        if (_prev != _n)
++        {
++            var _where = (is_struct(arg1) && variable_struct_exists(arg1, "strip")) ? ("strip '" + string(arg1.strip) + "'") : ("sprite '" + string(arg2) + "'");
++            gnx_report_mod_error(_where + " is shared with another definition that has " + ((_prev >= 1) ? ("\"loop\": " + string(_prev)) : "no loop") + "; this one asks for " + ((_n >= 1) ? ("\"loop\": " + string(_n)) : "no loop") + ". The first one is kept; give both the same loop or use separate PNGs");
++        }
++        
++        exit;
++    }
++    
++    if (is_struct(arg0))
++    {
++        arg0.gnx_loop_seen = true;
++        
++        if (_n >= 1)
++            arg0.gnx_loop = _n;
++    }
++    else
++    {
++        variable_struct_set(global.gnx_loop_seen, _key, true);
++        
++        if (_n >= 1)
++            variable_struct_set(global.gnx_loop_strips, _key, _n);
++    }
++}
++
++
++/// GNX-LOOP-STRIP: frames per row of a looping strip (arg0 = the sprite as stored in a layer), or -1.
++function gnx_loop_frames(arg0)
++{
++    if (is_struct(arg0))
++        return variable_struct_exists(arg0, "gnx_loop") ? arg0.gnx_loop : -1;
++    
++    if (arg0 == -1 || !variable_global_exists("gnx_loop_strips") || !is_struct(global.gnx_loop_strips))
++        return -1;
++    
++    var _k = string(arg0);
++    return variable_struct_exists(global.gnx_loop_strips, _k) ? variable_struct_get(global.gnx_loop_strips, _k) : -1;
++}
++
++
++function gnx_load_sprite_frames(arg0, arg1, arg2)
++{
++    var _n = array_length(arg0);
++    
++    if (_n == 0)
++        return -1;
++    
++    var _spr = sprite_add(arg0[0], 1, false, false, arg1, arg2);
++    
++    if (_spr == -1)
++        return -1;
++    
++    array_push(global.gnx_runtime_sprites, _spr);
++    
++    if (_n == 1)
++        return _spr;
++    
++    var _w = gnx_sprite_get_width(_spr);
++    var _h = gnx_sprite_get_height(_spr);
++    
++    for (var _i = 1; _i < _n; _i++)
++    {
++        var _tmp = sprite_add(arg0[_i], 1, false, false, 0, 0);
++        
++        if (_tmp == -1)
++            continue;
++        
++        var _surf = surface_create(_w, _h);
++        surface_set_target(_surf);
++        draw_clear_alpha(c_black, 0);
++        // POPRAWKA (GNX): bm_one/bm_zero = kopia 1:1; przy zwyklym mieszaniu polprzezroczyste piksele
++        // klatek 1+ wychodzily inne niz w klatce 0 (wczytanej wprost z pliku)
++        gpu_set_blendmode_ext(bm_one, bm_zero);
++        gnx_draw_sprite(_tmp, 0, 0, 0);
++        gpu_set_blendmode(bm_normal);
++        surface_reset_target();
++        sprite_add_from_surface(_spr, _surf, 0, 0, _w, _h, false, false);
++        surface_free(_surf);
++        sprite_delete(_tmp);
++    }
++    
++    return _spr;
++}
++
++
++function gnx_merge_patch_phase(arg0, arg1, arg2, arg3, arg4)
++{
++    var _new = gnx_resolve_special_phase(arg2, arg3, arg4);
++    var _old = variable_struct_exists(arg0, arg1) ? variable_struct_get(arg0, arg1) : undefined;
++    
++    if (is_struct(_old))
++    {
++        if (!variable_struct_exists(arg2, "spr_array") && variable_struct_exists(_old, "spr_array"))
++            _new.spr_array = _old.spr_array;
++        
++        if (!variable_struct_exists(arg2, "spr_c_array") && variable_struct_exists(_old, "spr_c_array"))
++            _new.spr_c_array = _old.spr_c_array;
++        
++        if (variable_struct_exists(_old, "by_class"))
++        {
++            if (!variable_struct_exists(_new, "by_class"))
++                _new.by_class = {};
++            
++            var _old_keys = variable_struct_get_names(_old.by_class);
++            
++            for (var _k = 0; _k < array_length(_old_keys); _k++)
++            {
++                if (!variable_struct_exists(_new.by_class, _old_keys[_k]))
++                    variable_struct_set(_new.by_class, _old_keys[_k], variable_struct_get(_old.by_class, _old_keys[_k]));
++            }
++        }
++    }
++    
++    variable_struct_set(arg0, arg1, _new);
++}
++
++
++/// GNX-INTER: copies every entry of struct arg0 named arg1 + "_..." to the same name with prefix arg2.
++function gnx_mspr_copy_prefix(arg0, arg1, arg2)
++{
++    var _names = variable_struct_get_names(arg0);
++    var _pre = arg1 + "_";
++    var _n = string_length(_pre);
++    
++    for (var i = 0; i < array_length(_names); i++)
++    {
++        // string_copy(text, 1, n) = the first n characters
++        if (string_copy(_names[i], 1, _n) == _pre)
++            variable_struct_set(arg0, arg2 + "_" + string_delete(_names[i], 1, _n), variable_struct_get(arg0, _names[i]));
++    }
++}
++
++
++/// GNX-PROP: runs in a cell: true when the monster in place arg0 is really inside it (it arrived,
++/// mon_state 1), false for one still walking there or for an empty place. Matches the monster the way
++/// scr_remove_mon does: the first one of h_unit_list in that place.
++function gnx_mon_inside_at(arg0)
++{
++    if (!is_array(h_unit_list))
++        return false;
++    
++    for (var i = 0; i < array_length(h_unit_list); i++)
++    {
++        var _u = h_unit_list[i];
++        
++        // && = and: a monster that still exists, with its data, in this place
++        if (gnx_is_live_inst(_u) && variable_instance_exists(_u, "mon_data") && is_struct(_u.mon_data) && _u.mon_data.placement_num == arg0)
++            return _u.mon_data.mon_state == 1;
++    }
++    
++    return false;
++}
++
++
++/// GNX-FIX: runs in a cell: calls off the monster in place arg0 that is still on its way (not inside),
++/// in one go and without the side effects of scr_remove_mon (which is made for monsters leaving the cell):
++/// no move to the cell, no mood bubble or nest mood change from an old removed_set, no mon_exit. The monster
++/// loses its cell and place, is taken off h_unit_list, the place's timer and seat are freed, and it wanders
++/// on from where it stands (mon_state 5; wandering ends at a door, as for any idle monster). Only for a plain
++/// call (task 0); other tasks keep their own clean-up: returns -2 for them, -1 when no monster has that
++/// place, else the monster. (audit 18) Its removed_set is left as it is: scr_unit_removal sets it for the
++/// mood vanilla gave in the same case (audit 19).
++function gnx_cancel_mon_assignment(arg0)
++{
++    if (!is_array(h_unit_list))
++        return -1;
++    
++    for (var i = 0; i < array_length(h_unit_list); i++)
++    {
++        var _u = h_unit_list[i];
++        
++        if (!gnx_is_live_inst(_u) || !variable_instance_exists(_u, "mon_data") || !is_struct(_u.mon_data) || _u.mon_data.placement_num != arg0)
++            continue;
++        
++        // != 0: carry, drink and other tasks have their own clean-up in scr_remove_mon
++        if (_u.mon_data.task != 0)
++            return -2;
++        
++        var _st0 = _u.mon_data.mon_state;
++        
++        with (_u)
++        {
++            visible = true;
++            scr_mon_draw = -1;
++            mon_data.slot_id = -1;
++            mon_data.placement_num = -1;
++            mon_data.follow = false;
++            mon_data.spr_data = -1;
++            mon_data.mood_slot_shift_x = 0;
++            mon_data.mood_slot_shift_y = 0;
++            mon_data.ff = true;
++            mon_data.mon_state = 5;
++        }
++        
++        // the place in the cell is free again (only places the cell has)
++        if (variable_struct_exists(slot_data, "mon_timer") && is_array(slot_data.mon_timer) && arg0 >= 0 && arg0 < array_length(slot_data.mon_timer))
++            slot_data.mon_timer[arg0] = 0;
++        
++        if (variable_struct_exists(slot_data, "mon_placement") && is_array(slot_data.mon_placement) && arg0 >= 0 && arg0 < array_length(slot_data.mon_placement))
++            slot_data.mon_placement[arg0] = -1;
++        
++        array_delete(h_unit_list, i, 1);
++        
++        // verbose log: what the monster was and is now, to check that it walks on normally (audit 18, P4)
++        if (variable_global_exists("gnx_debug_verbose") && global.gnx_debug_verbose)
++        {
++            var _l = gnx_log_open();
++            gnx_log_write(_l, "[MON:" + string(_u) + "] CALLED OFF from h_type=" + string(slot_data.h_type) + " place=" + string(arg0) + " task=0 state " + string(_st0) + " -> 5 at x=" + string(_u.x) + " y=" + string(_u.y) + "\n");
++            gnx_log_close(_l);
++        }
++        
++        return _u;
++    }
++    
++    return -1;
++}
++
++
++/// GNX-FIX: runs in a cell: [x, y] of the monster in place arg0 (the one scr_remove_mon would take), or -1
++function gnx_mon_pos_at(arg0)
++{
++    if (!is_array(h_unit_list))
++        return -1;
++    
++    for (var i = 0; i < array_length(h_unit_list); i++)
++    {
++        var _u = h_unit_list[i];
++        
++        if (gnx_is_live_inst(_u) && variable_instance_exists(_u, "mon_data") && is_struct(_u.mon_data) && _u.mon_data.placement_num == arg0)
++            return [_u.x, _u.y];
++    }
++    
++    return -1;
++}
++
++
++/// GNX-PROP: the shared clock of mod props in seconds of game time (advanced once per step in
++/// scr_main_end_step, stops while paused); 0 before the first step
++function gnx_scene_time()
++{
++    return variable_global_exists("gnx_scene_t") ? global.gnx_scene_t : 0;
++}
++
++
++// Vanilla sprite fallback for a class's sprite tables (clothing_* / naked_*). arg0 = the resolved table,
++// arg1 = its JSON definition, arg2 = the vanilla table to take from. Fills keys the mod left out, and
++// sprites whose "gnx:" reference did not load (missing file); an explicit -1 stays -1 (no layer on purpose).
++// A mod's leg_any is kept: the dispatch prefers leg_0/1/2 over it, so those are not added next to it.
++// arg3 = also add keys the mod left out (overrides of a vanilla class; a new class only gets unloadable refs
++// replaced). Returns how many entries came from vanilla.
++function gnx_fill_from_vanilla(arg0, arg1, arg2, arg3)
++{
++    if (!is_struct(arg0) || !is_struct(arg2))
++        return 0;
++
++    var _n = 0;
++    var _keys = variable_struct_get_names(arg2);
++    var _has_any = variable_struct_exists(arg0, "leg_any");
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        var _k = _keys[_i];
++        var _bv = variable_struct_get(arg2, _k);
++
++        if (!variable_struct_exists(arg0, _k))
++        {
++            if (!arg3)
++                continue;
++            
++            if (_has_any && (_k == "leg_0" || _k == "leg_1" || _k == "leg_2"))
++                continue;
++
++            variable_struct_set(arg0, _k, _bv);
++            _n++;
++            continue;
++        }
++
++        var _rv = variable_struct_get(arg0, _k);
++        var _dv = (is_struct(arg1) && variable_struct_exists(arg1, _k)) ? variable_struct_get(arg1, _k) : undefined;
++
++        if (is_struct(_rv) && is_struct(_bv))
++        {
++            _n += gnx_fill_from_vanilla(_rv, _dv, _bv, arg3);
++        }
++        else if (is_string(_dv) && (_rv == -1 || !scr_gnx_spr_ok(_rv)) && !is_struct(_bv))  // -1 = the ref did not load
++        {
++            variable_struct_set(arg0, _k, _bv);
++            _n++;
++        }
++    }
++
++    return _n;
++}
++
++
++/// GNX-UG: true when the TRANSFER cell's hobgoblins must leave cell type arg0 alone: no captive is taken
++/// out of it and none is brought in (underground cells, or physical "transfer": false).
++function gnx_cell_no_transfer(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++    // != undefined: arg0 is a registered mod cell (vanilla cells and -1 are not in the map)
++    return _c != undefined && variable_struct_exists(_c.physical, "gnx_no_transfer") && _c.physical.gnx_no_transfer;
++}
++
++
++/// GNX-UG: true when cell type arg0 runs the underground scene (the scr_slot_h_gnx_ug_* scripts).
++function gnx_cell_is_ug(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++    return _c != undefined && variable_struct_exists(_c.physical, "gnx_frames");
++}
++
++
++/// GNX-UG: the child species of a pregnancy in an underground cell for class arg0 (the class's
++/// preg_mon_type_override, otherwise tentacle 2), as gnx_ug_child_type() does for the captive in the cell.
++function gnx_ug_child_type_for(arg0)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++    
++    // GNX-FIX: the class loader already checks the value; gnx_json_num keeps this safe for anything else
++    if (_rc != undefined && variable_struct_exists(_rc, "preg_mon_type_override"))
++        return clamp(floor(gnx_json_num(_rc.preg_mon_type_override, 2)), 0, 3);
++    
++    return 2;
++}
++
++
++// Numer na koncu nazwy pliku ("spr_x_12.png" -> 12); -1 gdy nazwa nie konczy sie cyfra
++function gnx_trailing_number(arg0)
++{
++    var _base = filename_change_ext(arg0, "");
++    var _len = string_length(_base);
++    var _p = _len;
++
++    // string_digits zostawia same cyfry - pusty wynik = ten znak nie jest cyfra
++    while (_p > 0 && string_digits(string_char_at(_base, _p)) != "")
++        _p--;
++
++    if (_p == _len)
++        return -1;
++
++    return real(string_copy(_base, _p + 1, _len - _p));
++}
++
++
++// Porownanie do array_sort: rosnaco po numerze klatki
++function gnx_cmp_frame_num(arg0, arg1)
++{
++    return arg0.num - arg1.num;
++}
++
++
++function gnx_get_carry_base(arg0, arg1, arg2)
++{
++    if (!ds_map_exists(global.class_registry, arg0))
++        return arg2;
++    
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++    
++    if (!variable_struct_exists(_rc, "carry_base_spr"))
++        return arg2;
++    
++    var _cbs = _rc.carry_base_spr;
++    
++    // Mav (1.4.7.5): an atlas sprite is a struct too: a leg map is a struct that is NOT a sprite
++    if (is_struct(_cbs) && !is_sprref(_cbs))
++    {
++        var _k = (arg1 == 0) ? "leg_0" : ((arg1 == 2) ? "leg_2" : "leg_1");
++        
++        if (variable_struct_exists(_cbs, _k) && gnx_sprite_exists(variable_struct_get(_cbs, _k)))
++            return variable_struct_get(_cbs, _k);
++        
++        return arg2;
++    }
++    
++    if (gnx_sprite_exists(_cbs))
++        return _cbs;
++    
++    return arg2;
++}
++
++
++function scr_gnx_unoccupy_log()
++{
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] scr_gnx_unoccupy_log slot h=" + string(slot_data.h_type) + "\n");
++    gnx_log_close(_log);
++}
++
++
++// map_start helpers: a monster type given as a name or a number (-1 = unknown)
++function gnx_mon_type_ref(arg0)
++{
++    if (is_real(arg0))
++        return (arg0 >= 0 && arg0 <= 3) ? arg0 : -1;
++
++    switch (arg0)
++    {
++        case "goblin": return 0;
++        case "hobgoblin": return 1;
++        case "tentacle": return 2;
++        case "ogre": return 3;
++    }
++
++    return -1;
++}
++
++
++// an occupied cell to borrow for a probe: small (arg0 == -1) or of h_type arg0
++// a mod cell's monster sprite map (arg0) has a body sprite for leg suffix arg3 ("_leg1", "_any"...) in phase arg1 or its fallback arg2
++function gnx_ms_leg_has(arg0, arg1, arg2, arg3)
++{
++    var _v1 = variable_struct_get(arg0, arg1 + "_body_b" + arg3);
++    var _v2 = variable_struct_get(arg0, arg2 + "_body_b" + arg3);
++    return (_v1 != undefined && _v1 != -1) || (_v2 != undefined && _v2 != -1);
++}
++
++
++/// GNX-UG: extra px of floor arg0's band (0 unless an underground cell stands on that floor).
++function gnx_floor_extra(arg0)
++{
++    // variable_global_exists: true once scr_gnx_load_mods has set the value
++    if (!variable_global_exists("gnx_floor_extra"))
++        return 0;
++    
++    var _e = global.gnx_floor_extra;
++    // && = and: only indexes that exist in the array
++    return (arg0 >= 0 && arg0 < array_length(_e)) ? _e[arg0] : 0;
++}
++
++
++/// GNX-UG: y of floor arg0 counted from floor 0: 140 px per floor above it plus their extra bands.
++/// Without underground cells this is arg0 * 140, as in vanilla.
++function gnx_floor_off(arg0)
++{
++    var _o = arg0 * 140;
++    
++    for (var i = 0; i < arg0; i++)
++        _o += gnx_floor_extra(i);
++    
++    return _o;
++}
++
++
++/// GNX-UG: GNX's own underground cell graphics, imported by G3M from GNX_assets as spr_gnx_ug_*.
++/// G3M gives imported sprites the origin (0, 0); the cell sprites (161 px canvas) get theirs moved to
++/// the floor line, 75 px above the bottom. A missing file gives -1 and that part is simply not drawn.
++function gnx_ug_load_assets()
++{
++    var _a = 
++    {
++        wall: asset_get_index("spr_gnx_ug_wall_1"),
++        wall2: asset_get_index("spr_gnx_ug_wall_2"),
++        top: asset_get_index("spr_gnx_ug_floor"),
++        tent: asset_get_index("spr_gnx_ug_tent_ready"),
++        band: asset_get_index("spr_gnx_ug_band")
++    };
++    
++    // GNX-WALL: the single wall file of earlier builds (gnx_ug_wall.png) still works as the first wall
++    if (_a.wall == -1)
++        _a.wall = asset_get_index("spr_gnx_ug_wall");
++    
++    var _cell_sprs = [_a.wall, _a.wall2, _a.top, _a.tent];
++    
++    for (var i = 0; i < array_length(_cell_sprs); i++)
++    {
++        var _s = _cell_sprs[i];
++        
++        // != -1 && sprite_exists: the asset was imported
++        if (_s != -1 && sprite_exists(_s))
++            sprite_set_offset(_s, 0, sprite_get_height(_s) - 75);
++    }
++    
++    return _a;
++}
++
++
++/// GNX-FRAMES: frame counts per phase for a mod cell that runs the vanilla base scene scripts.
++/// arg0 = the cell's physical struct (what GNX stores), arg1 = the whole cell JSON, arg2 = cell name
++/// (for messages), arg3 = human_spr mode, arg4 = base_body, arg5 = the cell's "sprites" block.
++/// Stores in arg0:
++///   gnx_phase_frames - one entry per phase number of scr_set_slot_spr_part (0 start, 1 idle, 2 loop,
++///                      3 ej, 4 birth, 5 unused), -1 = vanilla count. The base scene scripts play these
++///                      frames at the vanilla speed per frame, so a longer strip plays longer;
++/// Monsters use the same counts as the captive: their strips are checked here (gnx_frames_check_strips).
++/// Without physical.frames nothing is stored and the cell plays as before.
++function gnx_frames_register(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    var _phys = arg1.physical;
++    var _fr = _phys.frames;
++    
++    if (!is_struct(_fr))
++    {
++        gnx_report_mod_error("Cell '" + string(arg2) + "': physical.frames must be {\"idle\": n, \"loop\": n, ...}, ignored");
++        exit;
++    }
++    
++    var _keys = ["start", "idle", "loop", "ej", "birth"];
++    var _val = [-1, -1, -1, -1, -1];
++    var _any = false;
++    
++    for (var i = 0; i < 5; i++)
++    {
++        if (!variable_struct_exists(_fr, _keys[i]))
++            continue;
++        
++        var _raw = variable_struct_get(_fr, _keys[i]);
++        var _v = gnx_json_num(_raw, -1);
++        
++        // >= 1: a phase needs at least one frame; 64 keeps a typo from making a huge strip index
++        if (_v >= 1)
++        {
++            _val[i] = min(64, floor(_v));
++            _any = true;
++        }
++        else
++        {
++            gnx_report_mod_error("Cell '" + string(arg2) + "': frames." + _keys[i] + " must be a number from 1 (" + string(_raw) + "), the vanilla count is used");
++        }
++    }
++    
++    if (!_any)
++        exit;
++    
++    // only the cell's own art (fixed / class_map) is drawn from strips the modder made for these counts
++    if (arg3 != "fixed" && arg3 != "class_map")
++    {
++        gnx_report_mod_error("Cell '" + string(arg2) + "': physical.frames needs human_spr mode fixed or class_map; with mode " + string(arg3) + " the captive comes from the class sheets, so the frames are ignored");
++        exit;
++    }
++    
++    // the vanilla draw scripts with monsters or frame checks inside (gang, drink, giant...) count on the
++    // vanilla frame count, so the frames work with the two scripts that only draw the cell's layers
++    var _draw = _phys.scr_draw;
++    
++    if (_draw != "scr_draw_slot_gnx" && _draw != "scr_draw_slot_parts")
++    {
++        gnx_report_mod_error("Cell '" + string(arg2) + "': physical.frames works with scr_draw scr_draw_slot_gnx or scr_draw_slot_parts, not " + string(_draw) + "; the frames are ignored");
++        exit;
++    }
++    
++    // only the base scene scripts read the own counts; the others (tentacle, gang, milk...) have vanilla frame numbers inside
++    var _base = ["scr_slot_h_big_start", "scr_slot_h_base_start", "scr_slot_h_base_wait", "scr_slot_h_base_sloop", "scr_slot_h_base_floop", "scr_slot_h_base_ej", "scr_slot_h_base_ej_2", "scr_slot_h_gnx_places"];
++    var _other = (_phys.scr_idle != "scr_slot_h_state_idle") ? string(_phys.scr_idle) : "";
++    
++    for (var i = 0; i < array_length(_phys.scr_h); i++)
++    {
++        if (!array_contains(_base, _phys.scr_h[i]))
++            _other += ((_other == "") ? "" : ", ") + string(_phys.scr_h[i]);
++    }
++    
++    if (_other != "")
++    {
++        gnx_report_mod_error("Cell '" + string(arg2) + "': physical.frames works with scr_slot_h_state_idle and the base scene scripts (big/base start, base wait, sloop, floop, ej, ej_2), not " + _other + "; the frames are ignored");
++        exit;
++    }
++    
++    var _pf = [-1, -1, -1, -1, -1, -1];
++    _pf[1] = _val[1];
++    _pf[2] = _val[2];
++    _pf[4] = _val[4];
++    
++    // vanilla scene scripts draw ej (3) with the loop art (phase_2), so ej shows the loop's frames
++    _pf[3] = _val[2];
++    
++    // outside big cells the start (0) is drawn with the idle art (phase_1)
++    _pf[0] = (arg4 == "big") ? _val[0] : _val[1];
++    
++    var _l = gnx_log_open();
++    
++    if (_val[3] != -1 && _val[3] != _val[2])
++        gnx_log_write(_l, "[GNX-FRAMES] " + string(arg2) + ": frames.ej ignored, ej is drawn with the loop art and uses frames.loop\n");
++    
++    if (_val[0] != -1 && arg4 != "big")
++        gnx_log_write(_l, "[GNX-FRAMES] " + string(arg2) + ": frames.start ignored, this cell's start is drawn with the idle art and uses frames.idle\n");
++    
++    arg0.gnx_phase_frames = _pf;
++    
++    // the counts every strip of a phase must have per row: own count, or the vanilla one when the JSON leaves it out
++    var _van = [2, 2, 5, 5, 2, 2];
++    var _eff = [0, 0, 0, 0, 0];
++    
++    for (var i = 0; i < 5; i++)
++        _eff[i] = (_pf[i] >= 1) ? _pf[i] : _van[i];
++    
++    gnx_log_write(_l, "[GNX-FRAMES] " + string(arg2) + ": frames per phase (start, idle, loop, ej, birth) = " + string(_eff) + "\n");
++    gnx_log_close(_l);
++    gnx_frames_check_strips(arg1, arg2, arg5, _eff, false, arg4);
++}
++
++
++/// GNX-FRAMES: checks that every strip of the cell has the frame count of its phase (arg3 = counts per
++/// phase 0-4), the captive's (human_spr phase_0 ... phase_4) and the monsters' (mon_spr... start, loop,
++/// ej). A strip may hold several rows (skins, placements); frames left over after the last full row are
++/// only logged (a strip can be shared with a longer phase), fewer frames than one row is an error.
++/// arg0 = cell JSON, arg1 = cell name, arg2 = "sprites" block, arg4 = true for an underground cell (its
++/// tent_spr per phase is checked too; milk_spr fits any count, see gnx_milk_clock), arg5 = base_body. Only tables the game draws are
++/// checked: outside underground cells phase_3 is drawn for the ej with the loop's count, and phase_0 only in
++/// big cells (other cells start with the idle art). A 1-frame strip is a still image and always fits.
++/// Every problem is one mod error that names the strip and the count it needs; the game goes on (a wrong
++/// strip only shows wrong frames).
++function gnx_frames_check_strips(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    var _bad = 0;
++    // phases whose captive tables are drawn: [start, idle, loop, ej, birth]
++    // (GNX-EJ: a phase_3 table is drawn for the ej, with the loop's count, see gnx_ej_own_art)
++    var _used = arg4 ? [true, true, true, true, true] : [arg5 == "big", true, true, true, true];
++    
++    // captive: every phase_N table anywhere in human_spr (fixed, by_class, class_map entries, default)
++    if (variable_struct_exists(arg0, "human_spr"))
++        _bad += gnx_frames_check_phase_tables(arg0.human_spr, arg1, arg2, arg3, _used);
++    
++    // underground: a phase without its own table is drawn with another one (start with idle, ej with
++    // loop), so both phases must then have the same frame count
++    if (arg4 && variable_struct_exists(arg0, "human_spr"))
++    {
++        var _fbp = [[0, 1, "start", "idle", "phase_0"], [3, 2, "ej", "loop", "phase_3"]];
++        
++        for (var f = 0; f < 2; f++)
++        {
++            var _fb = _fbp[f];
++            
++            // ... unless every strip of the table it falls back to is marked loop (then it loops in any length)
++            if (!gnx_json_has_key(arg0.human_spr, _fb[4]) && arg3[_fb[0]] != arg3[_fb[1]] && !gnx_frames_tables_loop(arg0.human_spr, "phase_" + string(_fb[1]), arg2))
++            {
++                gnx_report_mod_error("Cell '" + string(arg1) + "': the " + _fb[2] + " has " + string(arg3[_fb[0]]) + " frames but no " + _fb[4] + " table, so it is drawn with the " + _fb[3] + " art (" + string(arg3[_fb[1]]) + " frames); add " + _fb[4] + ", give both the same count, or mark those strips \"loop\": true");
++                _bad++;
++            }
++        }
++    }
++    
++    // underground: tentacle overlay per phase (start 0, idle 1, loop 2, ej 3, birth 4). The milking
++    // overlay is not checked: a milk strip with another frame count runs on the milk's own clock.
++    if (arg4)
++    {
++        var _ovk = ["start", "idle", "loop", "ej", "birth"];
++        var _ovs = ["tent_spr"];
++        
++        for (var o = 0; o < 1; o++)
++        {
++            if (!variable_struct_exists(arg0, _ovs[o]) || !is_struct(variable_struct_get(arg0, _ovs[o])))
++                continue;
++            
++            var _ov = variable_struct_get(arg0, _ovs[o]);
++            
++            for (var k = 0; k < 5; k++)
++            {
++                if (variable_struct_exists(_ov, _ovk[k]))
++                    _bad += gnx_frames_check_refs(variable_struct_get(_ov, _ovk[k]), arg3[k], arg1, _ovs[o] + "." + _ovk[k], arg2, false);
++            }
++        }
++    }
++    
++    // monsters: one set per type and placement; start = phase 0, loop = 2, ej = 3 (drawn with loop frames)
++    var _max_mon = (variable_struct_exists(arg0.physical, "max_mon_num")) ? gnx_json_num(arg0.physical.max_mon_num, 0) : 0;
++    
++    if (_max_mon <= 0)
++    {
++        gnx_frames_report_bad(arg1, _bad);
++        exit;
++    }
++    
++    var _sets = ["mon_spr", "mon_spr_hob", "mon_spr_ogr"];
++    var _all = [];
++    
++    for (var s = 0; s < 3; s++)
++    {
++        array_push(_all, _sets[s]);
++        
++        for (var p = 0; p < 3; p++)
++            array_push(_all, _sets[s] + "_p" + string(p));
++    }
++    
++    var _ph = ["start", "loop", "ej"];
++    var _phn = [0, 2, 3];
++    
++    for (var s = 0; s < array_length(_all); s++)
++    {
++        if (!variable_struct_exists(arg0, _all[s]) || !is_struct(variable_struct_get(arg0, _all[s])))
++            continue;
++        
++        var _set = variable_struct_get(arg0, _all[s]);
++        
++        for (var p = 0; p < 3; p++)
++        {
++            if (variable_struct_exists(_set, _ph[p]))
++                _bad += gnx_frames_check_refs(variable_struct_get(_set, _ph[p]), arg3[_phn[p]], arg1, _all[s] + "." + _ph[p], arg2, false);
++        }
++    }
++    
++    // a monster type without its own start or loop strips is drawn from the vanilla sheets (2 / 5 frames)
++    var _types = variable_struct_exists(arg0, "mon_types") ? arg0.mon_types : [0, 1, 2, 3];
++    var _tname = ["goblin", "hobgoblin", "tentacle", "ogre"];
++    
++    for (var m = 0; m < array_length(_types); m++)
++    {
++        var _t = gnx_json_num(_types[m], -1);
++        
++        if (_t < 0 || _t > 3)
++            continue;
++        
++        // as in scr_set_mon_spr_data: hobgoblin and ogre sets, else the goblin set (mon_spr)
++        var _key = (_t == 1) ? "mon_spr_hob" : ((_t == 3) ? "mon_spr_ogr" : "mon_spr");
++        
++        if (!variable_struct_exists(arg0, _key))
++            _key = "mon_spr";
++        
++        var _set = variable_struct_exists(arg0, _key) ? variable_struct_get(arg0, _key) : undefined;
++        
++        for (var p = 0; p < 2; p++)
++        {
++            var _need = arg3[_phn[p]];
++            var _vanilla = (p == 0) ? 2 : 5;
++            
++            if (_need != _vanilla && (!is_struct(_set) || !variable_struct_exists(_set, _ph[p])))
++            {
++                gnx_report_mod_error("Cell '" + string(arg1) + "': the " + _ph[p] + " has " + string(_need) + " frames but " + _tname[_t] + "s have no " + _ph[p] + " strips in mon_spr (the vanilla ones have " + string(_vanilla) + ")");
++                _bad++;
++            }
++        }
++    }
++    
++    gnx_frames_report_bad(arg1, _bad);
++}
++
++
++/// GNX-LOOP-STRIP: true when every "gnx:" strip under the tables named arg1 (anywhere in human_spr arg0)
++/// is marked loop in the "sprites" block arg2, and there is at least one.
++function gnx_frames_tables_loop(arg0, arg1, arg2)
++{
++    var _refs = [];
++    gnx_frames_collect_tables(arg0, arg1, _refs);
++    
++    if (array_length(_refs) == 0 || !is_struct(arg2))
++        return false;
++    
++    for (var i = 0; i < array_length(_refs); i++)
++    {
++        var _k = _refs[i];
++        
++        if (!variable_struct_exists(arg2, _k))
++            return false;
++        
++        var _d = variable_struct_get(arg2, _k);
++        
++        if (!is_struct(_d) || !variable_struct_exists(_d, "loop") || (is_numeric(_d.loop) && _d.loop == 0))
++            return false;
++    }
++    
++    return true;
++}
++
++
++/// GNX-LOOP-STRIP: adds to list arg2 the names of the "gnx:" strips under every key arg1 inside arg0.
++function gnx_frames_collect_tables(arg0, arg1, arg2)
++{
++    if (is_array(arg0))
++    {
++        for (var i = 0; i < array_length(arg0); i++)
++            gnx_frames_collect_tables(arg0[i], arg1, arg2);
++        
++        exit;
++    }
++    
++    if (!is_struct(arg0))
++        exit;
++    
++    var _names = variable_struct_get_names(arg0);
++    
++    for (var i = 0; i < array_length(_names); i++)
++    {
++        var _v = variable_struct_get(arg0, _names[i]);
++        
++        if (_names[i] == arg1)
++            gnx_frames_collect_refs(_v, arg2);
++        else
++            gnx_frames_collect_tables(_v, arg1, arg2);
++    }
++}
++
++
++/// GNX-LOOP-STRIP: adds to list arg1 the names (without "gnx:") of every "gnx:" string inside arg0.
++function gnx_frames_collect_refs(arg0, arg1)
++{
++    if (is_string(arg0))
++    {
++        if (string_copy(arg0, 1, 4) == "gnx:")
++            array_push(arg1, string_delete(arg0, 1, 4));
++        
++        exit;
++    }
++    
++    if (is_array(arg0))
++    {
++        for (var i = 0; i < array_length(arg0); i++)
++            gnx_frames_collect_refs(arg0[i], arg1);
++    }
++    else if (is_struct(arg0))
++    {
++        var _names = variable_struct_get_names(arg0);
++        
++        for (var i = 0; i < array_length(_names); i++)
++        {
++            var _v = variable_struct_get(arg0, _names[i]);
++            
++            // GNX-FIX: the hand (place 3) holds poses, not frames of the phase: left out, as in the check
++            if ((_names[i] == "spr_array" || _names[i] == "spr_c_array") && is_array(_v))
++            {
++                for (var j = 0; j < array_length(_v); j++)
++                {
++                    if (j != 3)
++                        gnx_frames_collect_refs(_v[j], arg1);
++                }
++                
++                continue;
++            }
++            
++            gnx_frames_collect_refs(_v, arg1);
++        }
++    }
++}
++
++
++/// GNX-FRAMES: one log line with the number of strips (arg1) of cell arg0 that do not fit their phase.
++function gnx_frames_report_bad(arg0, arg1)
++{
++    if (arg1 <= 0)
++        exit;
++    
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-FRAMES] " + string(arg0) + ": " + string(arg1) + " strip(s) do not match the frame counts, see the mod errors\n");
++    gnx_log_close(_l);
++}
++
++
++/// GNX-FIX: reads a play / hold count (arg0): a whole number, or [min, max] for a random count, each 1-99
++/// with min <= max (numbers written as text are read). Returns [min, max], or undefined after a mod error
++/// that names cell arg1 and key arg2 (the caller then keeps its default). Before, [100, 120] became
++/// [100, 99] and anything above 99 slipped through.
++function gnx_parse_repeat_range(arg0, arg1, arg2)
++{
++    // is_array && length 2: [min, max]; otherwise one number for both
++    var _two = is_array(arg0) && array_length(arg0) == 2;
++    var _a = _two ? gnx_json_num(arg0[0], -1) : gnx_json_num(arg0, -1);
++    var _b = _two ? gnx_json_num(arg0[1], -1) : _a;
++    
++    // && = and: every part must hold
++    if (_a >= 1 && _a <= 99 && _b >= _a && _b <= 99 && _a == floor(_a) && _b == floor(_b))
++        return [_a, _b];
++    
++    gnx_report_mod_error("Cell '" + string(arg1) + "': " + string(arg2) + " must be a whole number 1-99 or [min, max] with 1 <= min <= max <= 99 (" + string(arg0) + "); the default is used");
++    return undefined;
++}
++
++
++/// GNX-INTER: the four intermissions in scene order: 0 idle_start (idle -> start), 1 start_loop (start ->
++/// loop), 2 loop_ej (loop -> ej), 3 ej_birth (ej -> birth). Intermission k is phase 6 + k (spr_type).
++function gnx_inter_names()
++{
++    return ["idle_start", "start_loop", "loop_ej", "ej_birth"];
++}
++
++
++/// GNX-INTER: the main phase intermission phase arg0 (6-9) leads into: start 0, loop 2, ej 3, birth 4 (in
++/// a cell arg1 = h_type whose scene has no start, idle_start leads into the loop). Other phases come back
++/// unchanged.
++function gnx_inter_next_phase(arg0, arg1 = -1)
++{
++    // && = and: only the four intermission phases
++    if (arg0 < 6 || arg0 > 9)
++        return arg0;
++    
++    var _nx = [0, 2, 3, 4];
++    var _c = ds_map_find_value(global.cell_registry, arg1);
++    
++    if (_c != undefined && variable_struct_exists(_c.physical, "gnx_inter_next"))
++        _nx = _c.physical.gnx_inter_next;
++    
++    return _nx[arg0 - 6];
++}
++
++
++/// GNX-INTER: reads physical.intermissions (arg0) into four entries (-1 = not declared) of
++/// { frames, speed, loops: [min, max] }. arg1 = frames of the phase each one leads into (the default
++/// frames), arg2 = cell name for the mod errors.
++function gnx_inter_parse(arg0, arg1, arg2)
++{
++    var _out = [-1, -1, -1, -1];
++    
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error("Cell '" + string(arg2) + "': physical.intermissions must be an object like { \"loop_ej\": { \"frames\": 4 } }; ignored");
++        return _out;
++    }
++    
++    var _names = gnx_inter_names();
++    var _keys = variable_struct_get_names(arg0);
++    
++    // a key that is none of the four names is a typo: say so
++    for (var i = 0; i < array_length(_keys); i++)
++    {
++        if (!array_contains(_names, _keys[i]))
++            gnx_report_mod_error("Cell '" + string(arg2) + "': unknown intermission '" + string(_keys[i]) + "' (known: idle_start, start_loop, loop_ej, ej_birth); ignored");
++    }
++    
++    for (var k = 0; k < 4; k++)
++    {
++        if (!variable_struct_exists(arg0, _names[k]))
++            continue;
++        
++        var _ib = variable_struct_get(arg0, _names[k]);
++        
++        // {} is enough: every value has a default
++        if (!is_struct(_ib))
++        {
++            gnx_report_mod_error("Cell '" + string(arg2) + "': intermissions." + _names[k] + " must be an object ({ \"frames\": n, \"speed\": n, \"loops\": n }); ignored");
++            continue;
++        }
++        
++        var _lp = [1, 1];
++        
++        if (variable_struct_exists(_ib, "loops"))
++        {
++            // GNX-FIX: one checker for every count range (1-99, min <= max); 1 when it is wrong
++            var _ilr = gnx_parse_repeat_range(_ib.loops, arg2, "intermissions." + _names[k] + ".loops");
++            
++            if (is_array(_ilr))
++                _lp = _ilr;
++        }
++        
++        // GNX-FIX: frames 1-64 and speed 0.1-60 frames per second, as in the underground cell
++        _out[k] = 
++        {
++            frames: variable_struct_exists(_ib, "frames") ? floor(gnx_json_num_in(_ib.frames, arg1[k], 1, 64, arg2, "intermissions." + _names[k] + ".frames")) : arg1[k],
++            speed: variable_struct_exists(_ib, "speed") ? gnx_json_num_in(_ib.speed, 8, 0.1, 60, arg2, "intermissions." + _names[k] + ".speed") : 8,
++            loops: _lp
++        };
++    }
++    
++    return _out;
++}
++
++
++/// GNX-INTER: resolves the intermission tables (phase_idle_start ... phase_ej_birth) of the JSON table block
++/// arg0 into the cell's block arg1, like phase_0 ... phase_5. arg2 = "sprites" block, arg3 = mod folder.
++function gnx_inter_resolve_tables(arg0, arg1, arg2, arg3)
++{
++    var _names = gnx_inter_names();
++    
++    for (var k = 0; k < 4; k++)
++    {
++        var _key = "phase_" + _names[k];
++        
++        if (variable_struct_exists(arg0, _key))
++            variable_struct_set(arg1, _key, gnx_resolve_special_phase(variable_struct_get(arg0, _key), arg2, arg3));
++    }
++}
++
++
++/// GNX-INTER: adds the four intermission scripts to an underground scene list arg0 (scr_h[5] ... [8]).
++function gnx_inter_push_scripts(arg0)
++{
++    var _names = gnx_inter_names();
++    
++    for (var k = 0; k < 4; k++)
++        array_push(arg0, gnx_resolve_script("scr_slot_h_gnx_inter_" + _names[k]));
++}
++
++
++/// GNX-INTER: puts the declared intermissions of a mod cell (arg0 = its physical settings, gnx_inter) into
++/// its scene list (scr_slot_template.h), each right before the script it leads into. The base and tentacle
++/// scripts move on with h_step++, so the scene passes through them. arg1 = cell name for the mod errors.
++/// An intermission that has no place in the list (no start script, no birth in the cell) is dropped
++/// with a mod error, and so are all of them for a list with other scripts.
++function gnx_inter_insert(arg0, arg1)
++{
++    var _h = arg0.scr_slot_template.h;
++    var _in = arg0.gnx_inter;
++    // what stays declared; set as a new list at the end (an intermission without a place is dropped)
++    var _keep = [_in[0], _in[1], _in[2], _in[3]];
++    var _names = gnx_inter_names();
++    var _known = ["scr_slot_h_big_start", "scr_slot_h_base_start", "scr_slot_h_base_wait", "scr_slot_h_base_sloop", "scr_slot_h_base_floop", "scr_slot_h_base_ej", "scr_slot_h_base_ej_2", "scr_slot_h_tent_sloop", "scr_slot_h_tent_floop", "scr_slot_h_tent_ej", "scr_slot_h_tent_birth", "scr_slot_h_tent_birth_ej"];
++    var _sn = [];
++    var _other = "";
++    
++    // the script names of the list, and any script the intermissions cannot work with
++    for (var i = 0; i < array_length(_h); i++)
++    {
++        var _nm = (is_numeric(_h[i]) && _h[i] < 0) ? "?" : script_get_name(_h[i]);
++        array_push(_sn, _nm);
++        
++        // array_contains: the name is in the list; intermission scripts already put in are fine too
++        if (!array_contains(_known, _nm) && string_copy(_nm, 1, 21) != "scr_slot_h_gnx_inter_")
++            _other += ((_other == "") ? "" : ", ") + _nm;
++    }
++    
++    if (_other != "")
++    {
++        gnx_report_mod_error("Cell '" + string(arg1) + "': physical.intermissions works with the base and tentacle scene scripts and underground cells, not " + _other + "; ignored");
++        arg0.gnx_inter = [-1, -1, -1, -1];
++        exit;
++    }
++    
++    // where each one goes: before the first of these scripts
++    var _before = [["scr_slot_h_big_start", "scr_slot_h_base_start", "scr_slot_h_base_sloop", "scr_slot_h_tent_sloop"], ["scr_slot_h_base_sloop", "scr_slot_h_tent_sloop"], ["scr_slot_h_base_ej", "scr_slot_h_base_ej_2", "scr_slot_h_tent_ej"], ["scr_slot_h_tent_birth"]];
++    var _why = ["the scene has no start or loop script", "the scene has no start script before its loop", "the scene has no ej script", "the captive does not give birth in this cell (base cells: she gives birth in a BIRTH cell)"];
++    
++    for (var k = 0; k < 4; k++)
++    {
++        if (!is_struct(_in[k]))
++            continue;
++        
++        var _scr = "scr_slot_h_gnx_inter_" + _names[k];
++        
++        // already in the list (a patch ran this again): nothing to do
++        if (array_contains(_sn, _scr))
++            continue;
++        
++        var _pos = -1;
++        
++        for (var i = 0; i < array_length(_sn) && _pos == -1; i++)
++        {
++            if (array_contains(_before[k], _sn[i]))
++                _pos = i;
++        }
++        
++        // start_loop needs a start script before the loop
++        if (k == 1 && _pos != -1)
++        {
++            var _st = false;
++            
++            for (var i = 0; i < _pos; i++)
++            {
++                if (_sn[i] == "scr_slot_h_big_start" || _sn[i] == "scr_slot_h_base_start")
++                    _st = true;
++            }
++            
++            if (!_st)
++                _pos = -1;
++        }
++        
++        if (_pos == -1)
++        {
++            gnx_report_mod_error("Cell '" + string(arg1) + "': intermissions." + _names[k] + " is ignored: " + _why[k]);
++            _keep[k] = -1;
++            continue;
++        }
++        
++        // array_insert(list, place, value): the scripts from _pos on move one step later
++        array_insert(_h, _pos, gnx_resolve_script(_scr));
++        array_insert(_sn, _pos, _scr);
++    }
++    
++    arg0.gnx_inter = _keep;
++}
++
++
++/// GNX-INTER: the strip rule for the declared intermissions (arg3 = gnx_inter, arg4 = frames of the phase
++/// each one leads into). arg0 = cell JSON, arg1 = cell name, arg2 = "sprites" block, arg5 = true for an
++/// underground scene, arg6 = base_body. Each intermission plays its own frames:
++/// - captive: human_spr.phase_<name> strips have them (or are marked "loop"); without such a table the
++///   captive is drawn with the art of the phase it leads into, so its count must then be the same
++///   (unless every strip of that art loops);
++/// - tentacle (tent_spr.<name>) and monsters (mon_spr.<name>, every set and placement) have exactly them;
++///   a monster set without its own <name> strips is drawn with the strips of the phase the intermission
++///   leads into, so then the counts must match too. milk_spr fits any count.
++function gnx_frames_check_inter(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
++{
++    var _bad = 0;
++    var _names = gnx_inter_names();
++    var _hs = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : undefined;
++    // the captive table each main phase is drawn with (index = phase): start (phase_0, else the idle art),
++    // loop, ej (phase_3 only in underground scenes, else the loop art), birth; arg7 = next phase of each
++    var _big = arg5 || arg6 == "big";
++    var _pt = [(_big && _hs != undefined && gnx_json_has_key(_hs, "phase_0")) ? "phase_0" : "phase_1", "phase_1", "phase_2", (arg5 && _hs != undefined && gnx_json_has_key(_hs, "phase_3")) ? "phase_3" : "phase_2", "phase_4"];
++    var _nt = [_pt[arg7[0]], _pt[arg7[1]], _pt[arg7[2]], _pt[arg7[3]]];
++    // the monster strips used without mon_spr.<name>: start, loop, ej (birth: the ej ones)
++    var _mkp = ["start", "idle", "loop", "ej", "ej"];
++    var _mk = [_mkp[arg7[0]], _mkp[arg7[1]], _mkp[arg7[2]], _mkp[arg7[3]]];
++    
++    for (var k = 0; k < 4; k++)
++    {
++        if (!is_struct(arg3[k]))
++            continue;
++        
++        var _f = arg3[k].frames;
++        var _tn = "phase_" + _names[k];
++        
++        if (_hs != undefined && gnx_json_has_key(_hs, _tn))
++        {
++            _bad += gnx_frames_check_named_tables(_hs, _tn, _f, arg1, arg2);
++        }
++        else if (_hs != undefined && _f != arg4[k] && !gnx_frames_tables_loop(_hs, _nt[k], arg2))
++        {
++            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + _names[k] + " has " + string(_f) + " frames but no " + _tn + " table, so the captive is drawn with the " + _nt[k] + " art (" + string(arg4[k]) + " frames); add " + _tn + ", give both the same count, or mark those strips \"loop\": true");
++            _bad++;
++        }
++        
++        if (arg5 && variable_struct_exists(arg0, "tent_spr") && is_struct(arg0.tent_spr) && variable_struct_exists(arg0.tent_spr, _names[k]))
++            _bad += gnx_frames_check_refs(variable_struct_get(arg0.tent_spr, _names[k]), _f, arg1, "tent_spr." + _names[k], arg2, false);
++        
++        // monsters: underground scenes have none
++        var _max_mon = variable_struct_exists(arg0, "physical") && variable_struct_exists(arg0.physical, "max_mon_num") ? gnx_json_num(arg0.physical.max_mon_num, 0) : 0;
++        
++        if (arg5 || _max_mon <= 0)
++            continue;
++        
++        var _sets = ["mon_spr", "mon_spr_hob", "mon_spr_ogr"];
++        var _any = false;
++        // frames of the monster strips used instead: the start ones, else loop / ej (both loop frames)
++        var _mf = (arg7[k] == 0) ? arg4[k] : arg4[1];
++        
++        for (var s = 0; s < 3; s++)
++        {
++            for (var p = -1; p < 3; p++)
++            {
++                var _sk = (p == -1) ? _sets[s] : (_sets[s] + "_p" + string(p));
++                
++                if (!variable_struct_exists(arg0, _sk) || !is_struct(variable_struct_get(arg0, _sk)))
++                    continue;
++                
++                _any = true;
++                var _set = variable_struct_get(arg0, _sk);
++                
++                if (variable_struct_exists(_set, _names[k]))
++                    _bad += gnx_frames_check_refs(variable_struct_get(_set, _names[k]), _f, arg1, _sk + "." + _names[k], arg2, false);
++                else if (_f != _mf)
++                {
++                    gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + _names[k] + " has " + string(_f) + " frames but " + _sk + " has no " + _names[k] + " strips, so its monsters use their " + _mk[k] + " strips (" + string(_mf) + " frames); add " + _sk + "." + _names[k] + " or give both the same count");
++                    _bad++;
++                }
++            }
++        }
++        
++        // no monster strips at all: monsters come from the vanilla sheets of the next phase
++        if (!_any && _f != ((arg7[k] == 0) ? 2 : 5))
++        {
++            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + _names[k] + " has " + string(_f) + " frames but the cell has no mon_spr, so its monsters use the vanilla " + _mk[k] + " sheets (" + string((arg7[k] == 0) ? 2 : 5) + " frames)");
++            _bad++;
++        }
++    }
++    
++    gnx_frames_report_bad(arg1, _bad);
++}
++
++
++/// GNX-UG: checks the strips under every key named arg1 anywhere in arg0 (a human_spr block) against arg2
++/// frames per row; captive strips may loop. arg3 = cell name, arg4 = "sprites" block. Returns the problems.
++function gnx_frames_check_named_tables(arg0, arg1, arg2, arg3, arg4)
++{
++    var _bad = 0;
++    
++    if (is_array(arg0))
++    {
++        for (var i = 0; i < array_length(arg0); i++)
++            _bad += gnx_frames_check_named_tables(arg0[i], arg1, arg2, arg3, arg4);
++        
++        return _bad;
++    }
++    
++    if (!is_struct(arg0))
++        return 0;
++    
++    var _names = variable_struct_get_names(arg0);
++    
++    for (var i = 0; i < array_length(_names); i++)
++    {
++        var _v = variable_struct_get(arg0, _names[i]);
++        
++        // == arg1: the table we look for; anything else may hold it further down
++        if (_names[i] == arg1)
++            _bad += gnx_frames_check_refs(_v, arg2, arg3, "human_spr." + arg1, arg4, true);
++        else
++            _bad += gnx_frames_check_named_tables(_v, arg1, arg2, arg3, arg4);
++    }
++    
++    return _bad;
++}
++
++
++/// GNX-FRAMES: walks a human_spr block (arg0) and checks the strips under every key phase_0 ... phase_4
++/// with that phase's count (arg3), skipping phases the cell never draws (arg4[phase] false).
++/// arg1 = cell name, arg2 = "sprites" block. Returns the number of problems.
++function gnx_frames_check_phase_tables(arg0, arg1, arg2, arg3, arg4)
++{
++    var _bad = 0;
++    
++    if (is_array(arg0))
++    {
++        for (var i = 0; i < array_length(arg0); i++)
++            _bad += gnx_frames_check_phase_tables(arg0[i], arg1, arg2, arg3, arg4);
++        
++        return _bad;
++    }
++    
++    if (!is_struct(arg0))
++        return 0;
++    
++    var _names = variable_struct_get_names(arg0);
++    
++    for (var i = 0; i < array_length(_names); i++)
++    {
++        var _k = _names[i];
++        var _v = variable_struct_get(arg0, _k);
++        
++        // string_copy(text, 1, 6) = the first 6 characters; "phase_" + one digit 0-4
++        if (string_length(_k) == 7 && string_copy(_k, 1, 6) == "phase_" && string_digits(_k) != "" && real(string_digits(_k)) <= 4)
++        {
++            var _pn = real(string_digits(_k));
++            
++            // a table the cell never draws cannot show wrong frames
++            if (arg4[_pn])
++                _bad += gnx_frames_check_refs(_v, arg3[_pn], arg1, "human_spr." + _k, arg2, true);
++        }
++        else
++        {
++            _bad += gnx_frames_check_phase_tables(_v, arg1, arg2, arg3, arg4);
++        }
++    }
++    
++    return _bad;
++}
++
++
++/// GNX-FRAMES: checks every "gnx:<name>" sprite under arg0 against arg1 frames per row. arg2 = cell name,
++/// arg3 = where it is (for the message), arg4 = "sprites" block. Game sprites (no "gnx:") are not checked.
++/// Fewer frames than one row = mod error; frames left over after the last full row = log line only.
++/// arg5 = true for the captive's strips: those may be marked "loop" (they loop their own frames inside
++/// the phase, so any count fits). Monsters and the tentacle / milk overlays have no loop: they always
++/// need the phase's count. Returns the number of strips with too few frames.
++function gnx_frames_check_refs(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    var _bad = 0;
++    
++    if (is_string(arg0))
++    {
++        if (string_copy(arg0, 1, 4) != "gnx:" || !is_struct(arg4))
++            return 0;
++        
++        var _name = string_delete(arg0, 1, 4);
++        
++        if (!variable_struct_exists(arg4, _name))
++            return 0;
++        
++        var _def = variable_struct_get(arg4, _name);
++        var _n = -1;
++        
++        // "frames": a number (frames in the strip) or a list (atlas frames); a single image has 1
++        if (is_struct(_def) && variable_struct_exists(_def, "frames"))
++            _n = is_array(_def.frames) ? array_length(_def.frames) : floor(gnx_json_num(_def.frames, -1));
++        else if (is_struct(_def) || is_string(_def))
++            _n = 1;
++        
++        // GNX-LOOP-STRIP: a looping captive strip fits any phase length
++        var _is_loop = is_struct(_def) && variable_struct_exists(_def, "loop") && !(is_numeric(_def.loop) && _def.loop == 0);  // GNX: false arrives as 0
++        
++        if (_is_loop && arg5)
++            return 0;
++        
++        if (_is_loop && _n > 1 && _n < arg1)
++        {
++            gnx_report_mod_error("Cell '" + string(arg2) + "': strip '" + _name + "' (" + arg3 + ") is marked loop, but only the captive's strips can loop: it needs " + string(arg1) + " frames per row, like the captive's phase");
++            return 1;
++        }
++        
++        // too few frames for one row: the animation would run past the strip -> mod error
++        // (1 frame = a still image, it always fits)
++        if (_n > 1 && _n < arg1)
++        {
++            gnx_report_mod_error("Cell '" + string(arg2) + "': strip '" + _name + "' (" + arg3 + ") has " + string(_n) + " frames, it needs " + string(arg1) + " per row");
++            return 1;
++        }
++        
++        // % = remainder: 10 frames are 2 full rows of 5 (10 % 5 == 0); 12 leave 2 frames that are never
++        // shown. That can be on purpose (a strip shared with a longer phase), so it is only a log line.
++        if (_n > 1 && (_n % arg1) != 0)
++        {
++            var _wl = gnx_log_open();
++            gnx_log_write(_wl, "[GNX-FRAMES] " + string(arg2) + ": strip '" + _name + "' (" + arg3 + ") has " + string(_n) + " frames, the phase uses " + string(arg1) + " per row; the last " + string(_n % arg1) + " are not shown\n");
++            gnx_log_close(_wl);
++        }
++        
++        return 0;
++    }
++    
++    if (is_array(arg0))
++    {
++        for (var i = 0; i < array_length(arg0); i++)
++            _bad += gnx_frames_check_refs(arg0[i], arg1, arg2, arg3, arg4, arg5);
++    }
++    else if (is_struct(arg0))
++    {
++        var _names = variable_struct_get_names(arg0);
++        
++        for (var i = 0; i < array_length(_names); i++)
++        {
++            var _v = variable_struct_get(arg0, _names[i]);
++            
++            // GNX-FIX: in a captive table the hand (place 3 of spr_array / spr_c_array) is no animation:
++            // its strip holds hand poses per skin (hand_frames picks them), so its frame count is not the
++            // phase's. Every other place is checked.
++            if ((_names[i] == "spr_array" || _names[i] == "spr_c_array") && is_array(_v))
++            {
++                for (var j = 0; j < array_length(_v); j++)
++                {
++                    if (j != 3)
++                        _bad += gnx_frames_check_refs(_v[j], arg1, arg2, arg3, arg4, arg5);
++                }
++                
++                continue;
++            }
++            
++            _bad += gnx_frames_check_refs(_v, arg1, arg2, arg3, arg4, arg5);
++        }
++    }
++    
++    return _bad;
++}
++
++
++/// GNX-PLACES: whether a cell runs independent places: its scene list (arg0, the names from the JSON) holds
++/// "scr_slot_h_gnx_places". arg1 = max_mon_num, arg2 = the cell's name for mod errors. Other entries next to
++/// it are a mod error and are not run: the caller then keeps the places script alone (audit 25), so the cell
++/// never runs a half places, half vanilla scene. A cell without room for a monster is a mod error (it gets
++/// no monsters, so no scene ever starts).
++function gnx_places_check(arg0, arg1, arg2)
++{
++    if (!is_array(arg0))
++        return false;
++    
++    var _hits = 0;
++    
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        // == : this entry is the places script
++        if (is_string(arg0[i]) && arg0[i] == "scr_slot_h_gnx_places")
++            _hits++;
++    }
++    
++    if (_hits == 0)
++        return false;
++    
++    // < 1: no room for a monster, so no place to run (the cell calls no monster, its scene never starts)
++    if (gnx_json_num(arg1, 0) < 1)
++    {
++        gnx_report_mod_error("Cell '" + string(arg2) + "': scr_slot_h_gnx_places needs max_mon_num 1 or more; the cell gets no monsters");
++        return false;
++    }
++    
++    // != 1: the places script runs the whole scene; the other entries are left out by the caller
++    if (array_length(arg0) != 1)
++        gnx_report_mod_error("Cell '" + string(arg2) + "': scr_slot_h_gnx_places runs the whole scene, so it must be the only entry of scr_h; the other entries are left out");
++    
++    return true;
++}
++
++
++/// GNX-FIX: runs in a cell: which of its places 0 .. arg0 - 1 a monster of h_unit_list holds, as a list of
++/// true / false. Monsters that are gone or have no place (-1) are skipped, so nothing is written outside
++/// the list.
++function gnx_places_taken(arg0)
++{
++    var _t = array_create(max(0, arg0), false);
++    
++    if (!is_array(h_unit_list))
++        return _t;
++    
++    for (var i = 0; i < array_length(h_unit_list); i++)
++    {
++        var _u = h_unit_list[i];
++        
++        if (!gnx_is_live_inst(_u) || !variable_instance_exists(_u, "mon_data") || !is_struct(_u.mon_data))
++            continue;
++        
++        var _pn = _u.mon_data.placement_num;
++        
++        // >= 0 && < arg0: a place inside the list
++        if (_pn >= 0 && _pn < arg0)
++            _t[_pn] = true;
++    }
++    
++    return _t;
++}
++
++
++/// GNX-UG: fills what an underground cell (category "ug_breed") leaves out with GNX's own values:
++/// scene scripts, layers with the GNX tentacle and floor, default frames, a 75 px underground part and
++/// no squirt or drip effects. arg0 = the cell's JSON, arg1 = mod folder. Keys the mod wrote stay as written.
++function gnx_ug_fill_defaults(arg0, arg1)
++{
++    if (!variable_struct_exists(arg0, "physical") || !is_struct(arg0.physical))
++        arg0.physical = {};
++    
++    var _p = arg0.physical;
++    var _def = 
++    {
++        allow_preg: true,
++        max_mon_num: 0,
++        anal: -1,
++        slot_dirt_init: 0,
++        character_row: 0,
++        underground: 75,
++        // 5 px of extra ground between the bottom of the cell and the next floor's ceiling
++        underground_gap: 5,
++        frames: {},
++        layers: [[8, -1, false, -1, false], [6, -1, false, -1, false], [10, -1, -2, -1, false, -1], [21, "spr_empty", false, -1], [20, "spr_gnx_ug_tent_ready", false, -1], [0, "spr_gnx_ug_floor", false, -1]],
++        scr_idle: "scr_slot_h_gnx_ug_idle",
++        scr_h: ["scr_slot_h_gnx_ug_start", "scr_slot_h_gnx_ug_loop", "scr_slot_h_gnx_ug_ej", "scr_slot_h_gnx_ug_birth", "scr_slot_h_gnx_ug_milk"],
++        scr_draw: "scr_draw_slot_gnx",
++        hand_x: [],
++        hand_y: [],
++        hand_xscale: [],
++        hand_angle: [],
++        sq_x: -1,
++        sq_y: [0],
++        sp_x: -1,
++        sp_y: [0],
++        sp_anim_x: 0,
++        sp_anim_y: 0,
++        // GNX-FX: the vanilla splash, as in the tentacle cells (drawn only when sp_x is set)
++        sp_spr: "spr_sp_v_start"
++    };
++    var _keys = variable_struct_get_names(_def);
++    
++    for (var i = 0; i < array_length(_keys); i++)
++    {
++        // ! = not: only keys the mod did not write
++        if (!variable_struct_exists(_p, _keys[i]))
++            variable_struct_set(_p, _keys[i], variable_struct_get(_def, _keys[i]));
++    }
++    
++    // GNX-UG: say once which GNX graphics are missing. The installer names each PNG of GNX_assets
++    // spr_<file name>, so gnx_ug_floor.png becomes spr_gnx_ug_floor; any other file name is not found.
++    if (!variable_global_exists("gnx_ug_assets_logged") || !global.gnx_ug_assets_logged)
++    {
++        global.gnx_ug_assets_logged = true;
++        var _ga = global.gnx_ug_assets;
++        var _gn = [_ga.wall, _ga.wall2, _ga.top, _ga.tent, _ga.band];
++        var _gf = ["gnx_ug_wall_1", "gnx_ug_wall_2", "gnx_ug_floor", "gnx_ug_tent_ready", "gnx_ug_band"];
++        var _gu = ["first wall behind the cell", "second wall (swap button)", "cell floor", "tentacle in an empty cell", "floor band"];
++        var _gl = gnx_log_open();
++        
++        for (var _gi = 0; _gi < 5; _gi++)
++        {
++            if (_gn[_gi] == -1)
++                gnx_log_write(_gl, "[GNX-UG] spr_" + _gf[_gi] + " is not in the game: put " + _gf[_gi] + ".png into GNX_assets (the installer names each PNG spr_<file name>); the " + _gu[_gi] + " is not drawn\n");
++        }
++        
++        gnx_log_close(_gl);
++    }
++    
++    // GNX-FX: GNX cannot know where the captive is drawn, so squirt, drips and splash stay off until the
++    // mod gives their place: x from the left edge of the strip, y from the floor line (pixel row - yorig)
++    if (_p.sq_x == -1 && _p.sp_x == -1)
++    {
++        var _fxl = gnx_log_open();
++        gnx_log_write(_fxl, "[GNX-UG] mod '" + string(arg1) + "': underground cell '" + string(variable_struct_exists(arg0, "name") ? arg0.name : "?") + "' has no sq_x / sp_x - no squirt, drips or splash; set sq_x, sq_y, sp_x, sp_y in physical\n");
++        gnx_log_close(_fxl);
++    }
++    
++    // GNX-FIX: the payout at the end of a scene reads spawn_info; without it the game stopped after
++    // the first ej. Default = the vanilla tentacle wall cells (mood only, no gold).
++    if (!variable_struct_exists(arg0, "spawn_info"))
++        arg0.spawn_info = { coin: 0, mood: 2, coin_mul: false, mood_mul: false };
++    
++    // the GNX tentacle ("ready") shows only in an empty cell unless the mod gives phase sprites
++    if (!variable_struct_exists(arg0, "tent_spr"))
++        arg0.tent_spr = { start: "spr_empty", idle: "spr_empty", loop: "spr_empty", ej: "spr_empty", birth: "spr_empty", milk: "spr_empty" };
++    
++    if (variable_struct_exists(arg0, "human_spr") && is_struct(arg0.human_spr))
++    {
++        if (!variable_struct_exists(arg0.human_spr, "base_body"))
++            arg0.human_spr.base_body = "big";
++        
++        // fixed sprites draw the same captive for every class, so the cell should name its class
++        if (variable_struct_exists(arg0.human_spr, "mode") && arg0.human_spr.mode == "fixed" && !variable_struct_exists(_p, "required_class"))
++        {
++            var _l = gnx_log_open();
++            gnx_log_write(_l, "[GNX-WARN] mod '" + string(arg1) + "': underground cell '" + string(variable_struct_exists(arg0, "name") ? arg0.name : "?") + "' uses fixed sprites without required_class - every class can enter\n");
++            gnx_log_close(_l);
++        }
++    }
++}
++
++
++/// GNX-UG: gnx_floor_off for every floor (index = floor), used to move things when the bands change.
++function gnx_ug_floor_offsets()
++{
++    var _n = global.val.floor + 1;
++    var _out = array_create(_n, 0);
++    var _o = 0;
++    
++    for (var i = 0; i < _n; i++)
++    {
++        _out[i] = _o;
++        _o += 140 + gnx_floor_extra(i);
++    }
++    
++    return _out;
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

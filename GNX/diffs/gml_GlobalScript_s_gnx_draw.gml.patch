@@ -1,0 +1,973 @@
+--- gml_138/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,970 @@
++// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++/// GNX-PROP: an origin given by name (arg0) for a frame arg1 px wide (arg2 = false) or tall (true), as a
++/// number: "left" / "top" 0, "center" / "middle" the middle pixel (floor of half), "right" / "bottom" the
++/// far edge. arg3 = the sprite's name for the mod error; an unknown name gives 0.
++function gnx_origin_named(arg0, arg1, arg2, arg3)
++{
++    var _n = string_lower(arg0);
++    
++    // || = or: both words mean the middle on either axis
++    if (_n == "center" || _n == "middle")
++        return floor(arg1 / 2);
++    
++    if (_n == (arg2 ? "top" : "left"))
++        return 0;
++    
++    if (_n == (arg2 ? "bottom" : "right"))
++        return arg1;
++    
++    gnx_report_mod_error("Sprite '" + string(arg3) + "': " + (arg2 ? "yorig" : "xorig") + " must be a number or " + (arg2 ? "\"top\", \"middle\", \"bottom\"" : "\"left\", \"center\", \"right\"") + ", not " + string(arg0) + "; 0 is used");
++    return 0;
++}
++
++
++// APPLY: lit up while there are changes to apply
++function scr_gnx_draw_apply_button()
++{
++    if (instance_exists(source_id) && variable_instance_exists(source_id, "dirty") && source_id.dirty)
++        hover = true;  // the selection frame stays on: there is something to apply
++    
++    scr_gnx_draw_label_button();
++}
++
++
++/// GNX-PROP: a 1 x 1 white sprite, made once: the "source" of a ringed point light (a disk grown from one
++/// pixel, just as a ring round a mask is grown from the mask)
++function gnx_pixel_sprite()
++{
++    if (variable_global_exists("gnx_px_spr") && sprite_exists(global.gnx_px_spr))
++        return global.gnx_px_spr;
++    
++    var _sf = surface_create(1, 1);
++    surface_set_target(_sf);
++    draw_clear_alpha(c_white, 1);
++    surface_reset_target();
++    global.gnx_px_spr = sprite_create_from_surface(_sf, 0, 0, 1, 1, false, false, 0, 0);
++    surface_free(_sf);
++    return global.gnx_px_spr;
++}
++
++
++function gnx_pair_usable(arg0)
++{
++    return !variable_struct_exists(arg0, "usable") || arg0.usable;
++}
++
++
++function scr_gnx_alpha_fixup(arg0)
++{
++    with (obj_button)
++    {
++        if (source_id == arg0)
++        {
++            if (button_num == 14 || button_num == 15)
++                y += 13;
++            
++            if (button_num == 12 || button_num == 13)
++                x -= 5;
++        }
++    }
++}
++
++
++function scr_gnx_draw_alpha_window()
++{
++    var _spr = asset_get_index("spr_gnx_option_window");
++    
++    if (_spr < 0)
++        _spr = spr_option_window;
++    
++    gnx_draw_sprite_ext(_spr, image_index, x, y, 1, 1, image_angle, image_blend, image_alpha);
++    var _x = x - 32;
++    var _y = y + 8;
++    var _width = 55;
++    draw_set_color(c_white);
++    draw_set_halign(fa_left);
++    draw_text(_x, _y, "MON TYPE");
++    draw_text(_x, _y + 12, "OPACITY");
++    draw_text(_x, _y + 24, "PROP TYPE");
++    draw_text(_x, _y + 36, "OPACITY");
++    draw_text(_x, _y + 49, "SFX");
++    draw_text(_x, _y + 61, "BGM");
++    draw_text(_x, _y + 74, "UI PLACEMENT");
++    draw_text(_x, _y + 87, "FULLSCREEN");
++    draw_text(_x, _y + 100, "DEBUG");
++    draw_text(_x, _y + 113, "GUIDE");
++    draw_text(_x + 43, _y + 113, "EXIT");
++    draw_set_halign(fa_center);
++    draw_text(_x + _width, _y, string(global.val.alpha_type + 1));
++    draw_text(_x + _width, _y + 12, string(round(global.val.mon_alpha * 100)) + "%");
++    draw_text(_x + _width, _y + 24, string(global.val.crate_alpha_type + 1));
++    draw_text(_x + _width, _y + 36, string(round(global.val.crate_alpha * 100)) + "%");
++    draw_text(_x + _width, _y + 49, string(round(global.val.sfx_vol * 100)) + "%");
++    draw_text(_x + _width, _y + 61, string(round(global.val.bgm_vol * 100)) + "%");
++    _x = x - 74;
++    _y = y + 6;
++    var _height = 34;
++    draw_text(_x, _y, gnx_save_label(0));
++    draw_text(_x, _y + _height, gnx_save_label(1));
++    draw_text(_x, _y + (_height * 2), gnx_save_label(2));
++}
++
++
++function sprref_legacy(arg0)
++{
++    return 
++    {
++        kind: "legacy",
++        spr: arg0
++    };
++}
++
++
++function sprref_atlas(arg0, arg1, arg2, arg3)
++{
++    return 
++    {
++        kind: "atlas",
++        atlas: arg0,
++        frames: arg1,
++        xo: arg2,
++        yo: arg3
++    };
++}
++
++
++/// GNX-FIX: checks the frames arg1 of an atlas sprite against its pages arg0 (the sprites of the atlas
++/// PNGs, -1 where one failed to load). Returns "" when every frame has numbers x, y, w, h, points to a
++/// loaded page and lies inside it, else the first problem as text (for the log).
++function gnx_atlas_frames_bad(arg0, arg1)
++{
++    // ! = not, || = or
++    if (!is_array(arg0) || !is_array(arg1) || array_length(arg1) == 0)
++        return "no frames";
++    
++    for (var i = 0; i < array_length(arg1); i++)
++    {
++        var _f = arg1[i];
++        
++        if (!is_struct(_f) || !variable_struct_exists(_f, "atlas") || !variable_struct_exists(_f, "x") || !variable_struct_exists(_f, "y") || !variable_struct_exists(_f, "w") || !variable_struct_exists(_f, "h"))
++            return "frame " + string(i) + " lacks atlas / x / y / w / h";
++        
++        if (!is_real(_f.atlas) || !is_real(_f.x) || !is_real(_f.y) || !is_real(_f.w) || !is_real(_f.h))
++            return "frame " + string(i) + " has a value that is no number";
++
++        // w or h 0 = an empty frame (a fully transparent picture): drawn as nothing, as GNX always did,
++        // so its page and place are not checked (|| = or)
++        if (_f.w <= 0 || _f.h <= 0)
++            continue;
++
++        var _p = _f.atlas;
++        
++        // _p != floor(_p): not a whole page number
++        if (_p != floor(_p) || _p < 0 || _p >= array_length(arg0))
++            return "frame " + string(i) + " points to page " + string(_p) + ", the atlas has " + string(array_length(arg0));
++        
++        var _spr = arg0[_p];
++        
++        if (_spr == -1 || !sprite_exists(_spr))
++            return "frame " + string(i) + " is on page " + string(_p) + ", which did not load";
++        
++        if (_f.x < 0 || _f.y < 0 || _f.w <= 0 || _f.h <= 0 || (_f.x + _f.w) > sprite_get_width(_spr) || (_f.y + _f.h) > sprite_get_height(_spr))
++            return "frame " + string(i) + " (" + string(_f.x) + "," + string(_f.y) + " " + string(_f.w) + "x" + string(_f.h) + ") lies outside page " + string(_p);
++    }
++    
++    return "";
++}
++
++
++/// GNX-FIX: the one-time check of a multi-page atlas sprite arg0: { ok, pages } with ok = its frames are
++/// fine (gnx_atlas_frames_bad) and pages = the page numbers its frames use.
++function gnx_atlas_check(arg0)
++{
++    var _ok = gnx_atlas_frames_bad(arg0.atlas_sprites, arg0.frames) == "";
++    var _pages = [];
++    
++    if (_ok)
++    {
++        for (var i = 0; i < array_length(arg0.frames); i++)
++        {
++            var _cf = arg0.frames[i];
++
++            // empty frames (w or h 0) draw nothing and need no page (|| = or, ! = not)
++            if (_cf.w <= 0 || _cf.h <= 0)
++                continue;
++
++            if (!array_contains(_pages, _cf.atlas))
++                array_push(_pages, _cf.atlas);
++        }
++    }
++    
++    return 
++    {
++        ok: _ok,
++        pages: _pages
++    };
++}
++
++
++function sprref_atlas_multi(arg0, arg1, arg2, arg3)
++{
++    return 
++    {
++        kind: "atlas",
++        atlas: arg0[0],
++        atlas_sprites: arg0,
++        frames: arg1,
++        xo: arg2,
++        yo: arg3,
++        multi: true
++    };
++}
++
++
++function is_sprref(arg0)
++{
++    return is_struct(arg0) && variable_struct_exists(arg0, "kind") && (arg0.kind == "legacy" || arg0.kind == "atlas");
++}
++
++
++// Mav (1.4.7.5): a copy of an atlas sprite with another origin. The shared atlas entry is left alone,
++// so two JSON entries using the same file with different origins no longer clash.
++function gnx_sprref_with_origin(arg0, arg1, arg2)
++{
++    var _c =
++    {
++        kind: "atlas",
++        atlas: arg0.atlas,
++        frames: arg0.frames,
++        xo: arg1,
++        yo: arg2
++    };
++    if (variable_struct_exists(arg0, "multi"))
++    {
++        _c.atlas_sprites = arg0.atlas_sprites;
++        _c.multi = true;
++    }
++    return _c;
++}
++
++// Mav (1.4.7.5): turns an atlas sprite into a normal GameMaker sprite (frames copied through a surface).
++// Needed where the game requires a real sprite: sprite_index, click mask, frame count.
++// The result is cached in "baked", so each sprite is baked once. -1 = failed.
++function gnx_sprref_bake(arg0)
++{
++    if (!is_sprref(arg0))
++        return arg0;
++    if (arg0.kind == "legacy")
++        return arg0.spr;
++    if (variable_struct_exists(arg0, "baked") && sprite_exists(arg0.baked))
++        return arg0.baked;
++    var _n = array_length(arg0.frames);
++    if (_n == 0)
++        return -1;
++    var _w = 1;
++    var _h = 1;
++    for (var _i = 0; _i < _n; _i++)
++    {
++        _w = max(_w, arg0.frames[_i].w);
++        _h = max(_h, arg0.frames[_i].h);
++    }
++    var _surf = surface_create(_w, _h);
++    if (!surface_exists(_surf))
++        return -1;
++    var _spr = -1;
++    gpu_push_state();
++    // bm_one, bm_zero: copy pixels with their alpha, no blending
++    gpu_set_blendmode_ext(bm_one, bm_zero);
++    for (var _i = 0; _i < _n; _i++)
++    {
++        var _f = arg0.frames[_i];
++        var _aspr = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        surface_set_target(_surf);
++        draw_clear_alpha(c_black, 0);
++        // the _ext version with white and alpha 1, so draw_set_alpha from other events cannot leak in
++        if (sprite_exists(_aspr) && _f.w > 0 && _f.h > 0)
++            draw_sprite_part_ext(_aspr, 0, _f.x, _f.y, _f.w, _f.h, 0, 0, 1, 1, c_white, 1);
++        surface_reset_target();
++        if (_spr == -1)
++            _spr = sprite_create_from_surface(_surf, 0, 0, _w, _h, false, false, arg0.xo, arg0.yo);
++        else
++            sprite_add_from_surface(_spr, _surf, 0, 0, _w, _h, false, false);
++    }
++    gpu_pop_state();
++    surface_free(_surf);
++    if (_spr != -1)
++    {
++        array_push(global.gnx_runtime_sprites, _spr);
++        arg0.baked = _spr;
++    }
++    return _spr;
++}
++
++function gnx_sprite_exists(arg0)
++{
++    if (is_sprref(arg0))
++    {
++        if (arg0.kind == "legacy")
++            return sprite_exists(arg0.spr);
++        
++        // GNX-FIX: a multi-page atlas sprite exists only when every frame points into a loaded page and
++        // lies inside it (before, only the first frame's page was checked, so a sprite with a missing
++        // second page counted as fine and drew nothing). The full frame check runs once per sprite
++        // (gnx_chk); after that only the pages it uses are checked, because this runs while drawing.
++        if (variable_struct_exists(arg0, "multi"))
++        {
++            if (!variable_struct_exists(arg0, "gnx_chk"))
++                arg0.gnx_chk = gnx_atlas_check(arg0);
++            
++            if (!arg0.gnx_chk.ok)
++                return false;
++            
++            var _pg = arg0.gnx_chk.pages;
++            
++            for (var i = 0; i < array_length(_pg); i++)
++            {
++                if (!sprite_exists(arg0.atlas_sprites[_pg[i]]))
++                    return false;
++            }
++            
++            return true;
++        }
++        
++        // Mav (1.4.7.5): with several pages, the page of the first frame counts
++        return sprite_exists(arg0.atlas);
++    }
++    
++    return sprite_exists(arg0);
++}
++
++
++function gnx_sprite_get_number(arg0)
++{
++    if (is_sprref(arg0))
++        return (arg0.kind == "legacy") ? sprite_get_number(arg0.spr) : array_length(arg0.frames);
++    
++    return sprite_get_number(arg0);
++}
++
++
++function gnx_sprite_get_width(arg0, arg1 = 0)
++{
++    if (is_sprref(arg0))
++    {
++        if (arg0.kind == "legacy")
++            return sprite_get_width(arg0.spr);
++        
++        // GNX-FIX: no frames: 0 (the % below would divide by zero)
++        if (array_length(arg0.frames) == 0)
++            return 0;
++        
++        var _i = arg1 % array_length(arg0.frames);
++        return arg0.frames[_i].w;
++    }
++    
++    return sprite_get_width(arg0);
++}
++
++
++function gnx_sprite_get_height(arg0, arg1 = 0)
++{
++    if (is_sprref(arg0))
++    {
++        if (arg0.kind == "legacy")
++            return sprite_get_height(arg0.spr);
++        
++        // GNX-FIX: no frames: 0 (the % below would divide by zero)
++        if (array_length(arg0.frames) == 0)
++            return 0;
++        
++        var _i = arg1 % array_length(arg0.frames);
++        return arg0.frames[_i].h;
++    }
++    
++    return sprite_get_height(arg0);
++}
++
++
++function gnx_sprite_get_xoffset(arg0)
++{
++    if (is_sprref(arg0))
++        return (arg0.kind == "legacy") ? sprite_get_xoffset(arg0.spr) : arg0.xo;
++    
++    return sprite_get_xoffset(arg0);
++}
++
++
++function gnx_sprite_get_yoffset(arg0)
++{
++    if (is_sprref(arg0))
++        return (arg0.kind == "legacy") ? sprite_get_yoffset(arg0.spr) : arg0.yo;
++    
++    return sprite_get_yoffset(arg0);
++}
++
++
++function gnx_draw_sprite_ext(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
++{
++    if (is_array(global.gnx_draw_spy))
++        array_push(global.gnx_draw_spy, arg0);
++
++    // GNX-UG: while the part below the floor line is drawn, only rows at or below the clip line are drawn
++    if (global.gnx_clip_top != undefined)
++    {
++        gnx_draw_sprite_clip(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
++        exit;
++    }
++
++    if (is_sprref(arg0))
++    {
++        if (arg0.kind == "legacy")
++        {
++            draw_sprite_ext(arg0.spr, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
++            exit;
++        }
++        
++        var _n = array_length(arg0.frames);
++        
++        if (_n == 0)
++            exit;
++        
++        var _i = arg1 % _n;
++        
++        if (_i < 0)
++            _i += _n;
++        
++        var _f = arg0.frames[_i];
++        
++        if (_f.w <= 0 || _f.h <= 0)
++            exit;
++        
++        var _atlas_spr = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        // Mav (1.4.7.5): an atlas page that failed to load draws nothing
++        if (!sprite_exists(_atlas_spr))
++            exit;
++        var _dx = arg2 - (arg0.xo * arg4);
++        var _dy = arg3 - (arg0.yo * arg5);
++        
++        if (arg6 == 0)
++        {
++            draw_sprite_part_ext(_atlas_spr, 0, _f.x, _f.y, _f.w, _f.h, _dx, _dy, arg4, arg5, arg7, arg8);
++        }
++        else
++        {
++            // Mav (1.4.7.5): draw_sprite_general rotates around the part's top-left corner, draw_sprite_ext around the origin.
++            // Move the corner so the rotation is around the origin (dcos/dsin = cos/sin in degrees).
++            var _vx = -arg0.xo * arg4;
++            var _vy = -arg0.yo * arg5;
++            var _ca = dcos(arg6);
++            var _sa = dsin(arg6);
++            _dx = arg2 + (_vx * _ca) + (_vy * _sa);
++            _dy = (arg3 - (_vx * _sa)) + (_vy * _ca);
++            draw_sprite_general(_atlas_spr, 0, _f.x, _f.y, _f.w, _f.h, _dx, _dy, arg4, arg5, arg6, arg7, arg7, arg7, arg7, arg8);
++        }
++        
++        exit;
++    }
++    
++    // a sprite that never loaded (missing mod file) is skipped, not a crash; logged once per value
++    if (!is_real(arg0) && !is_handle(arg0) || !sprite_exists(arg0))
++    {
++        gnx_warn_bad_draw(arg0);
++        exit;
++    }
++    
++    draw_sprite_ext(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
++}
++
++
++function gnx_warn_bad_draw(arg0)
++{
++    if (!variable_global_exists("gnx_bad_draw_seen"))
++        global.gnx_bad_draw_seen = {};
++    
++    var _k = string(arg0);
++    
++    if (variable_struct_exists(global.gnx_bad_draw_seen, _k))
++        exit;
++    
++    variable_struct_set(global.gnx_bad_draw_seen, _k, true);
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-WARN] skipped drawing a sprite that does not exist (" + _k + "), probably a missing mod file" + chr(10));
++    gnx_log_close(_l);
++}
++
++
++function gnx_draw_sprite(arg0, arg1, arg2, arg3)
++{
++    gnx_draw_sprite_ext(arg0, arg1, arg2, arg3, 1, 1, 0, 16777215, 1);
++}
++
++
++/// GNX-UG: draws like gnx_draw_sprite_ext (arg0 sprite, arg1 frame, arg2/arg3 x/y, arg4/arg5 scale,
++/// arg6 angle, arg7 colour, arg8 alpha), but only the rows at or below global.gnx_clip_top.
++/// Rotated or upside-down draws (arg6 != 0, arg5 <= 0) are skipped: nothing below the floor uses them.
++function gnx_draw_sprite_clip(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
++{
++    // the clipping below works for upright sprites only (angle 0, y scale above 0)
++    if (arg6 != 0 || arg5 <= 0)
++    {
++        // GNX-FIX: such a sprite is not drawn below the floor line; say so once per sprite instead of
++        // leaving the part missing without a word
++        if (!variable_global_exists("gnx_clip_warned") || !is_struct(global.gnx_clip_warned))
++            global.gnx_clip_warned = {};
++        
++        // the key names the sprite: its id, or for an atlas sprite its first frame's place in the atlas
++        var _ck = string(arg0);
++        
++        if (is_struct(arg0))
++        {
++            if (variable_struct_exists(arg0, "spr"))
++                _ck = string(arg0.spr);
++            else if (variable_struct_exists(arg0, "frames") && is_array(arg0.frames) && array_length(arg0.frames) > 0 && is_struct(arg0.frames[0]))
++                _ck = "atlas@" + string(arg0.frames[0].atlas) + ":" + string(arg0.frames[0].x) + "," + string(arg0.frames[0].y);
++            else
++                _ck = "atlas";
++        }
++        
++        if (!variable_struct_exists(global.gnx_clip_warned, _ck))
++        {
++            variable_struct_set(global.gnx_clip_warned, _ck, true);
++            var _cl = gnx_log_open();
++            gnx_log_write(_cl, "[GNX-UG] a sprite of an underground cell is rotated or flipped upside down (angle " + string(arg6) + ", y scale " + string(arg5) + "): its part below the floor line is not drawn\n");
++            gnx_log_close(_cl);
++        }
++        
++        exit;
++    }
++
++    var _src = arg0;
++    var _sub = arg1;
++    var _sx = 0;
++    var _sy = 0;
++    var _w, _h, _xo, _yo;
++
++    if (is_sprref(arg0) && arg0.kind != "legacy")
++    {
++        // atlas frame: a rectangle (_f.x, _f.y, _f.w, _f.h) inside one big atlas sprite
++        var _n = array_length(arg0.frames);
++
++        if (_n == 0)
++            exit;
++
++        var _i = floor(arg1) % _n;
++
++        if (_i < 0)
++            _i += _n;
++
++        var _f = arg0.frames[_i];
++
++        if (_f.w <= 0 || _f.h <= 0)
++            exit;
++
++        _src = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        _sub = 0;
++        _sx = _f.x;
++        _sy = _f.y;
++        _w = _f.w;
++        _h = _f.h;
++        _xo = arg0.xo;
++        _yo = arg0.yo;
++    }
++    else
++    {
++        if (is_sprref(arg0))
++            _src = arg0.spr;
++
++        // ! = not, || = or: skip anything that is not an existing sprite
++        if ((!is_real(_src) && !is_handle(_src)) || !sprite_exists(_src))
++            exit;
++
++        _w = sprite_get_width(_src);
++        _h = sprite_get_height(_src);
++        _xo = sprite_get_xoffset(_src);
++        _yo = sprite_get_yoffset(_src);
++    }
++
++    if (!sprite_exists(_src))
++        exit;
++
++    var _top = arg3 - (_yo * arg5);
++    var _cut = max(0, ceil((global.gnx_clip_top - _top) / arg5));
++
++    // >= : the whole sprite lies above the clip line
++    if (_cut >= _h)
++        exit;
++
++    draw_sprite_part_ext(_src, _sub, _sx, _sy + _cut, _w, _h - _cut, arg2 - (_xo * arg4), _top + (_cut * arg5), arg4, arg5, arg7, arg8);
++}
++
++
++function gnx_draw_sprite_part_ext(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11)
++{
++    if (is_sprref(arg0) && arg0.kind == "atlas")
++    {
++        var _n = array_length(arg0.frames);
++        
++        if (_n == 0)
++            exit;
++        
++        var _i = arg1 % _n;
++        
++        if (_i < 0)
++            _i += _n;
++        
++        var _f = arg0.frames[_i];
++        
++        if (_f.w <= 0 || _f.h <= 0)
++            exit;
++        
++        var _atlas_spr = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        if (!sprite_exists(_atlas_spr))
++            exit;
++        var _al = clamp(arg2, 0, _f.w);
++        var _at = clamp(arg3, 0, _f.h);
++        var _aw = clamp(arg4, 0, _f.w - _al);
++        var _ah = clamp(arg5, 0, _f.h - _at);
++        draw_sprite_part_ext(_atlas_spr, 0, _f.x + _al, _f.y + _at, _aw, _ah, arg6, arg7, arg8, arg9, arg10, arg11);
++        exit;
++    }
++    
++    if (is_sprref(arg0) && arg0.kind == "legacy")
++    {
++        draw_sprite_part_ext(arg0.spr, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
++        exit;
++    }
++    
++    draw_sprite_part_ext(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
++}
++
++
++function gnx_atlas_resolve_ref(arg0, arg1)
++{
++    if (!variable_global_exists("gnx_mod_atlases"))
++        return undefined;
++    
++    if (!ds_map_exists(global.gnx_mod_atlases, arg0))
++        return undefined;
++    
++    var _atlas = ds_map_find_value(global.gnx_mod_atlases, arg0);
++    
++    if (_atlas == undefined)
++        return undefined;
++    
++    var _stem = "";
++    
++    if (is_struct(arg1))
++    {
++        if (variable_struct_exists(arg1, "strip"))
++            _stem = arg1.strip;
++        else if (variable_struct_exists(arg1, "path"))
++            _stem = arg1.path;
++        else if (variable_struct_exists(arg1, "frames") && is_array(arg1.frames) && array_length(arg1.frames) > 0)
++            _stem = arg1.frames[0];
++        else if (variable_struct_exists(arg1, "folder"))
++            _stem = string(arg1.folder); // Mav (1.4.7.5): a "folder"-only entry can be in the atlas too
++        else
++            return undefined;
++    }
++    else
++    {
++        _stem = string(arg1);
++    }
++    
++    _stem = filename_change_ext(filename_name(_stem), "");
++    
++    
++    if (variable_struct_exists(_atlas.sprrefs, _stem))
++    return variable_struct_get(_atlas.sprrefs, _stem);
++    // Mav (1.4.7.5): file names on Windows ignore case, struct keys do not.
++    // "spr_h_Jezebel_x" in the JSON and "spr_h_jezebel_x" in uv.json are the same file.
++    if (variable_struct_exists(_atlas, "sprrefs_lower"))
++    {
++        var _ls = string_lower(_stem);
++        if (variable_struct_exists(_atlas.sprrefs_lower, _ls))
++            return variable_struct_get(_atlas.sprrefs_lower, _ls);
++    }
++    return undefined;
++}
++
++
++function gnx_load_atlas_mod(arg0, arg1)
++{
++    var _atlas_dir = arg0 + "atlas/";
++    var _uv_path = _atlas_dir + "uv.json";
++    
++    if (!file_exists(_uv_path))
++    {
++        show_debug_message("[GNX-ATLAS] no uv.json at " + _uv_path);
++        return undefined;
++    }
++    
++    var _t_read = get_timer();
++    var _buf = buffer_load(_uv_path);
++    
++    if (_buf == -1)
++    {
++        show_debug_message("[GNX-ATLAS] failed to buffer_load " + _uv_path);
++        return undefined;
++    }
++    
++    var _content = buffer_read(_buf, buffer_text);
++    buffer_delete(_buf);
++    var _t_parse = get_timer();
++    var _uv;
++    
++    try
++    {
++        _uv = json_parse(_content);
++    }
++    catch (_e)
++    {
++        show_debug_message("[GNX-ATLAS] malformed uv.json for " + arg1);
++        var _ef = gnx_log_open();
++        gnx_log_write(_ef, "[GNX-ATLAS] ERROR: malformed uv.json for " + arg1 + "\n");
++        gnx_log_close(_ef);
++        return undefined;
++    }
++    
++    var _t_after_parse = get_timer();
++    var _tl_r = gnx_log_open();
++    gnx_log_write(_tl_r, "[GNX-TIME] " + arg1 + " uv.json read = " + string((_t_parse - _t_read) / 1000) + " ms, parse = " + string((_t_after_parse - _t_parse) / 1000) + " ms\n");
++    gnx_log_close(_tl_r);
++    var _atlas_sprites = [];
++    
++    // GNX-FIX: a uv.json without its lists stopped the game; now the atlas is skipped with a log line
++    if (!is_struct(_uv) || !variable_struct_exists(_uv, "atlas_files") || !is_array(_uv.atlas_files) || array_length(_uv.atlas_files) == 0 || !variable_struct_exists(_uv, "entries") || !is_struct(_uv.entries))
++    {
++        var _ef0 = gnx_log_open();
++        gnx_log_write(_ef0, "[GNX-ATLAS] ERROR: " + arg1 + ": uv.json needs atlas_files (a list of PNGs) and entries; atlas not used, the mod's strips load one by one\n");
++        gnx_log_close(_ef0);
++        return undefined;
++    }
++    
++    var _files = _uv.atlas_files;
++    
++    for (var _i = 0; _i < array_length(_files); _i++)
++    {
++        var _atlas_path = _atlas_dir + _files[_i];
++        var _t_pre_add = get_timer();
++        var _spr = sprite_add(_atlas_path, 1, false, false, 0, 0);
++        var _t_add_ms = (get_timer() - _t_pre_add) / 1000;
++        
++        if (_spr == -1)
++        {
++            show_debug_message("[GNX-ATLAS] failed to load " + _atlas_path);
++            // Mav (1.4.7.5): keep a placeholder instead of skipping the page: frames on later pages would point at the wrong page
++            array_push(_atlas_sprites, -1);
++            var _ef2 = gnx_log_open();
++            gnx_log_write(_ef2, "[GNX-ATLAS] ERROR: " + arg1 + ": failed to load " + _files[_i] + "\n");
++            gnx_log_close(_ef2);
++        }
++        else
++        {
++            var _tl = gnx_log_open();
++            gnx_log_write(_tl, "[GNX-TIME] sprite_add " + _files[_i] + " = " + string(_t_add_ms) + " ms\n");
++            gnx_log_close(_tl);
++            array_push(_atlas_sprites, _spr);
++            array_push(global.gnx_runtime_sprites, _spr);
++        }
++    }
++    
++    var _t_build = get_timer();
++    var _sprrefs = {};
++    var _sprrefs_lower = {};
++    var _entries = _uv.entries;
++    var _keys = variable_struct_get_names(_entries);
++    // GNX-FIX: entries that would draw nothing are left out (logged; the first 20 one by one)
++    var _bad_n = 0;
++    
++    for (var _k = 0; _k < array_length(_keys); _k++)
++    {
++        var _key = _keys[_k];
++        var _entry = variable_struct_get(_entries, _key);
++        var _frames_raw = (is_struct(_entry) && variable_struct_exists(_entry, "frames") && is_array(_entry.frames)) ? _entry.frames : [];
++        var _frames = [];
++        
++        for (var _fi = 0; _fi < array_length(_frames_raw); _fi++)
++        {
++            var _fr = _frames_raw[_fi];
++            
++            // a frame that is no object is kept as it is, so the check below reports it
++            if (!is_struct(_fr))
++            {
++                array_push(_frames, _fr);
++                continue;
++            }
++            
++            array_push(_frames, 
++            {
++                atlas: variable_struct_exists(_fr, "atlas") ? _fr.atlas : -1,
++                x: variable_struct_exists(_fr, "x") ? _fr.x : -1,
++                y: variable_struct_exists(_fr, "y") ? _fr.y : -1,
++                w: variable_struct_exists(_fr, "w") ? _fr.w : 0,
++                h: variable_struct_exists(_fr, "h") ? _fr.h : 0
++            });
++        }
++        
++        // GNX-FIX: a missing page or a frame outside its page made the sprite invisible without a word.
++        // Such an entry is not registered, so the sprite falls back to its own strip PNG when the mod has
++        // one (gnx_resolve_sprite_raw), else the cell reports the missing sprite as before.
++        var _why = gnx_atlas_frames_bad(_atlas_sprites, _frames);
++        
++        if (_why != "")
++        {
++            _bad_n++;
++            
++            if (_bad_n <= 20)
++            {
++                var _bl = gnx_log_open();
++                gnx_log_write(_bl, "[GNX-ATLAS] INVALID: mod=" + arg1 + " entry=" + _key + ": " + _why + "; not used\n");
++                gnx_log_close(_bl);
++            }
++            
++            continue;
++        }
++        
++        var _xo = variable_struct_exists(_entry, "xo") ? _entry.xo : 0;
++        var _yo = variable_struct_exists(_entry, "yo") ? _entry.yo : 0;
++        var _sref = sprref_atlas_multi(_atlas_sprites, _frames, _xo, _yo);
++        variable_struct_set(_sprrefs, _key, _sref);
++        // lowercase index for case-insensitive lookups (the first entry wins)
++        var _lkey = string_lower(_key);
++        if (!variable_struct_exists(_sprrefs_lower, _lkey))
++            variable_struct_set(_sprrefs_lower, _lkey, _sref);
++    }
++    
++    var _tl_b = gnx_log_open();
++    gnx_log_write(_tl_b, "[GNX-TIME] " + arg1 + " sprref build = " + string((get_timer() - _t_build) / 1000) + " ms\n");
++    
++    if (_bad_n > 0)
++        gnx_log_write(_tl_b, "[GNX-ATLAS] " + arg1 + ": " + string(_bad_n) + " atlas entr(y/ies) left out (see INVALID lines above)\n");
++    
++    gnx_log_close(_tl_b);
++    show_debug_message("[GNX-ATLAS] loaded " + arg1 + ": " + string(array_length(_atlas_sprites)) + " atlas(es), " + string(array_length(_keys)) + " sprite entries");
++    // GNX-FIX: counts for the per-mod report in scr_gnx_load_mods ([GNX-PERF]): pages that failed to load,
++    // entries left out, and (filled later by gnx_resolve_sprite_raw) strips loaded outside the atlas
++    var _failed_pages = 0;
++    
++    for (var _fp = 0; _fp < array_length(_atlas_sprites); _fp++)
++    {
++        if (_atlas_sprites[_fp] == -1)
++            _failed_pages++;
++    }
++    
++    return 
++    {
++        atlas_sprites: _atlas_sprites,
++        sprrefs: _sprrefs,
++        sprrefs_lower: _sprrefs_lower,
++        failed_pages: _failed_pages,
++        skipped_entries: _bad_n,
++        strip_loads: 0
++    };
++}
++
++
++function scr_gnx_draw_scrollbar()
++{
++    // pasek niewidoczny = brak obszaru; ponizej ustawiany, gdy pasek jest rysowany
++    global.gnx_scrollbar_rect = -1;
++
++    // POPRAWKA: puszczony przycisk zawsze konczy przeciaganie (takze gdy pasek akurat sie nie rysuje)
++    if (global.gnx_scrollbar_dragging && !mouse_check_button(global.val.select_click))
++        global.gnx_scrollbar_dragging = false;
++
++    if (!instance_exists(obj_camera))
++        exit;
++    
++    if (global.camera_lock)
++        exit;
++    
++    var _floor = global.val.floor;
++    var _total_h = 270 + gnx_floor_off(_floor);
++    var _cam_h = obj_camera.cam_height;
++    
++    if (_cam_h >= _total_h)
++        exit;
++    
++    var _cam_y = obj_camera.y;
++    var _start_y = max(0, obj_camera.zoom_num - 2) * -40;
++    var _max_y = max(1, (_total_h - _cam_h) + (50 * max(0, sign(_floor - 1))));
++    var _track_x = 466;
++    var _track_w = 6;
++    var _track_top = 56;
++    var _track_bot = 230;
++    var _track_h = _track_bot - _track_top;
++    var _ratio = _cam_h / _total_h;
++    var _thumb_h = max(20, floor(_track_h * _ratio));
++    var _scroll_frac = clamp((_cam_y - _start_y) / _max_y, 0, 1);
++    var _thumb_y = _track_top + floor((_track_h - _thumb_h) * _scroll_frac);
++    var _mx = device_mouse_x_to_gui(0);
++    var _my = device_mouse_y_to_gui(0);
++    var _in_thumb = _mx >= _track_x && _mx <= (_track_x + _track_w) && _my >= _thumb_y && _my <= (_thumb_y + _thumb_h);
++    var _in_track = _mx >= _track_x && _mx <= (_track_x + _track_w) && _my >= _track_top && _my <= _track_bot;
++    
++    // zapamietaj obszar paska, zeby klik w niego nie trafial tez w gre (gnx_scrollbar_blocks_click)
++    global.gnx_scrollbar_rect = [_track_x - 2, _track_top, _track_x + _track_w + 2, _track_bot];
++
++    // POPRAWKA: przycisk wyboru z ustawien gry (po zamianie przyciskow myszy nie lewy na sztywno)
++    // POPRAWKA: przycisk GUI pod kursorem (np. strzalki okna ustawien przy prawej krawedzi) ma pierwszenstwo przed paskiem
++    if (mouse_check_button_pressed(global.val.select_click) && !gnx_gui_under_mouse())
++    {
++        if (_in_thumb)
++        {
++            global.gnx_scrollbar_dragging = true;
++            global.gnx_scrollbar_drag_offset = _my - _thumb_y;
++        }
++        else if (_in_track)
++        {
++            var _click_frac = clamp((_my - _track_top - (_thumb_h * 0.5)) / (_track_h - _thumb_h), 0, 1);
++            obj_camera.y = _start_y + (_click_frac * _max_y);
++            global.gnx_scrollbar_dragging = true;
++            global.gnx_scrollbar_drag_offset = _thumb_h * 0.5;
++        }
++    }
++    
++    if (global.gnx_scrollbar_dragging)
++    {
++        if (mouse_check_button(global.val.select_click))
++        {
++            var _drag_top = _my - global.gnx_scrollbar_drag_offset;
++            var _drag_frac = clamp((_drag_top - _track_top) / (_track_h - _thumb_h), 0, 1);
++            obj_camera.y = _start_y + (_drag_frac * _max_y);
++        }
++        else
++        {
++            global.gnx_scrollbar_dragging = false;
++        }
++    }
++    
++    var _thumb_alpha = (_in_thumb || global.gnx_scrollbar_dragging) ? 0.9 : 0.5;
++    draw_set_alpha(0.15);
++    draw_set_color(c_black);
++    draw_rectangle(_track_x, _track_top, _track_x + _track_w, _track_bot, false);
++    draw_set_alpha(_thumb_alpha);
++    draw_set_color(make_color_rgb(139, 110, 80));
++    draw_rectangle(_track_x, _thumb_y, _track_x + _track_w, _thumb_y + _thumb_h, false);
++    draw_set_color(make_color_rgb(90, 65, 45));
++    draw_rectangle(_track_x, _thumb_y, _track_x + _track_w, _thumb_y + _thumb_h, true);
++    draw_set_alpha(1);
++    draw_set_color(c_white);
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

@@ -1,0 +1,1737 @@
+--- gml_138/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,1734 @@
++// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++function scr_gnx_build_spawn_tools()
++{
++    var _sp_names = ["Goblin", "Hobgoblin", "Tentacle", "Ogre"];
++    var _gc_names = ["Warrior", "Ranger", "Mage", "Shaman"];
++    var _mon_cats = [];
++    
++    for (var _sp = 0; _sp < 4; _sp++)
++    {
++        var _btns = [];
++        
++        for (var _gc = 0; _gc < 4; _gc++)
++        {
++            array_push(_btns, 
++            {
++                label: _gc_names[_gc] + " x1",
++                actions: [
++                {
++                    type: "spawn_mon",
++                    species: _sp,
++                    class: _gc,
++                    amount: 1
++                }],
++                popup: "",
++                toggle: "",
++                undo_actions: [],
++                undo_popup: "",
++                guard: -1,
++                guard_fail_popup: ""
++            });
++        }
++        
++        array_push(_mon_cats, 
++        {
++            label: _sp_names[_sp],
++            buttons: _btns,
++            categories: []
++        });
++    }
++    
++    var _unit_mods = {};
++    var _vanilla_units = [];
++    var _van_ids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
++    
++    for (var _vi = 0; _vi < array_length(_van_ids); _vi++)
++    {
++        var _cid = _van_ids[_vi];
++        
++        if (ds_map_exists(global.class_registry, _cid))
++        {
++            var _ce = ds_map_find_value(global.class_registry, _cid);
++            array_push(_vanilla_units, 
++            {
++                label: string_upper(string(_ce.name)),
++                actions: [
++                {
++                    type: "create_unit",
++                    class_id: _cid
++                }],
++                popup: "",
++                toggle: "",
++                undo_actions: [],
++                undo_popup: "",
++                guard: -1,
++                guard_fail_popup: ""
++            });
++        }
++    }
++    
++    if (ds_exists(global.gnx_class_name_to_id, ds_type_map))
++    {
++        var _ck = ds_map_find_first(global.gnx_class_name_to_id);
++        
++        while (_ck != undefined)
++        {
++            var _cid = ds_map_find_value(global.gnx_class_name_to_id, _ck);
++            var _dot = string_pos(".", _ck);
++            var _mname = string_copy(_ck, 1, _dot - 1);
++            var _cname = string_copy(_ck, _dot + 1, string_length(_ck) - _dot);
++            
++            if (!variable_struct_exists(_unit_mods, _mname))
++                variable_struct_set(_unit_mods, _mname, []);
++            
++            var _arr = variable_struct_get(_unit_mods, _mname);
++            array_push(_arr, 
++            {
++                label: string_upper(_cname),
++                actions: [
++                {
++                    type: "create_unit",
++                    class_id: _cid
++                }],
++                popup: "",
++                toggle: "",
++                undo_actions: [],
++                undo_popup: "",
++                guard: -1,
++                guard_fail_popup: ""
++            });
++            _ck = ds_map_find_next(global.gnx_class_name_to_id, _ck);
++        }
++    }
++    
++    var _unit_cats = [];
++    
++    if (array_length(_vanilla_units) > 0)
++    {
++        array_push(_unit_cats, 
++        {
++            label: "VANILLA",
++            buttons: _vanilla_units,
++            categories: []
++        });
++    }
++    
++    var _mod_keys = variable_struct_get_names(_unit_mods);
++    array_sort(_mod_keys, true);
++    
++    for (var _mi = 0; _mi < array_length(_mod_keys); _mi++)
++    {
++        var _mk = _mod_keys[_mi];
++        array_push(_unit_cats, 
++        {
++            label: string_upper(_mk),
++            buttons: variable_struct_get(_unit_mods, _mk),
++            categories: []
++        });
++    }
++    
++    var _all_orders = [];
++    var _ord_srcs = [global.breed_order, global.utility_order, global.pleasure_order, global.b_breed_order, global.b_utility_order, global.b_pleasure_order, global.t_breed_order, global.t_utility_order];
++    
++    for (var _oi = 0; _oi < array_length(_ord_srcs); _oi++)
++    {
++        for (var _oj = 0; _oj < array_length(_ord_srcs[_oi]); _oj++)
++            array_push(_all_orders, _ord_srcs[_oi][_oj]);
++    }
++    
++    var _cell_mods = {};
++    var _vanilla_cells = [];
++    
++    for (var _ai = 0; _ai < array_length(_all_orders); _ai++)
++    {
++        var _ck_cell = _all_orders[_ai];
++        
++        if (_ck_cell < 100 && ds_map_exists(global.cell_registry, _ck_cell))
++        {
++            var _ce = ds_map_find_value(global.cell_registry, _ck_cell);
++            array_push(_vanilla_cells, 
++            {
++                label: string_upper(string(_ce.name)),
++                actions: [
++                {
++                    type: "unlock_cell",
++                    h_type: _ck_cell
++                }],
++                popup: "",
++                toggle: "",
++                undo_actions: [],
++                undo_popup: "",
++                guard: -1,
++                guard_fail_popup: ""
++            });
++        }
++    }
++    
++    if (ds_exists(global.gnx_cell_name_to_id, ds_type_map))
++    {
++        var _ck2 = ds_map_find_first(global.gnx_cell_name_to_id);
++        
++        while (_ck2 != undefined)
++        {
++            var _hid = ds_map_find_value(global.gnx_cell_name_to_id, _ck2);
++            var _dot = string_pos(".", _ck2);
++            var _mname = string_copy(_ck2, 1, _dot - 1);
++            var _cname = string_copy(_ck2, _dot + 1, string_length(_ck2) - _dot);
++            
++            if (!variable_struct_exists(_cell_mods, _mname))
++                variable_struct_set(_cell_mods, _mname, []);
++            
++            var _arr = variable_struct_get(_cell_mods, _mname);
++            array_push(_arr, 
++            {
++                label: string_upper(_cname),
++                actions: [
++                {
++                    type: "unlock_cell",
++                    h_type: _hid
++                }],
++                popup: "",
++                toggle: "",
++                undo_actions: [],
++                undo_popup: "",
++                guard: -1,
++                guard_fail_popup: ""
++            });
++            _ck2 = ds_map_find_next(global.gnx_cell_name_to_id, _ck2);
++        }
++    }
++    
++    var _cell_cats = [];
++    
++    if (array_length(_vanilla_cells) > 0)
++    {
++        array_push(_cell_cats, 
++        {
++            label: "VANILLA",
++            buttons: _vanilla_cells,
++            categories: []
++        });
++    }
++    
++    var _cell_mod_keys = variable_struct_get_names(_cell_mods);
++    array_sort(_cell_mod_keys, true);
++    
++    for (var _mi = 0; _mi < array_length(_cell_mod_keys); _mi++)
++    {
++        var _mk = _cell_mod_keys[_mi];
++        array_push(_cell_cats, 
++        {
++            label: string_upper(_mk),
++            buttons: variable_struct_get(_cell_mods, _mk),
++            categories: []
++        });
++    }
++    
++    var _top_cats = [];
++    array_push(_top_cats, 
++    {
++        label: "MONSTERS",
++        buttons: [],
++        categories: _mon_cats
++    });
++    
++    if (array_length(_unit_cats) > 0)
++    {
++        array_push(_top_cats, 
++        {
++            label: "UNITS",
++            buttons: [],
++            categories: _unit_cats
++        });
++    }
++    
++    if (array_length(_cell_cats) > 0)
++    {
++        array_push(_top_cats, 
++        {
++            label: "CELLS",
++            buttons: [],
++            categories: _cell_cats
++        });
++    }
++    
++    var _spawn_entry = 
++    {
++        mod_name: "_spawn",
++        categories: [
++        {
++            label: "SPAWN",
++            buttons: [],
++            categories: _top_cats
++        }]
++    };
++    array_push(global.gnx_tool_registry, _spawn_entry);
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-TOOL] auto-spawn menu built (monsters=4 units=" + string(array_length(_vanilla_units) + array_length(_mod_keys)) + " cells=" + string(array_length(_vanilla_cells) + array_length(_cell_mod_keys)) + ")\n");
++    gnx_log_close(_log);
++}
++
++
++function scr_gnx_parse_tool_button(arg0)
++{
++    return 
++    {
++        label: arg0.label,
++        actions: variable_struct_exists(arg0, "actions") ? arg0.actions : [],
++        popup: variable_struct_exists(arg0, "popup") ? arg0.popup : "",
++        toggle: variable_struct_exists(arg0, "toggle") ? arg0.toggle : "",
++        undo_actions: variable_struct_exists(arg0, "undo_actions") ? arg0.undo_actions : [],
++        undo_popup: variable_struct_exists(arg0, "undo_popup") ? arg0.undo_popup : "",
++        guard: variable_struct_exists(arg0, "guard") ? arg0.guard : -1,
++        guard_fail_popup: variable_struct_exists(arg0, "guard_fail_popup") ? arg0.guard_fail_popup : ""
++    };
++}
++
++
++function scr_gnx_parse_tool_category(arg0)
++{
++    var _parsed = 
++    {
++        label: arg0.label,
++        buttons: [],
++        categories: []
++    };
++    
++    if (variable_struct_exists(arg0, "categories"))
++    {
++        var _subs = arg0.categories;
++        
++        for (var _si = 0; _si < array_length(_subs); _si++)
++            array_push(_parsed.categories, scr_gnx_parse_tool_category(_subs[_si]));
++    }
++    
++    if (variable_struct_exists(arg0, "buttons"))
++    {
++        var _btns = arg0.buttons;
++        
++        for (var _bi = 0; _bi < array_length(_btns); _bi++)
++            array_push(_parsed.buttons, scr_gnx_parse_tool_button(_btns[_bi]));
++    }
++    
++    return _parsed;
++}
++
++
++function scr_gnx_load_tools(arg0, arg1)
++{
++    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
++    
++    if (!file_exists(_path))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': " + arg1 + " not found");
++        exit;
++    }
++    
++    var _f = file_text_open_read(_path);
++    var _raw = "";
++    
++    while (!file_text_eof(_f))
++        _raw += file_text_readln(_f);
++    
++    file_text_close(_f);
++    var _data = undefined;
++    
++    try
++    {
++        _data = json_parse(_raw);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': " + arg1 + " invalid (" + string(_e.message) + ")");
++        exit;
++    }
++    
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-TOOL] loading tools for " + arg0 + "\n");
++    var _entry = 
++    {
++        mod_name: arg0,
++        categories: []
++    };
++    
++    if (variable_struct_exists(_data, "categories"))
++    {
++        var _cats = _data.categories;
++        
++        for (var _ci = 0; _ci < array_length(_cats); _ci++)
++            array_push(_entry.categories, scr_gnx_parse_tool_category(_cats[_ci]));
++    }
++    
++    if (variable_struct_exists(_data, "keybinds"))
++    {
++        var _kbs = _data.keybinds;
++        
++        for (var _ki = 0; _ki < array_length(_kbs); _ki++)
++        {
++            var _kb = _kbs[_ki];
++            var _parsed_kb = 
++            {
++                mod_name: arg0,
++                modifier: variable_struct_exists(_kb, "modifier") ? _kb.modifier : "none",
++                popup: variable_struct_exists(_kb, "popup") ? _kb.popup : "",
++                popup_template: variable_struct_exists(_kb, "popup_template") ? _kb.popup_template : "",
++                key_type: "single",
++                vk_code: -1,
++                key_start: 0,
++                key_end: 0,
++                actions: variable_struct_exists(_kb, "actions") ? _kb.actions : [],
++                action_per_key: variable_struct_exists(_kb, "action_per_key") ? _kb.action_per_key : -1
++            };
++            var _key = _kb.key;
++            
++            if (_key == "0-9")
++            {
++                _parsed_kb.key_type = "range";
++                _parsed_kb.key_start = 0;
++                _parsed_kb.key_end = 9;
++            }
++            else if (string_length(_key) == 1 && ord(_key) >= 65 && ord(_key) <= 90)
++            {
++                _parsed_kb.vk_code = ord(_key);
++            }
++            else if (string_length(_key) == 1 && ord(_key) >= 48 && ord(_key) <= 57)
++            {
++                _parsed_kb.vk_code = ord(_key);
++            }
++            else if (string_copy(_key, 1, 1) == "F" && string_length(_key) >= 2)
++            {
++                var _fnum = real(string_copy(_key, 2, string_length(_key) - 1));
++                
++                if (_fnum >= 1 && _fnum <= 12)
++                    _parsed_kb.vk_code = (112 + _fnum) - 1;
++            }
++            else if (_key == "space")
++            {
++                _parsed_kb.vk_code = 32;
++            }
++            else if (_key == "tab")
++            {
++                _parsed_kb.vk_code = 9;
++            }
++            else if (_key == "escape")
++            {
++                _parsed_kb.vk_code = 27;
++            }
++            
++            array_push(global.gnx_keybinds, _parsed_kb);
++        }
++    }
++    
++    gnx_log_write(_log, "[GNX-TOOL] " + arg0 + ": " + string(array_length(_entry.categories)) + " categories, " + string(array_length(global.gnx_keybinds)) + " total keybinds\n");
++    gnx_log_close(_log);
++    array_push(global.gnx_tool_registry, _entry);
++}
++
++
++function gnx_tool_resolve_class(arg0, arg1)
++{
++    if (is_string(arg0))
++    {
++        var _dot = string_pos(".", arg0);
++        var _cname = (_dot > 0) ? string_copy(arg0, _dot + 1, string_length(arg0) - _dot) : arg0;
++        var _k = ds_map_find_first(global.class_registry);
++        
++        while (_k != undefined)
++        {
++            var _cr = ds_map_find_value(global.class_registry, _k);
++            
++            if (variable_struct_exists(_cr, "name") && variable_struct_exists(_cr, "mod_name"))
++            {
++                if ((_cr.mod_name + "." + _cr.name) == arg0)
++                    return _k;
++                
++                if (_cr.mod_name == arg1 && _cr.name == _cname)
++                    return _k;
++            }
++            
++            _k = ds_map_find_next(global.class_registry, _k);
++        }
++        
++        var _wlog = gnx_log_open();
++        gnx_log_write(_wlog, "[GNX-WARN] tool class ref '" + arg0 + "' not found (mod=" + string(arg1) + ")\n");
++        gnx_log_close(_wlog);
++        return -1;
++    }
++    
++    return arg0;
++}
++
++
++function gnx_tool_resolve_cell(arg0, arg1)
++{
++    if (is_string(arg0))
++    {
++        var _dot = string_pos(".", arg0);
++        var _cname = (_dot > 0) ? string_copy(arg0, _dot + 1, string_length(arg0) - _dot) : arg0;
++        var _k = ds_map_find_first(global.cell_registry);
++        
++        while (_k != undefined)
++        {
++            var _cr = ds_map_find_value(global.cell_registry, _k);
++            
++            if (variable_struct_exists(_cr, "name") && variable_struct_exists(_cr, "mod_name"))
++            {
++                if ((_cr.mod_name + "." + _cr.name) == arg0)
++                    return _k;
++                
++                if (_cr.mod_name == arg1 && _cr.name == _cname)
++                    return _k;
++            }
++            
++            _k = ds_map_find_next(global.cell_registry, _k);
++        }
++        
++        var _wlog = gnx_log_open();
++        gnx_log_write(_wlog, "[GNX-WARN] tool cell ref '" + arg0 + "' not found (mod=" + string(arg1) + ")\n");
++        gnx_log_close(_wlog);
++        return -1;
++    }
++    
++    return arg0;
++}
++
++
++function scr_gnx_exec_tool_action(arg0, arg1)
++{
++    var _type = arg0.type;
++    
++    switch (_type)
++    {
++        case "add_gold":
++            global.val.money = max(0, global.val.money + arg0.amount);
++            break;
++        
++        case "add_food":
++            global.val.food = max(0, global.val.food + arg0.amount);
++            break;
++        
++        case "add_milk":
++            var _rarity = variable_struct_exists(arg0, "rarity") ? arg0.rarity : -1;
++            var _amt = variable_struct_exists(arg0, "amount") ? arg0.amount : 1;
++            
++            if (_rarity == -1)
++            {
++                for (var _r = 0; _r <= 4; _r++)
++                    scr_add_milk_item(_r, _amt);
++            }
++            else
++            {
++                scr_add_milk_item(_rarity, _amt);
++            }
++            
++            break;
++        
++        case "add_orbs":
++            global.val.orb_num = max(0, global.val.orb_num + arg0.amount);
++            break;
++        
++        case "give_item":
++            scr_add_item(scr_set_item_data(arg0.item_type, arg0.data, arg0.level));  // GNX fix: the item was never passed
++            break;
++        
++        case "give_blueprint":
++            var _ht = gnx_tool_resolve_cell(arg0.h_type, arg1);
++
++            // POPRAWKA: nieznana cela -> komunikat zamiast blueprintu na nieistniejaca cele
++            if (_ht == -1 || !ds_map_exists(global.cell_registry, _ht))
++            {
++                scr_gnx_pop_up_create("Unknown cell (" + string(arg0.h_type) + "). Contact modder.");
++                break;
++            }
++            var _frag = variable_struct_exists(arg0, "fragment") ? arg0.fragment : false;
++            var _lvl = _frag ? (variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1) : 3;
++            scr_add_item(scr_set_item_data(5, _ht, _lvl));  // GNX fix: the item was never passed
++            break;
++        
++        case "give_prop":
++            // GNX-PROP: prop_id may be a name ("Mod.id", or "id" of this mod, arg1)
++            var _gpid = gnx_prop_resolve_id(arg0.prop_id, arg1);
++            
++            if (_gpid != -1)
++                scr_add_new_prop_type(_gpid, true);
++            
++            break;
++        
++        case "spawn_mon":
++            var _sp = arg0.species;
++            var _amt = arg0.amount;
++            var _sp_struct;
++            
++            switch (_sp)
++            {
++                case 0:
++                    _sp_struct = global.val.goblin;
++                    break;
++                
++                case 1:
++                    _sp_struct = global.val.hobgoblin;
++                    break;
++                
++                case 2:
++                    _sp_struct = global.val.tentacle;
++                    break;
++                
++                case 3:
++                    _sp_struct = global.val.ogre;
++                    break;
++                
++                default:
++                    exit;
++            }
++            
++            var _gc_start = 0;
++            var _gc_end = 3;
++            
++            if (variable_struct_exists(arg0, "class"))
++            {
++                _gc_start = arg0.class;
++                _gc_end = arg0.class;
++            }
++            
++            for (var _gc = _gc_start; _gc <= _gc_end; _gc++)
++            {
++                if (_sp_struct.num[_gc] == -1)
++                {
++                    scr_mon_num_edit(_sp, _gc, 1, true);
++                    
++                    if (_amt > 1)
++                        scr_mon_num_edit(_sp, _gc, _amt - 1, true);
++                }
++                else
++                {
++                    scr_mon_num_edit(_sp, _gc, _amt, true);
++                }
++            }
++            
++            // POPRAWKA: populacja (nest_num[0]) liczona od nowa z mon_num - inaczej licznik goni dopiero po rajdzie albo wczytaniu
++            global.val.nest_num[0] = scr_all_mon_num_cal();
++            break;
++        
++        case "set_troop_level":
++            var _sp_struct;
++            
++            switch (arg0.species)
++            {
++                case 0:
++                    _sp_struct = global.val.goblin;
++                    break;
++                
++                case 1:
++                    _sp_struct = global.val.hobgoblin;
++                    break;
++                
++                case 2:
++                    _sp_struct = global.val.tentacle;
++                    break;
++                
++                case 3:
++                    _sp_struct = global.val.ogre;
++                    break;
++                
++                default:
++                    exit;
++            }
++            
++            _sp_struct.lvl[arg0.class] = arg0.value;
++            break;
++        
++        case "add_troop_exp":
++            scr_mon_exp_edit(arg0.species, arg0.class, 99, arg0.amount, false);
++            break;
++        
++        case "set_skill_level":
++            var _sp_struct;
++            
++            switch (arg0.species)
++            {
++                case 0:
++                    _sp_struct = global.val.goblin;
++                    break;
++                
++                case 1:
++                    _sp_struct = global.val.hobgoblin;
++                    break;
++                
++                case 2:
++                    _sp_struct = global.val.tentacle;
++                    break;
++                
++                case 3:
++                    _sp_struct = global.val.ogre;
++                    break;
++                
++                default:
++                    exit;
++            }
++            
++            _sp_struct.skill_lvl[arg0.class] = arg0.value;
++            break;
++        
++        case "set_troop_size":
++            global.val.troop_size = clamp(arg0.value, 0, 7);
++            break;
++        
++        case "create_unit":
++            var _cls = gnx_tool_resolve_class(arg0.class_id, arg1);
++            
++            // POPRAWKA: nieznana nazwa klasy -> komunikat (wczesniej tylko wpis w logu)
++            if (_cls < 0)
++            {
++                scr_gnx_pop_up_create("Unknown class (" + string(arg0.class_id) + "). Contact modder.");
++                break;
++            }
++            
++            var _lvl = variable_struct_exists(arg0, "level") ? arg0.level : -1;
++            
++            if (_lvl <= 0)
++                _lvl = variable_global_exists("gnx_spawn_rank") ? global.gnx_spawn_rank : 0;
++            
++            var _is_special = false;
++            
++            if (ds_map_exists(global.class_registry, _cls))
++            {
++                var _cr = ds_map_find_value(global.class_registry, _cls);
++                
++                if (variable_struct_exists(_cr, "is_special"))
++                    _is_special = _cr.is_special;
++            }
++            
++            if (_is_special)
++            {
++                if (_lvl != 6 && _lvl != 7)
++                    _lvl = 5;
++            }
++            else if (_lvl != 6 && _lvl > 4)
++            {
++                _lvl = 4;
++            }
++            
++            if (!ds_map_exists(global.class_registry, _cls))
++            {
++                scr_gnx_pop_up_create("Unknown class (id=" + string(_cls) + "). Contact modder.");
++                break;
++            }
++            
++            var _unit = scr_create_unit_base(_cls, _lvl);
++            var _placed = false;
++            
++            for (var _ui = 0; _ui < ds_list_size(global.unit_list); _ui++)
++            {
++                if (ds_list_find_value(global.unit_list, _ui) == -1)
++                {
++                    ds_list_set(global.unit_list, _ui, _unit);
++                    _placed = true;
++                    break;
++                }
++            }
++            
++            if (_placed)
++            {
++                var _uname = "";
++                
++                if (ds_map_exists(global.class_registry, _cls))
++                    _uname = ds_map_find_value(global.class_registry, _cls).name;
++                
++                scr_gnx_pop_up_create((_uname != "") ? (_uname + " added!") : "Unit added!");
++                
++                if (variable_instance_exists(obj_np, "unit_button") && obj_np.unit_button.child_window != -1)
++                    scr_reset_unit_window(-1);
++            }
++            else
++            {
++                scr_gnx_pop_up_create("Prison is full!");
++            }
++            
++            break;
++        
++        case "create_unit_cage":
++            var _cls = gnx_tool_resolve_class(arg0.class_id, arg1);
++            
++            // POPRAWKA: nieznana nazwa klasy -> komunikat (wczesniej tylko wpis w logu)
++            if (_cls < 0)
++            {
++                scr_gnx_pop_up_create("Unknown class (" + string(arg0.class_id) + "). Contact modder.");
++                break;
++            }
++            
++            if (!ds_map_exists(global.class_registry, _cls))
++            {
++                scr_gnx_pop_up_create("Unknown class (id=" + string(_cls) + "). Contact modder.");
++                break;
++            }
++            
++            var _lvl = variable_struct_exists(arg0, "level") ? arg0.level : 1;
++            var _unit = scr_create_unit_base(_cls, _lvl);
++            array_push(global.val.cage, _unit);
++            break;
++        
++        case "unlock_boss":
++            var _idx = arg0.index;
++            
++            if (_idx >= 0 && _idx <= 4 && global.unlock.boss[_idx] == -1)
++                scr_add_event(31 + _idx, false);
++            
++            break;
++        
++        case "unlock_stage_next":
++            var _stage = arg0.stage;
++            
++            if (_stage < 0 || _stage > 3)
++                break;
++            
++            if (global.val.stage_info[_stage] == -1)
++            {
++                scr_set_stage_data(_stage, 0, false);
++                
++                if (_stage == 1)
++                    scr_add_event(23, false);
++                else if (_stage == 2)
++                    scr_add_event(24, false);
++                else if (_stage == 3)
++                    scr_add_event(25, false);
++            }
++            else
++            {
++                var _si = global.val.stage_info[_stage];
++                _si.max_lvl++;
++                global.val.stage_lvl_sel[_stage] = min(global.val.stage_lvl_sel[_stage] + 1, 2);
++                scr_set_stage_data(_stage, _si.max_lvl, false);
++            }
++            
++            scr_check_quest_raid();
++            break;
++        
++        case "unlock_breeds":
++            global.val.br_unlock = [[[0, 7], [6, 4], [2, 5], [1, 3]], [[1, 5], [0, 6], [4, 2], [3, 7]], [[6, 4], [0, 1], [2, 5], [3, 7]], [[0, 6], [4, 2], [1, 3], [7, 5]]];
++            break;
++        
++        case "unlock_cell":
++            var _ht_uc = gnx_tool_resolve_cell(arg0.h_type, arg1);
++
++            // POPRAWKA: nieznana cela -> komunikat zamiast crasha w scr_add_new_slot_h_type
++            if (_ht_uc == -1 || !ds_map_exists(global.cell_registry, _ht_uc))
++            {
++                scr_gnx_pop_up_create("Unknown cell (" + string(arg0.h_type) + "). Contact modder.");
++                break;
++            }
++
++            // POPRAWKA: komunikat "unlocked" tylko gdy cela naprawde trafila do menu budowy
++            if (scr_add_new_slot_h_type(_ht_uc, false) == false)
++            {
++                scr_gnx_pop_up_create("Cell has no build category. Contact modder.");
++                break;
++            }
++
++            var _cn = "";
++            
++            if (ds_map_exists(global.cell_registry, _ht_uc))
++                _cn = ds_map_find_value(global.cell_registry, _ht_uc).name;
++            
++            scr_gnx_pop_up_create((_cn != "") ? (_cn + " unlocked!") : "Cell unlocked!");
++            break;
++        
++        case "unlock_prop":
++            // GNX-PROP: prop_id may be a name ("Mod.id", or "id" of this mod, arg1)
++            var _upid = gnx_prop_resolve_id(arg0.prop_id, arg1);
++            
++            if (_upid != -1)
++                scr_add_new_prop_type(_upid, true);
++            
++            break;
++        
++        case "unlock_raid":
++            global.unlock.raid = true;
++            break;
++        
++        case "unlock_all_cells":
++            var _orders = [global.breed_order, global.utility_order, global.pleasure_order];
++            var _unlocks = [global.unlock.breed, global.unlock.utility, global.unlock.pleasure];
++            
++            for (var _oi = 0; _oi < 3; _oi++)
++            {
++                var _ord = _orders[_oi];
++                var _ulk = _unlocks[_oi];
++                
++                for (var _ci = 0; _ci < array_length(_ord); _ci++)
++                {
++                    var _ht = _ord[_ci];
++                    var _found = false;
++                    
++                    for (var _ui = 0; _ui < array_length(_ulk); _ui++)
++                    {
++                        if (_ulk[_ui] == _ht)
++                        {
++                            _found = true;
++                            break;
++                        }
++                    }
++                    
++                    if (!_found)
++                        array_push(_ulk, _ht);
++                }
++            }
++            
++            var _b_orders = [global.b_breed_order, global.b_utility_order, global.b_pleasure_order];
++            var _b_unlocks = [global.unlock.b_breed, global.unlock.b_utility, global.unlock.b_other];
++            
++            for (var _oi = 0; _oi < 3; _oi++)
++            {
++                var _ord = _b_orders[_oi];
++                var _ulk = _b_unlocks[_oi];
++                
++                for (var _ci = 0; _ci < array_length(_ord); _ci++)
++                {
++                    var _ht = _ord[_ci];
++                    var _found = false;
++                    
++                    for (var _ui = 0; _ui < array_length(_ulk); _ui++)
++                    {
++                        if (_ulk[_ui] == _ht)
++                        {
++                            _found = true;
++                            break;
++                        }
++                    }
++                    
++                    if (!_found)
++                        array_push(_ulk, _ht);
++                }
++            }
++            
++            var _t_orders = [global.t_breed_order, global.t_utility_order];
++            var _t_unlocks = [global.unlock.t_breed, global.unlock.t_utility];
++            
++            for (var _oi = 0; _oi < 2; _oi++)
++            {
++                var _ord = _t_orders[_oi];
++                var _ulk = _t_unlocks[_oi];
++                
++                for (var _ci = 0; _ci < array_length(_ord); _ci++)
++                {
++                    var _ht = _ord[_ci];
++                    var _found = false;
++                    
++                    for (var _ui = 0; _ui < array_length(_ulk); _ui++)
++                    {
++                        if (_ulk[_ui] == _ht)
++                        {
++                            _found = true;
++                            break;
++                        }
++                    }
++                    
++                    if (!_found)
++                        array_push(_ulk, _ht);
++                }
++            }
++
++            // XL cells too
++            for (var _ci = 0; _ci < array_length(global.xl_breed_order); _ci++)
++            {
++                if (!array_contains(global.unlock.xl_breed, global.xl_breed_order[_ci]))
++                    array_push(global.unlock.xl_breed, global.xl_breed_order[_ci]);
++            }
++
++            // GNX-UG: underground cells too, like the XL cells (their unlock list may not exist yet in an
++            // old save: ! = not, so it is made first)
++            if (!variable_struct_exists(global.unlock, "ug_breed"))
++                global.unlock.ug_breed = [];
++
++            for (var _ci = 0; _ci < array_length(global.ug_breed_order); _ci++)
++            {
++                if (!array_contains(global.unlock.ug_breed, global.ug_breed_order[_ci]))
++                    array_push(global.unlock.ug_breed, global.ug_breed_order[_ci]);
++            }
++
++            scr_gnx_apply_unlocks();
++            break;
++        
++        case "add_floor":
++            global.val.floor++;
++            array_push(global.slot_x, -1);
++            array_push(global.slot_list, ds_list_create());
++            var _start_id = scr_create_slot(UnknownEnum.Value_4, global.val.floor, 0, false);
++            
++            with (_start_id)
++                scr_create_slot(UnknownEnum.Value_3, global.val.floor, 1, true);
++            
++            break;
++        
++        case "set_day":
++            global.val.day = max(1, arg0.value);
++            break;
++        
++        case "add_day_time":
++            global.val.day_timer += arg0.amount;
++            break;
++        
++        case "set_speed":
++            var _target = arg0.target;
++            var _val = arg0.value;
++            
++            if (_target == "world")
++                global.w_spd = clamp(_val, 0, 10);
++            else if (_target == "cart")
++                global.val.cart_spd = clamp(_val, 0, 10);
++            else if (_target == "range")
++                global.val.add_range = clamp(_val, 0, 20);
++            
++            break;
++        
++        case "swap_mouse":
++            var _tmp = global.val.camera_click;
++            global.val.camera_click = global.val.select_click;
++            global.val.select_click = _tmp;
++            break;
++        
++        case "show_debug_overlay":
++            var _en = variable_struct_exists(arg0, "enable") ? arg0.enable : true;
++            
++            if (_en)
++                show_debug_overlay(true);
++            else
++                show_debug_overlay(false);
++            
++            break;
++        
++        case "set_val":
++            var _key = arg0.key;
++            var _v = arg0.value;
++            
++            switch (_key)
++            {
++                case "mood":
++                    global.val.mood = clamp(_v, 0, 100);
++                    break;
++                
++                case "food":
++                    global.val.food = max(0, _v);
++                    break;
++                
++                case "money":
++                    global.val.money = max(0, _v);
++                    break;
++                
++                case "cart_spd":
++                    global.val.cart_spd = clamp(_v, 0, 10);
++                    break;
++                
++                case "add_range":
++                    global.val.add_range = clamp(_v, 0, 20);
++                    break;
++                
++                case "day":
++                    global.val.day = max(1, _v);
++                    break;
++                
++                case "day_timer":
++                    global.val.day_timer = max(0, _v);
++                    break;
++                
++                case "orb_num":
++                    global.val.orb_num = max(0, _v);
++                    break;
++                
++                case "sfx_vol":
++                    global.val.sfx_vol = clamp(_v, 0, 1);
++                    break;
++                
++                case "bgm_vol":
++                    global.val.bgm_vol = clamp(_v, 0, 1);
++                    break;
++                
++                case "alpha_type":
++                    global.val.alpha_type = clamp(_v, 0, 2);
++                    break;
++                
++                case "mon_alpha":
++                    global.val.mon_alpha = clamp(_v, 0, 1);
++                    break;
++                
++                case "crate_alpha_type":
++                    global.val.crate_alpha_type = clamp(_v, 0, 2);
++                    break;
++                
++                case "crate_alpha":
++                    global.val.crate_alpha = clamp(_v, 0, 1);
++                    break;
++                
++                case "show_head":
++                    global.val.show_head = _v;
++                    break;
++                
++                case "ui_place":
++                    global.val.ui_place = _v;
++                    break;
++                
++                default:
++                    var _log = gnx_log_open();
++                    gnx_log_write(_log, "[GNX-TOOL] unknown set_val key: " + _key + "\n");
++                    gnx_log_close(_log);
++                    break;
++            }
++            
++            break;
++        
++        case "set_var":
++            var _key = arg0.key;
++            var _v = arg0.value;
++            
++            switch (_key)
++            {
++                case "w_spd":
++                    global.w_spd = clamp(_v, 0, 10);
++                    break;
++                
++                case "gnx_perf_enabled":
++                    global.gnx_perf_enabled = _v != 0;
++                    break;
++                
++                case "gnx_debug_verbose":
++                    global.gnx_debug_verbose = _v != 0;
++                    break;
++                
++                case "gnx_force_capture_100":
++                    global.gnx_force_capture_100 = _v != 0;
++                    break;
++
++                case "gnx_free_floor_copy":
++                    global.gnx_free_floor_copy = _v != 0;
++                    break;
++                
++                case "gnx_trace_entities":
++                    global.gnx_trace_entities = _v != 0;
++                    break;
++                
++                case "gnx_perf_hud":
++                    global.gnx_perf_hud = _v != 0;
++                    break;
++
++                case "gnx_cull_step_off":
++                    global.gnx_cull_step_off = _v != 0;
++                    break;
++
++                case "gnx_econ_on":
++                    global.gnx_econ_on = _v != 0;
++                    break;
++                
++                default:
++                    var _log = gnx_log_open();
++                    gnx_log_write(_log, "[GNX-TOOL] unknown set_var key: " + _key + "\n");
++                    gnx_log_close(_log);
++                    break;
++            }
++            
++            if (_key == "gnx_perf_enabled" || _key == "gnx_debug_verbose" || _key == "gnx_force_capture_100" || _key == "gnx_free_floor_copy" ||_key == "gnx_trace_entities" || _key == "gnx_perf_hud" || _key == "gnx_cull_step_off" || _key == "gnx_econ_on")
++            {
++                var _svlog = gnx_log_open();
++                gnx_log_write(_svlog, "[GNX-TOOL] set_var " + _key + " = " + string(_v) + "\n");
++                gnx_log_close(_svlog);
++            }
++            
++            break;
++        
++        case "reroll_shop":
++            with (obj_np.obj_raid)
++            {
++                if (activate)
++                    scr_choose_shop_item();
++            }
++            
++            break;
++        
++        case "reroll_trade":
++            with (obj_np.obj_raid)
++            {
++                if (activate)
++                    scr_choose_trade_item();
++            }
++            
++            break;
++        
++        case "reroll_encounters":
++            var _raid = obj_np.obj_raid;
++            
++            if (_raid.activate)
++            {
++                var _stage = _raid.raid_data.stage;
++                var _lvl = global.val.stage_lvl_sel[_stage];
++                scr_set_stage_data(_stage, _lvl, false);
++            }
++            
++            break;
++        
++        case "set_state":
++            scr_gnx_set_state(arg1, arg0.key, arg0.value);
++            break;
++        
++        case "set_continuous":
++            var _eff_key = arg0.key;
++            var _enable = arg0.value;
++            
++            if (_enable)
++            {
++                var _exists = false;
++                
++                for (var _ei = 0; _ei < array_length(global.gnx_continuous_effects); _ei++)
++                {
++                    if (global.gnx_continuous_effects[_ei].key == _eff_key && global.gnx_continuous_effects[_ei].mod_name == arg1)
++                    {
++                        _exists = true;
++                        break;
++                    }
++                }
++                
++                if (!_exists)
++                {
++                    array_push(global.gnx_continuous_effects, 
++                    {
++                        mod_name: arg1,
++                        key: _eff_key
++                    });
++                }
++            }
++            else
++            {
++                var _ei = array_length(global.gnx_continuous_effects) - 1;
++                
++                while (_ei >= 0)
++                {
++                    if (global.gnx_continuous_effects[_ei].key == _eff_key && global.gnx_continuous_effects[_ei].mod_name == arg1)
++                        array_delete(global.gnx_continuous_effects, _ei, 1);
++                    
++                    _ei--;
++                }
++            }
++            
++            break;
++        
++        case "fire_event":
++            var _eid = arg0.event_id;
++            
++            if (is_string(_eid))
++                scr_gnx_fire_event(_eid, arg1);
++            else
++                scr_add_event(_eid, false);
++            
++            break;
++        
++        case "fire_trigger":
++            scr_gnx_check_triggers(arg0.hook);
++            break;
++        
++        case "popup":
++            scr_gnx_pop_up_create(arg0.text);
++            break;
++        
++        case "play_sfx":
++            scr_sfx_play(arg0.sfx_type);
++            break;
++        
++        case "travel_map":
++            var _loc = {};
++            _loc.target = arg0.target;
++            _loc.label = variable_struct_exists(arg0, "label") ? arg0.label : arg0.target;
++            scr_gnx_create_travel_selector(_loc);
++            break;
++        
++        case "gml":
++            break;
++        
++        default:
++            var _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-TOOL] unknown action type: " + _type + "\n");
++            gnx_log_close(_log);
++            break;
++    }
++}
++
++
++function scr_gnx_exec_tool_button(arg0, arg1)
++{
++    if (global.gnx_debug_verbose)
++    {
++        var _tlog = gnx_log_open();
++        gnx_log_write(_tlog, "[GNX-TOOL] press mod=" + string(arg1) + " label='" + string(variable_struct_exists(arg0, "label") ? arg0.label : "?") + "'" + " toggle='" + string(arg0.toggle) + "'" + " state=" + string(scr_gnx_get_state(arg1, arg0.toggle)) + " actions=" + string(array_length(arg0.actions)) + "\n");
++        gnx_log_close(_tlog);
++    }
++    
++    if (arg0.guard != -1)
++    {
++        if (!scr_gnx_eval_tool_guard(arg0.guard, arg1))
++        {
++            if (arg0.guard_fail_popup != "")
++                scr_gnx_pop_up_create(arg0.guard_fail_popup);
++            
++            exit;
++        }
++    }
++    
++    if (arg0.toggle != "")
++    {
++        var _state = scr_gnx_get_state(arg1, arg0.toggle);
++        
++        if (_state == 0 || _state == undefined)
++        {
++            for (var _i = 0; _i < array_length(arg0.actions); _i++)
++                scr_gnx_exec_tool_action(arg0.actions[_i], arg1);
++            
++            scr_gnx_set_state(arg1, arg0.toggle, 1);
++            
++            if (arg0.popup != "")
++                scr_gnx_pop_up_create(arg0.popup);
++        }
++        else
++        {
++            for (var _i = 0; _i < array_length(arg0.undo_actions); _i++)
++                scr_gnx_exec_tool_action(arg0.undo_actions[_i], arg1);
++            
++            scr_gnx_set_state(arg1, arg0.toggle, 0);
++            
++            if (arg0.undo_popup != "")
++                scr_gnx_pop_up_create(arg0.undo_popup);
++        }
++    }
++    else
++    {
++        for (var _i = 0; _i < array_length(arg0.actions); _i++)
++            scr_gnx_exec_tool_action(arg0.actions[_i], arg1);
++        
++        if (arg0.popup != "")
++            scr_gnx_pop_up_create(arg0.popup);
++    }
++}
++
++
++function scr_gnx_eval_tool_guard(arg0, arg1)
++{
++    var _type = arg0.type;
++    
++    switch (_type)
++    {
++        case "boss_locked":
++            return global.unlock.boss[arg0.index] == -1;
++        
++        case "boss_unlocked":
++            return global.unlock.boss[arg0.index] != -1;
++        
++        case "stage_undiscovered":
++            return global.val.stage_info[arg0.stage] == -1;
++        
++        case "has_unit_slot":
++            for (var _i = 0; _i < ds_list_size(global.unit_list); _i++)
++            {
++                if (ds_list_find_value(global.unit_list, _i) == -1)
++                    return true;
++            }
++            
++            return false;
++        
++        case "on_screen":
++            return obj_np.obj_raid.activate;
++        
++        default:
++            return scr_gnx_eval_condition(arg0, arg1);
++    }
++}
++
++
++function scr_gnx_check_keybinds()
++{
++    if (!global.gnx_has_tools)
++        exit;
++    
++    if (global.click_lock || global.trans_lock)
++        exit;
++    
++    var _binds = global.gnx_keybinds;
++    
++    for (var _i = 0; _i < array_length(_binds); _i++)
++    {
++        var _b = _binds[_i];
++        var _mod_ok = true;
++        
++        switch (_b.modifier)
++        {
++            case "shift":
++                _mod_ok = keyboard_check(vk_shift);
++                break;
++            
++            case "ctrl":
++                _mod_ok = keyboard_check(vk_control);
++                break;
++            
++            case "alt":
++                _mod_ok = keyboard_check(vk_alt);
++                break;
++            
++            case "none":
++                if (keyboard_check(vk_shift) || keyboard_check(vk_control) || keyboard_check(vk_alt))
++                    _mod_ok = false;
++                
++                break;
++        }
++        
++        if (!_mod_ok)
++            continue;
++        
++        if (_b.key_type == "range")
++        {
++            for (var _k = _b.key_start; _k <= _b.key_end; _k++)
++            {
++                if (keyboard_check_pressed(ord(string(_k))))
++                {
++                    if (_b.action_per_key != -1)
++                    {
++                        var _act = json_parse(json_stringify(_b.action_per_key));
++                        
++                        if (variable_struct_exists(_act, "value"))
++                            _act.value = _k;
++                        
++                        scr_gnx_exec_tool_action(_act, _b.mod_name);
++                    }
++                    
++                    if (_b.popup_template != "")
++                        scr_gnx_pop_up_create(string_replace(_b.popup_template, "{key}", string(_k)));
++                    else if (_b.popup != "")
++                        scr_gnx_pop_up_create(_b.popup);
++                    
++                    break;
++                }
++            }
++        }
++        else if (_b.vk_code != -1 && keyboard_check_pressed(_b.vk_code))
++        {
++            for (var _ai = 0; _ai < array_length(_b.actions); _ai++)
++                scr_gnx_exec_tool_action(_b.actions[_ai], _b.mod_name);
++            
++            if (_b.popup != "")
++                scr_gnx_pop_up_create(_b.popup);
++        }
++    }
++}
++
++
++function scr_gnx_apply_continuous_effects()
++{
++    // TEST EKONOMII: raport co dzien gry (dziala tylko po wlaczeniu ECON PROBE)
++    gnx_econ_probe_tick();
++
++    if (!global.gnx_has_tools)
++        exit;
++    
++    for (var _i = 0; _i < array_length(global.gnx_continuous_effects); _i++)
++    {
++        var _eff = global.gnx_continuous_effects[_i];
++        
++        switch (_eff.key)
++        {
++            case "mood_lock":
++                global.val.mood = 100;
++                break;
++        }
++    }
++}
++
++
++function scr_gnx_draw_tool_window()
++{
++    gnx_draw_sprite_ext(spr_guide_window, image_index, x, y, 1, 1, image_angle, image_blend, image_alpha);
++    var _lx = x - 97;
++    var _ly = y + 9;
++    draw_set_color(c_white);
++    draw_set_halign(fa_center);
++    var _title = "TOOLS";
++    
++    if (variable_instance_exists(id, "gnx_nav_title"))
++        _title = gnx_nav_title;
++    
++    draw_text(_lx, _ly, _title);
++    
++    if (variable_instance_exists(id, "gnx_show_rank") && gnx_show_rank)
++    {
++        draw_set_color(c_gray);
++        draw_text(_lx, _ly + 20, "RANK");
++        draw_set_color(c_white);
++        var _rank = global.gnx_spawn_rank;
++        var _rtxt = string(_rank + 1);
++        
++        if (_rank == 5)
++            _rtxt = "MAX";
++        else if (_rank == 6)
++            _rtxt = "CLONE";
++        else if (_rank == 7)
++            _rtxt = "SPECIAL";
++        
++        draw_text(_lx, _ly + 33, _rtxt);
++    }
++    
++    if (variable_instance_exists(id, "gnx_page_count") && gnx_page_count > 1)
++    {
++        draw_set_color(c_gray);
++        draw_set_halign(fa_center);
++        draw_text(x + 15, (y + gnx_page_arrow_y) - 10, string(gnx_page + 1) + "/" + string(gnx_page_count));
++    }
++    
++    draw_set_color(c_white);
++    draw_set_halign(fa_left);
++}
++
++
++function scr_gnx_tool_top_cats()
++{
++    var _list = [];
++    
++    for (var _mi = 0; _mi < array_length(global.gnx_tool_registry); _mi++)
++    {
++        var _reg = global.gnx_tool_registry[_mi];
++        
++        for (var _ci = 0; _ci < array_length(_reg.categories); _ci++)
++        {
++            array_push(_list, 
++            {
++                node: _reg.categories[_ci],
++                mod_index: _mi
++            });
++        }
++    }
++    
++    return _list;
++}
++
++
++function scr_gnx_tool_cat_count()
++{
++    var _count = 0;
++    
++    for (var _mi = 0; _mi < array_length(global.gnx_tool_registry); _mi++)
++        _count += array_length(global.gnx_tool_registry[_mi].categories);
++    
++    return _count;
++}
++
++
++function scr_gnx_tool_show_nav()
++{
++    with (obj_button)
++    {
++        if (interact_type >= 9001 && interact_type <= 9006)
++            instance_destroy();
++    }
++    
++    scr_window_draw = scr_gnx_draw_tool_window;
++    var _depth = depth;
++    var _items = 0;
++    var _itype = 9001;
++    var _init = scr_gnx_create_tool_cat_button;
++    var _back_type = 9004;
++    var _back_init = scr_gnx_create_tool_back_settings;
++    
++    if (gnx_nav_current == -1)
++    {
++        _items = scr_gnx_tool_cat_count();
++        gnx_nav_title = "TOOLS";
++    }
++    else
++    {
++        var _node = gnx_nav_current;
++        gnx_nav_title = _node.label;
++        var _has_subs = variable_struct_exists(_node, "categories") && array_length(_node.categories) > 0;
++        var _has_btns = variable_struct_exists(_node, "buttons") && array_length(_node.buttons) > 0;
++        _back_type = 9003;
++        _back_init = scr_gnx_create_tool_back_cat;
++        
++        if (_has_subs)
++        {
++            _items = array_length(_node.categories);
++        }
++        else if (_has_btns)
++        {
++            _items = array_length(_node.buttons);
++            _itype = 9002;
++            _init = scr_gnx_create_tool_action_button;
++        }
++    }
++    
++    if (_items == 0)
++    {
++        scr_create_button(-97, 12, _depth - 1, spr_button_long, _back_type, id, _back_init, -1, scr_gnx_draw_tool_button, 0, 3);
++        exit;
++    }
++    
++    var _page_count = ceil(_items / 10);
++    gnx_page_count = _page_count;
++    
++    if (!variable_instance_exists(id, "gnx_page"))
++        gnx_page = 0;
++    
++    if (gnx_page >= _page_count)
++        gnx_page = 0;
++    
++    if (gnx_page < 0)
++        gnx_page = _page_count - 1;
++    
++    var _start = gnx_page * 10;
++    var _show = min(_items - _start, 10);
++    var _rows = ceil(_show / 2);
++    var _max_rows = ceil(5);
++    var _back_y = 12 + (17 * _max_rows);
++    scr_create_button_layout(-38, 12, _depth - 1, _show, 2, 53, 17, _start, spr_button_guide, _itype, id, false, _init, -1, scr_gnx_draw_tool_button);
++    gnx_page_arrow_y = _back_y + 2;
++    
++    if (_page_count > 1)
++        scr_create_button_layout(15, _back_y + 2, _depth - 1, 2, 2, 8, 0, 0, spr_button_arrow, 9005, id, false, scr_gnx_create_tool_page_button, -1, scr_draw_hover_button);
++    
++    scr_create_button(-97, _back_y, _depth - 1, spr_button_long, _back_type, id, _back_init, -1, scr_gnx_draw_tool_button, 0, 3);
++    gnx_show_rank = false;
++    
++    if (gnx_nav_current != -1 && variable_struct_exists(gnx_nav_current, "buttons"))
++    {
++        var _blist = gnx_nav_current.buttons;
++        
++        for (var _ri = 0; _ri < array_length(_blist); _ri++)
++        {
++            if (array_length(_blist[_ri].actions) > 0 && _blist[_ri].actions[0].type == "create_unit")
++            {
++                gnx_show_rank = true;
++                break;
++            }
++        }
++    }
++    
++    if (gnx_show_rank)
++        scr_create_button_layout(-101, 39, _depth - 1, 2, 2, 8, 0, 0, spr_button_arrow, 9006, id, false, scr_gnx_create_tool_page_button, -1, scr_draw_hover_button);
++}
++
++
++function scr_gnx_create_tool_page_button()
++{
++    if (button_num == 1)
++        image_xscale = -1;
++    
++    hover = false;
++    gui = true;
++    fail_shake = false;
++    act_resize = true;
++    follow = true;
++}
++
++
++function scr_gnx_create_tool_cat_button()
++{
++    scr_create_option_button();
++    spr_sel = spr_button_guide_sel;
++    switch_type = false;
++    fail_shake = false;
++    var _w = source_id;
++    
++    if (_w.gnx_nav_current == -1)
++    {
++        var _top = scr_gnx_tool_top_cats();
++        
++        if (button_num < array_length(_top))
++        {
++            gnx_target_node = _top[button_num].node;
++            gnx_mod_index = _top[button_num].mod_index;
++            guide_text = gnx_target_node.label;
++        }
++    }
++    else
++    {
++        var _node = _w.gnx_nav_current;
++        
++        if (button_num < array_length(_node.categories))
++        {
++            gnx_target_node = _node.categories[button_num];
++            gnx_mod_index = _w.gnx_nav_mod_index;
++            guide_text = gnx_target_node.label;
++        }
++    }
++}
++
++
++function scr_gnx_create_tool_back_cat()
++{
++    scr_create_option_button();
++    spr_sel = spr_button_bar_sel;
++    guide_text = "BACK";
++}
++
++
++function scr_gnx_create_tool_back_settings()
++{
++    scr_create_option_button();
++    spr_sel = spr_button_bar_sel;
++    guide_text = "BACK";
++}
++
++
++function scr_gnx_create_tool_action_button()
++{
++    scr_create_option_button();
++    spr_sel = spr_button_guide_sel;
++    var _w = source_id;
++    var _node = _w.gnx_nav_current;
++    gnx_mod_index = _w.gnx_nav_mod_index;
++    gnx_btn_index = button_num;
++    
++    if (_node != -1 && button_num < array_length(_node.buttons))
++    {
++        var _btn = _node.buttons[button_num];
++        guide_text = _btn.label;
++        
++        if (_btn.toggle != "")
++        {
++            var _reg = global.gnx_tool_registry[gnx_mod_index];
++            var _st = scr_gnx_get_state(_reg.mod_name, _btn.toggle);
++            
++            if (_st == 1)
++                guide_text += " [ON]";
++            else
++                guide_text += " [OFF]";
++        }
++    }
++}
++
++
++function scr_gnx_draw_tool_button()
++{
++    gnx_draw_sprite_ext(sprite_index, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++    draw_set_halign(fa_center);
++    var _lang_pos = scr_change_lang();
++    var _alpha = clamp(!(image_index % 2), 0.5, 1);
++    draw_text_color(x + 1 + _lang_pos[0], (y - 3) + _lang_pos[1], guide_text, c_white, c_white, c_white, c_white, _alpha);
++    
++    if (hover != -1 && hover && !trigger)
++    {
++        if (spr_sel != -1)
++            gnx_draw_sprite_ext(spr_sel, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++        
++        hover = false;
++    }
++    
++    draw_set_font(fnt_base_font_eng);
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

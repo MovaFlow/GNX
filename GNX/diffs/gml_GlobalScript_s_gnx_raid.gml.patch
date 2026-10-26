@@ -1,0 +1,427 @@
+--- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,424 @@
++// GNX: raid encounter pools, post-raid escape, no-capture encounters
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++// GNX-NOCAP: map_info.no_capture of mod arg1 (arg0 = its map_info): a list of {"stage": 0-4, "level": 0-2}, the
++// raid encounters of that mod's map that can be fought and won (loot, quests) but capture nobody. Returns the
++// valid entries as "stage_level" texts; anything else is a mod error and left out.
++function gnx_parse_no_capture(arg0, arg1)
++{
++    var _out = [];
++
++    if (!variable_struct_exists(arg0, "no_capture"))
++        return _out;
++
++    var _l = arg0.no_capture;
++
++    if (!is_array(_l))
++    {
++        gnx_report_mod_error("Mod '" + arg1 + "': map_info.no_capture must be a list of {\"stage\", \"level\"}; ignored");
++        return _out;
++    }
++
++    for (var i = 0; i < array_length(_l); i++)
++    {
++        var _e = _l[i];
++        var _st = (is_struct(_e) && variable_struct_exists(_e, "stage")) ? gnx_json_num(_e.stage, -1) : -1;
++        var _lv = (is_struct(_e) && variable_struct_exists(_e, "level")) ? gnx_json_num(_e.level, -1) : -1;
++
++        if (_st < 0 || _st > 4 || _lv < 0 || _lv > 2 || _st != floor(_st) || _lv != floor(_lv))
++        {
++            gnx_report_mod_error("Mod '" + arg1 + "': map_info.no_capture entry " + string(i) + " needs \"stage\" 0-4 and \"level\" 0-2; ignored");
++            continue;
++        }
++
++        array_push(_out, string(_st) + "_" + string(_lv));
++    }
++
++    return _out;
++}
++
++
++// GNX-NOCAP: index in encounter unit list arg0 of a vanilla boss (classes 8-12: capturing one records the boss's
++// defeat), else -1
++function gnx_raid_boss_index(arg0)
++{
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        if (arg0[i].class >= 8 && arg0[i].class <= 12)
++            return i;
++    }
++
++    return -1;
++}
++
++
++// GNX-NOCAP: the raid encounter (stage arg0, encounter level arg1) of the map the player is on captures nobody
++function gnx_no_capture_here(arg0, arg1)
++{
++    if (!variable_global_exists("gnx_travel_locations") || !is_array(global.gnx_travel_locations))
++        return false;
++
++    for (var i = 0; i < array_length(global.gnx_travel_locations); i++)
++    {
++        var _tl = global.gnx_travel_locations[i];
++
++        if (_tl.target == global.gnx_active_map && variable_struct_exists(_tl, "no_capture"))
++            return array_contains(_tl.no_capture, string(arg0) + "_" + string(arg1));
++    }
++
++    return false;
++}
++
++
++function scr_gnx_check_post_raid_escape()
++{
++    var _cage = global.val.cage;
++    var _cage_len = array_length(_cage);
++    var _stg = raid_data.stage;
++    var _lvl = global.val.stage_lvl_sel[_stg];
++    var _si = global.val.stage_info[_stg];
++    
++    if (_si == -1)
++        exit;
++    
++    var _sdata = _si.info[_lvl];
++    var _enemy_total = _sdata.en_ap[0] + _sdata.en_ap[1];
++    
++    if (_enemy_total <= 0)
++        _enemy_total = 1;
++    
++    var _over_diff = (raid_data.ap[0] + raid_data.ap[1]) / _enemy_total;
++    
++    for (var _ci = 0; _ci < _cage_len; _ci++)
++    {
++        var _unit = _cage[_ci];
++        
++        if (_unit == -1 || !is_struct(_unit))
++            continue;
++        
++        if (!variable_struct_exists(_unit, "class"))
++            continue;
++        
++        var _cls = _unit.class;
++        
++        if (!ds_map_exists(global.class_registry, _cls))
++            continue;
++        
++        var _cr = ds_map_find_value(global.class_registry, _cls);
++        
++        if (!variable_struct_exists(_cr, "post_raid"))
++            continue;
++        
++        var _pr = _cr.post_raid;
++        
++        if (!variable_struct_exists(_pr, "cage_escape"))
++            continue;
++        
++        var _ce = _pr.cage_escape;
++        var _mn = _pr.mod_name;
++        
++        if (variable_struct_exists(_ce, "condition"))
++        {
++            if (!scr_gnx_eval_condition(_ce.condition, _mn))
++                continue;
++        }
++        
++        var _base = variable_struct_exists(_ce, "base_chance") ? _ce.base_chance : 0;
++        var _scale = variable_struct_exists(_ce, "over_diff_scale") ? _ce.over_diff_scale : 300;
++        var _escape_roll = irandom_range(1, 100);
++        var _threshold = ((_base + irandom_range(1, 100)) - _scale) + (_scale * (_over_diff - 1));
++        var _escaped = _escape_roll <= _threshold;
++        
++        if (_escaped)
++        {
++            global.val.cage[_ci] = -1;
++            
++            with (obj_button)
++            {
++                if (interact_type == 20 && button_num == _ci)
++                    instance_destroy();
++            }
++            
++            if (variable_struct_exists(_ce, "popup"))
++                scr_gnx_pop_up_create(_ce.popup);
++            
++            if (variable_struct_exists(_ce, "counter_key"))
++            {
++                var _ck = _ce.counter_key;
++                var _cv = scr_gnx_get_state(_mn, _ck);
++                
++                if (_cv == undefined)
++                    _cv = 0;
++                
++                scr_gnx_set_state(_mn, _ck, _cv + 1);
++                
++                if (variable_struct_exists(_ce, "on_escape_event") && variable_struct_exists(_ce, "escape_event_threshold"))
++                {
++                    if ((_cv + 1) >= _ce.escape_event_threshold)
++                        scr_gnx_fire_event(_ce.on_escape_event);
++                }
++            }
++            
++            if (variable_struct_exists(_ce, "on_escape_state"))
++            {
++                var _oes = _ce.on_escape_state;
++                scr_gnx_set_state(_mn, _oes.key, _oes.value);
++            }
++            
++            var _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-ESCAPE] class=" + string(_cls) + " cage_slot=" + string(_ci) + " over_diff=" + string(_over_diff) + " roll=" + string(_escape_roll) + " threshold=" + string(_threshold) + "\n");
++            gnx_log_close(_log);
++        }
++        else
++        {
++            if (variable_struct_exists(_ce, "on_survive_state"))
++            {
++                var _oss = _ce.on_survive_state;
++                scr_gnx_set_state(_mn, _oss.key, _oss.value);
++            }
++            
++            if (variable_struct_exists(_ce, "on_survive_event"))
++                scr_gnx_fire_event(_ce.on_survive_event);
++            
++            var _log = gnx_log_open();
++            gnx_log_write(_log, "[GNX-SURVIVE] class=" + string(_cls) + " cage_slot=" + string(_ci) + " over_diff=" + string(_over_diff) + " roll=" + string(_escape_roll) + " threshold=" + string(_threshold) + "\n");
++            gnx_log_close(_log);
++        }
++    }
++}
++
++
++function gnx_pool_add()
++{
++    var _stage = argument[0];
++    var _level = argument[1];
++    var _cls = argument[2];
++    var _w = argument[3];
++    var _min = argument[4];
++    var _max = argument[5];
++    var _key = (_stage * 100) + _level;
++    var _pool;
++    
++    if (ds_map_exists(global.gnx_encounter_pools, _key))
++    {
++        _pool = ds_map_find_value(global.gnx_encounter_pools, _key);
++    }
++    else
++    {
++        _pool = ds_list_create();
++        ds_map_add(global.gnx_encounter_pools, _key, _pool);
++    }
++    
++    var _entry = 
++    {
++        class_id: _cls,
++        weight: _w,
++        min_lvl: _min,
++        max_lvl: _max
++    };
++    
++    if (argument_count > 6 && argument[6] != undefined)
++        _entry.condition = argument[6];
++    
++    if (argument_count > 7 && argument[7] != undefined)
++        _entry.mod_name = argument[7];
++    
++    if (argument_count > 8 && argument[8] != undefined)
++        _entry.max_per_encounter = argument[8];
++    
++    if (argument_count > 9 && argument[9] != undefined)
++        _entry.ap_override = argument[9];
++    
++    ds_list_add(_pool, _entry);
++}
++
++
++function gnx_pool_pick()
++{
++    var _stage = argument[0];
++    var _level = argument[1];
++    var _exclude = (argument_count > 2 && is_array(argument[2])) ? argument[2] : -1;
++    var _key = (_stage * 100) + _level;
++    
++    if (!ds_map_exists(global.gnx_encounter_pools, _key))
++    {
++        var _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX] pool_pick: no pool stage=" + string(_stage) + " lvl=" + string(_level) + "\n");
++        gnx_log_close(_log);
++        return 
++        {
++            class_id: 0,
++            lvl: 0
++        };
++    }
++    
++    var _pool = ds_map_find_value(global.gnx_encounter_pools, _key);
++    var _count = ds_list_size(_pool);
++    var _total = 0;
++    var _i = 0;
++    
++    repeat (_count)
++    {
++        var _e = ds_list_find_value(_pool, _i);
++        var _eligible = true;
++        
++        if (variable_struct_exists(_e, "condition") && variable_struct_exists(_e, "mod_name"))
++            _eligible = scr_gnx_eval_condition(_e.condition, _e.mod_name);
++        
++        if (_eligible && _exclude != -1 && variable_struct_exists(_e, "max_per_encounter"))
++        {
++            var _exc_count = 0;
++            
++            for (var _ei = 0; _ei < array_length(_exclude); _ei++)
++            {
++                if (_exclude[_ei] == _e.class_id)
++                    _exc_count++;
++            }
++            
++            if (_exc_count >= _e.max_per_encounter)
++                _eligible = false;
++        }
++        
++        if (_eligible)
++            _total += _e.weight;
++        
++        _i++;
++    }
++    
++    if (_total <= 0)
++    {
++        return 
++        {
++            class_id: 0,
++            lvl: 0
++        };
++    }
++    
++    var _roll = irandom_range(1, _total);
++    var _cum = 0;
++    var _entry = ds_list_find_value(_pool, 0);
++    _i = 0;
++    
++    repeat (_count)
++    {
++        _entry = ds_list_find_value(_pool, _i);
++        var _elig = true;
++        
++        if (variable_struct_exists(_entry, "condition") && variable_struct_exists(_entry, "mod_name"))
++            _elig = scr_gnx_eval_condition(_entry.condition, _entry.mod_name);
++        
++        if (_elig && _exclude != -1 && variable_struct_exists(_entry, "max_per_encounter"))
++        {
++            var _exc_count = 0;
++            
++            for (var _ei = 0; _ei < array_length(_exclude); _ei++)
++            {
++                if (_exclude[_ei] == _entry.class_id)
++                    _exc_count++;
++            }
++            
++            if (_exc_count >= _entry.max_per_encounter)
++                _elig = false;
++        }
++        
++        if (_elig)
++        {
++            _cum += _entry.weight;
++            
++            if (_roll <= _cum)
++                break;
++        }
++        
++        _i++;
++    }
++    
++    var _lvl = irandom_range(_entry.min_lvl, _entry.max_lvl);
++    var _result = 
++    {
++        class_id: _entry.class_id,
++        lvl: _lvl
++    };
++    
++    if (variable_struct_exists(_entry, "ap_override"))
++        _result.ap_override = _entry.ap_override;
++    
++    if (global.gnx_debug_verbose)
++    {
++        var _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX] pool_pick stage=" + string(_stage) + " lvl=" + string(_level) + " roll=" + string(_roll) + "/" + string(_total) + " class=" + string(_entry.class_id) + " picked_lvl=" + string(_lvl) + (variable_struct_exists(_result, "ap_override") ? " AP_OVERRIDE" : "") + "\n");
++        gnx_log_close(_log);
++    }
++    
++    return _result;
++}
++
++
++function scr_gnx_init_encounter_pools()
++{
++    gnx_pool_add(0, 1, 0, 50, 1, 2);
++    gnx_pool_add(0, 1, 4, 50, 0, 0);
++    gnx_pool_add(0, 2, 0, 30, 1, 2);
++    gnx_pool_add(0, 2, 4, 50, 0, 1);
++    gnx_pool_add(0, 2, 2, 20, 0, 1);
++    gnx_pool_add(1, 0, 0, 35, 0, 1);
++    gnx_pool_add(1, 0, 6, 65, 0, 1);
++    gnx_pool_add(1, 1, 2, 50, 0, 0);
++    gnx_pool_add(1, 1, 6, 50, 0, 1);
++    gnx_pool_add(1, 2, 6, 30, 2, 3);
++    gnx_pool_add(1, 2, 2, 30, 2, 3);
++    gnx_pool_add(1, 2, 7, 40, 1, 2);
++    gnx_pool_add(2, 0, 1, 50, 0, 1);
++    gnx_pool_add(2, 0, 2, 50, 1, 2);
++    gnx_pool_add(2, 1, 3, 65, 0, 1);
++    gnx_pool_add(2, 1, 1, 35, 1, 2);
++    gnx_pool_add(2, 2, 5, 30, 0, 1);
++    gnx_pool_add(2, 2, 3, 30, 1, 2);
++    gnx_pool_add(2, 2, 1, 40, 2, 3);
++    gnx_pool_add(3, 0, 0, 25, 1, 3);
++    gnx_pool_add(3, 0, 1, 25, 1, 3);
++    gnx_pool_add(3, 0, 2, 25, 1, 3);
++    gnx_pool_add(3, 0, 3, 25, 1, 3);
++    gnx_pool_add(3, 1, 4, 50, 2, 4);
++    gnx_pool_add(3, 1, 5, 50, 2, 4);
++    gnx_pool_add(3, 2, 0, 17, 3, 4);
++    gnx_pool_add(3, 2, 1, 17, 3, 4);
++    gnx_pool_add(3, 2, 2, 17, 3, 4);
++    gnx_pool_add(3, 2, 3, 17, 3, 4);
++    gnx_pool_add(3, 2, 4, 16, 3, 4);
++    gnx_pool_add(3, 2, 5, 16, 3, 4);
++    gnx_pool_add(4, 0, 0, 12, 3, 4);
++    gnx_pool_add(4, 0, 1, 12, 3, 4);
++    gnx_pool_add(4, 0, 2, 12, 3, 4);
++    gnx_pool_add(4, 0, 3, 12, 3, 4);
++    gnx_pool_add(4, 0, 4, 12, 3, 4);
++    gnx_pool_add(4, 0, 5, 12, 3, 4);
++    gnx_pool_add(4, 0, 6, 12, 3, 4);
++    gnx_pool_add(4, 0, 7, 12, 3, 4);
++    gnx_pool_add(4, 1, 0, 12, 3, 4);
++    gnx_pool_add(4, 1, 1, 12, 3, 4);
++    gnx_pool_add(4, 1, 2, 12, 3, 4);
++    gnx_pool_add(4, 1, 3, 12, 3, 4);
++    gnx_pool_add(4, 1, 4, 12, 3, 4);
++    gnx_pool_add(4, 1, 5, 12, 3, 4);
++    gnx_pool_add(4, 1, 6, 12, 3, 4);
++    gnx_pool_add(4, 1, 7, 12, 3, 4);
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] encounter pools initialized\n");
++    gnx_log_close(_log);
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

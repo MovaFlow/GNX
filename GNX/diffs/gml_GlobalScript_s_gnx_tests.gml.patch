@@ -1,0 +1,2359 @@
+--- gml_138/gml_GlobalScript_s_gnx_tests.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_tests.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,2356 @@
++// GNX: boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++function scr_gnx_spr_ok(arg0)
++{
++    if (arg0 == -1)
++        return true;
++    
++    if (is_sprref(arg0))
++        return gnx_sprite_exists(arg0);
++    
++    if (is_string(arg0) || is_undefined(arg0) || is_struct(arg0) || is_array(arg0))
++        return false;
++    
++    return gnx_sprite_exists(arg0);
++}
++
++
++function scr_gnx_collect_bad_spr(arg0, arg1)
++{
++    var _bad = "";
++    
++    if (is_sprref(arg0))
++    {
++        if (!scr_gnx_spr_ok(arg0))
++            _bad += (arg1 + " ");
++        
++        return _bad;
++    }
++    
++    if (is_array(arg0))
++    {
++        for (var _i = 0; _i < array_length(arg0); _i++)
++        {
++            if (!scr_gnx_spr_ok(arg0[_i]))
++                _bad += (arg1 + "[" + string(_i) + "] ");
++        }
++        
++        return _bad;
++    }
++    
++    if (!is_struct(arg0))
++    {
++        if (!scr_gnx_spr_ok(arg0))
++            _bad += (arg1 + " ");
++        
++        return _bad;
++    }
++    
++    var _names = variable_struct_get_names(arg0);
++    
++    for (var _i = 0; _i < array_length(_names); _i++)
++    {
++        var _v = variable_struct_get(arg0, _names[_i]);
++        
++        if (is_sprref(_v))
++        {
++            if (!scr_gnx_spr_ok(_v))
++                _bad += (arg1 + "." + _names[_i] + " ");
++        }
++        else if (is_struct(_v) || is_array(_v))
++        {
++            _bad += scr_gnx_collect_bad_spr(_v, arg1 + "." + _names[_i]);
++        }
++        else if (!scr_gnx_spr_ok(_v))
++        {
++            _bad += (arg1 + "." + _names[_i] + " ");
++        }
++    }
++    
++    return _bad;
++}
++
++
++function scr_gnx_test_suite()
++{
++    var _log = gnx_log_open();
++    var _pass = 0;
++    var _fail = 0;
++    gnx_log_write(_log, "[GNX-TEST] ============================================================\n");
++    gnx_log_write(_log, "[GNX-TEST] Suite start\n");
++    var _ok = ds_exists(global.cell_registry, ds_type_map);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T01 cell_registry is a map\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T01 cell_registry not a map\n");
++        _fail++;
++    }
++    
++    _ok = ds_exists(global.class_registry, ds_type_map);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T02 class_registry is a map\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T02 class_registry not a map\n");
++        _fail++;
++    }
++    
++    _ok = ds_exists(global.bl_lookup, ds_type_map);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T03 bl_lookup is a map\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T03 bl_lookup not a map\n");
++        _fail++;
++    }
++    
++    _ok = ds_exists(global.gnx_encounter_pools, ds_type_map);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T04 gnx_encounter_pools is a map\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T04 gnx_encounter_pools not a map\n");
++        _fail++;
++    }
++    
++    _ok = ds_exists(global.front_row, ds_type_list);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T05 front_row is a list\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T05 front_row not a list\n");
++        _fail++;
++    }
++    
++    _ok = ds_exists(global.back_row, ds_type_list);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T06 back_row is a list\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T06 back_row not a list\n");
++        _fail++;
++    }
++    
++    var _n = ds_map_size(global.cell_registry);
++    _ok = _n >= 39;
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T07 cell_registry size=" + string(_n) + " (>=39)\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T07 cell_registry size=" + string(_n) + " (<39)\n");
++        _fail++;
++    }
++    
++    _n = ds_map_size(global.class_registry);
++    _ok = _n >= 14;
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T08 class_registry size=" + string(_n) + " (>=14)\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T08 class_registry size=" + string(_n) + " (<14)\n");
++        _fail++;
++    }
++    
++    _ok = ds_exists(global.gnx_cov, ds_type_map);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T09 gnx_cov is a map\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T09 gnx_cov not a map\n");
++        _fail++;
++    }
++    
++    _n = ds_map_size(global.gnx_encounter_pools);
++    _ok = _n > 0;
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T10 encounter_pools size=" + string(_n) + "\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T10 encounter_pools empty\n");
++        _fail++;
++    }
++    
++    var _exp = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39, 40, 41, 42];
++    var _missing = "";
++    var _i = 0;
++    
++    repeat (array_length(_exp))
++    {
++        var _ht = _exp[_i++];
++        
++        if (!ds_map_exists(global.cell_registry, _ht))
++            _missing += (string(_ht) + " ");
++    }
++    
++    if (_missing == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T11 all 39 cells registered\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T11 cells missing: " + _missing + "\n");
++        _fail++;
++    }
++    
++    var _missing_c = "";
++    var _ci = 0;
++    
++    repeat (14)
++    {
++        if (!ds_map_exists(global.class_registry, _ci))
++            _missing_c += (string(_ci) + " ");
++        
++        _ci++;
++    }
++    
++    if (_missing_c == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T12 classes 0-13 all registered\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T12 classes missing: " + _missing_c + "\n");
++        _fail++;
++    }
++    
++    if (ds_map_exists(global.cell_registry, 1))
++    {
++        var _c1 = ds_map_find_value(global.cell_registry, 1);
++        _ok = variable_struct_exists(_c1, "name") && variable_struct_exists(_c1, "physical") && variable_struct_exists(_c1, "human_spr");
++        
++        if (_ok)
++        {
++            var _p1 = _c1.physical;
++            _ok = variable_struct_exists(_p1, "allow_preg") && variable_struct_exists(_p1, "max_mon_num") && variable_struct_exists(_p1, "anal") && variable_struct_exists(_p1, "spr_row_pos");
++        }
++        
++        if (_ok)
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T13 WALL1 registry entry complete\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T13 WALL1 registry entry missing fields\n");
++            _fail++;
++        }
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T13 WALL1 (h=1) not in registry\n");
++        _fail++;
++    }
++    
++    if (ds_map_exists(global.cell_registry, 36))
++    {
++        var _c36 = ds_map_find_value(global.cell_registry, 36);
++        _ok = variable_struct_exists(_c36, "human_spr") && _c36.human_spr.mode == "fixed";
++        
++        if (_ok)
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T14 DAIRY human_spr mode=fixed\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T14 DAIRY human_spr mode wrong\n");
++            _fail++;
++        }
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T14 DAIRY (h=36) not in registry\n");
++        _fail++;
++    }
++    
++    if (ds_map_exists(global.cell_registry, 27))
++    {
++        var _c27 = ds_map_find_value(global.cell_registry, 27);
++        _ok = variable_struct_exists(_c27, "slot_type") && _c27.slot_type == 3;
++        
++        if (_ok)
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T15 BIND1 slot_type=3 (tent)\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T15 BIND1 slot_type wrong (got " + string(_c27.slot_type) + ")\n");
++            _fail++;
++        }
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T15 BIND1 (h=27) not in registry\n");
++        _fail++;
++    }
++    
++    var _cls_n = ds_map_size(global.class_registry);
++    var _bad_mod_classes = "";
++    
++    if (_cls_n > 14)
++    {
++        var _ck = ds_map_find_first(global.class_registry);
++        
++        while (_ck != undefined)
++        {
++            if (_ck >= 14)
++            {
++                var _mc = ds_map_find_value(global.class_registry, _ck);
++                var _mc_ok = variable_struct_exists(_mc, "name") && variable_struct_exists(_mc, "is_special") && variable_struct_exists(_mc, "has_hair") && (variable_struct_exists(_mc, "clothing_standard") || variable_struct_exists(_mc, "clothing_giant"));
++                
++                if (!_mc_ok)
++                    _bad_mod_classes += (string(_ck) + " ");
++            }
++            
++            _ck = ds_map_find_next(global.class_registry, _ck);
++        }
++    }
++    
++    if (_bad_mod_classes == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T16 mod classes valid (extra=" + string(max(0, _cls_n - 14)) + ")\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T16 mod class entries invalid: " + _bad_mod_classes + "\n");
++        _fail++;
++    }
++    
++    _ok = is_array(global.gnx_registered_cells);
++    var _rn = _ok ? array_length(global.gnx_registered_cells) : 0;
++    var _bad_mod_cells = "";
++    
++    for (_i = 0; _i < _rn; _i++)
++    {
++        var _rh = global.gnx_registered_cells[_i];
++        var _rht = is_struct(_rh) ? _rh.h_type : _rh;
++        var _rc = ds_map_find_value(global.cell_registry, _rht);
++        var _rc_ok = _rc != undefined && variable_struct_exists(_rc, "name") && variable_struct_exists(_rc, "physical") && variable_struct_exists(_rc, "human_spr");
++        
++        if (!_rc_ok)
++            _bad_mod_cells += (string(_rht) + " ");
++    }
++    
++    if (_ok && _bad_mod_cells == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T17 gnx_registered_cells valid (len=" + string(_rn) + ")\n");
++        _pass++;
++    }
++    else if (!_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T17 gnx_registered_cells not an array\n");
++        _fail++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T17 gnx_registered_cells invalid entries: " + _bad_mod_cells + "\n");
++        _fail++;
++    }
++    
++    _ok = global.use_legacy_dispatch == false;
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T18 use_legacy_dispatch=false\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T18 use_legacy_dispatch=true (registry bypassed!)\n");
++        _fail++;
++    }
++    
++    _ok = is_struct(global.val.gnx_mod_data);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T19 gnx_mod_data is a struct\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T19 gnx_mod_data not a struct\n");
++        _fail++;
++    }
++    
++    var _selftest_mod = "_gnx_selftest";
++    scr_gnx_set_state(_selftest_mod, "_test_rt", 42);
++    var _rt = scr_gnx_get_state(_selftest_mod, "_test_rt");
++    _ok = _rt == 42;
++    
++    if (_ok)
++        _ok = variable_struct_get(variable_struct_get(global.val.gnx_mod_data, _selftest_mod), "_test_rt") == 42;
++    
++    if (variable_struct_exists(global.gnx_mod_state, _selftest_mod))
++        variable_struct_remove(global.gnx_mod_state, _selftest_mod);
++    
++    if (variable_struct_exists(global.val.gnx_mod_data, _selftest_mod))
++        variable_struct_remove(global.val.gnx_mod_data, _selftest_mod);
++    
++    if (_ok)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T20 set/get round-trip + persistence path\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T20 set/get round-trip: got " + string(_rt) + "\n");
++        _fail++;
++    }
++    
++    var _bad21 = "";
++    var _k21 = ds_map_find_first(global.cell_registry);
++    
++    while (_k21 != undefined)
++    {
++        var _c21 = ds_map_find_value(global.cell_registry, _k21);
++        
++        if (is_struct(_c21) && variable_struct_exists(_c21, "human_spr") && is_struct(_c21.human_spr) && variable_struct_exists(_c21.human_spr, "mode") && _c21.human_spr.mode == "fixed")
++        {
++            var _phases21 = ["phase_0", "phase_1", "phase_2", "phase_4"];
++            
++            for (var _pi21 = 0; _pi21 < 4; _pi21++)
++            {
++                if (variable_struct_exists(_c21.human_spr, _phases21[_pi21]))
++                    _bad21 += scr_gnx_collect_bad_spr(variable_struct_get(_c21.human_spr, _phases21[_pi21]), string(_k21) + "." + _phases21[_pi21]);
++            }
++        }
++        
++        _k21 = ds_map_find_next(global.cell_registry, _k21);
++    }
++    
++    if (_bad21 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T21 fixed-mode cell sprites valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T21 fixed-mode bad sprites: " + _bad21 + "\n");
++        _fail++;
++    }
++    
++    var _bad22 = "";
++    var _k22 = ds_map_find_first(global.class_registry);
++    
++    while (_k22 != undefined)
++    {
++        var _cl22 = ds_map_find_value(global.class_registry, _k22);
++        
++        if (is_struct(_cl22))
++        {
++            var _tabs22 = ["clothing_standard", "clothing_big", "clothing_tent"];
++            
++            for (var _t = 0; _t < 3; _t++)
++            {
++                if (variable_struct_exists(_cl22, _tabs22[_t]))
++                    _bad22 += scr_gnx_collect_bad_spr(variable_struct_get(_cl22, _tabs22[_t]), "c" + string(_k22) + "." + _tabs22[_t]);
++            }
++        }
++        
++        _k22 = ds_map_find_next(global.class_registry, _k22);
++    }
++    
++    if (_bad22 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T22 class clothing sprites valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T22 class clothing bad sprites: " + _bad22 + "\n");
++        _fail++;
++    }
++    
++    var _ok23 = is_array(global.gnx_indexed_mods) && is_array(global.gnx_loaded_mods);
++    var _miss23 = "";
++    
++    if (_ok23)
++    {
++        for (var _mi = 0; _mi < array_length(global.gnx_indexed_mods); _mi++)
++        {
++            var _mn = global.gnx_indexed_mods[_mi];
++            var _found = false;
++            
++            for (var _lj = 0; _lj < array_length(global.gnx_loaded_mods); _lj++)
++            {
++                if (global.gnx_loaded_mods[_lj] == _mn)
++                {
++                    _found = true;
++                    break;
++                }
++            }
++            
++            if (!_found)
++                _miss23 += (_mn + " ");
++        }
++    }
++    
++    if (_ok23 && _miss23 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T23 all indexed mods loaded (" + string(_ok23 ? array_length(global.gnx_indexed_mods) : 0) + ")\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T23 mods not loaded: " + _miss23 + "\n");
++        _fail++;
++    }
++    
++    var _bad24 = "";
++    var _k24 = ds_map_find_first(global.cell_registry);
++    
++    while (_k24 != undefined)
++    {
++        var _c24 = ds_map_find_value(global.cell_registry, _k24);
++        
++        if (is_struct(_c24) && variable_struct_exists(_c24, "physical") && is_struct(_c24.physical) && variable_struct_exists(_c24.physical, "required_class") && is_array(_c24.physical.required_class))
++        {
++            var _rq = _c24.physical.required_class;
++            
++            for (var _ri = 0; _ri < array_length(_rq); _ri++)
++            {
++                if (!ds_map_exists(global.class_registry, _rq[_ri]))
++                    _bad24 += ("cell" + string(_k24) + "->c" + string(_rq[_ri]) + " ");
++            }
++        }
++        
++        _k24 = ds_map_find_next(global.cell_registry, _k24);
++    }
++    
++    if (_bad24 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T24 required_class resolve\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T24 unresolved class refs: " + _bad24 + "\n");
++        _fail++;
++    }
++    
++    var _bad25 = 0;
++    var _bk25 = ds_map_find_first(global.bl_lookup);
++    
++    while (_bk25 != undefined)
++    {
++        if (!scr_gnx_spr_ok(ds_map_find_value(global.bl_lookup, _bk25)))
++            _bad25++;
++        
++        _bk25 = ds_map_find_next(global.bl_lookup, _bk25);
++    }
++    
++    if (_bad25 == 0)
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T25 bl_lookup sprites valid (n=" + string(ds_map_size(global.bl_lookup)) + ")\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T25 bl_lookup invalid entries: " + string(_bad25) + "\n");
++        _fail++;
++    }
++    
++    var _dup26 = "";
++    
++    if (is_array(global.gnx_registered_cells))
++    {
++        for (_i = 0; _i < array_length(global.gnx_registered_cells); _i++)
++        {
++            var _ei = global.gnx_registered_cells[_i];
++            var _hi = is_struct(_ei) ? _ei.h_type : _ei;
++            var _j = _i + 1;
++            
++            while (_j < array_length(global.gnx_registered_cells))
++            {
++                var _ej = global.gnx_registered_cells[_j];
++                var _hj = is_struct(_ej) ? _ej.h_type : _ej;
++                
++                if (_hi == _hj)
++                    _dup26 += (string(_hi) + " ");
++                
++                _j++;
++            }
++        }
++    }
++    
++    if (_dup26 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T26 no duplicate registered h_type\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T26 duplicate h_type: " + _dup26 + "\n");
++        _fail++;
++    }
++    
++    if (array_length(global.gnx_registered_cells) == 0)
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T27 no mod cells loaded\n");
++    }
++    else
++    {
++        var _hash27 = false;
++        
++        for (_ci = 0; _ci < array_length(global.gnx_registered_cells); _ci++)
++        {
++            var _e27 = global.gnx_registered_cells[_ci];
++            var _h27 = is_struct(_e27) ? _e27.h_type : _e27;
++            
++            if (_h27 >= 100)
++            {
++                _hash27 = true;
++                break;
++            }
++        }
++        
++        if (_hash27)
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T27 hash-assigned cell h_type>=100 found\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T27 no hash-assigned cell found\n");
++            _fail++;
++        }
++    }
++    
++    if (ds_exists(global.gnx_quest_events, ds_type_map))
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T28 gnx_quest_events is valid ds_map (size=" + string(ds_map_size(global.gnx_quest_events)) + ")\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T28 gnx_quest_events not a valid ds_map\n");
++        _fail++;
++    }
++    
++    if (is_array(global.gnx_quest_triggers))
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T29 gnx_quest_triggers is array (len=" + string(array_length(global.gnx_quest_triggers)) + ")\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T29 gnx_quest_triggers not an array\n");
++        _fail++;
++    }
++    
++    if (ds_map_size(global.gnx_quest_events) > 0)
++    {
++        var _bad30 = "";
++        var _key30 = ds_map_find_first(global.gnx_quest_events);
++        
++        while (_key30 != undefined)
++        {
++            var _ev30 = ds_map_find_value(global.gnx_quest_events, _key30);
++            
++            if (variable_struct_exists(_ev30, "dialog"))
++            {
++                for (var _d30 = 0; _d30 < array_length(_ev30.dialog); _d30++)
++                {
++                    var _line30 = _ev30.dialog[_d30];
++                    
++                    if (_line30.portrait_spr != -1 && !gnx_sprite_exists(_line30.portrait_spr))
++                        _bad30 += (_key30 + ".dialog[" + string(_d30) + "] ");
++                }
++            }
++            
++            _key30 = ds_map_find_next(global.gnx_quest_events, _key30);
++        }
++        
++        if (_bad30 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T30 all quest event portraits valid\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T30 invalid portraits: " + _bad30 + "\n");
++            _fail++;
++        }
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T30 no quest events loaded\n");
++    }
++    
++    if (array_length(global.gnx_quest_triggers) > 0)
++    {
++        var _bad31 = "";
++        
++        for (var _t31 = 0; _t31 < array_length(global.gnx_quest_triggers); _t31++)
++        {
++            var _trig = global.gnx_quest_triggers[_t31];
++            var _eid = _trig.event;
++            
++            if (ds_map_find_value(global.gnx_quest_events, _eid) == undefined)
++                _bad31 += (_eid + " ");
++        }
++        
++        if (_bad31 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T31 all triggers ref valid events (n=" + string(array_length(global.gnx_quest_triggers)) + ")\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T31 triggers ref missing events: " + _bad31 + "\n");
++            _fail++;
++        }
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T31 no triggers loaded\n");
++    }
++    
++    if (ds_exists(global.gnx_popups, ds_type_map))
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T32 gnx_popups is valid ds_map (size=" + string(ds_map_size(global.gnx_popups)) + ")\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T32 gnx_popups not a valid ds_map\n");
++        _fail++;
++    }
++    
++    var _bad33 = "";
++    var _k33 = ds_map_find_first(global.gnx_encounter_pools);
++    
++    while (_k33 != undefined)
++    {
++        var _pool33 = ds_map_find_value(global.gnx_encounter_pools, _k33);
++        
++        for (var _p33 = 0; _p33 < ds_list_size(_pool33); _p33++)
++        {
++            var _e33 = ds_list_find_value(_pool33, _p33);
++            
++            if (variable_struct_exists(_e33, "condition") && !variable_struct_exists(_e33, "mod_name"))
++                _bad33 += ("pool=" + string(_k33) + "[" + string(_p33) + "] ");
++        }
++        
++        _k33 = ds_map_find_next(global.gnx_encounter_pools, _k33);
++    }
++    
++    if (_bad33 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T33 all conditional pool entries have mod_name\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T33 missing mod_name: " + _bad33 + "\n");
++        _fail++;
++    }
++    
++    var _bad34 = "";
++    var _k34 = ds_map_find_first(global.class_registry);
++    
++    while (_k34 != undefined)
++    {
++        var _cr34 = ds_map_find_value(global.class_registry, _k34);
++        
++        if (variable_struct_exists(_cr34, "post_raid"))
++        {
++            var _pr34 = _cr34.post_raid;
++            
++            if (!variable_struct_exists(_pr34, "mod_name"))
++                _bad34 += ("c" + string(_k34) + ".mod_name ");
++            
++            if (variable_struct_exists(_pr34, "cage_escape"))
++            {
++                var _ce34 = _pr34.cage_escape;
++                
++                if (!variable_struct_exists(_ce34, "over_diff_scale"))
++                    _bad34 += ("c" + string(_k34) + ".over_diff_scale ");
++            }
++        }
++        
++        _k34 = ds_map_find_next(global.class_registry, _k34);
++    }
++    
++    if (_bad34 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T34 post_raid structures valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T34 invalid post_raid: " + _bad34 + "\n");
++        _fail++;
++    }
++    
++    var _bad35 = "";
++    var _k35 = ds_map_find_first(global.class_registry);
++    
++    while (_k35 != undefined)
++    {
++        var _c35 = ds_map_find_value(global.class_registry, _k35);
++        
++        if (is_struct(_c35))
++        {
++            var _bc35 = -1;
++            
++            if (variable_struct_exists(_c35, "birth_class") && is_array(_c35.birth_class))
++                _bc35 = _c35.birth_class;
++            else if (variable_struct_exists(_c35, "birth_classes") && is_array(_c35.birth_classes) && _k35 >= 14)
++                _bc35 = _c35.birth_classes;
++            
++            if (is_array(_bc35))
++            {
++                if (array_length(_bc35) != 4)
++                {
++                    _bad35 += ("c" + string(_k35) + "(len=" + string(array_length(_bc35)) + ") ");
++                }
++                else
++                {
++                    for (var _bi35 = 0; _bi35 < 4; _bi35++)
++                    {
++                        if (_bc35[_bi35] < 0 || _bc35[_bi35] > 3)
++                            _bad35 += ("c" + string(_k35) + "[" + string(_bi35) + "]=" + string(_bc35[_bi35]) + " ");
++                    }
++                }
++            }
++        }
++        
++        _k35 = ds_map_find_next(global.class_registry, _k35);
++    }
++    
++    if (_bad35 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T35 birth_class values valid (0-3)\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T35 invalid birth_class: " + _bad35 + "\n");
++        _fail++;
++    }
++    
++    if (is_array(global.gnx_tool_registry))
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T36 gnx_tool_registry is array (len=" + string(array_length(global.gnx_tool_registry)) + ")\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T36 gnx_tool_registry is not an array\n");
++        _fail++;
++    }
++    
++    var _known_types = ["add_gold", "add_food", "add_milk", "add_orbs", "give_item", "give_blueprint", "give_prop", "spawn_mon", "set_troop_level", "add_troop_exp", "set_skill_level", "set_troop_size", "create_unit", "create_unit_cage", "unlock_boss", "unlock_stage_next", "unlock_breeds", "unlock_cell", "unlock_prop", "unlock_raid", "unlock_all_cells", "add_floor", "set_day", "add_day_time", "set_speed", "swap_mouse", "show_debug_overlay", "set_val", "set_var", "reroll_shop", "reroll_trade", "reroll_encounters", "set_state", "set_continuous", "fire_event", "fire_trigger", "popup", "play_sfx", "travel_map"];
++    var _bad37 = "";
++    
++    for (var _mi = 0; _mi < array_length(global.gnx_tool_registry); _mi++)
++    {
++        var _reg = global.gnx_tool_registry[_mi];
++        
++        for (_ci = 0; _ci < array_length(_reg.categories); _ci++)
++        {
++            var _cat = _reg.categories[_ci];
++            
++            for (var _bi = 0; _bi < array_length(_cat.buttons); _bi++)
++            {
++                var _btn = _cat.buttons[_bi];
++                var _acts = _btn.actions;
++                
++                if (array_length(_acts) == 0 && _btn.toggle == "")
++                    _bad37 += (_reg.mod_name + "." + _cat.label + "." + _btn.label + "(no_actions) ");
++                
++                for (var _ai = 0; _ai < array_length(_acts); _ai++)
++                {
++                    var _at = _acts[_ai].type;
++                    var _found = false;
++                    
++                    for (var _ki = 0; _ki < array_length(_known_types); _ki++)
++                    {
++                        if (_known_types[_ki] == _at)
++                        {
++                            _found = true;
++                            break;
++                        }
++                    }
++                    
++                    if (!_found)
++                        _bad37 += (_reg.mod_name + "." + _btn.label + "(" + _at + ") ");
++                }
++            }
++        }
++    }
++    
++    if (_bad37 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T37 all tool button action types valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T37 invalid tool actions: " + _bad37 + "\n");
++        _fail++;
++    }
++    
++    var _bad38 = "";
++    
++    for (var _ki = 0; _ki < array_length(global.gnx_keybinds); _ki++)
++    {
++        var _kb = global.gnx_keybinds[_ki];
++        
++        if (_kb.key_type == "range")
++        {
++            if (_kb.key_start > _kb.key_end)
++                _bad38 += (_kb.mod_name + "(bad_range) ");
++        }
++        else if (_kb.vk_code == -1)
++        {
++            _bad38 += (_kb.mod_name + "(no_vk_code) ");
++        }
++    }
++    
++    if (_bad38 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T38 all keybinds valid (count=" + string(array_length(global.gnx_keybinds)) + ")\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T38 invalid keybinds: " + _bad38 + "\n");
++        _fail++;
++    }
++    
++    var _bad39 = "";
++    
++    for (var _mi = 0; _mi < array_length(global.gnx_tool_registry); _mi++)
++    {
++        var _reg = global.gnx_tool_registry[_mi];
++        
++        for (_ci = 0; _ci < array_length(_reg.categories); _ci++)
++        {
++            var _cat = _reg.categories[_ci];
++            
++            for (var _bi = 0; _bi < array_length(_cat.buttons); _bi++)
++            {
++                var _btn = _cat.buttons[_bi];
++                
++                if (_btn.toggle != "")
++                {
++                    if (variable_global_exists("gnx_mod_state") && variable_struct_exists(global.gnx_mod_state, _reg.mod_name))
++                    {
++                        var _ms = variable_struct_get(global.gnx_mod_state, _reg.mod_name);
++                        
++                        if (!variable_struct_exists(_ms, _btn.toggle))
++                            _bad39 += (_reg.mod_name + "." + _btn.label + "(" + _btn.toggle + ") ");
++                    }
++                }
++            }
++        }
++    }
++    
++    if (_bad39 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T39 all toggle keys exist in save_state\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T39 missing toggle keys: " + _bad39 + "\n");
++        _fail++;
++    }
++    
++    var _bad40 = "";
++    var _k40 = ds_map_find_first(global.class_registry);
++    
++    while (_k40 != undefined)
++    {
++        var _cl40 = ds_map_find_value(global.class_registry, _k40);
++        
++        if (is_struct(_cl40))
++        {
++            var _ntabs40 = ["naked_standard", "naked_big", "naked_tent"];
++            
++            for (var _t40 = 0; _t40 < 3; _t40++)
++            {
++                if (variable_struct_exists(_cl40, _ntabs40[_t40]))
++                    _bad40 += scr_gnx_collect_bad_spr(variable_struct_get(_cl40, _ntabs40[_t40]), "c" + string(_k40) + "." + _ntabs40[_t40]);
++            }
++            
++            if (variable_struct_exists(_cl40, "carry_base_spr"))
++            {
++                var _cbs40 = _cl40.carry_base_spr;
++                
++                if (is_struct(_cbs40))
++                    _bad40 += scr_gnx_collect_bad_spr(_cbs40, "c" + string(_k40) + ".carry_base_spr");
++                else if (is_real(_cbs40) && _cbs40 != -1 && !gnx_sprite_exists(_cbs40))
++                    _bad40 += ("c" + string(_k40) + ".carry_base_spr ");
++            }
++        }
++        
++        _k40 = ds_map_find_next(global.class_registry, _k40);
++    }
++    
++    if (_bad40 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T40 naked layer sprites valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T40 naked layer bad sprites: " + _bad40 + "\n");
++        _fail++;
++    }
++    
++    if (!global.gnx_has_sounds)
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T41 no sound mods loaded\n");
++    }
++    else
++    {
++        var _bad41 = "";
++        var _bk41 = ds_map_find_first(global.gnx_voice_banks);
++        
++        while (_bk41 != undefined)
++        {
++            var _arr41 = ds_map_find_value(global.gnx_voice_banks, _bk41);
++            
++            if (!is_array(_arr41) || array_length(_arr41) == 0)
++            {
++                _bad41 += (_bk41 + "(empty) ");
++            }
++            else
++            {
++                for (var _s41 = 0; _s41 < array_length(_arr41); _s41++)
++                {
++                    if (!audio_exists(_arr41[_s41]))
++                        _bad41 += (_bk41 + "[" + string(_s41) + "] ");
++                }
++            }
++            
++            _bk41 = ds_map_find_next(global.gnx_voice_banks, _bk41);
++        }
++        
++        if (_bad41 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T41 voice banks valid (count=" + string(array_length(global.gnx_voice_bank_names)) + ")\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T41 bad voice banks: " + _bad41 + "\n");
++            _fail++;
++        }
++    }
++    
++    if (!global.gnx_has_sounds)
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T42 no sound mods loaded\n");
++    }
++    else
++    {
++        var _bad42 = "";
++        var _pools42 = [global.gnx_sfx_orgasm, global.gnx_sfx_bj_slurp, global.gnx_sfx_bj_gag, global.gnx_sfx_bj_moan, global.gnx_sfx_bj_breathe];
++        var _pnames42 = ["orgasm", "bj_slurp", "bj_gag", "bj_moan", "bj_breathe"];
++        
++        for (var _p42 = 0; _p42 < 5; _p42++)
++        {
++            var _pa = _pools42[_p42];
++            
++            for (var _s42 = 0; _s42 < array_length(_pa); _s42++)
++            {
++                if (!audio_exists(_pa[_s42]))
++                    _bad42 += (_pnames42[_p42] + "[" + string(_s42) + "] ");
++            }
++        }
++        
++        if (_bad42 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T42 SFX pools valid\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T42 bad SFX entries: " + _bad42 + "\n");
++            _fail++;
++        }
++    }
++    
++    if (!global.gnx_has_sounds)
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T43 no sound mods loaded\n");
++    }
++    else
++    {
++        var _bad43 = "";
++        var _k43 = ds_map_find_first(global.class_registry);
++        
++        while (_k43 != undefined)
++        {
++            var _cl43 = ds_map_find_value(global.class_registry, _k43);
++            
++            if (is_struct(_cl43) && variable_struct_exists(_cl43, "voice_bank") && _cl43.voice_bank != -1)
++            {
++                if (!ds_map_exists(global.gnx_voice_banks, _cl43.voice_bank))
++                    _bad43 += ("c" + string(_k43) + "=" + string(_cl43.voice_bank) + " ");
++            }
++            
++            _k43 = ds_map_find_next(global.class_registry, _k43);
++        }
++        
++        if (_bad43 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T43 class voice bank refs valid\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T43 bad voice bank refs: " + _bad43 + "\n");
++            _fail++;
++        }
++    }
++    
++    var _bad44 = "";
++    var _mso_keys = ds_map_find_first(global.class_registry);
++    
++    while (_mso_keys != undefined)
++    {
++        var _rc44 = ds_map_find_value(global.class_registry, _mso_keys);
++        
++        if (variable_struct_exists(_rc44, "mon_spr_overrides"))
++        {
++            var _mso = _rc44.mon_spr_overrides;
++            var _knames = variable_struct_get_names(_mso);
++            
++            for (var _ki = 0; _ki < array_length(_knames); _ki++)
++            {
++                var _sv = variable_struct_get(_mso, _knames[_ki]);
++                
++                if (_sv != undefined && _sv != -1 && !gnx_sprite_exists(_sv))
++                    _bad44 += ("c" + string(_mso_keys) + "." + _knames[_ki] + " ");
++            }
++        }
++        
++        _mso_keys = ds_map_find_next(global.class_registry, _mso_keys);
++    }
++    
++    if (_bad44 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T44 mon_spr_overrides sprites valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T44 bad mon_spr_overrides: " + _bad44 + "\n");
++        _fail++;
++    }
++    
++    var _bad45 = "";
++    var _k45 = ds_map_find_first(global.cell_registry);
++    
++    while (_k45 != undefined)
++    {
++        var _c45 = ds_map_find_value(global.cell_registry, _k45);
++        
++        if (is_struct(_c45) && variable_struct_exists(_c45, "human_spr") && is_struct(_c45.human_spr) && variable_struct_exists(_c45.human_spr, "mode") && _c45.human_spr.mode == "class_map")
++        {
++            var _prefix45 = string(_k45);
++            var _phases45 = ["phase_0", "phase_1", "phase_2", "phase_4"];
++            
++            if (variable_struct_exists(_c45.human_spr, "default"))
++            {
++                var _def45 = variable_struct_get(_c45.human_spr, "default");
++                
++                for (var _pi45 = 0; _pi45 < 4; _pi45++)
++                {
++                    if (variable_struct_exists(_def45, _phases45[_pi45]))
++                        _bad45 += scr_gnx_collect_bad_spr(variable_struct_get(_def45, _phases45[_pi45]), _prefix45 + ".default." + _phases45[_pi45]);
++                }
++            }
++            
++            if (variable_struct_exists(_c45.human_spr, "classes"))
++            {
++                var _cls45 = _c45.human_spr.classes;
++                var _ckeys45 = variable_struct_get_names(_cls45);
++                var _cki45 = 0;
++                
++                repeat (array_length(_ckeys45))
++                {
++                    var _ck45 = _ckeys45[_cki45++];
++                    var _ce45 = variable_struct_get(_cls45, _ck45);
++                    
++                    for (var _pi45b = 0; _pi45b < 4; _pi45b++)
++                    {
++                        if (variable_struct_exists(_ce45, _phases45[_pi45b]))
++                            _bad45 += scr_gnx_collect_bad_spr(variable_struct_get(_ce45, _phases45[_pi45b]), _prefix45 + ".c" + _ck45 + "." + _phases45[_pi45b]);
++                    }
++                }
++            }
++        }
++        
++        _k45 = ds_map_find_next(global.cell_registry, _k45);
++    }
++    
++    if (_bad45 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T45 class_map cell sprites valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T45 class_map bad sprites: " + _bad45 + "\n");
++        _fail++;
++    }
++    
++    if (global.gnx_multimap_enabled)
++    {
++        var _ok54 = is_string(global.gnx_active_map) && is_struct(global.gnx_inactive_maps) && is_struct(global.gnx_mod_map_decl) && (global.gnx_travel_data == -1 || (global.gnx_in_travel && is_struct(global.gnx_travel_data)));
++        
++        if (_ok54)
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T54 multi-map globals\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T54 multi-map globals (active_map=" + string(global.gnx_active_map) + " travel_data=" + string(global.gnx_travel_data) + ")\n");
++            _fail++;
++        }
++        
++        var _bad55 = "";
++        
++        for (var _mi55 = 0; _mi55 < array_length(global.gnx_loaded_mods); _mi55++)
++        {
++            var _mn55 = global.gnx_loaded_mods[_mi55];
++            
++            if (!variable_struct_exists(global.gnx_mod_map_decl, _mn55))
++                _bad55 += (_mn55 + " ");
++        }
++        
++        if (_bad55 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T55 all loaded mods have map decl\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T55 mods missing map decl: " + _bad55 + "\n");
++            _fail++;
++        }
++        
++        var _valid56 = {};
++        variable_struct_set(_valid56, "vanilla", true);
++        var _dk56 = variable_struct_get_names(global.gnx_mod_map_decl);
++        
++        for (var _di56 = 0; _di56 < array_length(_dk56); _di56++)
++        {
++            var _mv56 = gnx_map_decl_mod_maps(variable_struct_get(global.gnx_mod_map_decl, _dk56[_di56]));
++
++            for (var _dj56 = 0; _dj56 < array_length(_mv56); _dj56++)
++                variable_struct_set(_valid56, _mv56[_dj56], true);
++        }
++        
++        var _bad56 = "";
++        var _ik56 = variable_struct_get_names(global.gnx_inactive_maps);
++        
++        for (var _ii56 = 0; _ii56 < array_length(_ik56); _ii56++)
++        {
++            if (!variable_struct_exists(_valid56, _ik56[_ii56]))
++                _bad56 += (_ik56[_ii56] + " ");
++        }
++        
++        if (!variable_struct_exists(_valid56, global.gnx_active_map) && global.gnx_active_map != "vanilla")
++            _bad56 += ("active:" + global.gnx_active_map + " ");
++        
++        if (_bad56 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T56 no orphaned maps\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T56 orphaned maps: " + _bad56 + "\n");
++            _fail++;
++        }
++        
++        var _ok57 = is_array(global.gnx_travel_locations);
++        var _bad57 = "";
++        
++        if (_ok57)
++        {
++            for (var _i57 = 0; _i57 < array_length(global.gnx_travel_locations); _i57++)
++            {
++                var _tl57 = global.gnx_travel_locations[_i57];
++                
++                if (!is_struct(_tl57) || !variable_struct_exists(_tl57, "target") || !variable_struct_exists(_tl57, "show_on") || !variable_struct_exists(_tl57, "x") || !variable_struct_exists(_tl57, "y"))
++                    _bad57 += (string(_i57) + " ");
++            }
++        }
++        
++        if (_ok57 && _bad57 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T57 travel locations valid (n=" + string(array_length(global.gnx_travel_locations)) + ")\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T57 travel locations: " + _bad57 + "\n");
++            _fail++;
++        }
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T54-T57 multi-map disabled\n");
++    }
++    
++    var _bad58 = "";
++    var _k58 = ds_map_find_first(global.class_registry);
++    
++    for (var _i58 = 0; _i58 < ds_map_size(global.class_registry); _i58++)
++    {
++        var _rc58 = ds_map_find_value(global.class_registry, _k58);
++        
++        if (is_struct(_rc58) && variable_struct_exists(_rc58, "birth_spr"))
++        {
++            var _bs58 = _rc58.birth_spr;
++            var _bkeys58 = variable_struct_get_names(_bs58);
++            
++            for (var _j58 = 0; _j58 < array_length(_bkeys58); _j58++)
++            {
++                var _bv = variable_struct_get(_bs58, _bkeys58[_j58]);
++                
++                if (is_struct(_bv) && !is_sprref(_bv))
++                {
++                    var _subk = variable_struct_get_names(_bv);
++                    
++                    for (var _s58 = 0; _s58 < array_length(_subk); _s58++)
++                    {
++                        var _sv = variable_struct_get(_bv, _subk[_s58]);
++                        
++                        if (!scr_gnx_spr_ok(_sv))
++                            _bad58 += (string(_k58) + "." + _bkeys58[_j58] + "." + _subk[_s58] + " ");
++                    }
++                }
++                else if (!scr_gnx_spr_ok(_bv))
++                {
++                    _bad58 += (string(_k58) + "." + _bkeys58[_j58] + " ");
++                }
++            }
++        }
++        
++        _k58 = ds_map_find_next(global.class_registry, _k58);
++    }
++    
++    if (_bad58 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T58 birth_spr sprites valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T58 birth_spr invalid: " + _bad58 + "\n");
++        _fail++;
++    }
++    
++    var _bad59 = "";
++    var _k59 = ds_map_find_first(global.prop_registry);
++    
++    repeat (ds_map_size(global.prop_registry))
++    {
++        var _p59 = ds_map_find_value(global.prop_registry, _k59);
++        
++        if (!is_struct(_p59))
++        {
++            _bad59 += (string(_k59) + "(not_struct) ");
++        }
++        else
++        {
++            if (!scr_gnx_spr_ok(_p59.sprite))
++                _bad59 += (string(_k59) + "(bad_spr) ");
++            
++            if (!is_string(_p59.display_name_key) || _p59.display_name_key == "")
++                _bad59 += (string(_k59) + "(no_name) ");
++            
++            if (_p59.position != "top" && _p59.position != "mid" && _p59.position != "bot")
++                _bad59 += (string(_k59) + "(bad_pos) ");
++            
++            var _in_order = false;
++            var _order_arr = (_p59.position == "top") ? global.prop_order_top : ((_p59.position == "mid") ? global.prop_order_mid : global.prop_order_bot);
++            
++            for (var _oi59 = 0; _oi59 < array_length(_order_arr); _oi59++)
++            {
++                if (_order_arr[_oi59] == _k59)
++                {
++                    _in_order = true;
++                    break;
++                }
++            }
++            
++            if (!_in_order)
++                _bad59 += (string(_k59) + "(not_in_order) ");
++        }
++        
++        _k59 = ds_map_find_next(global.prop_registry, _k59);
++    }
++    
++    if (_bad59 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T59 prop_registry valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T59 prop_registry invalid: " + _bad59 + "\n");
++        _fail++;
++    }
++    
++    if (!global.gnx_has_ambience)
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T60 goblin ambience (no mod provides an 'ambience' block)\n");
++    }
++    else
++    {
++        var _bad60 = "";
++        var _amb_ids = [];
++        var _sp60 = ["goblin", "hobgoblin", "ogre"];
++        var _kd60 = ["ambient", "breeding", "victory", "defeat"];
++        
++        for (var _si60 = 0; _si60 < 3; _si60++)
++        {
++            if (!variable_struct_exists(global.gnx_ambience, _sp60[_si60]))
++            {
++                _bad60 += (_sp60[_si60] + "(missing) ");
++            }
++            else
++            {
++                var _spd60 = variable_struct_get(global.gnx_ambience, _sp60[_si60]);
++                
++                for (var _ki60 = 0; _ki60 < 4; _ki60++)
++                {
++                    if (!variable_struct_exists(_spd60, _kd60[_ki60]))
++                    {
++                        _bad60 += (_sp60[_si60] + "." + _kd60[_ki60] + "(missing) ");
++                    }
++                    else
++                    {
++                        var _arr60 = variable_struct_get(_spd60, _kd60[_ki60]);
++                        
++                        if (!is_array(_arr60))
++                        {
++                            _bad60 += (_sp60[_si60] + "." + _kd60[_ki60] + "(not_array) ");
++                        }
++                        else
++                        {
++                            for (var _ai60 = 0; _ai60 < array_length(_arr60); _ai60++)
++                            {
++                                if (!audio_exists(_arr60[_ai60]))
++                                    _bad60 += (_sp60[_si60] + "." + _kd60[_ki60] + "[" + string(_ai60) + "](bad_snd) ");
++                                else
++                                    array_push(_amb_ids, _arr60[_ai60]);
++                            }
++                        }
++                    }
++                }
++            }
++        }
++        
++        for (var _vi60 = 0; _vi60 < array_length(global.gnx_voice_bank_names); _vi60++)
++        {
++            var _vb60 = ds_map_find_value(global.gnx_voice_banks, global.gnx_voice_bank_names[_vi60]);
++            
++            if (!is_array(_vb60))
++                continue;
++            
++            for (var _bi60 = 0; _bi60 < array_length(_vb60); _bi60++)
++            {
++                if (array_contains(_amb_ids, _vb60[_bi60]))
++                {
++                    _bad60 += ("leak:" + global.gnx_voice_bank_names[_vi60] + " ");
++                    break;
++                }
++            }
++        }
++        
++        if (array_length(global.gnx_ambience_variants) == 0)
++            _bad60 += "(no_variants) ";
++        
++        if (!scr_gnx_goblin_mode_allowed(global.val.gnx_ambience_mode))
++            _bad60 += "(bad_mode) ";
++        
++        if (_bad60 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T60 goblin ambience valid + isolated (clips=" + string(array_length(_amb_ids)) + ")\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T60 goblin ambience: " + _bad60 + "\n");
++            _fail++;
++        }
++    }
++    
++    if (global.gnx_multimap_enabled)
++    {
++        var _ok61 = variable_global_exists("gnx_map_deferred_mods") && is_array(global.gnx_map_deferred_mods);
++        
++        if (_ok61)
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T61 gnx_map_deferred_mods is array (n=" + string(array_length(global.gnx_map_deferred_mods)) + ")\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T61 gnx_map_deferred_mods missing or not array\n");
++            _fail++;
++        }
++        
++        var _bad62 = "";
++        
++        for (var _i62 = 0; _i62 < array_length(global.gnx_map_deferred_mods); _i62++)
++        {
++            var _dm62 = global.gnx_map_deferred_mods[_i62];
++            
++            if (!variable_struct_exists(global.gnx_mod_map_decl, _dm62))
++            {
++                _bad62 += (_dm62 + "(no_decl) ");
++            }
++            else
++            {
++                var _dv62 = variable_struct_get(global.gnx_mod_map_decl, _dm62);
++                
++                var _dl62 = gnx_map_decl_list(_dv62);
++                var _ok62 = array_length(_dl62) > 0;
++
++                for (var _dj62 = 0; _dj62 < array_length(_dl62); _dj62++)
++                {
++                    if (!is_string(_dl62[_dj62]) || _dl62[_dj62] == "")
++                        _ok62 = false;
++                }
++
++                if (!_ok62)
++                    _bad62 += (_dm62 + "(bad_map=" + string(_dv62) + ") ");
++            }
++        }
++        
++        if (_bad62 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T62 deferred mods have valid map decl\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T62 deferred mods: " + _bad62 + "\n");
++            _fail++;
++        }
++        
++        var _ok63 = is_string(global.gnx_active_map) && global.gnx_active_map != "";
++        
++        if (_ok63)
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T63 gnx_active_map='" + global.gnx_active_map + "'\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T63 gnx_active_map empty or not string\n");
++            _fail++;
++        }
++        
++        var _ok64 = is_struct(global.gnx_inactive_maps);
++        var _bad64 = "";
++        
++        if (_ok64 && variable_struct_exists(global.gnx_inactive_maps, global.gnx_active_map))
++            _bad64 = "active_map '" + global.gnx_active_map + "' also in inactive_maps";
++        
++        if (_ok64 && _bad64 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T64 inactive_maps clean (n=" + string(array_length(variable_struct_get_names(global.gnx_inactive_maps))) + ")\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T64 inactive_maps: " + _bad64 + "\n");
++            _fail++;
++        }
++        
++        if (!global.gnx_in_travel)
++        {
++            if (global.gnx_travel_data == -1)
++            {
++                gnx_log_write(_log, "[GNX-TEST] PASS  T65 travel_data == -1 (idle)\n");
++                _pass++;
++            }
++            else
++            {
++                gnx_log_write(_log, "[GNX-TEST] FAIL  T65 travel_data not -1 at rest\n");
++                _fail++;
++            }
++            
++            if (!global.gnx_trigger_load)
++            {
++                gnx_log_write(_log, "[GNX-TEST] PASS  T66 trigger_load=false (idle)\n");
++                _pass++;
++            }
++            else
++            {
++                gnx_log_write(_log, "[GNX-TEST] FAIL  T66 trigger_load still true\n");
++                _fail++;
++            }
++            
++            gnx_log_write(_log, "[GNX-TEST] PASS  T67 gnx_in_travel=false (idle)\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] SKIP  T65-T67 (mid-travel)\n");
++        }
++        
++        if (global.gnx_pending_map_start == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T68 pending_map_start='' (idle)\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T68 pending_map_start='" + global.gnx_pending_map_start + "'\n");
++            _fail++;
++        }
++        
++        if (global.gnx_in_travel)
++        {
++            gnx_log_write(_log, "[GNX-TEST] SKIP  T69 (mid-travel)\n");
++        }
++        else if (global.gnx_active_map == "vanilla")
++        {
++            // Return entries are only pushed while on a modded map (loader end + travel), so nothing to check here
++            gnx_log_write(_log, "[GNX-TEST] SKIP  T69 (on vanilla map)\n");
++        }
++        else
++        {
++            var _found69 = false;
++
++            for (var _j69 = 0; _j69 < array_length(global.gnx_travel_locations); _j69++)
++            {
++                var _ret69 = global.gnx_travel_locations[_j69];
++
++                if (_ret69.target == "vanilla" && _ret69.show_on == global.gnx_active_map)
++                {
++                    _found69 = true;
++                    break;
++                }
++            }
++
++            if (_found69)
++            {
++                gnx_log_write(_log, "[GNX-TEST] PASS  T69 active map '" + global.gnx_active_map + "' has a return entry\n");
++                _pass++;
++            }
++            else
++            {
++                gnx_log_write(_log, "[GNX-TEST] FAIL  T69 active map '" + global.gnx_active_map + "' has no return entry\n");
++                _fail++;
++            }
++        }
++        
++        var _test70 = {};
++        _test70.gnx_active_map = "test_roundtrip";
++        _test70.val = 
++        {
++            money: 999,
++            food: 50,
++            mood: 70
++        };
++        _test70.unlock = 
++        {
++            raid: true,
++            unit: true,
++            timer: true,
++            entrance: true,
++            breed: [1, 5],
++            boss: [-1, -1, -1, -1, -1, -1]
++        };
++        var _json70 = json_stringify(_test70);
++        var _rt70 = json_parse(_json70);
++        var _ok70 = is_struct(_rt70) && _rt70.gnx_active_map == "test_roundtrip" && _rt70.val.money == 999 && _rt70.unlock.raid == true && is_array(_rt70.unlock.breed) && array_length(_rt70.unlock.breed) == 2 && _rt70.unlock.breed[0] == 1;
++        
++        if (_ok70)
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T70 snapshot JSON round-trip\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T70 snapshot round-trip mismatch\n");
++            _fail++;
++        }
++        
++        var _bad71 = "";
++        var _mk71 = variable_struct_get_names(global.gnx_map_start_decl);
++        
++        for (var _i71 = 0; _i71 < array_length(_mk71); _i71++)
++        {
++            var _ms71 = variable_struct_get(global.gnx_map_start_decl, _mk71[_i71]);
++            
++            if (!is_struct(_ms71))
++            {
++                _bad71 += (_mk71[_i71] + "(not_struct) ");
++            }
++            else
++            {
++                if (variable_struct_exists(_ms71, "money") && !is_real(_ms71.money))
++                    _bad71 += (_mk71[_i71] + "(bad_money) ");
++                
++                if (variable_struct_exists(_ms71, "food") && !is_real(_ms71.food))
++                    _bad71 += (_mk71[_i71] + "(bad_food) ");
++                
++                if (variable_struct_exists(_ms71, "mood") && !is_real(_ms71.mood))
++                    _bad71 += (_mk71[_i71] + "(bad_mood) ");
++                
++                if (variable_struct_exists(_ms71, "floors") && !is_real(_ms71.floors))
++                    _bad71 += (_mk71[_i71] + "(bad_floors) ");
++                
++                if (variable_struct_exists(_ms71, "cells"))
++                {
++                    if (!is_array(_ms71.cells))
++                    {
++                        _bad71 += (_mk71[_i71] + "(cells_not_array) ");
++                    }
++                    else
++                    {
++                        for (var _c71 = 0; _c71 < array_length(_ms71.cells); _c71++)
++                        {
++                            var _cd71 = _ms71.cells[_c71];
++                            
++                            if (!is_struct(_cd71) || !variable_struct_exists(_cd71, "h_type"))
++                                _bad71 += (_mk71[_i71] + ".cells[" + string(_c71) + "](bad) ");
++                        }
++                    }
++                }
++            }
++        }
++        
++        if (_bad71 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T71 map_start declarations valid (n=" + string(array_length(_mk71)) + ")\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T71 map_start: " + _bad71 + "\n");
++            _fail++;
++        }
++        
++        var _bad72 = "";
++        
++        for (var _i72 = 0; _i72 < array_length(global.gnx_travel_locations); _i72++)
++        {
++            var _tl72 = global.gnx_travel_locations[_i72];
++            
++            if (_tl72.x < 0 || _tl72.x > 480 || _tl72.y < 0 || _tl72.y > 270)
++                _bad72 += (_tl72.label + "(" + string(_tl72.x) + "," + string(_tl72.y) + ") ");
++            
++            if (!is_string(_tl72.label) || _tl72.label == "")
++                _bad72 += ("idx" + string(_i72) + "(no_label) ");
++            
++            if (!is_string(_tl72.target) || _tl72.target == "")
++                _bad72 += ("idx" + string(_i72) + "(no_target) ");
++        }
++        
++        if (_bad72 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T72 travel coords in-bounds\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T72 travel coords: " + _bad72 + "\n");
++            _fail++;
++        }
++        
++        var _bad73 = "";
++        var _req73 = ["raid", "unit", "timer", "entrance", "breed", "utility", "pleasure", "b_breed", "b_utility", "b_other", "t_breed", "t_utility", "edit_between", "edit_top", "edit_mid", "edit_bot", "boss"];
++        
++        for (var _i73 = 0; _i73 < array_length(_req73); _i73++)
++        {
++            if (!variable_struct_exists(global.unlock, _req73[_i73]))
++                _bad73 += (_req73[_i73] + " ");
++        }
++        
++        if (_bad73 == "")
++        {
++            gnx_log_write(_log, "[GNX-TEST] PASS  T73 global.unlock has all fields\n");
++            _pass++;
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] FAIL  T73 unlock missing: " + _bad73 + "\n");
++            _fail++;
++        }
++        
++        if (global.gnx_in_travel)
++        {
++            gnx_log_write(_log, "[GNX-TEST] SKIP  T74 (mid-travel)\n");
++        }
++        else if (global.gnx_active_map != "vanilla")
++        {
++            var _bad74 = "";
++            
++            if (!global.unlock.raid)
++                _bad74 += "raid ";
++            
++            if (!global.unlock.unit)
++                _bad74 += "unit ";
++            
++            if (!global.unlock.timer)
++                _bad74 += "timer ";
++            
++            if (!global.unlock.entrance)
++                _bad74 += "entrance ";
++            
++            if (global.val.guide_unlock.num < 3)
++                _bad74 += ("guide_unlock(num=" + string(global.val.guide_unlock.num) + ") ");
++            
++            if (_bad74 == "")
++            {
++                gnx_log_write(_log, "[GNX-TEST] PASS  T74 non-vanilla UI unlocks all true\n");
++                _pass++;
++            }
++            else
++            {
++                gnx_log_write(_log, "[GNX-TEST] FAIL  T74 missing unlocks on '" + global.gnx_active_map + "': " + _bad74 + "\n");
++                _fail++;
++            }
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] SKIP  T74 (on vanilla map)\n");
++        }
++        
++        if (global.gnx_active_map != "vanilla")
++        {
++            var _found75 = false;
++            
++            for (var _i75 = 0; _i75 < array_length(global.gnx_travel_locations); _i75++)
++            {
++                var _tl75 = global.gnx_travel_locations[_i75];
++                
++                if (_tl75.target == "vanilla" && _tl75.show_on == global.gnx_active_map)
++                {
++                    _found75 = true;
++                    break;
++                }
++            }
++            
++            if (_found75)
++            {
++                gnx_log_write(_log, "[GNX-TEST] PASS  T75 return-to-vanilla button exists (show_on='" + global.gnx_active_map + "')\n");
++                _pass++;
++            }
++            else
++            {
++                gnx_log_write(_log, "[GNX-TEST] FAIL  T75 no return-to-vanilla for map '" + global.gnx_active_map + "'\n");
++                _fail++;
++            }
++        }
++        else
++        {
++            gnx_log_write(_log, "[GNX-TEST] SKIP  T75 (on vanilla map)\n");
++        }
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] SKIP  T61-T75 multi-map disabled\n");
++    }
++    
++    var _bad81 = "";
++    var _h81 = ds_map_find_first(global.cell_registry);
++    
++    while (_h81 != undefined)
++    {
++        var _c81 = ds_map_find_value(global.cell_registry, _h81);
++        
++        if (variable_struct_exists(_c81, "gnx_mon_positions"))
++        {
++            var _mp = _c81.gnx_mon_positions;
++            
++            if (!is_array(_mp))
++            {
++                _bad81 += ("h" + string(_h81) + "(not array) ");
++            }
++            else
++            {
++                for (var _mpi = 0; _mpi < array_length(_mp); _mpi++)
++                {
++                    if (!is_struct(_mp[_mpi]) || !variable_struct_exists(_mp[_mpi], "x") || !variable_struct_exists(_mp[_mpi], "y"))
++                        _bad81 += ("h" + string(_h81) + "[" + string(_mpi) + "] ");
++                }
++            }
++        }
++        
++        _h81 = ds_map_find_next(global.cell_registry, _h81);
++    }
++    
++    if (_bad81 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T81 gnx_mon_positions valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T81 bad mon_positions: " + _bad81 + "\n");
++        _fail++;
++    }
++    
++    var _bad82 = "";
++    var _pp82 = ["mon_spr_p0", "mon_spr_p1", "mon_spr_p2", "mon_spr_hob_p0", "mon_spr_hob_p1", "mon_spr_hob_p2", "mon_spr_ogr_p0", "mon_spr_ogr_p1", "mon_spr_ogr_p2"];
++    var _h82 = ds_map_find_first(global.cell_registry);
++    
++    while (_h82 != undefined)
++    {
++        var _c82 = ds_map_find_value(global.cell_registry, _h82);
++        
++        for (var _pki = 0; _pki < 9; _pki++)
++        {
++            if (variable_struct_exists(_c82, _pp82[_pki]))
++            {
++                var _ppv = variable_struct_get(_c82, _pp82[_pki]);
++                
++                if (_ppv == undefined || _ppv == -1)
++                    _bad82 += ("h" + string(_h82) + "." + _pp82[_pki] + " ");
++            }
++        }
++        
++        _h82 = ds_map_find_next(global.cell_registry, _h82);
++    }
++    
++    if (_bad82 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T82 per-placement sprites valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T82 bad per-placement: " + _bad82 + "\n");
++        _fail++;
++    }
++    
++    var _bad83 = "";
++    var _ph83n = ["phase_0", "phase_1", "phase_2", "phase_4"];
++    var _h83 = ds_map_find_first(global.cell_registry);
++    
++    while (_h83 != undefined)
++    {
++        var _c83 = ds_map_find_value(global.cell_registry, _h83);
++        
++        if (variable_struct_exists(_c83, "human_spr") && is_struct(_c83.human_spr) && variable_struct_exists(_c83.human_spr, "mode") && _c83.human_spr.mode == "fixed")
++        {
++            for (var _phi = 0; _phi < 4; _phi++)
++            {
++                if (variable_struct_exists(_c83.human_spr, _ph83n[_phi]))
++                {
++                    var _ph83 = variable_struct_get(_c83.human_spr, _ph83n[_phi]);
++                    
++                    if (is_struct(_ph83) && variable_struct_exists(_ph83, "by_class"))
++                    {
++                        var _bck83 = variable_struct_get_names(_ph83.by_class);
++                        
++                        for (var _bci83 = 0; _bci83 < array_length(_bck83); _bci83++)
++                        {
++                            var _bce = variable_struct_get(_ph83.by_class, _bck83[_bci83]);
++                            
++                            if (!is_struct(_bce) || !variable_struct_exists(_bce, "spr_array") || !is_array(_bce.spr_array))
++                                _bad83 += ("h" + string(_h83) + "." + _ph83n[_phi] + ".by_class." + _bck83[_bci83] + " ");
++                        }
++                    }
++                }
++            }
++        }
++        
++        _h83 = ds_map_find_next(global.cell_registry, _h83);
++    }
++    
++    if (_bad83 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T83 by_class phase entries valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T83 bad by_class: " + _bad83 + "\n");
++        _fail++;
++    }
++    
++    var _bad84 = "";
++    var _h84 = ds_map_find_first(global.cell_registry);
++    
++    while (_h84 != undefined)
++    {
++        var _c84 = ds_map_find_value(global.cell_registry, _h84);
++        
++        if (variable_struct_exists(_c84, "physical") && variable_struct_exists(_c84.physical, "required_class"))
++        {
++            var _rc84 = _c84.physical.required_class;
++            
++            if (is_array(_rc84))
++            {
++                for (var _rci = 0; _rci < array_length(_rc84); _rci++)
++                {
++                    if (!is_numeric(_rc84[_rci]))
++                        _bad84 += ("h" + string(_h84) + "[" + string(_rci) + "] ");
++                }
++            }
++            else if (!is_numeric(_rc84))
++            {
++                _bad84 += ("h" + string(_h84) + " ");
++            }
++        }
++        
++        _h84 = ds_map_find_next(global.cell_registry, _h84);
++    }
++    
++    if (_bad84 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T84 required_class types valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T84 bad required_class: " + _bad84 + "\n");
++        _fail++;
++    }
++    
++    // T85: only_listed_cells classes rejected from non-listing cells
++    var _bad85 = "";
++    var _c85 = ds_map_find_first(global.class_registry);
++
++    while (_c85 != undefined)
++    {
++        var _rc85 = ds_map_find_value(global.class_registry, _c85);
++
++        if (variable_struct_exists(_rc85, "only_listed_cells") && _rc85.only_listed_cells)
++        {
++            var _h85 = ds_map_find_first(global.cell_registry);
++
++            while (_h85 != undefined)
++            {
++                var _cp85 = ds_map_find_value(global.cell_registry, _h85);
++                var _has_req = variable_struct_exists(_cp85.physical, "required_class");
++                var _listed = false;
++
++                if (_has_req)
++                {
++                    var _req85 = is_array(_cp85.physical.required_class) ? _cp85.physical.required_class : [_cp85.physical.required_class];
++
++                    for (var _ri85 = 0; _ri85 < array_length(_req85); _ri85++)
++                    {
++                        if (_req85[_ri85] == _c85)
++                            _listed = true;
++                    }
++                }
++
++                var _ok85 = gnx_class_cell_listed_ok(_h85, _c85);
++
++                if (_listed && !_ok85)
++                    _bad85 += "c=" + string(_c85) + " h=" + string(_h85) + " rejected_but_listed ";
++                else if (!_listed && !_has_req && _ok85)
++                    _bad85 += "c=" + string(_c85) + " h=" + string(_h85) + " accepted_but_unlisted ";
++
++                _h85 = ds_map_find_next(global.cell_registry, _h85);
++            }
++        }
++
++        _c85 = ds_map_find_next(global.class_registry, _c85);
++    }
++
++    if (_bad85 == "")
++    {
++        gnx_log_write(_log, "[GNX-TEST] PASS  T85 only_listed_cells constraint valid\n");
++        _pass++;
++    }
++    else
++    {
++        gnx_log_write(_log, "[GNX-TEST] FAIL  T85 only_listed_cells: " + _bad85 + "\n");
++        _fail++;
++    }
++
++    var _total = _pass + _fail;
++    gnx_log_write(_log, "[GNX-TEST] " + string(_pass) + "/" + string(_total) + " passed");
++    
++    if (_fail > 0)
++        gnx_log_write(_log, "  *** " + string(_fail) + " FAILED ***");
++    
++    gnx_log_write(_log, "\n");
++    gnx_log_write(_log, "[GNX-TEST] ============================================================\n");
++    gnx_log_close(_log);
++}
++
++
++function scr_gnx_dump_coverage()
++{
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-COV] --- coverage dump (tick 500) ---\n");
++    var _n = ds_map_size(global.gnx_cov);
++    var _k = ds_map_find_first(global.gnx_cov);
++    
++    for (var _i = 0; _i < _n; _i++)
++    {
++        gnx_log_write(_log, "[GNX-COV] " + string(_k) + " = " + string(ds_map_find_value(global.gnx_cov, _k)) + "\n");
++        _k = ds_map_find_next(global.gnx_cov, _k);
++    }
++    
++    gnx_log_write(_log, "[GNX-COV] --- end (" + string(_n) + " keys) ---\n");
++    gnx_log_close(_log);
++}
++
++
++function gnx_cov_hit(arg0)
++{
++    if (!global.gnx_coverage_on)
++        exit;
++
++    if (ds_map_exists(global.gnx_cov, arg0))
++        ds_map_replace(global.gnx_cov, arg0, ds_map_find_value(global.gnx_cov, arg0) + 1);
++    else
++        ds_map_add(global.gnx_cov, arg0, 1);
++    
++    global.gnx_cov_tick++;
++
++    // the counters go to the log only with VERBOSE (they grew the log in every harness run)
++    if (global.gnx_cov_tick >= 500 && global.gnx_debug_verbose)
++    {
++        global.gnx_cov_tick = 0;
++        scr_gnx_dump_coverage();
++    }
++}
++
++
++function gnx_first_hit(arg0, arg1, arg2, arg3)
++{
++    // VERBOSE only: logs the first time a cell / monster type / phase / class combination is drawn
++    if (!global.gnx_debug_verbose)
++        exit;
++
++    var _k = string(arg0) + "." + arg1 + "." + arg2 + "." + string(arg3);
++
++    if (!ds_map_exists(global.gnx_seen, _k))
++    {
++        ds_map_add(global.gnx_seen, _k, 1);
++        var _f = gnx_log_open();
++        gnx_log_write(_f, "[GNX-CELL] FIRST cell=" + string(arg0) + " t=" + arg1 + " ph=" + arg2 + " cls=" + string(arg3) + "\n");
++        gnx_log_close(_f);
++    }
++}
++
++
++function scr_gnx_test_dispatch_routing()
++{
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-TEST] === DISPATCH ROUTING CHECK ===\n");
++    var _pass = 0;
++    var _fail = 0;
++    var _skip = 0;
++    var _cells = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39, 40, 41, 42];
++    
++    for (var _rci = 0; _rci < array_length(global.gnx_registered_cells); _rci++)
++        array_push(_cells, global.gnx_registered_cells[_rci].h_type);
++    
++    var _classes = [];
++    var _ck = ds_map_find_first(global.class_registry);
++    
++    while (_ck != undefined)
++    {
++        array_push(_classes, _ck);
++        _ck = ds_map_find_next(global.class_registry, _ck);
++    }
++    
++    var _ci = 0;
++    
++    repeat (array_length(_cells))
++    {
++        var _h = _cells[_ci++];
++        var _rcell = ds_map_find_value(global.cell_registry, _h);
++        
++        if (_rcell == undefined || !variable_struct_exists(_rcell, "human_spr") || _rcell.human_spr == undefined)
++        {
++            gnx_log_write(_log, "[GNX-TEST] SKIP  DROUTE h=" + string(_h) + " NO_HUMAN_SPR\n");
++            _skip++;
++        }
++        else
++        {
++            var _rule = _rcell.human_spr;
++            
++            if (variable_struct_exists(_rule, "mode") && _rule.mode == "fixed")
++            {
++                if (variable_struct_exists(_rule, "phase_1") && variable_struct_exists(_rule, "phase_2"))
++                {
++                    _pass++;
++                }
++                else
++                {
++                    gnx_log_write(_log, "[GNX-TEST] FAIL  DROUTE h=" + string(_h) + " FIXED_MISSING_PHASE\n");
++                    _fail++;
++                }
++            }
++            else if (variable_struct_exists(_rule, "mode") && _rule.mode == "class_map")
++            {
++                var _has_default = variable_struct_exists(_rule, "default");
++                var _has_classes = variable_struct_exists(_rule, "classes");
++                var _clsi_cm = 0;
++                
++                repeat (array_length(_classes))
++                {
++                    var _c_cm = _classes[_clsi_cm++];
++                    var _cm_ok = _has_default;
++                    
++                    if (!_cm_ok && _has_classes)
++                        _cm_ok = variable_struct_get(_rule.classes, string(_c_cm)) != undefined;
++                    
++                    if (_cm_ok)
++                    {
++                        _pass++;
++                    }
++                    else
++                    {
++                        gnx_log_write(_log, "[GNX-TEST] FAIL  DROUTE h=" + string(_h) + " c=" + string(_c_cm) + " CLASS_MAP_NO_MATCH\n");
++                        _fail++;
++                    }
++                }
++            }
++            else
++            {
++                var _bb = variable_struct_exists(_rule, "base_body") ? _rule.base_body : "";
++                var _clsi = 0;
++                
++                repeat (array_length(_classes))
++                {
++                    var _c = _classes[_clsi++];
++                    
++                    if (_c == 11 && _bb != "standard")
++                    {
++                        gnx_log_write(_log, "[GNX-TEST] SKIP  DROUTE h=" + string(_h) + " c=11 Giant/" + _bb + "\n");
++                        _skip++;
++                    }
++                    // POPRAWKA (GNX): klasa z "only_listed_cells" i tak nie wejdzie do tej celi
++                    else if (!gnx_class_cell_listed_ok(_h, _c))
++                    {
++                        gnx_log_write(_log, "[GNX-TEST] SKIP  DROUTE h=" + string(_h) + " c=" + string(_c) + " only_listed_cells\n");
++                        _skip++;
++                    }
++                    else
++                    {
++                        var _rclass = ds_map_find_value(global.class_registry, _c);
++                        
++                        if (_rclass == undefined)
++                        {
++                            gnx_log_write(_log, "[GNX-TEST] FAIL  DROUTE h=" + string(_h) + " c=" + string(_c) + " NO_CLASS\n");
++                            _fail++;
++                        }
++                        else
++                        {
++                            var _ok = false;
++                            
++                            if (_bb == "standard")
++                            {
++                                _ok = variable_struct_exists(_rclass, "clothing_standard") && variable_struct_exists(_rclass.clothing_standard, "phase_1") && variable_struct_exists(_rclass.clothing_standard, "phase_2");
++
++                                // POPRAWKA (GNX): w GIANT (h37) wystarczy "clothing_giant" z fazami 1 i 2
++                                if (!_ok && _h == 37 && variable_struct_exists(_rclass, "clothing_giant"))
++                                    _ok = variable_struct_exists(_rclass.clothing_giant, "phase_1") && variable_struct_exists(_rclass.clothing_giant, "phase_2");
++                            }
++                            else if (_bb == "big")
++                            {
++                                if (_rclass.is_special)
++                                    _ok = variable_struct_exists(_rclass, "clothing_big") && variable_struct_exists(_rclass.clothing_big, "phase_1");
++                                else
++                                    _ok = variable_struct_exists(_rclass, "clothing_big") && variable_struct_exists(_rclass.clothing_big, "idle") && variable_struct_exists(_rclass.clothing_big, "loop");
++                            }
++                            else if (_bb == "tent")
++                            {
++                                if (_rclass.is_special)
++                                    _ok = variable_struct_exists(_rclass, "clothing_tent") && variable_struct_exists(_rclass.clothing_tent, "phase_1");
++                                else
++                                    _ok = variable_struct_exists(_rclass, "clothing_tent") && variable_struct_exists(_rclass.clothing_tent, "phase_1") && variable_struct_exists(_rclass.clothing_tent, "phase_2");
++                            }
++                            
++                            if (_ok)
++                            {
++                                _pass++;
++                            }
++                            else
++                            {
++                                gnx_log_write(_log, "[GNX-TEST] FAIL  DROUTE h=" + string(_h) + " c=" + string(_c) + " bb=" + _bb + "\n");
++                                _fail++;
++                            }
++                        }
++                    }
++                }
++            }
++        }
++    }
++    
++    gnx_log_write(_log, "[GNX-TEST] DROUTE: " + string(_pass) + " PASS " + string(_fail) + " FAIL " + string(_skip) + " SKIP\n");
++    gnx_log_write(_log, "[GNX-TEST] ============================================================\n");
++    gnx_log_close(_log);
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

@@ -1,0 +1,501 @@
+--- gml_138/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,498 @@
++// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
++// (moved out of s_initials.gml; the functions are global, callable from any script)
++
++// GNX-FLOOR: width and sprite of passage style arg0(between_type), as vanilla's style list sets them; -1 unknown
++function gnx_between_width(arg0)
++{
++    switch (arg0)
++    {
++        case 0: return 11;
++        case 1: return 20;
++        case 2: return 15;
++        case 3: return 13;
++        case 4: return 11;
++    }
++
++    return -1;
++}
++
++
++function gnx_between_spr(arg0)
++{
++    switch (arg0)
++    {
++        case 0: return spr_bet_plank;
++        case 1: return spr_bet_pillar;
++        case 2: return spr_bet_rock;
++        case 3: return spr_bet_brick;
++        case 4: return spr_bet_tent;
++    }
++
++    return -1;
++}
++
++
++// GNX-FLOOR: vanilla's style change of one passage / entrance arg0 to style arg1 (moved here from the style
++// list's button so the whole-floor edit can run it per slot): its width changes, the slots after it shift and
++// centred props move with it. false (nothing changed) when the floor would get wider than the room.
++// The caller runs scr_check_between_base afterwards, as vanilla did.
++function gnx_set_between(arg0, arg1)
++{
++    var _scale = gnx_between_width(arg1);
++
++    if (_scale == -1)
++        return false;
++
++    var _spr = gnx_between_spr(arg1);
++    var _diff = _scale - (arg0.image_xscale + 2);
++
++    if ((global.slot_x[arg0.slot_data.slot_floor] + _diff) > room_width)
++        return false;
++
++    with (arg0)
++    {
++        slot_data.between_type = arg1;
++        spr_base = _spr;
++        image_xscale += _diff;
++        global.slot_x[slot_data.slot_floor] += _diff;
++        scr_shift_slot(id, _diff, slot_data.slot_floor);
++        var _num = array_length(slot_data.prop);
++        var _half = sign(_diff) * floor(abs(_diff * 0.5));
++
++        for (var i = 0; i < _num; i++)
++        {
++            var _prop_id = slot_data.prop[i].prop_id;
++
++            if (_prop_id.center)
++            {
++                _prop_id.prop_data.shift_x += _half;
++                slot_data.prop[i] = _prop_id.prop_data;
++            }
++        }
++    }
++
++    return true;
++}
++
++
++// GNX-FLOOR: the entrance and passages of floor arg0 (slot types 4 and 5), left to right
++function gnx_floor_slots(arg0)
++{
++    var _out = [];
++
++    for (var i = 0; i < ds_list_size(global.slot_list[arg0]); i++)
++    {
++        var _s = ds_list_find_value(global.slot_list[arg0], i);
++
++        if (_s.slot_data.slot_type == 4 || _s.slot_data.slot_type == 5)
++            array_push(_out, _s);
++    }
++
++    return _out;
++}
++
++
++// GNX-FLOOR: style arg1 on every passage of floor arg0, all or none: false when the floor would not fit
++function gnx_floor_set_between(arg0, arg1)
++{
++    var _slots = gnx_floor_slots(arg0);
++    var _scale = gnx_between_width(arg1);
++
++    if (_scale == -1)
++        return false;
++
++    var _total = 0;
++
++    for (var i = 0; i < array_length(_slots); i++)
++        _total += _scale - (_slots[i].image_xscale + 2);
++
++    if ((global.slot_x[arg0] + _total) > room_width)
++        return false;
++
++    for (var i = 0; i < array_length(_slots); i++)
++    {
++        gnx_set_between(_slots[i], arg1);
++        scr_check_between_base(arg0, _slots[i]);
++    }
++
++    return true;
++}
++
++
++// GNX-FLOOR: COPY DOWN: builds floor arg0's layout on the floor below: every slot with the same cell, then the
++// passages' styles and props. Only onto a floor that holds nothing yet (its entrance, stairs and first
++// passage, laid out like this floor's start). Costs what building it by hand costs (slot + cell prices),
++// unless the GNX DEBUG toggle FREE COPY is on. Captives, monsters and cell upgrades are not copied.
++// Returns "" when done, else why not (shown in a popup).
++function gnx_floor_copy_down(arg0)
++{
++    var _t = arg0 + 1;
++
++    if (_t > global.val.floor)
++        return "Copy impossible: there is no floor below. Dig one first.";
++
++    var _src = global.slot_list[arg0];
++    var _dst = global.slot_list[_t];
++    var _n0 = ds_list_size(_dst);
++
++    // the floor below must be empty: only the start every floor has (types 3, 4, 5), matching this floor's
++    for (var i = 0; i < _n0; i++)
++    {
++        var _ty = ds_list_find_value(_dst, i).slot_data.slot_type;
++
++        if ((_ty != 3 && _ty != 4 && _ty != 5) || i >= ds_list_size(_src) || ds_list_find_value(_src, i).slot_data.slot_type != _ty)
++            return "Copy impossible: the floor below is not empty.";
++    }
++
++    // the slots to build: everything after the start but the passages, in order (each slot is built with its
++    // passage). Type 3 is not only part of a floor's start: it is also built mid-floor.
++    var _cells = [];
++    var _cost = 0;
++
++    for (var i = _n0; i < ds_list_size(_src); i++)
++    {
++        var _s = ds_list_find_value(_src, i);
++        var _ty = _s.slot_data.slot_type;
++
++        if (_ty == 5)
++            continue;
++
++        var _h = variable_struct_exists(_s.slot_data, "h_type") ? _s.slot_data.h_type : -1;
++        array_push(_cells, { type: _ty, h: _h });
++        _cost += max(0, scr_slot_type_price_data(_ty).price);
++
++        if (_h != -1)
++            _cost += max(0, scr_h_slot_text_data(_h).price);
++    }
++
++    if (array_length(_cells) == 0)
++        return "Nothing to copy: this floor has no cells.";
++
++    if (global.gnx_free_floor_copy)
++        _cost = 0;
++
++    if (global.val.money < _cost)
++        return "Not enough gold to copy this floor: " + string(_cost) + " needed.";
++
++    global.val.money -= _cost;
++    global.gnx_floor_copy_charged = _cost;  // what this copy took (the harness checks it against the build price)
++    var _side = global.build_side;
++    global.build_side = false;  // build left to right, as the source floor reads
++
++    for (var i = 0; i < array_length(_cells); i++)
++    {
++        var _list = global.slot_list[_t];
++        var _before = [];
++
++        for (var k = 0; k < ds_list_size(_list); k++)
++            array_push(_before, ds_list_find_value(_list, k));
++
++        // as the build menu does: scr_create_slot(..., true) adds the slot and its passage, and returns the passage
++        scr_create_slot(_cells[i].type, _t, ds_list_size(_list), true);
++
++        if (_cells[i].h != -1)
++        {
++            for (var k = 0; k < ds_list_size(_list); k++)
++            {
++                var _new = ds_list_find_value(_list, k);
++
++                if (!array_contains(_before, _new) && _new.slot_data.slot_type == _cells[i].type)
++                {
++                    scr_set_slot_h_data(_new, _cells[i].h);
++                    // once per cell, as building it by hand does (quests counting built cells see each one)
++                    scr_gnx_check_triggers("cell_built");
++                    scr_gnx_check_quest_completion("cell_built");
++                    break;
++                }
++            }
++        }
++    }
++
++    global.build_side = _side;
++
++    // passages and entrance: the same style and props, slot by slot (the layouts now line up)
++    var _m = min(ds_list_size(_src), ds_list_size(global.slot_list[_t]));
++
++    for (var i = 0; i < _m; i++)
++    {
++        var _a = ds_list_find_value(_src, i);
++        var _b = ds_list_find_value(global.slot_list[_t], i);
++
++        if (_a.slot_data.slot_type != _b.slot_data.slot_type || (_a.slot_data.slot_type != 4 && _a.slot_data.slot_type != 5))
++            continue;
++
++        if (_b.slot_data.between_type != _a.slot_data.between_type)
++            gnx_set_between(_b, _a.slot_data.between_type);
++
++        scr_check_between_base(_t, _b);
++        scr_clear_prop_pos(_b, 7);
++        scr_clear_prop_pos(_b, 8);
++        scr_clear_prop_pos(_b, 9);
++
++        for (var p = 0; p < array_length(_a.slot_data.prop); p++)
++        {
++            var _pd = _a.slot_data.prop[p];
++
++            if (_pd.prop_pos >= 7 && _pd.prop_pos <= 9)
++                scr_create_prop(_b, _pd.prop_type, _pd.prop_pos, -1);
++        }
++    }
++
++    scr_gnx_pop_up_create("Floor copied below"+ ((_cost > 0) ? (" for " + string(_cost) + " gold.") : "."));
++    return "";
++}
++
++
++// GNX-FLOOR: the edit menu runs for the whole floor of entrance arg0
++function gnx_floor_edit_on(arg0)
++{
++    return global.gnx_floor_edit != -1 && global.gnx_floor_edit == arg0 && instance_exists(arg0);
++}
++
++
++// GNX-FLOOR: index of FLOOR in an entrance's menu (after NEW, EDIT and, from the second floor on, UP and DOWN:
++// moving a floor is offered on its entrance only, passages no longer have it)
++function gnx_entrance_floor_button()
++{
++    return 2 + (2 * max(0, sign(global.val.floor)));
++}
++
++
++// GNX-SORT: the prison's sort orders, in the order the sort button cycles through them
++function gnx_prison_sort_names()
++{
++    return ["CLASS", "LEVEL", "MILK", "FERTILITY"];
++}
++
++
++// GNX-SORT: sort key of prisoner arg0 for order arg1 (smaller comes first). Class ids are below 10000 and
++// levels 0-7, so each key packs the main criterion above the tie-breakers.
++function gnx_prison_sort_key(arg0, arg1)
++{
++    var _cls = variable_struct_exists(arg0, "class") ? clamp(arg0.class, 0, 9999) : 9999;
++    var _lvl = variable_struct_exists(arg0, "lvl") ? clamp(arg0.lvl, 0, 7) : 0;
++
++    switch (arg1)
++    {
++        case 0:
++            // class (vanilla order, then mod classes), higher level first
++            return (_cls * 10) + (7 - _lvl);
++
++        case 1:
++            // higher level first, then class
++            return ((7 - _lvl) * 10000) + _cls;
++
++        case 2:
++            // milk ready first, then class
++            var _milk = variable_struct_exists(arg0, "milk") && arg0.milk;
++            return ((_milk ? 0 : 1) * 10000) + _cls;
++
++        case 3:
++            // can get pregnant now (not pregnant, pregnancies left) first, most pregnancies left first, then class
++            var _pc = variable_struct_exists(arg0, "preg_c") ? clamp(arg0.preg_c, 0, 99) : 0;
++            var _fertile = (!variable_struct_exists(arg0, "preg") || arg0.preg == -1) && _pc > 0;
++            return ((_fertile ? 0 : 1) * 1000000) + ((99 - _pc) * 10000) + _cls;
++    }
++
++    return 0;
++}
++
++
++// GNX-SORT: sorts the prison (global.unit_list) by order arg0; prisoners keep their order among equals and
++// empty places (-1) go last
++function gnx_prison_sort(arg0)
++{
++    var _n = ds_list_size(global.unit_list);
++    var _u = [];
++
++    for (var i = 0; i < _n; i++)
++    {
++        var _v = ds_list_find_value(global.unit_list, i);
++
++        if (is_struct(_v))
++            array_push(_u, { k: gnx_prison_sort_key(_v, arg0), u: _v });
++    }
++
++    // insertion sort: stable, and a prison holds at most 66
++    for (var i = 1; i < array_length(_u); i++)
++    {
++        var _e = _u[i];
++        var j = i - 1;
++
++        while (j >= 0 && _u[j].k > _e.k)
++        {
++            _u[j + 1] = _u[j];
++            j--;
++        }
++
++        _u[j + 1] = _e;
++    }
++
++    for (var i = 0; i < _n; i++)
++        ds_list_set(global.unit_list, i, (i < array_length(_u)) ? _u[i].u : -1);
++}
++
++
++// GNX-SORT: the sort button: the next order, sorted at once, the window rebuilt, and a popup naming the order
++function gnx_prison_sort_next()
++{
++    var _names = gnx_prison_sort_names();
++    global.gnx_prison_sort = (global.gnx_prison_sort + 1) mod array_length(_names);
++    gnx_prison_sort(global.gnx_prison_sort);
++    scr_reset_unit_window(-1);
++    scr_gnx_pop_up_create("Prison sorted by " + string_lower(_names[global.gnx_prison_sort]) + ".");
++}
++
++
++// GNX-SORT: the sort button of the prison window (called inside the window; arg0 = the head grid's x start)
++function gnx_create_prison_sort_button(arg0)
++{
++    scr_create_button(arg0 - 2, -4, depth - 1, spr_sort_button, 9088, id, scr_create_sort_button, -1, scr_draw_sort_button, 0, 0);
++}
++
++
++// GNX-SAVES: the file of save slot arg0(0 = autosave, 1 .. gnx_save_slots), else -1
++function gnx_save_file(arg0)
++{
++    if (arg0 == 0)
++        return "save_file_a.json";
++
++    if (arg0 >= 1 && arg0 <= global.gnx_save_slots)
++        return "save_file_" + string(arg0) + ".json";
++
++    return -1;
++}
++
++
++// GNX-SAVES: the save slot shown at place arg0 (0-2) of the current page
++function gnx_save_slot_at(arg0)
++{
++    return (global.gnx_save_page * 3) + arg0 + 1;
++}
++
++
++// GNX-SAVES: "SAVE n" for place arg0 (0-2) of the current page
++function gnx_save_label(arg0)
++{
++    return "SAVE " + string(gnx_save_slot_at(arg0));
++}
++
++
++// GNX-SAVES: pages of 3 slots
++function gnx_save_pages()
++{
++    return ceil(global.gnx_save_slots / 3);
++}
++
++
++// GNX-SAVES: page arrows (spr_button_arrow, 0 previous / 1 next, button type arg4) for window arg0 at
++// (arg1, arg3) and (arg2, arg3); none when every slot fits on one page
++function gnx_create_save_page_arrows(arg0, arg1, arg2, arg3, arg4)
++{
++    if (gnx_save_pages() < 2)
++        exit;
++
++    with (arg0)
++    {
++        scr_create_button(arg1, arg3, depth - 2, spr_button_arrow, arg4, id, scr_gnx_create_tool_page_button, -1, scr_draw_hover_button, 0, 0);
++        scr_create_button(arg2, arg3, depth - 2, spr_button_arrow, arg4, id, scr_gnx_create_tool_page_button, -1, scr_draw_hover_button, 1, 0);
++    }
++}
++
++
++// GNX-SAVES: turns the save page (arg0 = 0 previous, 1 next) and refreshes the in-game save buttons
++function gnx_save_page_turn(arg0)
++{
++    var _n = gnx_save_pages();
++    global.gnx_save_page = (global.gnx_save_page + ((arg0 == 1) ? 1 : -1) + _n) mod _n;
++
++    with (obj_button)
++    {
++        if (interact_type == 53)
++            load_data = scr_set_save_date(button_pos);
++    }
++}
++
++
++// GNX-SAVES: the main menu's load page windows (autosave, then the 3 slots of the current page) and arrows
++function gnx_create_load_page_windows()
++{
++    with (obj_np)
++    {
++        for (var i = 0; i < 4; i++)
++        {
++            with (instance_create_depth(240, 48 + (50 * i), depth - 1, obj_window))
++            {
++                gui = true;
++                interact_type = 11;
++                scr_window_draw = scr_draw_load_file;
++                source_id = other.id;
++
++                if (i > 0)
++                    y += 13;
++
++                scr_create_load_file((i == 0) ? 0 : gnx_save_slot_at(i - 1));
++            }
++        }
++
++        gnx_create_save_page_arrows(id, 264, 321, 250, 9087);
++    }
++}
++
++
++// GNX-SAVES: the load page shows another page of slots
++function gnx_load_page_turn(arg0)
++{
++    var _n = gnx_save_pages();
++    global.gnx_save_page = (global.gnx_save_page + ((arg0 == 1) ? 1 : -1) + _n) mod _n;
++    var _old = [];
++
++    with (obj_window)
++    {
++        if (interact_type == 11)
++            array_push(_old, id);
++    }
++
++    with (obj_button)
++    {
++        if (interact_type == 9087 || array_contains(_old, source_id))
++            instance_destroy();
++    }
++
++    for (var i = 0; i < array_length(_old); i++)
++        instance_destroy(_old[i]);
++
++    gnx_create_load_page_windows();
++}
++
++
++function gnx_br_unlock_new()
++{
++    var _r = [];
++    
++    for (var _t = 0; _t < 4; _t++)
++    {
++        _r[_t] = [];
++        
++        for (var _c = 0; _c < 4; _c++)
++            _r[_t][_c] = [];
++    }
++    
++    return _r;
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}
