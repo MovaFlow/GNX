@@ -23,7 +23,7 @@
 - **6 save slots**: the in-game save buttons and the main menu's load page show 3 slots per page, with page arrows (slots 4-6 are `save_file_4.json` ... next to the vanilla files). The mod menu's "used by" list counts every slot.
 - **Own ejaculation pose**: a `fixed` or `class_map` cell's `human_spr` can have a `phase_3` table; the captive's ejaculation is then drawn with it instead of the loop art (it plays the loop's frames). Before, only underground cells could do this (modding guide §10).
 - **Prop menu groups**: a prop row that holds props of several mods or categories first lists the groups (VANILLA, then each prop's `category`, else its mod's name), so the long prop list is split into short pages. New prop key `category` (modding guide 19.4).
-- **`mon_sprite_swap`** (class key): replace vanilla monster sprites by name wherever they are drawn on a captive of the class, in every cell and phase, like the game does for the Cow. Lets a class with another body shape get goblins, hobgoblins and ogres that fit it.
+- **`mon_sprite_swap`** (class key): replace vanilla monster sprites by name wherever they are drawn on a captive of the class, in every cell and phase, like the game does for the Cow. Lets a class with another body shape get goblins, hobgoblins and ogres that fit it. It also reaches the sprites the GIANT, DRINK and G.BANG cells pick themselves and the ogre carrying the captive.
 
 ### Bug Fixes
 

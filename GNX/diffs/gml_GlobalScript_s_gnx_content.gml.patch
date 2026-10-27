@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3859 @@
+@@ -0,0 +1,3889 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2604,6 +2604,36 @@
 +    
 +    var _n = sprite_get_name(arg0);
 +    return variable_struct_exists(arg1, _n) ? variable_struct_get(arg1, _n) : arg0;
++}
++
++
++// the ogre carrying a captive (scr_set_patrol_spr_data's struct arg0) through class arg1's mon_sprite_swap: carry
++// parts and walk by name (the walk is vanilla spr_ogre_walk_carry unless a "patrol" override set it)
++function gnx_patrol_swap(arg0, arg1)
++{
++    var _sw = gnx_get_mon_swap(arg1);
++
++    if (_sw == undefined)
++        return arg0;
++
++    arg0.base = gnx_mon_swap_one(arg0.base, _sw);
++    arg0.head = gnx_mon_swap_one(arg0.head, _sw);
++    arg0.hand = gnx_mon_swap_one(arg0.hand, _sw);
++    arg0.hair = gnx_mon_swap_one(arg0.hair, _sw);
++
++    if (arg0.patrol_spr != -1)
++    {
++        arg0.patrol_spr = gnx_mon_swap_one(arg0.patrol_spr, _sw);
++    }
++    else
++    {
++        var _walk = gnx_mon_swap_one(spr_ogre_walk_carry, _sw);
++
++        if (_walk != spr_ogre_walk_carry)
++            arg0.patrol_spr = _walk;
++    }
++
++    return arg0;
 +}
 +
 +

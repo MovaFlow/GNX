@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-09-02 08:45:16.434590200 +0200
-+++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-23 15:20:49.893669800 +0200
++++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-27 08:54:51.158121400 +0100
 @@ -2,27 +2,31 @@
  {
      switch (slot_data.slot_type)
@@ -820,8 +820,12 @@
                          _mon_spr_head_b = spr_h_hobgoblin_body_start_alpha_giant;
                          var _mon_spr_head_l = spr_h_hobgoblin_body_start_line_giant;
                          break;
-@@ -634,14 +721,14 @@
-                 
+@@ -631,43 +718,52 @@
+             else
+             {
+                 var _mon_spr_head_l;
+-                
++
                  switch (_mon_type)
                  {
 -                    case UnknownEnum.Value_0:
@@ -841,8 +845,20 @@
 +                        _mon_spr_head_l = gnx_mso_pick(_gnx_mso_g, "hobgoblin_giant_head_line", spr_h_hobgoblin_head_line_giant);
                          break;
                  }
+-                
++
++                // GNX: the class's mon_sprite_swap reaches the head the GIANT cell picks itself
++                var _gnx_sw_g = (unit_data != -1) ? gnx_get_mon_swap(unit_data.class) : undefined;
++
++                if (_gnx_sw_g != undefined)
++                {
++                    _mon_spr_head_b = gnx_mon_swap_one(_mon_spr_head_b, _gnx_sw_g);
++                    _mon_spr_head_l = gnx_mon_swap_one(_mon_spr_head_l, _gnx_sw_g);
++                }
++
+                 var _mon_alpha_c = global.mon_alpha_c[_mon_type];
                  
-@@ -651,23 +738,23 @@
+                 if (_mon_spr_head_b != -1)
                  {
                      switch (global.val.alpha_type)
                      {
@@ -875,7 +891,7 @@
                              break;
                      }
                  }
-@@ -677,76 +764,82 @@
+@@ -677,76 +773,82 @@
          switch (slot_data.mod_index[4])
          {
              case -1:
@@ -982,7 +998,7 @@
  }
  
  function scr_draw_slot_drink()
-@@ -755,11 +848,11 @@
+@@ -755,11 +857,11 @@
      
      if (unit_data != -1)
      {
@@ -996,7 +1012,7 @@
          var _handc_pos = -1;
          _touch = slot_data.spr_touch;
      }
-@@ -769,62 +862,62 @@
+@@ -769,62 +871,62 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -1076,7 +1092,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -832,7 +925,7 @@
+@@ -832,7 +934,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -1085,7 +1101,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -850,51 +943,61 @@
+@@ -850,51 +952,67 @@
                          
                          if (!_replace)
                          {
@@ -1139,15 +1155,21 @@
                      }
                      
 +                    var _gnx_mso = gnx_get_mso(unit_data.class);
-+                    
++
 +                    if (_gnx_mso != undefined)
 +                    {
 +                        var _v = variable_struct_get(_gnx_mso, "goblin_drink_draw");
-+                        
++
 +                        if (_v != undefined)
 +                            _spr_loop = _v;
 +                    }
-+                    
++
++                    // GNX: the class's mon_sprite_swap reaches the goblin the DRINK cell picks itself
++                    var _gnx_sw = gnx_get_mon_swap(unit_data.class);
++
++                    if (_gnx_sw != undefined)
++                        _spr_loop = gnx_mon_swap_one(_spr_loop, _gnx_sw);
++
                      if (slot_data.anim_struct.frame_c == 2)
                      {
 -                        draw_sprite(_spr, _final_index, x, y);
@@ -1159,7 +1181,7 @@
                      }
                      else
                      {
-@@ -934,18 +1037,18 @@
+@@ -934,18 +1052,18 @@
                          
                          var _c_w = 45;
                          var _c_scale = -1;
@@ -1185,7 +1207,7 @@
                          }
                      }
                      
-@@ -962,77 +1065,77 @@
+@@ -962,77 +1080,77 @@
      
      if (slot_data.visual && unit_data != -1)
      {
@@ -1284,7 +1306,7 @@
                      }
                      
                      break;
-@@ -1040,7 +1143,7 @@
+@@ -1040,7 +1158,7 @@
          }
      }
      
@@ -1293,7 +1315,7 @@
  }
  
  function scr_draw_slot_patrol()
-@@ -1050,77 +1153,77 @@
+@@ -1050,77 +1168,77 @@
      
      if (slot_data.visual && unit_data != -1)
      {
@@ -1391,7 +1413,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -1138,8 +1241,8 @@
+@@ -1138,8 +1256,8 @@
                          
                          if (!_replace)
                          {
@@ -1402,7 +1424,7 @@
                          }
                      }
                      
-@@ -1148,7 +1251,7 @@
+@@ -1148,7 +1266,7 @@
          }
      }
      
@@ -1411,7 +1433,7 @@
  }
  
  function scr_draw_slot_tent()
-@@ -1157,97 +1260,97 @@
+@@ -1157,97 +1275,97 @@
      
      if (unit_data != -1)
      {
@@ -1534,7 +1556,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -1255,8 +1358,19 @@
+@@ -1255,8 +1373,19 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -1556,7 +1578,7 @@
                          
                          if (_hand_frame != -1)
                          {
-@@ -1273,52 +1387,52 @@
+@@ -1273,52 +1402,52 @@
                          
                          if (!_replace)
                          {
@@ -1625,7 +1647,7 @@
                      
                      break;
              }
-@@ -1326,19 +1440,19 @@
+@@ -1326,19 +1455,19 @@
      }
      
      if (slot_data.anim_struct.sp_state != -1)
@@ -1650,7 +1672,7 @@
      }
  }
  
-@@ -1351,29 +1465,29 @@
+@@ -1351,29 +1480,29 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -1686,7 +1708,7 @@
              _touch = slot_data.spr_touch;
          
          if (slot_data.mon_placement[1] != -1)
-@@ -1383,7 +1497,7 @@
+@@ -1383,7 +1512,7 @@
              var _mon_body_b = spr_h_goblin_gb_1_loop_alpha;
              var _mon_body_l = spr_h_goblin_gb_1_loop_line;
              
@@ -1695,7 +1717,7 @@
              {
                  _breast_spr = spr_h_gb_1_big_loop_breast_v3_d2;
                  _mon_body_b = spr_h_goblin_gb_1_v3_loop_alpha;
-@@ -1392,35 +1506,70 @@
+@@ -1392,35 +1521,79 @@
              
              switch (unit_data.class)
              {
@@ -1771,12 +1793,21 @@
 +                    _mon_body_l = _v;
 +            }
 +            
++            // GNX: the class's mon_sprite_swap reaches the second goblin the G.BANG cell picks itself
++            var _gnx_sw = gnx_get_mon_swap(unit_data.class);
++            
++            if (_gnx_sw != undefined)
++            {
++                _mon_body_b = gnx_mon_swap_one(_mon_body_b, _gnx_sw);
++                _mon_body_l = gnx_mon_swap_one(_mon_body_l, _gnx_sw);
++            }
++            
 +            gnx_draw_sprite_ext(_mon_body_b, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, 16777215, 1);
 +            gnx_draw_sprite_ext(_mon_body_l, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, 16777215, 1);
          }
      }
      
-@@ -1429,66 +1578,66 @@
+@@ -1429,66 +1602,66 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -1863,7 +1894,7 @@
                      }
                      
                      break;
-@@ -1503,11 +1652,11 @@
+@@ -1503,11 +1676,11 @@
      
      if (unit_data != -1)
      {
@@ -1877,7 +1908,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1519,77 +1668,77 @@
+@@ -1519,77 +1692,77 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -1976,7 +2007,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -1597,7 +1746,7 @@
+@@ -1597,7 +1770,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -1985,7 +2016,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -1615,74 +1764,74 @@
+@@ -1615,74 +1788,74 @@
                          
                          if (!_replace)
                          {
@@ -2081,7 +2112,7 @@
                      }
                      
                      break;
-@@ -1698,11 +1847,11 @@
+@@ -1698,11 +1871,11 @@
              
              switch (slot_data.anim_struct.char_state)
              {
@@ -2096,7 +2127,7 @@
                      var _sp_index = 0;
                      
                      if (floor(slot_data.anim_struct.index) == 2)
-@@ -1710,7 +1859,7 @@
+@@ -1710,7 +1883,7 @@
                      else
                          _sp_index = 0;
                      
@@ -2105,7 +2136,7 @@
                      break;
              }
          }
-@@ -1719,15 +1868,16 @@
+@@ -1719,15 +1892,16 @@
  
  function scr_draw_slot_l_shrine()
  {
@@ -2124,7 +2155,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1739,54 +1889,78 @@
+@@ -1739,54 +1913,78 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2217,7 +2248,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          var _handc_pos = 0;
                          
-@@ -1805,74 +1979,88 @@
+@@ -1805,74 +2003,88 @@
                          
                          if (!_replace)
                          {
@@ -2331,7 +2362,7 @@
                      }
                      
                      break;
-@@ -1883,12 +2071,12 @@
+@@ -1883,12 +2095,12 @@
      if (slot_data.anim_struct.sp_state != -1)
      {
          if (slot_data.mon_placement[0] != -1 && slot_data.h_step == 0)
@@ -2347,7 +2378,7 @@
  }
  
  function scr_draw_ogre_behind()
-@@ -1896,28 +2084,28 @@
+@@ -1896,28 +2108,28 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -2382,7 +2413,7 @@
                  
                  break;
          }
-@@ -1931,7 +2119,7 @@
+@@ -1931,7 +2143,7 @@
          
          for (var i = 0; i < array_length(h_unit_list); i++)
          {
@@ -2391,7 +2422,7 @@
                  _unit = h_unit_list[i];
          }
          
-@@ -1943,22 +2131,22 @@
+@@ -1943,22 +2155,22 @@
              _final_index = _row_index + slot_data.anim_struct.index;
              
              if (_spr != -1)
@@ -2418,7 +2449,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1970,71 +2158,71 @@
+@@ -1970,71 +2182,71 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2509,7 +2540,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2042,7 +2230,7 @@
+@@ -2042,7 +2254,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -2518,7 +2549,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2060,60 +2248,60 @@
+@@ -2060,60 +2272,60 @@
                          
                          if (!_replace)
                          {
@@ -2598,7 +2629,7 @@
                      
                      break;
              }
-@@ -2121,7 +2309,7 @@
+@@ -2121,7 +2333,7 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -2607,7 +2638,7 @@
  }
  
  function scr_draw_ogre_front()
-@@ -2129,28 +2317,28 @@
+@@ -2129,28 +2341,28 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -2642,7 +2673,7 @@
                  
                  break;
          }
-@@ -2160,11 +2348,11 @@
+@@ -2160,11 +2372,11 @@
      
      if (unit_data != -1)
      {
@@ -2656,7 +2687,7 @@
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -2176,71 +2364,71 @@
+@@ -2176,71 +2388,71 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -2747,7 +2778,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2248,7 +2436,7 @@
+@@ -2248,7 +2460,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -2756,7 +2787,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2266,60 +2454,60 @@
+@@ -2266,60 +2478,60 @@
                          
                          if (!_replace)
                          {
@@ -2836,7 +2867,7 @@
                      
                      break;
              }
-@@ -2327,7 +2515,7 @@
+@@ -2327,7 +2539,7 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -2845,7 +2876,7 @@
  }
  
  function scr_draw_slot_gb_3()
-@@ -2340,7 +2528,7 @@
+@@ -2340,7 +2552,7 @@
          var _final_index = _row_index + slot_data.anim_struct.index;
          
          if (_spr != -1)
@@ -2854,7 +2885,7 @@
      }
      
      scr_draw_slot_parts();
-@@ -2349,14 +2537,14 @@
+@@ -2349,14 +2561,14 @@
  function scr_draw_slot_clone()
  {
      if (spr_base != -1)
@@ -2872,7 +2903,7 @@
          
          var _index = slot_data.mod_index[1];
          
-@@ -2364,12 +2552,12 @@
+@@ -2364,12 +2576,12 @@
          {
              var _mod_sign = _index;
              var _scale_sign = ((_mod_sign * 2) - 1) * -1;
@@ -2887,7 +2918,7 @@
  }
  
  function scr_draw_slot_chain()
-@@ -2378,18 +2566,26 @@
+@@ -2378,18 +2590,26 @@
      
      if (unit_data != -1)
      {
@@ -2917,7 +2948,7 @@
      }
      
      var _num = array_length(spr_slot);
-@@ -2397,67 +2593,67 @@
+@@ -2397,67 +2617,67 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -3004,7 +3035,7 @@
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2465,7 +2661,7 @@
+@@ -2465,7 +2685,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -3013,7 +3044,7 @@
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2483,74 +2679,74 @@
+@@ -2483,74 +2703,74 @@
                          
                          if (!_replace)
                          {
@@ -3109,7 +3140,7 @@
                      }
                      
                      break;
-@@ -2566,11 +2762,11 @@
+@@ -2566,11 +2786,11 @@
              
              switch (slot_data.anim_struct.char_state)
              {
@@ -3124,7 +3155,7 @@
                      var _sp_y = 0;
                      var _sp_x = 0;
                      
-@@ -2590,20 +2786,23 @@
+@@ -2590,20 +2810,23 @@
                              break;
                      }
                      
@@ -3151,7 +3182,7 @@
          }
      }
      
-@@ -2613,24 +2812,402 @@
+@@ -2613,24 +2836,402 @@
      {
          var _mod_sign = _index;
          var _scale_sign = ((_mod_sign * 2) - 1) * -1;

@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_unit_data.gml	2026-09-02 08:45:16.552128800 +0200
-+++ gml/gml_GlobalScript_s_unit_data.gml	2026-10-26 10:43:49.635043600 +0100
++++ gml/gml_GlobalScript_s_unit_data.gml	2026-10-27 08:29:23.231348300 +0100
 @@ -11,25 +11,753 @@
      var _leg = -1;
      var _leg_p = -1;
@@ -2769,7 +2769,7 @@
 +        if (_gnx_rc.is_special)
 +        {
 +            var _gnx_base = variable_struct_exists(_gnx_rc, "carry_head_spr") ? _gnx_rc.carry_head_spr : _base;
-+            return 
++            return gnx_patrol_swap(
 +            {
 +                base: _gnx_base,
 +                head: -1,
@@ -2778,13 +2778,13 @@
 +                skin: 0,
 +                hair_c: _hair_c,
 +                patrol_spr: _gnx_patrol
-+            };
++            }, arg0.class);
 +        }
 +        
 +        var _gnx_cbase = gnx_get_carry_base(arg0.class, _leg, _base);
 +        var _gnx_head = variable_struct_exists(_gnx_rc, "carry_head_spr") ? _gnx_rc.carry_head_spr : -1;
 +        var _gnx_hair = variable_struct_exists(_gnx_rc, "carry_hair_spr") ? _gnx_rc.carry_hair_spr : -1;
-+        return 
++        return gnx_patrol_swap(
 +        {
 +            base: _gnx_cbase,
 +            head: _gnx_head,
@@ -2793,7 +2793,7 @@
 +            skin: _skin,
 +            hair_c: _hair_c,
 +            patrol_spr: _gnx_patrol
-+        };
++        }, arg0.class);
 +    }
 +    
      switch (arg0.class)
@@ -2884,7 +2884,7 @@
      var _spr_data = 
      {
          base: _base,
-@@ -1882,7 +2625,8 @@
+@@ -1882,9 +2625,11 @@
          hand: _hand,
          hair: _hair,
          skin: _skin,
@@ -2892,9 +2892,13 @@
 +        hair_c: _hair_c,
 +        patrol_spr: -1
      };
-     return _spr_data;
+-    return _spr_data;
++    // GNX: the class's mon_sprite_swap reaches the ogre that carries it too
++    return gnx_patrol_swap(_spr_data, arg0.class);
  }
-@@ -1893,66 +2637,74 @@
+ 
+ function scr_set_unit_ap(arg0, arg1)
+@@ -1893,66 +2638,74 @@
      var _fap = 0;
      var _bap = 0;
      
@@ -2982,7 +2986,7 @@
              _fap = 0;
              _bap = 0;
              break;
-@@ -1961,24 +2713,90 @@
+@@ -1961,24 +2714,90 @@
      return [_fap, _bap];
  }
  

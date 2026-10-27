@@ -1,0 +1,18 @@
+{
+  "about": "mon_sprite_swap also reaches the monster sprites a cell picks while drawing (DRINK goblin, second G.BANG goblin, GIANT monster heads) and the ogre carrying the captive. Test mod harness_swap renames those vanilla sprites to spr_title_top, which no cell draws otherwise. Fixture modded has occupied DRINK (11), G.BANG 1 (18) and GIANT (37) cells; each draw_probe runs the cell's real draw with the unit given the swapping class until the stand-in shows up.",
+  "fixture": "modded",
+  "mods": [
+    "tools/scenarios/mods/harness_swap"
+  ],
+  "check_boot_suite": false,
+  "timeout": 240,
+  "steps": [
+    {"wait": 120, "why": "let the post-load sanitize/rebuild settle"},
+    {"assert": "fn", "name": "gnx_scn_patrol_spr_name", "args": [2, 0], "is": "spr_title_top", "why": "the carrying ogre's walk is swapped"},
+    {"assert": "fn", "name": "gnx_scn_patrol_spr_name", "args": [0, 0], "is": "vanilla", "why": "control: a Peasant keeps the vanilla ogre"},
+    {"draw_probe": {"h_type": 11, "class": 2, "sprite": "spr_title_top", "frames": 60, "slot_set": {"mon_timer": [1, 1]}, "anim_set": {"frame_c": 4}}, "why": "DRINK goblin"},
+    {"draw_probe": {"h_type": 18, "class": 2, "sprite": "spr_title_top", "frames": 2400}, "why": "second G.BANG goblin"},
+    {"draw_probe": {"h_type": 37, "class": 11, "sprite": "spr_title_top", "frames": 60, "slot_set": {"h_step": 3}, "tmp_mon": 1}, "why": "GIANT monster head"},
+    {"draw_probe": {"h_type": 11, "class": 0, "sprite": "spr_h_goblin_drink_base", "frames": 60, "slot_set": {"mon_timer": [1, 1]}, "anim_set": {"frame_c": 4}}, "why": "control: a Peasant keeps the vanilla drink goblin"}
+  ]
+}

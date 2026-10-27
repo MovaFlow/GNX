@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4101 @@
+@@ -0,0 +1,4198 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2240,6 +2240,19 @@
 +}
 +
 +
++// for {"assert": "fn"}: the name of the walk sprite an ogre carrying a captive of class arg0 (leg arg1) gets
++// from scr_set_patrol_spr_data, or "vanilla" when it keeps the game's own
++function gnx_scn_patrol_spr_name(arg0, arg1)
++{
++    var _p = scr_set_patrol_spr_data({ class: arg0, leg: arg1, skin: 0, hair: 0 }).patrol_spr;
++
++    if (is_struct(_p) || _p == -1)
++        return is_struct(_p) ? "atlas" : "vanilla";
++
++    return sprite_get_name(_p);
++}
++
++
 +function gnx_scn_occupied_cell(arg0)
 +{
 +    var _c = -1;
@@ -2739,6 +2752,90 @@
 +                if (_tmp_mon != -1)
 +                    instance_destroy(_tmp_mon);
 +                scr_gnx_scn_check("shrine_hand_probe", _seen == _sp.drawn, _sp.sprite + " drawn=" + string(_seen) + " (" + string(_n_drawn) + " sprites drawn)");
++            }
++        }
++        else if (variable_struct_exists(_st, "draw_probe"))
++        {
++            // {"draw_probe": {"h_type": 37, "class": {...}, "sprite": "spr_name", "frames": 1800}}: each frame, the
++            // first occupied cell of that h_type runs its own special draw (scr_slot_draw_special) with its unit
++            // given that class; passes once the sprite is among those drawn, fails after "frames" frames. For the
++            // sprites a cell only draws in some states (the GIANT head in its loop, the second G.BANG goblin).
++            // Optional "slot_set": {"key": value}: slot_data fields set for that draw only (the DRINK cell draws its
++            // goblin only while one drinks, in its loop: "slot_set": {"mon_timer": [1, 1]}, "anim_set": {"frame_c": 4});
++            // "anim_set" does the same on slot_data.anim_struct; "tmp_mon": mon_type puts a temporary monster of that type,
++            // already inside (mon_state 1), in place 0 for that draw (the GIANT head needs one)
++            var _dp = _st.draw_probe;
++            var _dc = gnx_scn_occupied_cell(gnx_scn_ref(_dp.h_type));
++            var _dseen = false;
++
++            if (_dc != -1)
++            {
++                var _d_cls = _dc.unit_data.class;
++                _dc.unit_data.class = gnx_scn_ref(_dp.class);
++                var _d_keys = variable_struct_exists(_dp, "slot_set") ? variable_struct_get_names(_dp.slot_set) : [];
++                var _a_keys = variable_struct_exists(_dp, "anim_set") ? variable_struct_get_names(_dp.anim_set) : [];
++                var _d_old = [];
++                var _a_old = [];
++
++                for (var _dk = 0; _dk < array_length(_d_keys); _dk++)
++                {
++                    array_push(_d_old, variable_struct_get(_dc.slot_data, _d_keys[_dk]));
++                    variable_struct_set(_dc.slot_data, _d_keys[_dk], variable_struct_get(_dp.slot_set, _d_keys[_dk]));
++                }
++
++                for (var _dk = 0; _dk < array_length(_a_keys); _dk++)
++                {
++                    array_push(_a_old, variable_struct_get(_dc.slot_data.anim_struct, _a_keys[_dk]));
++                    variable_struct_set(_dc.slot_data.anim_struct, _a_keys[_dk], variable_struct_get(_dp.anim_set, _a_keys[_dk]));
++                }
++
++                var _d_pl = _dc.slot_data.mon_placement[0];
++                var _d_tmp = -1;
++
++                if (variable_struct_exists(_dp, "tmp_mon"))
++                {
++                    _d_tmp = scr_create_mon(_dp.tmp_mon, _dc.x, _dc.y, _dc.slot_data.slot_floor, -1, 0);
++                    _d_tmp.mon_data.slot_id = _dc;
++                    _d_tmp.mon_data.mon_state = 1;
++                    _d_tmp.mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
++                    _dc.slot_data.mon_placement[0] = _d_tmp;
++                }
++
++                global.gnx_draw_spy = [];
++
++                with (_dc)
++                    scr_slot_draw_special();
++
++                _dc.slot_data.mon_placement[0] = _d_pl;
++
++                if (_d_tmp != -1)
++                    instance_destroy(_d_tmp);
++
++                _dseen = array_contains(global.gnx_draw_spy, asset_get_index(_dp.sprite));
++                global.gnx_draw_spy = -1;
++                _dc.unit_data.class = _d_cls;
++
++                for (var _dk = 0; _dk < array_length(_d_keys); _dk++)
++                    variable_struct_set(_dc.slot_data, _d_keys[_dk], _d_old[_dk]);
++
++                for (var _dk = 0; _dk < array_length(_a_keys); _dk++)
++                    variable_struct_set(_dc.slot_data.anim_struct, _a_keys[_dk], _a_old[_dk]);
++            }
++
++            if (_s.until_left == -1)
++                _s.until_left = _dp.frames;
++
++            _s.until_left--;
++
++            if (_dseen || _s.until_left <= 0)
++            {
++                scr_gnx_scn_check("draw_probe", _dseen, "h_type " + string(_dp.h_type) + ": " + _dp.sprite + " drawn=" + string(_dseen) + ((_dc == -1) ? " (no occupied cell)" : "") + " after " + string(_dp.frames - _s.until_left) + " frames");
++                _s.until_left = -1;
++            }
++            else
++            {
++                _s.idx--;  // try again next frame
++                exit;
 +            }
 +        }
 +        else if (variable_struct_exists(_st, "moan_probe"))

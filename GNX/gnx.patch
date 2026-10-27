@@ -5961,7 +5961,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3859 @@
+@@ -0,0 +1,3889 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -8568,6 +8568,36 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +}
 +
 +
++// the ogre carrying a captive (scr_set_patrol_spr_data's struct arg0) through class arg1's mon_sprite_swap: carry
++// parts and walk by name (the walk is vanilla spr_ogre_walk_carry unless a "patrol" override set it)
++function gnx_patrol_swap(arg0, arg1)
++{
++    var _sw = gnx_get_mon_swap(arg1);
++
++    if (_sw == undefined)
++        return arg0;
++
++    arg0.base = gnx_mon_swap_one(arg0.base, _sw);
++    arg0.head = gnx_mon_swap_one(arg0.head, _sw);
++    arg0.hand = gnx_mon_swap_one(arg0.hand, _sw);
++    arg0.hair = gnx_mon_swap_one(arg0.hair, _sw);
++
++    if (arg0.patrol_spr != -1)
++    {
++        arg0.patrol_spr = gnx_mon_swap_one(arg0.patrol_spr, _sw);
++    }
++    else
++    {
++        var _walk = gnx_mon_swap_one(spr_ogre_walk_carry, _sw);
++
++        if (_walk != spr_ogre_walk_carry)
++            arg0.patrol_spr = _walk;
++    }
++
++    return arg0;
++}
++
++
 +function gnx_get_mso(arg0)
 +{
 +    if (arg0 < 14)
@@ -10798,7 +10828,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4101 @@
+@@ -0,0 +1,4198 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -13038,6 +13068,19 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
++// for {"assert": "fn"}: the name of the walk sprite an ogre carrying a captive of class arg0 (leg arg1) gets
++// from scr_set_patrol_spr_data, or "vanilla" when it keeps the game's own
++function gnx_scn_patrol_spr_name(arg0, arg1)
++{
++    var _p = scr_set_patrol_spr_data({ class: arg0, leg: arg1, skin: 0, hair: 0 }).patrol_spr;
++
++    if (is_struct(_p) || _p == -1)
++        return is_struct(_p) ? "atlas" : "vanilla";
++
++    return sprite_get_name(_p);
++}
++
++
 +function gnx_scn_occupied_cell(arg0)
 +{
 +    var _c = -1;
@@ -13537,6 +13580,90 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +                if (_tmp_mon != -1)
 +                    instance_destroy(_tmp_mon);
 +                scr_gnx_scn_check("shrine_hand_probe", _seen == _sp.drawn, _sp.sprite + " drawn=" + string(_seen) + " (" + string(_n_drawn) + " sprites drawn)");
++            }
++        }
++        else if (variable_struct_exists(_st, "draw_probe"))
++        {
++            // {"draw_probe": {"h_type": 37, "class": {...}, "sprite": "spr_name", "frames": 1800}}: each frame, the
++            // first occupied cell of that h_type runs its own special draw (scr_slot_draw_special) with its unit
++            // given that class; passes once the sprite is among those drawn, fails after "frames" frames. For the
++            // sprites a cell only draws in some states (the GIANT head in its loop, the second G.BANG goblin).
++            // Optional "slot_set": {"key": value}: slot_data fields set for that draw only (the DRINK cell draws its
++            // goblin only while one drinks, in its loop: "slot_set": {"mon_timer": [1, 1]}, "anim_set": {"frame_c": 4});
++            // "anim_set" does the same on slot_data.anim_struct; "tmp_mon": mon_type puts a temporary monster of that type,
++            // already inside (mon_state 1), in place 0 for that draw (the GIANT head needs one)
++            var _dp = _st.draw_probe;
++            var _dc = gnx_scn_occupied_cell(gnx_scn_ref(_dp.h_type));
++            var _dseen = false;
++
++            if (_dc != -1)
++            {
++                var _d_cls = _dc.unit_data.class;
++                _dc.unit_data.class = gnx_scn_ref(_dp.class);
++                var _d_keys = variable_struct_exists(_dp, "slot_set") ? variable_struct_get_names(_dp.slot_set) : [];
++                var _a_keys = variable_struct_exists(_dp, "anim_set") ? variable_struct_get_names(_dp.anim_set) : [];
++                var _d_old = [];
++                var _a_old = [];
++
++                for (var _dk = 0; _dk < array_length(_d_keys); _dk++)
++                {
++                    array_push(_d_old, variable_struct_get(_dc.slot_data, _d_keys[_dk]));
++                    variable_struct_set(_dc.slot_data, _d_keys[_dk], variable_struct_get(_dp.slot_set, _d_keys[_dk]));
++                }
++
++                for (var _dk = 0; _dk < array_length(_a_keys); _dk++)
++                {
++                    array_push(_a_old, variable_struct_get(_dc.slot_data.anim_struct, _a_keys[_dk]));
++                    variable_struct_set(_dc.slot_data.anim_struct, _a_keys[_dk], variable_struct_get(_dp.anim_set, _a_keys[_dk]));
++                }
++
++                var _d_pl = _dc.slot_data.mon_placement[0];
++                var _d_tmp = -1;
++
++                if (variable_struct_exists(_dp, "tmp_mon"))
++                {
++                    _d_tmp = scr_create_mon(_dp.tmp_mon, _dc.x, _dc.y, _dc.slot_data.slot_floor, -1, 0);
++                    _d_tmp.mon_data.slot_id = _dc;
++                    _d_tmp.mon_data.mon_state = 1;
++                    _d_tmp.mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
++                    _dc.slot_data.mon_placement[0] = _d_tmp;
++                }
++
++                global.gnx_draw_spy = [];
++
++                with (_dc)
++                    scr_slot_draw_special();
++
++                _dc.slot_data.mon_placement[0] = _d_pl;
++
++                if (_d_tmp != -1)
++                    instance_destroy(_d_tmp);
++
++                _dseen = array_contains(global.gnx_draw_spy, asset_get_index(_dp.sprite));
++                global.gnx_draw_spy = -1;
++                _dc.unit_data.class = _d_cls;
++
++                for (var _dk = 0; _dk < array_length(_d_keys); _dk++)
++                    variable_struct_set(_dc.slot_data, _d_keys[_dk], _d_old[_dk]);
++
++                for (var _dk = 0; _dk < array_length(_a_keys); _dk++)
++                    variable_struct_set(_dc.slot_data.anim_struct, _a_keys[_dk], _a_old[_dk]);
++            }
++
++            if (_s.until_left == -1)
++                _s.until_left = _dp.frames;
++
++            _s.until_left--;
++
++            if (_dseen || _s.until_left <= 0)
++            {
++                scr_gnx_scn_check("draw_probe", _dseen, "h_type " + string(_dp.h_type) + ": " + _dp.sprite + " drawn=" + string(_dseen) + ((_dc == -1) ? " (no occupied cell)" : "") + " after " + string(_dp.frames - _s.until_left) + " frames");
++                _s.until_left = -1;
++            }
++            else
++            {
++                _s.idx--;  // try again next frame
++                exit;
 +            }
 +        }
 +        else if (variable_struct_exists(_st, "moan_probe"))
@@ -44214,7 +44341,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_data.gml gml/gml_GlobalScript_s_slot_da
 -}
 diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_draw.gml
 --- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-09-02 08:45:16.434590200 +0200
-+++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-23 15:20:49.893669800 +0200
++++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-27 08:54:51.158121400 +0100
 @@ -2,27 +2,31 @@
  {
      switch (slot_data.slot_type)
@@ -45035,8 +45162,12 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          _mon_spr_head_b = spr_h_hobgoblin_body_start_alpha_giant;
                          var _mon_spr_head_l = spr_h_hobgoblin_body_start_line_giant;
                          break;
-@@ -634,14 +721,14 @@
-                 
+@@ -631,43 +718,52 @@
+             else
+             {
+                 var _mon_spr_head_l;
+-                
++
                  switch (_mon_type)
                  {
 -                    case UnknownEnum.Value_0:
@@ -45056,8 +45187,20 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 +                        _mon_spr_head_l = gnx_mso_pick(_gnx_mso_g, "hobgoblin_giant_head_line", spr_h_hobgoblin_head_line_giant);
                          break;
                  }
+-                
++
++                // GNX: the class's mon_sprite_swap reaches the head the GIANT cell picks itself
++                var _gnx_sw_g = (unit_data != -1) ? gnx_get_mon_swap(unit_data.class) : undefined;
++
++                if (_gnx_sw_g != undefined)
++                {
++                    _mon_spr_head_b = gnx_mon_swap_one(_mon_spr_head_b, _gnx_sw_g);
++                    _mon_spr_head_l = gnx_mon_swap_one(_mon_spr_head_l, _gnx_sw_g);
++                }
++
+                 var _mon_alpha_c = global.mon_alpha_c[_mon_type];
                  
-@@ -651,23 +738,23 @@
+                 if (_mon_spr_head_b != -1)
                  {
                      switch (global.val.alpha_type)
                      {
@@ -45090,7 +45233,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                              break;
                      }
                  }
-@@ -677,76 +764,82 @@
+@@ -677,76 +773,82 @@
          switch (slot_data.mod_index[4])
          {
              case -1:
@@ -45197,7 +45340,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
  
  function scr_draw_slot_drink()
-@@ -755,11 +848,11 @@
+@@ -755,11 +857,11 @@
      
      if (unit_data != -1)
      {
@@ -45211,7 +45354,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
          var _handc_pos = -1;
          _touch = slot_data.spr_touch;
      }
-@@ -769,62 +862,62 @@
+@@ -769,62 +871,62 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -45291,7 +45434,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -832,7 +925,7 @@
+@@ -832,7 +934,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -45300,7 +45443,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -850,51 +943,61 @@
+@@ -850,51 +952,67 @@
                          
                          if (!_replace)
                          {
@@ -45354,15 +45497,21 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      }
                      
 +                    var _gnx_mso = gnx_get_mso(unit_data.class);
-+                    
++
 +                    if (_gnx_mso != undefined)
 +                    {
 +                        var _v = variable_struct_get(_gnx_mso, "goblin_drink_draw");
-+                        
++
 +                        if (_v != undefined)
 +                            _spr_loop = _v;
 +                    }
-+                    
++
++                    // GNX: the class's mon_sprite_swap reaches the goblin the DRINK cell picks itself
++                    var _gnx_sw = gnx_get_mon_swap(unit_data.class);
++
++                    if (_gnx_sw != undefined)
++                        _spr_loop = gnx_mon_swap_one(_spr_loop, _gnx_sw);
++
                      if (slot_data.anim_struct.frame_c == 2)
                      {
 -                        draw_sprite(_spr, _final_index, x, y);
@@ -45374,7 +45523,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      }
                      else
                      {
-@@ -934,18 +1037,18 @@
+@@ -934,18 +1052,18 @@
                          
                          var _c_w = 45;
                          var _c_scale = -1;
@@ -45400,7 +45549,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          }
                      }
                      
-@@ -962,77 +1065,77 @@
+@@ -962,77 +1080,77 @@
      
      if (slot_data.visual && unit_data != -1)
      {
@@ -45499,7 +45648,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      }
                      
                      break;
-@@ -1040,7 +1143,7 @@
+@@ -1040,7 +1158,7 @@
          }
      }
      
@@ -45508,7 +45657,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
  
  function scr_draw_slot_patrol()
-@@ -1050,77 +1153,77 @@
+@@ -1050,77 +1168,77 @@
      
      if (slot_data.visual && unit_data != -1)
      {
@@ -45606,7 +45755,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -1138,8 +1241,8 @@
+@@ -1138,8 +1256,8 @@
                          
                          if (!_replace)
                          {
@@ -45617,7 +45766,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          }
                      }
                      
-@@ -1148,7 +1251,7 @@
+@@ -1148,7 +1266,7 @@
          }
      }
      
@@ -45626,7 +45775,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
  
  function scr_draw_slot_tent()
-@@ -1157,97 +1260,97 @@
+@@ -1157,97 +1275,97 @@
      
      if (unit_data != -1)
      {
@@ -45749,7 +45898,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -1255,8 +1358,19 @@
+@@ -1255,8 +1373,19 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -45771,7 +45920,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          
                          if (_hand_frame != -1)
                          {
-@@ -1273,52 +1387,52 @@
+@@ -1273,52 +1402,52 @@
                          
                          if (!_replace)
                          {
@@ -45840,7 +45989,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      
                      break;
              }
-@@ -1326,19 +1440,19 @@
+@@ -1326,19 +1455,19 @@
      }
      
      if (slot_data.anim_struct.sp_state != -1)
@@ -45865,7 +46014,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
      }
  }
  
-@@ -1351,29 +1465,29 @@
+@@ -1351,29 +1480,29 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -45901,7 +46050,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
              _touch = slot_data.spr_touch;
          
          if (slot_data.mon_placement[1] != -1)
-@@ -1383,7 +1497,7 @@
+@@ -1383,7 +1512,7 @@
              var _mon_body_b = spr_h_goblin_gb_1_loop_alpha;
              var _mon_body_l = spr_h_goblin_gb_1_loop_line;
              
@@ -45910,7 +46059,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
              {
                  _breast_spr = spr_h_gb_1_big_loop_breast_v3_d2;
                  _mon_body_b = spr_h_goblin_gb_1_v3_loop_alpha;
-@@ -1392,35 +1506,70 @@
+@@ -1392,35 +1521,79 @@
              
              switch (unit_data.class)
              {
@@ -45986,12 +46135,21 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 +                    _mon_body_l = _v;
 +            }
 +            
++            // GNX: the class's mon_sprite_swap reaches the second goblin the G.BANG cell picks itself
++            var _gnx_sw = gnx_get_mon_swap(unit_data.class);
++            
++            if (_gnx_sw != undefined)
++            {
++                _mon_body_b = gnx_mon_swap_one(_mon_body_b, _gnx_sw);
++                _mon_body_l = gnx_mon_swap_one(_mon_body_l, _gnx_sw);
++            }
++            
 +            gnx_draw_sprite_ext(_mon_body_b, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, 16777215, 1);
 +            gnx_draw_sprite_ext(_mon_body_l, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, 16777215, 1);
          }
      }
      
-@@ -1429,66 +1578,66 @@
+@@ -1429,66 +1602,66 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -46078,7 +46236,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      }
                      
                      break;
-@@ -1503,11 +1652,11 @@
+@@ -1503,11 +1676,11 @@
      
      if (unit_data != -1)
      {
@@ -46092,7 +46250,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1519,77 +1668,77 @@
+@@ -1519,77 +1692,77 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -46191,7 +46349,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -1597,7 +1746,7 @@
+@@ -1597,7 +1770,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -46200,7 +46358,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -1615,74 +1764,74 @@
+@@ -1615,74 +1788,74 @@
                          
                          if (!_replace)
                          {
@@ -46296,7 +46454,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      }
                      
                      break;
-@@ -1698,11 +1847,11 @@
+@@ -1698,11 +1871,11 @@
              
              switch (slot_data.anim_struct.char_state)
              {
@@ -46311,7 +46469,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      var _sp_index = 0;
                      
                      if (floor(slot_data.anim_struct.index) == 2)
-@@ -1710,7 +1859,7 @@
+@@ -1710,7 +1883,7 @@
                      else
                          _sp_index = 0;
                      
@@ -46320,7 +46478,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      break;
              }
          }
-@@ -1719,15 +1868,16 @@
+@@ -1719,15 +1892,16 @@
  
  function scr_draw_slot_l_shrine()
  {
@@ -46339,7 +46497,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1739,54 +1889,78 @@
+@@ -1739,54 +1913,78 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -46432,7 +46590,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          var _handc_pos = 0;
                          
-@@ -1805,74 +1979,88 @@
+@@ -1805,74 +2003,88 @@
                          
                          if (!_replace)
                          {
@@ -46546,7 +46704,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      }
                      
                      break;
-@@ -1883,12 +2071,12 @@
+@@ -1883,12 +2095,12 @@
      if (slot_data.anim_struct.sp_state != -1)
      {
          if (slot_data.mon_placement[0] != -1 && slot_data.h_step == 0)
@@ -46562,7 +46720,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
  
  function scr_draw_ogre_behind()
-@@ -1896,28 +2084,28 @@
+@@ -1896,28 +2108,28 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -46597,7 +46755,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                  
                  break;
          }
-@@ -1931,7 +2119,7 @@
+@@ -1931,7 +2143,7 @@
          
          for (var i = 0; i < array_length(h_unit_list); i++)
          {
@@ -46606,7 +46764,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                  _unit = h_unit_list[i];
          }
          
-@@ -1943,22 +2131,22 @@
+@@ -1943,22 +2155,22 @@
              _final_index = _row_index + slot_data.anim_struct.index;
              
              if (_spr != -1)
@@ -46633,7 +46791,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -1970,71 +2158,71 @@
+@@ -1970,71 +2182,71 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -46724,7 +46882,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2042,7 +2230,7 @@
+@@ -2042,7 +2254,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -46733,7 +46891,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2060,60 +2248,60 @@
+@@ -2060,60 +2272,60 @@
                          
                          if (!_replace)
                          {
@@ -46813,7 +46971,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      
                      break;
              }
-@@ -2121,7 +2309,7 @@
+@@ -2121,7 +2333,7 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -46822,7 +46980,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
  
  function scr_draw_ogre_front()
-@@ -2129,28 +2317,28 @@
+@@ -2129,28 +2341,28 @@
      if (slot_data.slot_dirt > 0)
      {
          var _slot_dirt = ceil(slot_data.slot_dirt) - 1;
@@ -46857,7 +47015,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                  
                  break;
          }
-@@ -2160,11 +2348,11 @@
+@@ -2160,11 +2372,11 @@
      
      if (unit_data != -1)
      {
@@ -46871,7 +47029,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
          var _handc_pos = -1;
          var _legc_pos = -1;
          _touch = slot_data.spr_touch;
-@@ -2176,71 +2364,71 @@
+@@ -2176,71 +2388,71 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -46962,7 +47120,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2248,7 +2436,7 @@
+@@ -2248,7 +2460,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -46971,7 +47129,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2266,60 +2454,60 @@
+@@ -2266,60 +2478,60 @@
                          
                          if (!_replace)
                          {
@@ -47051,7 +47209,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      
                      break;
              }
-@@ -2327,7 +2515,7 @@
+@@ -2327,7 +2539,7 @@
      }
      
      if (slot_data.sp_x != -1 && slot_data.anim_struct.sp_state != -1)
@@ -47060,7 +47218,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
  
  function scr_draw_slot_gb_3()
-@@ -2340,7 +2528,7 @@
+@@ -2340,7 +2552,7 @@
          var _final_index = _row_index + slot_data.anim_struct.index;
          
          if (_spr != -1)
@@ -47069,7 +47227,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
      }
      
      scr_draw_slot_parts();
-@@ -2349,14 +2537,14 @@
+@@ -2349,14 +2561,14 @@
  function scr_draw_slot_clone()
  {
      if (spr_base != -1)
@@ -47087,7 +47245,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
          
          var _index = slot_data.mod_index[1];
          
-@@ -2364,12 +2552,12 @@
+@@ -2364,12 +2576,12 @@
          {
              var _mod_sign = _index;
              var _scale_sign = ((_mod_sign * 2) - 1) * -1;
@@ -47102,7 +47260,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
  
  function scr_draw_slot_chain()
-@@ -2378,18 +2566,26 @@
+@@ -2378,18 +2590,26 @@
      
      if (unit_data != -1)
      {
@@ -47132,7 +47290,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
      }
      
      var _num = array_length(spr_slot);
-@@ -2397,67 +2593,67 @@
+@@ -2397,67 +2617,67 @@
      for (var i = 0; i < _num; i++)
      {
          var _replace = false;
@@ -47219,7 +47377,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      {
                          _handc_pos = 0;
                          _draw = true;
-@@ -2465,7 +2661,7 @@
+@@ -2465,7 +2685,7 @@
                      
                      if (_draw || (_index != -1 && _handc_pos != -1))
                      {
@@ -47228,7 +47386,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          var _hand_frame = slot_data.hand_frame[slot_data.anim_struct.spr_type];
                          
                          if (_hand_frame != -1)
-@@ -2483,74 +2679,74 @@
+@@ -2483,74 +2703,74 @@
                          
                          if (!_replace)
                          {
@@ -47324,7 +47482,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      }
                      
                      break;
-@@ -2566,11 +2762,11 @@
+@@ -2566,11 +2786,11 @@
              
              switch (slot_data.anim_struct.char_state)
              {
@@ -47339,7 +47497,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                      var _sp_y = 0;
                      var _sp_x = 0;
                      
-@@ -2590,20 +2786,23 @@
+@@ -2590,20 +2810,23 @@
                              break;
                      }
                      
@@ -47366,7 +47524,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
          }
      }
      
-@@ -2613,24 +2812,402 @@
+@@ -2613,24 +2836,402 @@
      {
          var _mod_sign = _index;
          var _scale_sign = ((_mod_sign * 2) - 1) * -1;
@@ -54635,7 +54793,7 @@ diff -uN gml_138/gml_GlobalScript_s_trade_function.gml gml/gml_GlobalScript_s_tr
 -}
 diff -uN gml_138/gml_GlobalScript_s_unit_data.gml gml/gml_GlobalScript_s_unit_data.gml
 --- gml_138/gml_GlobalScript_s_unit_data.gml	2026-09-02 08:45:16.552128800 +0200
-+++ gml/gml_GlobalScript_s_unit_data.gml	2026-10-26 10:43:49.635043600 +0100
++++ gml/gml_GlobalScript_s_unit_data.gml	2026-10-27 08:29:23.231348300 +0100
 @@ -11,25 +11,753 @@
      var _leg = -1;
      var _leg_p = -1;
@@ -57405,7 +57563,7 @@ diff -uN gml_138/gml_GlobalScript_s_unit_data.gml gml/gml_GlobalScript_s_unit_da
 +        if (_gnx_rc.is_special)
 +        {
 +            var _gnx_base = variable_struct_exists(_gnx_rc, "carry_head_spr") ? _gnx_rc.carry_head_spr : _base;
-+            return 
++            return gnx_patrol_swap(
 +            {
 +                base: _gnx_base,
 +                head: -1,
@@ -57414,13 +57572,13 @@ diff -uN gml_138/gml_GlobalScript_s_unit_data.gml gml/gml_GlobalScript_s_unit_da
 +                skin: 0,
 +                hair_c: _hair_c,
 +                patrol_spr: _gnx_patrol
-+            };
++            }, arg0.class);
 +        }
 +        
 +        var _gnx_cbase = gnx_get_carry_base(arg0.class, _leg, _base);
 +        var _gnx_head = variable_struct_exists(_gnx_rc, "carry_head_spr") ? _gnx_rc.carry_head_spr : -1;
 +        var _gnx_hair = variable_struct_exists(_gnx_rc, "carry_hair_spr") ? _gnx_rc.carry_hair_spr : -1;
-+        return 
++        return gnx_patrol_swap(
 +        {
 +            base: _gnx_cbase,
 +            head: _gnx_head,
@@ -57429,7 +57587,7 @@ diff -uN gml_138/gml_GlobalScript_s_unit_data.gml gml/gml_GlobalScript_s_unit_da
 +            skin: _skin,
 +            hair_c: _hair_c,
 +            patrol_spr: _gnx_patrol
-+        };
++        }, arg0.class);
 +    }
 +    
      switch (arg0.class)
@@ -57520,7 +57678,7 @@ diff -uN gml_138/gml_GlobalScript_s_unit_data.gml gml/gml_GlobalScript_s_unit_da
      var _spr_data = 
      {
          base: _base,
-@@ -1882,7 +2625,8 @@
+@@ -1882,9 +2625,11 @@
          hand: _hand,
          hair: _hair,
          skin: _skin,
@@ -57528,9 +57686,13 @@ diff -uN gml_138/gml_GlobalScript_s_unit_data.gml gml/gml_GlobalScript_s_unit_da
 +        hair_c: _hair_c,
 +        patrol_spr: -1
      };
-     return _spr_data;
+-    return _spr_data;
++    // GNX: the class's mon_sprite_swap reaches the ogre that carries it too
++    return gnx_patrol_swap(_spr_data, arg0.class);
  }
-@@ -1893,66 +2637,74 @@
+ 
+ function scr_set_unit_ap(arg0, arg1)
+@@ -1893,66 +2638,74 @@
      var _fap = 0;
      var _bap = 0;
      
@@ -57618,7 +57780,7 @@ diff -uN gml_138/gml_GlobalScript_s_unit_data.gml gml/gml_GlobalScript_s_unit_da
              _fap = 0;
              _bap = 0;
              break;
-@@ -1961,24 +2713,90 @@
+@@ -1961,24 +2714,90 @@
      return [_fap, _bap];
  }
  

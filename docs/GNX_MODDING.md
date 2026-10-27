@@ -2760,7 +2760,7 @@ To change monster sprites there, patch the cell's `mon_spr`, `mon_spr_hob` or `m
 - Replace the fill (`_alpha`) and the outline (`_line`) as a pair; the outline is a separate sprite with its own name.
 - The game often picks among variants (`_v1`, `_v2`, `_v3`, a `_d1` hand...) at random or by leg pose: list every variant you want replaced.
 - It works for every class, vanilla classes through `override` included, and also on top of `mon_spr_overrides` and a cell's `mon_spr`: whatever sprite those pick, if its name is listed, it is swapped.
-- It covers what a monster draws in a cell: body, hand, head, pen, prop, their outlines, touch and enter. Sprites a cell draws itself (the GIANT head, the DRINK goblin, the second G.BANG goblin) and the ogre's walking sprite keep their own keys ([16.5](#165-override-keys-that-work)).
+- It covers every monster sprite drawn on the captive: body, hand, head, pen, prop, their outlines, touch and enter, the ones some cells pick themselves (the GIANT monster heads, the DRINK goblin, the second G.BANG goblin), and the ogre carrying the captive (its walk `spr_ogre_walk_carry` and its carry parts).
 
 > **When** a key is not a game sprite, or its replacement does not load, that entry is dropped and the log says `[GNX-WARN] class 'Witch' mon_sprite_swap: dropped (...)` with the names.
 
