@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_sound.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,527 @@
+@@ -0,0 +1,572 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -40,6 +40,24 @@
 +    gnx_log_write(_log, "[GNX-SOUND] loaded " + arg1 + " idx=" + string(_snd) + "\n");
 +    gnx_log_close(_log);
 +    return _snd;
++}
++
++
++// GNX-MUSIC: the gameplay music rotation (scr_choose_track): the game's 3 tracks plus the loaded mods' sounds.json
++// "music" tracks, or only the mods' tracks when one of them sets "replace". A map mod loads only on its map, so its
++// music plays there only (travel reloads the map and picks a new track from its rotation).
++function gnx_bgm_pool()
++{
++    if (!variable_global_exists("gnx_bgm_pool") || !is_array(global.gnx_bgm_pool))
++    {
++        var _mods = variable_global_exists("gnx_music") ? global.gnx_music : [];
++        global.gnx_bgm_pool = (array_length(_mods) > 0 && global.gnx_music_replace) ? [] : [snd_bgm_gameplay_1, snd_bgm_gameplay_2, snd_bgm_gameplay_3];
++
++        for (var _i = 0; _i < array_length(_mods); _i++)
++            array_push(global.gnx_bgm_pool, _mods[_i]);
++    }
++
++    return global.gnx_bgm_pool;
 +}
 +
 +
@@ -309,6 +327,33 @@
 +        }
 +    }
 +    
++    if (variable_struct_exists(_data, "music"))
++    {
++        var _mu = _data.music;
++
++        if (!is_struct(_mu) || !variable_struct_exists(_mu, "tracks") || !is_array(_mu.tracks))
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': sounds.json \"music\" must be { \"tracks\": [\"file.ogg\", ...] }");
++        }
++        else
++        {
++            for (var _mi = 0; _mi < array_length(_mu.tracks); _mi++)
++            {
++                var _msnd = gnx_resolve_sound(_base_dir, _mu.tracks[_mi]);
++
++                if (_msnd != -1)
++                    array_push(global.gnx_music, _msnd);
++                else
++                    gnx_report_mod_error("Mod '" + arg0 + "': music track '" + string(_mu.tracks[_mi]) + "' not found in sounds/");
++            }
++
++            if (variable_struct_exists(_mu, "replace") && gnx_json_bool(_mu.replace, false, "Mod '" + arg0 + "': music", "replace"))
++                global.gnx_music_replace = true;
++
++            global.gnx_bgm_pool = undefined;
++        }
++    }
++
 +    if (_has_moan_content)
 +        global.gnx_has_sounds = true;
 +    

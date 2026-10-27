@@ -1,0 +1,84 @@
+{
+  "about": "Mod music (sounds.json music): harness_music, on harness_map's map, replaces the gameplay music there. The vanilla map keeps the game's tracks, the map plays the mod track as soon as the player arrives, and the game's tracks come back after the return trip. The audio file is not in the repo: local_files copies one from the local moan_mod (skipped without it).",
+  "mods": [
+    "tools/scenarios/mods/harness_map",
+    "tools/scenarios/mods/harness_music"
+  ],
+  "local_files": [
+    {
+      "from": "harness_game/test_mods/moan_mod/sounds/snd_fmoan0_1.ogg",
+      "to": "harness_music/sounds/track.ogg"
+    }
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_bgm",
+      "args": [],
+      "is": "vanilla",
+      "why": "the mod's music belongs to its map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_bgm_pool",
+      "args": [],
+      "is": "vanilla 3 mod 0"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_bgm_pool",
+      "args": [],
+      "is": "vanilla 0 mod 1",
+      "why": "replace"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_bgm",
+      "args": [],
+      "is": "mod",
+      "why": "the map's music starts on arrival"
+    },
+    {
+      "wait": 120
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_bgm",
+      "args": [],
+      "is": "mod",
+      "why": "replace: only the mod's track, also once the short clip ends"
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_bgm",
+      "args": [],
+      "is": "vanilla",
+      "why": "back to the game's music"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_bgm_pool",
+      "args": [],
+      "is": "vanilla 3 mod 0"
+    }
+  ]
+}

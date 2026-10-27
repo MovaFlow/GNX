@@ -4387,6 +4387,34 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
                  _consume = "Consumidas al final del día";
                  break;
              
+diff -uN gml_138/gml_GlobalScript_s_general.gml gml/gml_GlobalScript_s_general.gml
+--- gml_138/gml_GlobalScript_s_general.gml	2026-09-02 08:45:16.554128900 +0200
++++ gml/gml_GlobalScript_s_general.gml	2026-10-27 18:19:30.526772200 +0100
+@@ -306,10 +306,22 @@
+ 
+ function scr_choose_track(arg0)
+ {
++    var _pool = gnx_bgm_pool();  // GNX-MUSIC: vanilla + mod tracks
++
+     if (bgm_loop == 0)
+     {
+-        while (arg0 == last_track)
+-            arg0 = choose(snd_bgm_gameplay_1, snd_bgm_gameplay_2, snd_bgm_gameplay_3);
++        // no mod music: the game's own pick (same random draws as vanilla)
++        if (array_length(global.gnx_music) == 0)
++        {
++            while (arg0 == last_track)
++                arg0 = choose(snd_bgm_gameplay_1, snd_bgm_gameplay_2, snd_bgm_gameplay_3);
++        }
++        else
++        {
++            do
++                arg0 = _pool[irandom(array_length(_pool) - 1)];
++            until (arg0 != last_track || array_length(_pool) == 1);
++        }
+         
+         bgm_loop = irandom_range(2, 3);
+     }
 diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cells.gml
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_cells.gml	1970-01-01 01:00:00.000000000 +0100
@@ -10828,7 +10856,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4259 @@
+@@ -0,0 +1,4282 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -12404,6 +12432,29 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +    
 +    return "none";
++}
++
++
++// for {"assert": "fn"}: what the gameplay music plays: "mod" (a sounds.json music track), "vanilla", or "none"
++function gnx_scn_bgm()
++{
++    if (!audio_is_playing(obj_p.game_bgm))
++        return "none";
++
++    return array_contains(global.gnx_music, obj_p.last_track) ? "mod" : "vanilla";
++}
++
++
++// for {"assert": "fn"}: the gameplay music rotation as "vanilla <n> mod <n>" (gnx_bgm_pool)
++function gnx_scn_bgm_pool()
++{
++    var _pool = gnx_bgm_pool();
++    var _mod = 0;
++
++    for (var _i = 0; _i < array_length(_pool); _i++)
++        _mod += array_contains(global.gnx_music, _pool[_i]);
++
++    return "vanilla " + string(array_length(_pool) - _mod) + " mod " + string(_mod);
 +}
 +
 +
@@ -22128,7 +22179,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sound.gml
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_sound.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,527 @@
+@@ -0,0 +1,572 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -22168,6 +22219,24 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +    gnx_log_write(_log, "[GNX-SOUND] loaded " + arg1 + " idx=" + string(_snd) + "\n");
 +    gnx_log_close(_log);
 +    return _snd;
++}
++
++
++// GNX-MUSIC: the gameplay music rotation (scr_choose_track): the game's 3 tracks plus the loaded mods' sounds.json
++// "music" tracks, or only the mods' tracks when one of them sets "replace". A map mod loads only on its map, so its
++// music plays there only (travel reloads the map and picks a new track from its rotation).
++function gnx_bgm_pool()
++{
++    if (!variable_global_exists("gnx_bgm_pool") || !is_array(global.gnx_bgm_pool))
++    {
++        var _mods = variable_global_exists("gnx_music") ? global.gnx_music : [];
++        global.gnx_bgm_pool = (array_length(_mods) > 0 && global.gnx_music_replace) ? [] : [snd_bgm_gameplay_1, snd_bgm_gameplay_2, snd_bgm_gameplay_3];
++
++        for (var _i = 0; _i < array_length(_mods); _i++)
++            array_push(global.gnx_bgm_pool, _mods[_i]);
++    }
++
++    return global.gnx_bgm_pool;
 +}
 +
 +
@@ -22437,6 +22506,33 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +        }
 +    }
 +    
++    if (variable_struct_exists(_data, "music"))
++    {
++        var _mu = _data.music;
++
++        if (!is_struct(_mu) || !variable_struct_exists(_mu, "tracks") || !is_array(_mu.tracks))
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': sounds.json \"music\" must be { \"tracks\": [\"file.ogg\", ...] }");
++        }
++        else
++        {
++            for (var _mi = 0; _mi < array_length(_mu.tracks); _mi++)
++            {
++                var _msnd = gnx_resolve_sound(_base_dir, _mu.tracks[_mi]);
++
++                if (_msnd != -1)
++                    array_push(global.gnx_music, _msnd);
++                else
++                    gnx_report_mod_error("Mod '" + arg0 + "': music track '" + string(_mu.tracks[_mi]) + "' not found in sounds/");
++            }
++
++            if (variable_struct_exists(_mu, "replace") && gnx_json_bool(_mu.replace, false, "Mod '" + arg0 + "': music", "replace"))
++                global.gnx_music_replace = true;
++
++            global.gnx_bgm_pool = undefined;
++        }
++    }
++
 +    if (_has_moan_content)
 +        global.gnx_has_sounds = true;
 +    
@@ -29590,7 +29686,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +}
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-27 11:32:35.095793300 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-27 14:59:51.736641900 +0100
 @@ -1,8 +1,18 @@
 +// GNX: this file holds the game's start-up only (scr_create_initials: vanilla plus GNX's boot steps).
 +// GNX's own functions live in one file per topic: s_gnx_content, s_gnx_cells, s_gnx_props, s_gnx_mods,
@@ -29700,7 +29796,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +191,3245 @@
+@@ -167,12 +191,3248 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -32830,6 +32926,9 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    global.gnx_keybinds = [];
 +    global.gnx_continuous_effects = [];
 +    global.gnx_has_sounds = false;
++    global.gnx_music = [];  // sounds.json "music" tracks of the loaded mods (gnx_bgm_pool)
++    global.gnx_music_replace = false;
++    global.gnx_bgm_pool = undefined;
 +    
 +    if (variable_global_exists("gnx_voice_banks") && ds_exists(global.gnx_voice_banks, ds_type_map))
 +        ds_map_destroy(global.gnx_voice_banks);
@@ -32948,7 +33047,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +3440,9 @@
+@@ -183,42 +3443,9 @@
      Value_3,
      Value_4,
      Value_5,
@@ -33775,7 +33874,7 @@ diff -uN gml_138/gml_GlobalScript_s_macro.gml gml/gml_GlobalScript_s_macro.gml
 +#macro GNX_LOG "gnx_debug.txt"
 diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_main_room_step.gml
 --- gml_138/gml_GlobalScript_s_main_room_step.gml	2026-09-02 08:45:16.123548000 +0200
-+++ gml/gml_GlobalScript_s_main_room_step.gml	2026-10-26 08:07:38.974837900 +0100
++++ gml/gml_GlobalScript_s_main_room_step.gml	2026-10-27 15:01:46.798092700 +0100
 @@ -41,6 +41,23 @@
                  var _bgm = global.val.bgm_vol;
                  var _load = scr_load_slot();

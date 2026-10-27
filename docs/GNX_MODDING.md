@@ -3226,7 +3226,7 @@ With `witch_state` and `mood_locked` declared in the manifest's `save_state.fiel
 
 ## 18. Sounds (sounds.json)
 
-**In short:** `sounds.json` adds moan voices for captives, extra sex-scene sound effects and optional ambience voices for goblins, hobgoblins and ogres. The audio files (OGG Vorbis only) go into the `sounds/` folder, and GNX adds a sound settings page to the options window.
+**In short:** `sounds.json` adds moan voices for captives, extra sex-scene sound effects, optional ambience voices for goblins, hobgoblins and ogres, and music. The audio files (OGG Vorbis only) go into the `sounds/` folder, and GNX adds a sound settings page to the options window.
 
 ```
 my_mod/
@@ -3262,6 +3262,7 @@ Minimal `sounds.json`:
 | `voice_map` | Fixed voice per class ID ([§18.3](#183-which-voice-a-captive-gets)). | object | none |
 | `settings_defaults` | Starting values of the sound sliders ([§18.6](#186-the-sound-settings-page-and-settings_defaults)). | object | built-in values |
 | `ambience` | Monster ambience voices ([§18.7](#187-ambience-monster-voices)). | object | none |
+| `music` | Gameplay music tracks ([§18.9](#189-music)). | object | none |
 
 ### 18.1 Audio files
 
@@ -3480,6 +3481,30 @@ The clip pools are shared by all mods, like the `sfx` pools. The player picks th
 ```
 
 Class 13 always gets `my_mod.loud` at pitch 1.1, others their class `voice` or a random bank. `bj_gag` and `bj_breathe` stay empty unless another mod fills them. As the first sound mod in load order, it starts moans a bit louder and more often, and goblins on screen say `gob_idle_1.ogg` once AMB GOB is set to BAL.
+
+### 18.9 Music
+
+`music` adds tracks to the music that plays during the game. The game plays its own 3 tracks in random order, each 2 or 3 times in a row; your tracks join that rotation.
+
+```json
+{
+  "music": {
+    "tracks": ["night_theme.ogg", "drums.ogg"],
+    "replace": true
+  }
+}
+```
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `tracks` | File names inside `sounds/`. | list | required |
+| `replace` | `true`: only the mods' tracks play, not the game's own. | true / false | `false` |
+
+- In a map mod ([§21](#21-multi-map-travel)) the tracks play on that map only, so a map can have its own music: with `replace`, the game's tracks stop on arrival and come back on the return trip.
+- The tracks use the game's music volume (BGM in the options). The title screen keeps the game's music.
+- New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest ([4.2](#42-the-version-check)).
+
+> **When** a track file is missing, the `Mod loading problem(s)` box says so (`[GNX] ERROR: Mod 'my_mod': music track 'drums.ogg' not found in sounds/`) and the other tracks still play.
 
 ---
 

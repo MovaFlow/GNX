@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4259 @@
+@@ -0,0 +1,4282 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1576,6 +1576,29 @@
 +    }
 +    
 +    return "none";
++}
++
++
++// for {"assert": "fn"}: what the gameplay music plays: "mod" (a sounds.json music track), "vanilla", or "none"
++function gnx_scn_bgm()
++{
++    if (!audio_is_playing(obj_p.game_bgm))
++        return "none";
++
++    return array_contains(global.gnx_music, obj_p.last_track) ? "mod" : "vanilla";
++}
++
++
++// for {"assert": "fn"}: the gameplay music rotation as "vanilla <n> mod <n>" (gnx_bgm_pool)
++function gnx_scn_bgm_pool()
++{
++    var _pool = gnx_bgm_pool();
++    var _mod = 0;
++
++    for (var _i = 0; _i < array_length(_pool); _i++)
++        _mod += array_contains(global.gnx_music, _pool[_i]);
++
++    return "vanilla " + string(array_length(_pool) - _mod) + " mod " + string(_mod);
 +}
 +
 +
