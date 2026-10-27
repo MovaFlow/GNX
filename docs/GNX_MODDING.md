@@ -327,6 +327,7 @@ What this example does:
 | `save_state` | Saved variables ([4.3](#43-save_state)). | object | — |
 | `mod_id` | A second name for other mods' `requires`, usually the folder name. References always use the folder name. | text | — |
 | `requires` | Mods this one needs, by folder name or `mod_id` ([4.5](#45-requires-and-the-mods-menu)). | list | — |
+| `min_gnx_version` | The oldest GNX your mod works with, for example `"1.5.0"` when it uses keys new in 1.5 ([4.2](#42-the-version-check)). | text | — |
 | `map`, `map_info`, `map_start` | Which map(s) the mod belongs to, and your own map for multi-map travel ([§21](#21-multi-map-travel)). `map_info` was called `map_button` before 1.4.9; the old name is still read. | — | — |
 
 ### 4.2 The version check
@@ -340,6 +341,16 @@ With no match, or without the key, the mod is **not loaded at all**. GNX writes 
 ```
 
 > **When** the versions are written as numbers instead of quoted text, they never match: write `["1.40"]`. `"1.33"` from old tutorials is rejected too.
+
+**The GNX version.** A key added in a newer GNX does nothing in an older one: an older GNX skips keys it does not know, so a mod using them loads but part of it is silently missing. Set `min_gnx_version` to the GNX version that added the newest key you use (the guide says "new in 1.5" next to such keys):
+
+```json
+{ "name": "My Mod", "version": "1.0.0", "compatible_game_versions": ["1.40"], "min_gnx_version": "1.5.0" }
+```
+
+On an older GNX the mod is then **not loaded**; the MODS menu shows it as `not loaded: needs GNX 1.5.0 (this is 1.4.9)`, the error box at the end of loading asks the player to update GNX, and mods that `require` it are skipped too. Versions compare part by part as numbers (`1.10` is newer than `1.9`, `1.5` and `1.5.0` are the same); a leading `v` and anything after the numbers (`-beta`) are ignored.
+
+> **When** the player's GNX is 1.5.0 or older, it does not know `min_gnx_version` yet (the check came after 1.5.0) and loads the mod anyway.
 
 ### 4.3 save_state
 
@@ -429,6 +440,51 @@ A listed file that is missing or broken is skipped with an error, shown in the m
 - Loading such a save turns the missing mod's cells into basic vanilla cells and its characters into peasants. Saving then removes that content from the save for good. Back up the save before loading it with mods missing; if you loaded it anyway, do not save over it, but switch the mods back on and load the original save again.
 
 > **When** a mod seems to have vanished, check the MODS menu first: it may simply be switched off.
+
+### 4.6 Translations: lang/
+
+Write your mod in English, then add a `lang` folder with one file per language you translate to. Each file maps your English texts, exactly as written in your other files, to their translation:
+
+```
+my_mod/
+  lang/
+    fr.json
+    ja.json
+```
+
+```json
+{
+  "ALTAR": "AUTEL",
+  "The altar hums.": "L'autel bourdonne.",
+  "My Mod": "Mon mod"
+}
+```
+
+| File | Language | File | Language |
+|---|---|---|---|
+| `en.json` | English | `es.json` | Spanish |
+| `ja.json` | Japanese | `pt.json` | Portuguese |
+| `zh.json` | Simplified Chinese | `fr.json` | French |
+| `zh-Hant.json` | Traditional Chinese | `ru.json` | Russian |
+| `ko.json` | Korean | `de.json` | German |
+
+When the player plays in a language you translate, these texts show translated, and switching the language in the settings switches them at once:
+
+- cell names on build buttons and in slot windows, prop names, prop menu group names;
+- class names over a captive's head and in the trade window;
+- quest log texts, dialog lines and speaker names, popups (quests, tools, raids);
+- tool menu titles and button labels;
+- map names (travel selector, travel screen);
+- your mod's name and description in the MODS menu.
+
+- A text with no translation in the player's language shows as written, so a partial file is fine.
+- Names stay names: `"folder.NAME"` references, `requires`, guards and quest conditions keep using the English name. Only what is shown changes.
+- The key must match the shown text exactly, capitals and punctuation included. A text built from parts (`"ALTAR unlocked!"`) is matched as a whole.
+- Two mods translating the same English text: the one loaded later wins.
+- `en.json` is read too, for example to show `"ALTAR"` as `"Stone Altar"` without renaming the cell.
+- Chinese, Japanese and Korean use the game's own font for those languages.
+
+> **When** a file is not valid JSON, or a translation is not text, that file or entry is skipped and the log says `[GNX] ERROR: Mod 'my_mod': lang/de.json: the translation of "ALTAR" must be text`; the other entries still work. The log also counts the translations each file added: `[GNX] my_mod: 3 fr translation(s)`.
 
 ---
 

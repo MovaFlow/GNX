@@ -1,0 +1,27 @@
+{
+  "about": "Manifest key min_gnx_version: a mod that needs a newer GNX is not loaded (status bad, popup asking to update GNX), a mod that requires it is skipped with it, and a mod whose minimum this GNX meets loads. Also checks the version comparison itself.",
+  "mods": [
+    "tools/scenarios/mods/harness_min_gnx_new",
+    "tools/scenarios/mods/harness_min_gnx_old",
+    "tools/scenarios/mods/harness_min_gnx_child"
+  ],
+  "expect_dialog": "Update GNX",
+  "check_boot_suite": false,
+  "timeout": 90,
+  "steps": [
+    {"wait": 30},
+    {"assert": "mod_status", "folder": "harness_min_gnx_new", "is": "bad"},
+    {"assert": "mod_status", "folder": "harness_min_gnx_child", "is": "needs"},
+    {"assert": "mod_status", "folder": "harness_min_gnx_old", "is": "on"},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.4.9", "1.5"], "is": true},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.5", "1.5.0"], "is": false},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.5.0", "1.5"], "is": false},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.5.0", "1.5.1"], "is": true},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.10", "1.9"], "is": false},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.9", "1.10"], "is": true},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.5.0", "v1.5.0-beta"], "is": false},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.4.9", "v1.5"], "is": true},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["v1.5", "1.4.9"], "is": false},
+    {"assert": "fn", "name": "gnx_version_less", "args": ["1.5", 2], "is": true}
+  ]
+}

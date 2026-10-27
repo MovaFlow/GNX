@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2394 @@
+@@ -0,0 +1,2493 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -103,6 +103,15 @@
 +            
 +            if (variable_struct_exists(_m, "author"))
 +                _e.author = string(_m.author);
++
++            // "min_gnx_version": "1.5.0": a mod that uses newer GNX keys is not loaded by an older GNX (those keys
++            // would do nothing) and the player is told to update GNX
++            if (variable_struct_exists(_m, "min_gnx_version") && gnx_version_less(global.gnx_version, _m.min_gnx_version))
++            {
++                _e.status = "bad";
++                _e.why = "needs GNX " + string(_m.min_gnx_version) + " (this is " + string(global.gnx_version) + ")";
++                gnx_report_mod_error("Mod '" + _e.folder + "' " + _e.why + "; not loaded. Update GNX to use it");
++            }
 +        }
 +        catch (_ex)
 +        {
@@ -1181,7 +1190,7 @@
 +
 +        var _on = gnx_mod_row_on(id, _row);
 +        draw_set_color(_on ? c_white : c_gray);
-+        draw_text(_px + 58, _y - 4, gnx_fit(_row.name, 98));
++        draw_text(_px + 58, _y - 4, gnx_fit(gnx_tr(_row.name), 98));
 +        draw_set_color(make_color_rgb(170, 140, 120));
 +        draw_text(_px + 160, _y - 4, gnx_fit("v" + string(_row.version), 34));
 +        var _note = "";
@@ -1221,7 +1230,7 @@
 +    if (_hover != -1)
 +    {
 +        var _h = rows[_hover];
-+        var _l1 = _h.name;
++        var _l1 = gnx_tr(_h.name);
 +
 +        if (_h.author != "")
 +            _l1 += " by " + _h.author;
@@ -1229,7 +1238,7 @@
 +        if (_h.adds != "")
 +            _l1 += "  -  adds " + _h.adds;
 +
-+        var _l2 = (_h.description != "") ? _h.description : "";
++        var _l2 = (_h.description != "") ? gnx_tr(_h.description) : "";
 +
 +        if (_h.why != "" && _h.status != "on")
 +            _l2 = _h.why;
@@ -1377,6 +1386,7 @@
 +    gnx_log_close(_log);
 +    global.gnx_indexed_mods = [];
 +    global.gnx_loaded_mods = [];
++    global.gnx_tr = {};  // translations of mod text, by language code (gnx_load_translations, gnx_tr)
 +    global.gnx_map_deferred_mods = [];
 +    global.gnx_mod_map_decl = {};
 +    global.gnx_multimap_enabled = true;
@@ -1964,6 +1974,94 @@
 +    global.gnx_staged_manifests = {};
 +}
 +
++// GNX: the game's language numbers (global.val.language) as the codes of a mod's lang/<code>.json files
++function gnx_lang_codes()
++{
++    return ["en", "ja", "zh", "ko", "es", "pt", "fr", "ru", "de", "zh-Hant"];
++}
++
++
++// GNX: mod arg0's translations: lang/<code>.json is { "English text": "translated text", ... }. They are merged into
++// global.gnx_tr[code]; a text two mods translate takes the later mod's (load order). Bad files are mod errors.
++function gnx_load_translations(arg0)
++{
++    var _codes = gnx_lang_codes();
++    var _log = gnx_log_open();
++
++    for (var _l = 0; _l < array_length(_codes); _l++)
++    {
++        var _path = global.gnx_mods_root + arg0 + "/lang/" + _codes[_l] + ".json";
++
++        if (!file_exists(_path))
++            continue;
++
++        var _buf = buffer_load(_path);
++        var _raw = buffer_read(_buf, buffer_text);
++        buffer_delete(_buf);
++        var _t = undefined;
++
++        try
++        {
++            _t = json_parse(_raw);
++        }
++        catch (_e)
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': lang/" + _codes[_l] + ".json invalid (" + string(_e.message) + ")");
++            continue;
++        }
++
++        if (!is_struct(_t))
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': lang/" + _codes[_l] + ".json must be an object of \"English text\": \"translation\" pairs");
++            continue;
++        }
++
++        if (!variable_struct_exists(global.gnx_tr, _codes[_l]))
++            variable_struct_set(global.gnx_tr, _codes[_l], {});
++
++        var _dst = variable_struct_get(global.gnx_tr, _codes[_l]);
++        var _keys = variable_struct_get_names(_t);
++        var _n = 0;
++
++        for (var _k = 0; _k < array_length(_keys); _k++)
++        {
++            var _v = variable_struct_get(_t, _keys[_k]);
++
++            if (!is_string(_v))
++            {
++                gnx_report_mod_error("Mod '" + arg0 + "': lang/" + _codes[_l] + ".json: the translation of \"" + _keys[_k] + "\" must be text");
++                continue;
++            }
++
++            variable_struct_set(_dst, _keys[_k], _v);
++            _n++;
++        }
++
++        gnx_log_write(_log, "[GNX] " + arg0 + ": " + string(_n) + " " + _codes[_l] + " translation(s)\n");
++    }
++
++    gnx_log_close(_log);
++}
++
++
++// GNX: text arg0 from a mod, in the player's language when a mod translates it (lang/<code>.json), else as written.
++// Anything that is not text is returned as it is.
++function gnx_tr(arg0)
++{
++    if (!is_string(arg0) || !variable_global_exists("gnx_tr"))
++        return arg0;
++
++    var _codes = gnx_lang_codes();
++    var _lang = global.val.language;
++
++    if (!is_numeric(_lang) || _lang < 0 || _lang >= array_length(_codes) || !variable_struct_exists(global.gnx_tr, _codes[_lang]))
++        return arg0;
++
++    var _t = variable_struct_get(global.gnx_tr, _codes[_lang]);
++    return variable_struct_exists(_t, arg0) ? variable_struct_get(_t, arg0) : arg0;
++}
++
++
 +function scr_gnx_load_mod(arg0)
 +{
 +    var _manifest_path = global.gnx_mods_root + arg0 + "/manifest.json";
@@ -2030,6 +2128,7 @@
 +    var _log = gnx_log_open();
 +    gnx_log_write(_log, "[GNX] loading: " + string(_manifest.name) + " v" + string(_manifest.version) + "\n");
 +    gnx_log_close(_log);
++    gnx_load_translations(arg0);
 +    scr_gnx_init_mod_state(arg0, _manifest);
 +    global.gnx_current_loading_mod = arg0;
 +    var _atlas_root = global.gnx_mods_root + arg0 + "/atlas/";

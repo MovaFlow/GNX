@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,461 @@
+@@ -0,0 +1,514 @@
 +// GNX: logging and small shared helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -86,7 +86,60 @@
 +        if (arg0[_i] == arg1)
 +            return true;
 +    }
++
++    return false;
++}
++
++
++// the numbers of version text arg0: "1.5.0" gives [1, 5, 0]. Parts are split on dots; letters before the first
++// digit are skipped ("v1.5") and the text stops at anything else after it ("1.5.0-beta" is 1.5.0)
++function gnx_version_parts(arg0)
++{
++    var _s = string(arg0);
++    var _parts = [];
++    var _cur = "";
++    var _started = false;
 +    
++    for (var _i = 1; _i <= string_length(_s); _i++)
++    {
++        var _c = string_char_at(_s, _i);
++        
++        if (string_digits(_c) == _c)
++        {
++            _cur += _c;
++            _started = true;
++        }
++        else if (_c == "." && _started)
++        {
++            array_push(_parts, (_cur == "") ? 0 : real(_cur));
++            _cur = "";
++        }
++        else if (_started)
++        {
++            break;
++        }
++    }
++    
++    array_push(_parts, (_cur == "") ? 0 : real(_cur));
++    return _parts;
++}
++
++
++// true when version text arg0 is older than arg1 ("1.4.9" < "1.5" < "1.5.1"; missing parts count as 0)
++function gnx_version_less(arg0, arg1)
++{
++    var _a = gnx_version_parts(arg0);
++    var _b = gnx_version_parts(arg1);
++
++    for (var _i = 0; _i < max(array_length(_a), array_length(_b)); _i++)
++    {
++        var _x = (_i < array_length(_a)) ? _a[_i] : 0;
++        var _y = (_i < array_length(_b)) ? _b[_i] : 0;
++
++        if (_x != _y)
++            return _x < _y;
++    }
++
 +    return false;
 +}
 +

@@ -2707,7 +2707,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_create.gml gml/gml_GlobalScript_s_but
      spr_sel = spr_button_small_sel;
 diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_button_text.gml
 --- gml_138/gml_GlobalScript_s_button_text.gml	2026-09-02 08:45:16.399590800 +0200
-+++ gml/gml_GlobalScript_s_button_text.gml	2026-10-26 14:49:18.733375300 +0100
++++ gml/gml_GlobalScript_s_button_text.gml	2026-10-27 10:11:04.360578400 +0100
 @@ -6,9 +6,27 @@
      var _code_text = -1;
      var _shop_price = -1;
@@ -2715,7 +2715,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
 +    if (ds_map_exists(global.cell_registry, arg0))
 +    {
 +        var _gnx_cell = ds_map_find_value(global.cell_registry, arg0);
-+        _button_text = _gnx_cell.name;
++        _button_text = gnx_tr(_gnx_cell.name);  // GNX: in the player's language when the mod translates it
 +        
 +        if (variable_struct_exists(_gnx_cell, "gnx_price"))
 +        {
@@ -3737,7 +3737,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_text.gml gml/gml_GlobalScript_s_butto
 +        if (_rprop != undefined)
 +        {
 +            _data = {};
-+            _data.text_type = _rprop.display_name_key;
++            _data.text_type = gnx_tr(_rprop.display_name_key);
 +            _data.code_text = _rprop.code_text;
 +            _data.shop_price = _rprop.price;
 +            return _data;
@@ -10828,7 +10828,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4198 @@
+@@ -0,0 +1,4205 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -12404,6 +12404,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +    
 +    return "none";
++}
++
++
++// for {"assert": "fn"}: the text a cell's build button shows (scr_h_slot_text_data), in the current language
++function gnx_scn_cell_text(arg0)
++{
++    return scr_h_slot_text_data(arg0).text_type;
 +}
 +
 +
@@ -15030,7 +15037,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2394 @@
+@@ -0,0 +1,2493 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -15133,6 +15140,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            
 +            if (variable_struct_exists(_m, "author"))
 +                _e.author = string(_m.author);
++
++            // "min_gnx_version": "1.5.0": a mod that uses newer GNX keys is not loaded by an older GNX (those keys
++            // would do nothing) and the player is told to update GNX
++            if (variable_struct_exists(_m, "min_gnx_version") && gnx_version_less(global.gnx_version, _m.min_gnx_version))
++            {
++                _e.status = "bad";
++                _e.why = "needs GNX " + string(_m.min_gnx_version) + " (this is " + string(global.gnx_version) + ")";
++                gnx_report_mod_error("Mod '" + _e.folder + "' " + _e.why + "; not loaded. Update GNX to use it");
++            }
 +        }
 +        catch (_ex)
 +        {
@@ -16211,7 +16227,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +
 +        var _on = gnx_mod_row_on(id, _row);
 +        draw_set_color(_on ? c_white : c_gray);
-+        draw_text(_px + 58, _y - 4, gnx_fit(_row.name, 98));
++        draw_text(_px + 58, _y - 4, gnx_fit(gnx_tr(_row.name), 98));
 +        draw_set_color(make_color_rgb(170, 140, 120));
 +        draw_text(_px + 160, _y - 4, gnx_fit("v" + string(_row.version), 34));
 +        var _note = "";
@@ -16251,7 +16267,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    if (_hover != -1)
 +    {
 +        var _h = rows[_hover];
-+        var _l1 = _h.name;
++        var _l1 = gnx_tr(_h.name);
 +
 +        if (_h.author != "")
 +            _l1 += " by " + _h.author;
@@ -16259,7 +16275,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +        if (_h.adds != "")
 +            _l1 += "  -  adds " + _h.adds;
 +
-+        var _l2 = (_h.description != "") ? _h.description : "";
++        var _l2 = (_h.description != "") ? gnx_tr(_h.description) : "";
 +
 +        if (_h.why != "" && _h.status != "on")
 +            _l2 = _h.why;
@@ -16407,6 +16423,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    gnx_log_close(_log);
 +    global.gnx_indexed_mods = [];
 +    global.gnx_loaded_mods = [];
++    global.gnx_tr = {};  // translations of mod text, by language code (gnx_load_translations, gnx_tr)
 +    global.gnx_map_deferred_mods = [];
 +    global.gnx_mod_map_decl = {};
 +    global.gnx_multimap_enabled = true;
@@ -16994,6 +17011,94 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    global.gnx_staged_manifests = {};
 +}
 +
++// GNX: the game's language numbers (global.val.language) as the codes of a mod's lang/<code>.json files
++function gnx_lang_codes()
++{
++    return ["en", "ja", "zh", "ko", "es", "pt", "fr", "ru", "de", "zh-Hant"];
++}
++
++
++// GNX: mod arg0's translations: lang/<code>.json is { "English text": "translated text", ... }. They are merged into
++// global.gnx_tr[code]; a text two mods translate takes the later mod's (load order). Bad files are mod errors.
++function gnx_load_translations(arg0)
++{
++    var _codes = gnx_lang_codes();
++    var _log = gnx_log_open();
++
++    for (var _l = 0; _l < array_length(_codes); _l++)
++    {
++        var _path = global.gnx_mods_root + arg0 + "/lang/" + _codes[_l] + ".json";
++
++        if (!file_exists(_path))
++            continue;
++
++        var _buf = buffer_load(_path);
++        var _raw = buffer_read(_buf, buffer_text);
++        buffer_delete(_buf);
++        var _t = undefined;
++
++        try
++        {
++            _t = json_parse(_raw);
++        }
++        catch (_e)
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': lang/" + _codes[_l] + ".json invalid (" + string(_e.message) + ")");
++            continue;
++        }
++
++        if (!is_struct(_t))
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': lang/" + _codes[_l] + ".json must be an object of \"English text\": \"translation\" pairs");
++            continue;
++        }
++
++        if (!variable_struct_exists(global.gnx_tr, _codes[_l]))
++            variable_struct_set(global.gnx_tr, _codes[_l], {});
++
++        var _dst = variable_struct_get(global.gnx_tr, _codes[_l]);
++        var _keys = variable_struct_get_names(_t);
++        var _n = 0;
++
++        for (var _k = 0; _k < array_length(_keys); _k++)
++        {
++            var _v = variable_struct_get(_t, _keys[_k]);
++
++            if (!is_string(_v))
++            {
++                gnx_report_mod_error("Mod '" + arg0 + "': lang/" + _codes[_l] + ".json: the translation of \"" + _keys[_k] + "\" must be text");
++                continue;
++            }
++
++            variable_struct_set(_dst, _keys[_k], _v);
++            _n++;
++        }
++
++        gnx_log_write(_log, "[GNX] " + arg0 + ": " + string(_n) + " " + _codes[_l] + " translation(s)\n");
++    }
++
++    gnx_log_close(_log);
++}
++
++
++// GNX: text arg0 from a mod, in the player's language when a mod translates it (lang/<code>.json), else as written.
++// Anything that is not text is returned as it is.
++function gnx_tr(arg0)
++{
++    if (!is_string(arg0) || !variable_global_exists("gnx_tr"))
++        return arg0;
++
++    var _codes = gnx_lang_codes();
++    var _lang = global.val.language;
++
++    if (!is_numeric(_lang) || _lang < 0 || _lang >= array_length(_codes) || !variable_struct_exists(global.gnx_tr, _codes[_lang]))
++        return arg0;
++
++    var _t = variable_struct_get(global.gnx_tr, _codes[_lang]);
++    return variable_struct_exists(_t, arg0) ? variable_struct_get(_t, arg0) : arg0;
++}
++
++
 +function scr_gnx_load_mod(arg0)
 +{
 +    var _manifest_path = global.gnx_mods_root + arg0 + "/manifest.json";
@@ -17060,6 +17165,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    var _log = gnx_log_open();
 +    gnx_log_write(_log, "[GNX] loading: " + string(_manifest.name) + " v" + string(_manifest.version) + "\n");
 +    gnx_log_close(_log);
++    gnx_load_translations(arg0);
 +    scr_gnx_init_mod_state(arg0, _manifest);
 +    global.gnx_current_loading_mod = arg0;
 +    var _atlas_root = global.gnx_mods_root + arg0 + "/atlas/";
@@ -18072,7 +18178,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 +function scr_create_gnx_prop_cat_button()
 +{
 +    scr_create_button_slot(interact_type, button_num);
-+    button_text = global.gnx_prop_cat_open.cats[button_num];
++    button_text = gnx_tr(global.gnx_prop_cat_open.cats[button_num]);
 +    // the "new" dot while a prop of the group has not been seen yet, like the TOP / MID / BOT buttons
 +    // (opening the group shows those props, which takes them off the new list)
 +    var _ids = gnx_prop_in_cat(global.gnx_prop_cat_open.row, button_text);
@@ -20274,7 +20380,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,930 @@
+@@ -0,0 +1,931 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -20746,6 +20852,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +    if (_text == undefined)
 +        _text = arg0;
 +
++    _text = gnx_tr(_text);
 +    global.gnx_last_popup = _text;  // the last GNX popup's text (scenarios check it after it has faded)
 +
 +    var _x = 240;
@@ -21186,7 +21293,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        if (_portrait == -1)
 +            _portrait = UnknownEnum.Value_4;
 +        
-+        scr_text(_line.speaker, _portrait, _line.text);
++        scr_text(gnx_tr(_line.speaker), _portrait, gnx_tr(_line.text));
 +    }
 +}
 +
@@ -25980,7 +26087,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +    if (variable_instance_exists(id, "gnx_nav_title"))
 +        _title = gnx_nav_title;
 +    
-+    draw_text(_lx, _ly, _title);
++    draw_text(_lx, _ly, gnx_tr(_title));
 +    
 +    if (variable_instance_exists(id, "gnx_show_rank") && gnx_show_rank)
 +    {
@@ -26234,7 +26341,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +    draw_set_halign(fa_center);
 +    var _lang_pos = scr_change_lang();
 +    var _alpha = clamp(!(image_index % 2), 0.5, 1);
-+    draw_text_color(x + 1 + _lang_pos[0], (y - 3) + _lang_pos[1], guide_text, c_white, c_white, c_white, c_white, _alpha);
++    draw_text_color(x + 1 + _lang_pos[0], (y - 3) + _lang_pos[1], gnx_tr(guide_text), c_white, c_white, c_white, c_white, _alpha);
 +    
 +    if (hover != -1 && hover && !trigger)
 +    {
@@ -26280,7 +26387,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_tr
 +    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
 +    {
 +        if (global.gnx_travel_locations[_i].target == arg0)
-+            return global.gnx_travel_locations[_i].label;
++            return gnx_tr(global.gnx_travel_locations[_i].label);
 +    }
 +    
 +    if (is_array(arg1))
@@ -28568,7 +28675,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_tr
 diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util.gml
 --- gml_138/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,461 @@
+@@ -0,0 +1,514 @@
 +// GNX: logging and small shared helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -28654,7 +28761,60 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +        if (arg0[_i] == arg1)
 +            return true;
 +    }
++
++    return false;
++}
++
++
++// the numbers of version text arg0: "1.5.0" gives [1, 5, 0]. Parts are split on dots; letters before the first
++// digit are skipped ("v1.5") and the text stops at anything else after it ("1.5.0-beta" is 1.5.0)
++function gnx_version_parts(arg0)
++{
++    var _s = string(arg0);
++    var _parts = [];
++    var _cur = "";
++    var _started = false;
 +    
++    for (var _i = 1; _i <= string_length(_s); _i++)
++    {
++        var _c = string_char_at(_s, _i);
++        
++        if (string_digits(_c) == _c)
++        {
++            _cur += _c;
++            _started = true;
++        }
++        else if (_c == "." && _started)
++        {
++            array_push(_parts, (_cur == "") ? 0 : real(_cur));
++            _cur = "";
++        }
++        else if (_started)
++        {
++            break;
++        }
++    }
++    
++    array_push(_parts, (_cur == "") ? 0 : real(_cur));
++    return _parts;
++}
++
++
++// true when version text arg0 is older than arg1 ("1.4.9" < "1.5" < "1.5.1"; missing parts count as 0)
++function gnx_version_less(arg0, arg1)
++{
++    var _a = gnx_version_parts(arg0);
++    var _b = gnx_version_parts(arg1);
++
++    for (var _i = 0; _i < max(array_length(_a), array_length(_b)); _i++)
++    {
++        var _x = (_i < array_length(_a)) ? _a[_i] : 0;
++        var _y = (_i < array_length(_b)) ? _b[_i] : 0;
++
++        if (_x != _y)
++            return _x < _y;
++    }
++
 +    return false;
 +}
 +
@@ -38280,7 +38440,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
 -}
 diff -uN gml_138/gml_GlobalScript_s_quest_function.gml gml/gml_GlobalScript_s_quest_function.gml
 --- gml_138/gml_GlobalScript_s_quest_function.gml	2026-09-02 08:45:16.362464000 +0200
-+++ gml/gml_GlobalScript_s_quest_function.gml	2026-10-19 10:49:16.535963100 +0200
++++ gml/gml_GlobalScript_s_quest_function.gml	2026-10-27 10:09:24.755163700 +0100
 @@ -42,7 +42,8 @@
          y_start = y;
          extra_row_num = max(0, _num - 3);
@@ -38291,6 +38451,16 @@ diff -uN gml_138/gml_GlobalScript_s_quest_function.gml gml/gml_GlobalScript_s_qu
          image_xscale = 3;
          image_yscale = bar_height;
          bar_c = global.bar_c;
+@@ -193,7 +194,8 @@
+             
+             if (global.val.language != UnknownEnum.Value_0)
+             {
+-                _text = scr_lang_quest_text(_quest.quest_type);
++                // GNX: a mod quest's text, translated when the mod translates it (vanilla only knows its own quests)
++                _text = variable_struct_exists(_quest, "gnx_event_id") ? gnx_tr(_quest.quest_text) : scr_lang_quest_text(_quest.quest_type);
+                 
+                 if (global.val.language == UnknownEnum.Value_2 || global.val.language == UnknownEnum.Value_9 || global.val.language == UnknownEnum.Value_1 || global.val.language == UnknownEnum.Value_3)
+                 {
 diff -uN gml_138/gml_GlobalScript_s_raid_button.gml gml/gml_GlobalScript_s_raid_button.gml
 --- gml_138/gml_GlobalScript_s_raid_button.gml	2026-09-02 08:45:16.120550900 +0200
 +++ gml/gml_GlobalScript_s_raid_button.gml	2026-10-19 10:49:25.123774800 +0200
@@ -54618,6 +54788,100 @@ diff -uN gml_138/gml_GlobalScript_s_textbox_function.gml gml/gml_GlobalScript_s_
          instance_destroy();
          
          with (source_id)
+diff -uN gml_138/gml_GlobalScript_s_trade_draw.gml gml/gml_GlobalScript_s_trade_draw.gml
+--- gml_138/gml_GlobalScript_s_trade_draw.gml	2026-09-02 08:45:16.163547800 +0200
++++ gml/gml_GlobalScript_s_trade_draw.gml	2026-10-27 10:09:32.914876000 +0100
+@@ -3,12 +3,12 @@
+     draw_sprite_ext(sprite_index, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
+     draw_set_halign(fa_center);
+     draw_text(x - 2, y - 3, button_text);
+-    
+     if (hover != -1 && hover && !trigger)
+     {
+         if (spr_sel != -1)
++        {
+             draw_sprite_ext(spr_sel, 0, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
+-        
++        }
+         hover = false;
+     }
+ }
+@@ -20,66 +20,53 @@
+     draw_sprite(spr_raid_trade_frame, 0, 170, 152);
+     draw_set_halign(fa_center);
+     var _lang_pos = scr_change_lang();
+-    
+     switch (global.val.language)
+     {
+         case UnknownEnum.Value_0:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "TRADER");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "DROP HERE");
+             break;
+-        
+         case UnknownEnum.Value_9:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "商人");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "置於此");
+             break;
+-        
+         case UnknownEnum.Value_2:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "商人");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "置于此");
+             break;
+-        
+         case UnknownEnum.Value_1:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "商人");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "置く");
+             break;
+-        
+         case UnknownEnum.Value_3:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "거래상");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "놓기");
+             break;
+-        
+         case UnknownEnum.Value_7:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "ТОРГОВЕЦ");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "БРОСИТЬ");
+             break;
+-        
+         case UnknownEnum.Value_4:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "NEGOCIANTE");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "ENTREGA");
+             break;
+-        
+         case UnknownEnum.Value_6:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "BOUTIQUE");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "POSEZ ICI");
+             break;
+-        
+         case UnknownEnum.Value_8:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "HÄNDLER");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "ABLEGEN");
+             break;
+-        
+         case UnknownEnum.Value_5:
+             draw_text(284 + _lang_pos[0], 40 + _lang_pos[1], "MERCADOR");
+             draw_text(192 + _lang_pos[0], 94 + _lang_pos[1], "SOLTE AQUI");
+             break;
+     }
+-    
+     var _num = array_length(raid_data.trade_unit);
+-    
+     for (var i = 0; i < _num; i++)
+     {
+         var _unit_data = raid_data.trade_unit[i];
+-        
+         if (_unit_data != -1)
+         {
+             var _x = 195 + (44 * i);
+@@ -87,7 +74,7 @@
+             draw_sprite(spr_char_window, 0, _x, _y - 24);
+             draw_set_halign(fa_center);
+             _lang_pos = scr_change_lang();
+-            var _name = scr_lang_class_name(_unit_data.class, _unit_data.class_name);
++            var _name = gnx_tr(scr_lang_class_name(_unit_data.class, _unit_data.class_name));  // GNX: mod class names translated
+             draw_text(_x + 1 + _lang_pos[0], (_y - 20) + _lang_pos[1], _name);
+             draw_set_font(fnt_base_font_eng);
+             draw_sprite(spr_icon, !sign(_unit_data.preg_c) * 3, _x + 6, _y + 31);
 diff -uN gml_138/gml_GlobalScript_s_trade_function.gml gml/gml_GlobalScript_s_trade_function.gml
 --- gml_138/gml_GlobalScript_s_trade_function.gml	2026-09-02 08:45:16.443594600 +0200
 +++ gml/gml_GlobalScript_s_trade_function.gml	2026-09-24 15:31:46.000000000 +0200
@@ -57917,7 +58181,7 @@ diff -uN gml_138/gml_GlobalScript_s_unit_head.gml gml/gml_GlobalScript_s_unit_he
                      var _head = scr_create_button(_x, -96, -1001, spr_unit_icon_head, UnknownEnum.Value_20, id, scr_create_unit_head, -1, scr_draw_unit_head, 0, 0);
 diff -uN gml_138/gml_GlobalScript_s_unit_head_draw.gml gml/gml_GlobalScript_s_unit_head_draw.gml
 --- gml_138/gml_GlobalScript_s_unit_head_draw.gml	2026-09-02 08:45:16.118546900 +0200
-+++ gml/gml_GlobalScript_s_unit_head_draw.gml	2026-09-24 15:31:46.000000000 +0200
++++ gml/gml_GlobalScript_s_unit_head_draw.gml	2026-10-27 10:09:24.738135100 +0100
 @@ -4,7 +4,7 @@
      
      switch (drag_type)
@@ -57927,6 +58191,15 @@ diff -uN gml_138/gml_GlobalScript_s_unit_head_draw.gml gml/gml_GlobalScript_s_un
              if (!follow)
              {
                  scr_draw_head_tiny_icon();
+@@ -25,7 +25,7 @@
+                             draw_sprite(spr_char_window, 0, x, y - 24);
+                             draw_set_halign(fa_center);
+                             var _lang_pos = scr_change_lang();
+-                            var _name = scr_lang_class_name(unit_data.class, unit_data.class_name);
++                            var _name = gnx_tr(scr_lang_class_name(unit_data.class, unit_data.class_name));  // GNX: mod class names translated
+                             draw_text(x + 1 + _lang_pos[0], (y - 20) + _lang_pos[1], _name);
+                             draw_set_font(fnt_base_font_eng);
+                             draw_sprite(spr_icon, !abs(sign(unit_data.preg_c)) * 3, x + 6, y + 31);
 @@ -56,15 +56,15 @@
                          else
                          {

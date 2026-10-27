@@ -1,0 +1,29 @@
+{
+  "about": "Mod text in the player's language: a mod's lang/<code>.json maps its English texts to translations. Test mod harness_lang translates a popup, its cell name and its mod name to French, one text to Japanese; its German file has one non-text entry (a mod error, the rest of the file still works). Untranslated text and English stay as written.",
+  "mods": [
+    "tools/scenarios/mods/harness_lang"
+  ],
+  "expect_dialog": "must be text",
+  "check_boot_suite": false,
+  "timeout": 90,
+  "steps": [
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_tr", "args": ["Hello from a mod"], "is": "Hello from a mod", "why": "English: as written"},
+    {"assert": "fn", "name": "gnx_scn_cell_text", "args": [9020], "is": "LANG CELL"},
+    {"call": "gnx_scn_set_language", "args": [6], "why": "French"},
+    {"assert": "fn", "name": "gnx_tr", "args": ["Hello from a mod"], "is": "Bonjour d'un mod"},
+    {"assert": "fn", "name": "gnx_tr", "args": ["Not translated"], "is": "Not translated", "why": "no translation: as written"},
+    {"assert": "fn", "name": "gnx_scn_cell_text", "args": [9020], "is": "CELLULE LANGUE", "why": "the cell's build button"},
+    {"do": {"type": "popup", "text": "Hello from a mod"}},
+    {"assert": "global", "name": "gnx_last_popup", "is": "Bonjour d'un mod", "why": "a mod popup"},
+    {"call": "gnx_scn_set_language", "args": [1], "why": "Japanese"},
+    {"assert": "fn", "name": "gnx_tr", "args": ["Hello from a mod"], "is": "モッドからこんにちは"},
+    {"assert": "fn", "name": "gnx_scn_cell_text", "args": [9020], "is": "LANG CELL", "why": "not translated to Japanese"},
+    {"do": {"type": "popup", "text": "Hello from a mod"}},
+    {"wait": 10},
+    {"screenshot": "popup_ja", "why": "CJK text needs the CJK font: look at it"},
+    {"call": "gnx_scn_set_language", "args": [8], "why": "German"},
+    {"assert": "fn", "name": "gnx_tr", "args": ["Hello from a mod"], "is": "Hallo von einer Mod", "why": "the good entry of a file with a bad one"},
+    {"call": "gnx_scn_set_language", "args": [0]}
+  ]
+}

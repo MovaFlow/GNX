@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+**Game version:** 1.40
+
+### New Features
+
+- **Mod translations**: a mod can ship `lang/<code>.json` files (`fr`, `ja`, `zh`, `de`, ... ) mapping its English texts to another language. Cell, prop and class names, quest texts and dialogs, popups, tool menus, map names and the MODS menu then show in the player's language, and follow a language change at once; names used as references are not affected (modding guide 4.6).
+- **`min_gnx_version`** (manifest key): the oldest GNX a mod works with. An older GNX does not load the mod (it would silently miss the newer keys), shows it as "needs GNX x" in the MODS menu and asks the player to update GNX; mods that require it are skipped too (modding guide 4.2).
+
+### Bug Fixes
+
+- In any language but English, the quest log showed mod quests through the game's own quest list, which only knows vanilla quests; it now shows their own text.
+
 ## v1.5.0
 
 **Game version:** 1.40
