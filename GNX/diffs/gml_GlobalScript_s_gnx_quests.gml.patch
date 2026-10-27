@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,931 @@
+@@ -0,0 +1,959 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -431,6 +431,10 @@
 +        
 +        case "gold_gte":
 +            return global.val.money >= arg0.value;
++
++        case "has_item":  // {"type": "has_item", "item": "MOON SHARD", "value": 3}: at least that many in the inventory
++            var _hit = variable_struct_exists(arg0, "item") ? gnx_item_resolve(arg0.item, arg1) : -1;
++            return _hit != -1 && gnx_item_count(_hit) >= (variable_struct_exists(arg0, "value") ? arg0.value : 1);
 +        
 +        case "floor_gte":
 +            return global.val.floor >= arg0.value;
@@ -644,6 +648,20 @@
 +            case "add_food":
 +                global.val.food += _se.amount;
 +                break;
++
++            case "give_item":  // {"type": "give_item", "item": "MOON SHARD", "amount": 2}: mod items into the inventory
++            case "take_item":  // {"type": "take_item", "item": "MOON SHARD", "amount": 2}: out of it (as many as there are)
++                var _sit = variable_struct_exists(_se, "item") ? gnx_item_resolve(_se.item, arg1) : -1;
++                var _san = variable_struct_exists(_se, "amount") ? max(0, floor(gnx_json_num(_se.amount, 1))) : 1;
++
++                if (_sit == -1)
++                    gnx_report_mod_error(_type + " without a known \"item\": skipped");
++                else if (_type == "give_item")
++                    scr_add_item(scr_set_item_data(_sit, _san, 0));
++                else
++                    gnx_item_take(_sit, _san);
++
++                break;
 +            
 +            case "unlock_cell":
 +                scr_add_new_slot_h_type(_se.h_type, false);
@@ -711,6 +729,16 @@
 +            _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1;
 +        
 +        return scr_set_item_data(UnknownEnum.Value_5, arg0.h_type, _lvl);
++    }
++    else if (_type == "item")
++    {
++        // GNX-ITEM: {"type": "item", "item": "MOON SHARD", "amount": 2}: mod items (items.json)
++        var _ritem = variable_struct_exists(arg0, "item") ? gnx_item_resolve(arg0.item, arg1) : -1;
++
++        if (_ritem != -1)
++            return scr_set_item_data(_ritem, variable_struct_exists(arg0, "amount") ? max(1, floor(gnx_json_num(arg0.amount, 1))) : 1, 0);
++
++        return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
 +    }
 +    else if (_type == "prop")
 +    {

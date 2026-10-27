@@ -1,0 +1,37 @@
+{
+  "about": "Mod items (items.json): test mod harness_items adds an item and raid loot (2 of the item and a complete blueprint of harness_cells' cell) to stage 0 level 0, once per save (still once after a save and reload). The item stacks in the inventory, quest conditions and side effects count, give and take it, and its name follows the player's language (lang/fr.json). A mod-cell blueprint keeps its own name in other languages (the game's list only knows its own cells).",
+  "mods": [
+    "tools/scenarios/mods/harness_cells",
+    "tools/scenarios/mods/harness_items"
+  ],
+  "check_boot_suite": false,
+  "timeout": 120,
+  "steps": [
+    {"wait": 90, "why": "the loot sync runs every 60 frames"},
+    {"assert": "fn", "name": "gnx_scn_loot_count", "args": [0, 0, "harness_items.MOON SHARD"], "is": 1, "why": "the item loot"},
+    {"assert": "fn", "name": "gnx_scn_loot_blueprints", "args": [0, 0, {"cell": "harness_cells.HARNESS CELL"}], "is": 1, "why": "the blueprint loot"},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 90},
+    {"assert": "fn", "name": "gnx_scn_loot_count", "args": [0, 0, "harness_items.MOON SHARD"], "is": 1, "why": "added once per save, not again after a load"},
+    {"do": {"type": "give_item", "item": "harness_items.MOON SHARD", "amount": 2}},
+    {"do": {"type": "give_item", "item": "harness_items.MOON SHARD", "amount": 1}},
+    {"assert": "fn", "name": "gnx_scn_item_count", "args": ["harness_items.MOON SHARD"], "is": 3, "why": "one stack"},
+    {"assert": "fn", "name": "scr_gnx_eval_condition", "args": [{"type": "has_item", "item": "MOON SHARD", "value": 3}, "harness_items"], "is": true},
+    {"assert": "fn", "name": "scr_gnx_eval_condition", "args": [{"type": "has_item", "item": "MOON SHARD", "value": 4}, "harness_items"], "is": false},
+    {"call": "scr_gnx_apply_side_effects", "args": [[{"type": "take_item", "item": "MOON SHARD", "amount": 2}], "harness_items"]},
+    {"assert": "fn", "name": "gnx_scn_item_count", "args": ["harness_items.MOON SHARD"], "is": 1},
+    {"call": "scr_gnx_apply_side_effects", "args": [[{"type": "take_item", "item": "MOON SHARD", "amount": 5}], "harness_items"]},
+    {"assert": "fn", "name": "gnx_scn_item_count", "args": ["harness_items.MOON SHARD"], "is": 0, "why": "taking more than there are empties the stack"},
+    {"call": "scr_gnx_apply_side_effects", "args": [[{"type": "give_item", "item": "MOON SHARD", "amount": 2}], "harness_items"]},
+    {"assert": "fn", "name": "gnx_scn_item_count", "args": ["harness_items.MOON SHARD"], "is": 2},
+    {"assert": "fn", "name": "gnx_scn_item_name", "args": ["harness_items.MOON SHARD"], "is": "MOON SHARD"},
+    {"call": "gnx_scn_set_language", "args": [6], "why": "French"},
+    {"assert": "fn", "name": "gnx_scn_item_name", "args": ["harness_items.MOON SHARD"], "is": "ECLAT DE LUNE"},
+    {"assert": "fn", "name": "gnx_scn_item_name", "args": [5, {"cell": "harness_cells.HARNESS CELL"}], "is": "HARNESS CELL", "why": "a mod-cell blueprint keeps its name"},
+    {"call": "gnx_scn_set_language", "args": [0]},
+    {"open_raid": true},
+    {"wait": 10},
+    {"screenshot": "inventory", "why": "the shard in the inventory"}
+  ]
+}

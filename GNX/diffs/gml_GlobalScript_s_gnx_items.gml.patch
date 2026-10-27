@@ -1,0 +1,297 @@
+--- gml_138/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,294 @@
++// GNX: mod items (items.json): registry, raid loot, inventory counts for quests
++// (the functions are global, callable from any script)
++
++// GNX-ITEM: a mod item is a vanilla inventory item whose item_type is the mod item's number (100-9999, hashed from
++// "folder.NAME" like cell h_types). scr_set_item_data (s_item_function) fills its sprite and name from here, so it
++// stacks, saves (as {item_type, num, lvl}) and draws like the game's own items. Vanilla item types are 0-9.
++
++// called at the start of every loader run: no mod items, no loot entries
++function gnx_items_reset()
++{
++    global.gnx_items = {};  // string(item_type) -> {item_type, name, full_name, sprite, mod}
++    global.gnx_item_name_to_id = {};  // "folder.NAME" -> item_type
++    global.gnx_loot_raw = [];  // [{mod, index, entry}] as read; resolved after every mod has loaded
++    global.gnx_loot = [];  // [{key, stage, level, entry: [item_type, num, lvl], mod}]
++}
++
++
++// the mod item entry of item_type arg0, or undefined (vanilla types and items of mods that are gone)
++function gnx_item_entry(arg0)
++{
++    if (!is_numeric(arg0) || !variable_global_exists("gnx_items"))
++        return undefined;
++
++    var _k = string(arg0);
++    return variable_struct_exists(global.gnx_items, _k) ? variable_struct_get(global.gnx_items, _k) : undefined;
++}
++
++
++// item reference arg0 ("NAME" of mod arg1, "folder.NAME", or a number) -> item_type, or -1 with a mod error
++function gnx_item_resolve(arg0, arg1 = "")
++{
++    if (is_numeric(arg0))
++        return arg0;
++
++    if (!is_string(arg0))
++    {
++        gnx_report_mod_error("item must be an item name (\"Mod.NAME\"), not " + string(arg0));
++        return -1;
++    }
++
++    var _full = (string_pos(".", arg0) == 0 && arg1 != "") ? (string(arg1) + "." + arg0) : arg0;
++
++    if (variable_struct_exists(global.gnx_item_name_to_id, _full))
++        return variable_struct_get(global.gnx_item_name_to_id, _full);
++
++    gnx_report_mod_error("item '" + _full + "' is not an item of any loaded mod (items.json \"name\", named \"Mod.NAME\")");
++    return -1;
++}
++
++
++// how many items of item_type arg0 the inventory holds
++function gnx_item_count(arg0)
++{
++    var _n = 0;
++
++    for (var _i = 0; _i < ds_list_size(global.inv_list); _i++)
++    {
++        var _it = ds_list_find_value(global.inv_list, _i);
++
++        if (_it.item_type == arg0)
++            _n += _it.num;
++    }
++
++    return _n;
++}
++
++
++// takes up to arg1 items of item_type arg0 out of the inventory (scr_add_item with a negative count, which removes
++// the stack when it reaches 0)
++function gnx_item_take(arg0, arg1)
++{
++    var _n = min(arg1, gnx_item_count(arg0));
++
++    if (_n > 0)
++        scr_add_item(scr_set_item_data(arg0, -_n, 0));
++}
++
++
++// true when GNX names item arg0 (an item struct) itself: a mod item, or the blueprint of a mod cell. The game's
++// own translations only know its own items and cells, so these keep their name (translated by the mod, gnx_tr).
++function gnx_item_own_name(arg0)
++{
++    if (gnx_item_entry(arg0.item_type) != undefined)
++        return true;
++
++    // vanilla cells are h_type 1-42 (a mod patching one does not make it a mod cell)
++    return arg0.item_type == 5 && is_numeric(arg0.num) && arg0.num > 42 && ds_map_exists(global.cell_registry, arg0.num);
++}
++
++
++// the name an inventory or loot item shows: for a GNX-named item (gnx_item_own_name) in the player's language
++function gnx_item_name(arg0)
++{
++    return gnx_item_own_name(arg0) ? gnx_tr(arg0.item_name) : arg0.item_name;
++}
++
++
++// items.json of mod arg0 (path arg1): { "sprites": {...}, "items": [...], "loot": [...] } or a list of items
++function scr_gnx_load_items(arg0, arg1)
++{
++    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
++
++    if (!file_exists(_path))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': items file '" + arg1 + "' not found");
++        exit;
++    }
++
++    var _buf = buffer_load(_path);
++    var _raw = buffer_read(_buf, buffer_text);
++    buffer_delete(_buf);
++    var _json;
++
++    try
++    {
++        _json = json_parse(_raw);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': " + arg1 + " invalid (" + string(_e.message) + ")");
++        exit;
++    }
++
++    var _sprites = (is_struct(_json) && variable_struct_exists(_json, "sprites")) ? _json.sprites : undefined;
++    var _items = (is_struct(_json) && variable_struct_exists(_json, "items")) ? _json.items : _json;
++    var _base_dir = global.gnx_mods_root + arg0 + "/";
++
++    if (!is_array(_items))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': items must be a list or { \"items\": [...] }");
++        _items = [];
++    }
++
++    var _log = gnx_log_open();
++
++    for (var _i = 0; _i < array_length(_items); _i++)
++    {
++        var _it = _items[_i];
++
++        if (!is_struct(_it) || !variable_struct_exists(_it, "name") || !is_string(_it.name) || _it.name == "")
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': items[" + string(_i) + "] needs a \"name\"; skipped");
++            continue;
++        }
++
++        var _full = arg0 + "." + _it.name;
++
++        if (variable_struct_exists(global.gnx_item_name_to_id, _full))
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': item '" + _it.name + "' is declared twice; the first is kept");
++            continue;
++        }
++
++        // the item's number: the hash of "folder.NAME", next free one on a clash (refer to items by name)
++        var _id = gnx_hash_cell_id(_full);
++        var _tries = 0;
++
++        while (gnx_item_entry(_id) != undefined && _tries < 9900)
++        {
++            _id = (_id >= 9999) ? 100 : (_id + 1);
++            _tries++;
++        }
++
++        var _spr = -1;
++
++        if (variable_struct_exists(_it, "sprite") && is_string(_it.sprite))
++        {
++            var _key = (string_pos("gnx:", _it.sprite) == 1) ? string_delete(_it.sprite, 1, 4) : _it.sprite;
++            _spr = gnx_resolve_sprite(_sprites, _key, _base_dir, -1);
++        }
++
++        if (_spr == -1)
++            gnx_report_mod_error("Item '" + _full + "': sprite " + (variable_struct_exists(_it, "sprite") ? ("'" + string(_it.sprite) + "' was not found in the items file's \"sprites\", or its image file is missing") : "is missing") + "; it shows as an empty slot");
++
++        variable_struct_set(global.gnx_items, string(_id), { item_type: _id, name: _it.name, full_name: _full, sprite: _spr, mod_name: arg0 });
++        variable_struct_set(global.gnx_item_name_to_id, _full, _id);
++        gnx_log_write(_log, "[GNX] item '" + _full + "' -> item_type " + string(_id) + "\n");
++    }
++
++    gnx_log_close(_log);
++
++    if (is_struct(_json) && variable_struct_exists(_json, "loot"))
++    {
++        if (!is_array(_json.loot))
++            gnx_report_mod_error("Mod '" + arg0 + "': loot must be a list");
++        else
++            for (var _l = 0; _l < array_length(_json.loot); _l++)
++                array_push(global.gnx_loot_raw, { mod_name: arg0, index: _l, entry: _json.loot[_l] });
++    }
++}
++
++
++// raid loot read from the mods' items.json, resolved once every mod has loaded (an entry may name another mod's item
++// or cell): { "stage": s, "level": l, "item": "NAME", "num": n } or { "stage": s, "level": l, "blueprint":
++// "folder.CELL", "piece": 0-2 | "complete": true }. Each entry is added once per save to that stage's loot (vanilla's
++// one-time finds), by gnx_loot_sync.
++function gnx_loot_resolve()
++{
++    global.gnx_loot = [];
++    
++    for (var _i = 0; _i < array_length(global.gnx_loot_raw); _i++)
++    {
++        var _r = global.gnx_loot_raw[_i];
++        var _l = _r.entry;
++        var _who = "Mod '" + _r.mod_name + "': loot[" + string(_r.index) + "]";
++        
++        if (!is_struct(_l) || !variable_struct_exists(_l, "stage") || !variable_struct_exists(_l, "level"))
++        {
++            gnx_report_mod_error(_who + " needs \"stage\" and \"level\"; skipped");
++            continue;
++        }
++        
++        var _stage = floor(gnx_json_num(_l.stage, -1));
++        var _level = floor(gnx_json_num(_l.level, -1));
++        var _entry = undefined;
++        var _what = "";
++        
++        if (variable_struct_exists(_l, "item"))
++        {
++            var _t = gnx_item_resolve(_l.item, _r.mod_name);
++            
++            if (_t == -1)
++                continue;
++            
++            var _num = variable_struct_exists(_l, "num") ? max(1, floor(gnx_json_num(_l.num, 1))) : 1;
++            _entry = [_t, _num, 0];
++            _what = "item " + string(_l.item);
++        }
++        else if (variable_struct_exists(_l, "blueprint"))
++        {
++            var _h = gnx_tool_resolve_cell(_l.blueprint, _r.mod_name);
++            
++            if (_h == -1 || !ds_map_exists(global.cell_registry, _h))
++            {
++                gnx_report_mod_error(_who + ": blueprint '" + string(_l.blueprint) + "' is not a cell of any loaded mod; skipped");
++                continue;
++            }
++            
++            // a complete blueprint is piece 3 (unlocks the cell when picked up); 3 different pieces (0-2) combine
++            var _complete = variable_struct_exists(_l, "complete") && gnx_json_bool(_l.complete, false, _who, "complete");
++            var _piece = _complete ? 3 : clamp(floor(gnx_json_num(variable_struct_exists(_l, "piece") ? _l.piece : 0, 0)), 0, 2);
++            _entry = [5, _h, _piece];
++            _what = "blueprint " + string(_l.blueprint) + (_complete ? "" : " piece " + string(_piece));
++        }
++        else
++        {
++            gnx_report_mod_error(_who + " needs \"item\" or \"blueprint\"; skipped");
++            continue;
++        }
++        
++        // the once-per-save key: mod, entry number and what it gives, without dots (a struct name with a dot is not found)
++        var _key = string_replace_all(_r.mod_name + "|" + string(_r.index) + "|" + _what, ".", "_");
++        array_push(global.gnx_loot, { key: _key, stage: _stage, level: _level, entry: _entry, mod_name: _r.mod_name });
++    }
++}
++
++
++// puts every mod loot entry this save has not had yet into its stage's loot (global.val.stage_item[stage][level],
++// per map like the rest of global.val). Run every 60 frames by obj_control, so new games, loads, trips and newly
++// installed mods all get theirs. A stage or level this map does not have is skipped (and retried, in case a map
++// mod adds it later).
++function gnx_loot_sync()
++{
++    if (!variable_global_exists("gnx_loot") || array_length(global.gnx_loot) == 0 || !variable_struct_exists(global.val, "stage_item"))
++        exit;
++
++    if (!variable_struct_exists(global.val, "gnx_loot_given") || !is_struct(global.val.gnx_loot_given))
++        global.val.gnx_loot_given = {};
++
++    for (var _i = 0; _i < array_length(global.gnx_loot); _i++)
++    {
++        var _l = global.gnx_loot[_i];
++
++        if (variable_struct_exists(global.val.gnx_loot_given, _l.key))
++            continue;
++
++        if (_l.stage < 0 || _l.stage >= array_length(global.val.stage_item) || _l.level < 0 || _l.level >= array_length(global.val.stage_item[_l.stage]))
++            continue;
++
++        var _list = global.val.stage_item[_l.stage][_l.level];
++        array_push(_list, [_l.entry[0], _l.entry[1], _l.entry[2]]);
++        global.val.stage_item[_l.stage][_l.level] = _list;
++        variable_struct_set(global.val.gnx_loot_given, _l.key, true);
++        var _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX] loot " + _l.key + " added to stage " + string(_l.stage) + " level " + string(_l.level) + "\n");
++        gnx_log_close(_log);
++    }
++}
++
++
++enum UnknownEnum
++{
++    Value_0
++}

@@ -10828,7 +10828,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4205 @@
+@@ -0,0 +1,4259 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -12404,6 +12404,60 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +    
 +    return "none";
++}
++
++
++// for {"assert": "fn"}: item_type of mod item arg0 ("folder.NAME"), or the number given
++function gnx_scn_item_type(arg0)
++{
++    return is_string(arg0) ? gnx_item_resolve(arg0, "") : arg0;
++}
++
++
++// for {"assert": "fn"}: how many of item arg0 ("folder.NAME" or an item_type) the inventory holds
++function gnx_scn_item_count(arg0)
++{
++    return gnx_item_count(gnx_scn_item_type(arg0));
++}
++
++
++// for {"assert": "fn"}: how many loot entries stage arg0, level arg1 holds for item arg2 ("folder.NAME" or an item_type)
++function gnx_scn_loot_count(arg0, arg1, arg2)
++{
++    var _t = gnx_scn_item_type(arg2);
++    var _list = global.val.stage_item[arg0][arg1];
++    var _n = 0;
++    
++    for (var _i = 0; _i < array_length(_list); _i++)
++    {
++        if (_list[_i][0] == _t)
++            _n++;
++    }
++    
++    return _n;
++}
++
++
++// for {"assert": "fn"}: how many blueprint loot entries (pieces or complete) stage arg0, level arg1 holds for cell arg2
++function gnx_scn_loot_blueprints(arg0, arg1, arg2)
++{
++    var _list = global.val.stage_item[arg0][arg1];
++    var _n = 0;
++    
++    for (var _i = 0; _i < array_length(_list); _i++)
++    {
++        if (_list[_i][0] == 5 && _list[_i][1] == arg2)
++            _n++;
++    }
++    
++    return _n;
++}
++
++
++// for {"assert": "fn"}: the name an item (arg0 = item_type or "folder.NAME", arg1 = data) shows, in the current language
++function gnx_scn_item_name(arg0, arg1 = 1)
++{
++    return gnx_item_name(scr_set_item_data(gnx_scn_item_type(arg0), arg1, 3));
 +}
 +
 +
@@ -15034,10 +15088,308 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    Value_40 = 40,
 +    Value_56 = 56
 +}
+diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_items.gml
+--- gml_138/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
++++ gml/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
+@@ -0,0 +1,294 @@
++// GNX: mod items (items.json): registry, raid loot, inventory counts for quests
++// (the functions are global, callable from any script)
++
++// GNX-ITEM: a mod item is a vanilla inventory item whose item_type is the mod item's number (100-9999, hashed from
++// "folder.NAME" like cell h_types). scr_set_item_data (s_item_function) fills its sprite and name from here, so it
++// stacks, saves (as {item_type, num, lvl}) and draws like the game's own items. Vanilla item types are 0-9.
++
++// called at the start of every loader run: no mod items, no loot entries
++function gnx_items_reset()
++{
++    global.gnx_items = {};  // string(item_type) -> {item_type, name, full_name, sprite, mod}
++    global.gnx_item_name_to_id = {};  // "folder.NAME" -> item_type
++    global.gnx_loot_raw = [];  // [{mod, index, entry}] as read; resolved after every mod has loaded
++    global.gnx_loot = [];  // [{key, stage, level, entry: [item_type, num, lvl], mod}]
++}
++
++
++// the mod item entry of item_type arg0, or undefined (vanilla types and items of mods that are gone)
++function gnx_item_entry(arg0)
++{
++    if (!is_numeric(arg0) || !variable_global_exists("gnx_items"))
++        return undefined;
++
++    var _k = string(arg0);
++    return variable_struct_exists(global.gnx_items, _k) ? variable_struct_get(global.gnx_items, _k) : undefined;
++}
++
++
++// item reference arg0 ("NAME" of mod arg1, "folder.NAME", or a number) -> item_type, or -1 with a mod error
++function gnx_item_resolve(arg0, arg1 = "")
++{
++    if (is_numeric(arg0))
++        return arg0;
++
++    if (!is_string(arg0))
++    {
++        gnx_report_mod_error("item must be an item name (\"Mod.NAME\"), not " + string(arg0));
++        return -1;
++    }
++
++    var _full = (string_pos(".", arg0) == 0 && arg1 != "") ? (string(arg1) + "." + arg0) : arg0;
++
++    if (variable_struct_exists(global.gnx_item_name_to_id, _full))
++        return variable_struct_get(global.gnx_item_name_to_id, _full);
++
++    gnx_report_mod_error("item '" + _full + "' is not an item of any loaded mod (items.json \"name\", named \"Mod.NAME\")");
++    return -1;
++}
++
++
++// how many items of item_type arg0 the inventory holds
++function gnx_item_count(arg0)
++{
++    var _n = 0;
++
++    for (var _i = 0; _i < ds_list_size(global.inv_list); _i++)
++    {
++        var _it = ds_list_find_value(global.inv_list, _i);
++
++        if (_it.item_type == arg0)
++            _n += _it.num;
++    }
++
++    return _n;
++}
++
++
++// takes up to arg1 items of item_type arg0 out of the inventory (scr_add_item with a negative count, which removes
++// the stack when it reaches 0)
++function gnx_item_take(arg0, arg1)
++{
++    var _n = min(arg1, gnx_item_count(arg0));
++
++    if (_n > 0)
++        scr_add_item(scr_set_item_data(arg0, -_n, 0));
++}
++
++
++// true when GNX names item arg0 (an item struct) itself: a mod item, or the blueprint of a mod cell. The game's
++// own translations only know its own items and cells, so these keep their name (translated by the mod, gnx_tr).
++function gnx_item_own_name(arg0)
++{
++    if (gnx_item_entry(arg0.item_type) != undefined)
++        return true;
++
++    // vanilla cells are h_type 1-42 (a mod patching one does not make it a mod cell)
++    return arg0.item_type == 5 && is_numeric(arg0.num) && arg0.num > 42 && ds_map_exists(global.cell_registry, arg0.num);
++}
++
++
++// the name an inventory or loot item shows: for a GNX-named item (gnx_item_own_name) in the player's language
++function gnx_item_name(arg0)
++{
++    return gnx_item_own_name(arg0) ? gnx_tr(arg0.item_name) : arg0.item_name;
++}
++
++
++// items.json of mod arg0 (path arg1): { "sprites": {...}, "items": [...], "loot": [...] } or a list of items
++function scr_gnx_load_items(arg0, arg1)
++{
++    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
++
++    if (!file_exists(_path))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': items file '" + arg1 + "' not found");
++        exit;
++    }
++
++    var _buf = buffer_load(_path);
++    var _raw = buffer_read(_buf, buffer_text);
++    buffer_delete(_buf);
++    var _json;
++
++    try
++    {
++        _json = json_parse(_raw);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': " + arg1 + " invalid (" + string(_e.message) + ")");
++        exit;
++    }
++
++    var _sprites = (is_struct(_json) && variable_struct_exists(_json, "sprites")) ? _json.sprites : undefined;
++    var _items = (is_struct(_json) && variable_struct_exists(_json, "items")) ? _json.items : _json;
++    var _base_dir = global.gnx_mods_root + arg0 + "/";
++
++    if (!is_array(_items))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': items must be a list or { \"items\": [...] }");
++        _items = [];
++    }
++
++    var _log = gnx_log_open();
++
++    for (var _i = 0; _i < array_length(_items); _i++)
++    {
++        var _it = _items[_i];
++
++        if (!is_struct(_it) || !variable_struct_exists(_it, "name") || !is_string(_it.name) || _it.name == "")
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': items[" + string(_i) + "] needs a \"name\"; skipped");
++            continue;
++        }
++
++        var _full = arg0 + "." + _it.name;
++
++        if (variable_struct_exists(global.gnx_item_name_to_id, _full))
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': item '" + _it.name + "' is declared twice; the first is kept");
++            continue;
++        }
++
++        // the item's number: the hash of "folder.NAME", next free one on a clash (refer to items by name)
++        var _id = gnx_hash_cell_id(_full);
++        var _tries = 0;
++
++        while (gnx_item_entry(_id) != undefined && _tries < 9900)
++        {
++            _id = (_id >= 9999) ? 100 : (_id + 1);
++            _tries++;
++        }
++
++        var _spr = -1;
++
++        if (variable_struct_exists(_it, "sprite") && is_string(_it.sprite))
++        {
++            var _key = (string_pos("gnx:", _it.sprite) == 1) ? string_delete(_it.sprite, 1, 4) : _it.sprite;
++            _spr = gnx_resolve_sprite(_sprites, _key, _base_dir, -1);
++        }
++
++        if (_spr == -1)
++            gnx_report_mod_error("Item '" + _full + "': sprite " + (variable_struct_exists(_it, "sprite") ? ("'" + string(_it.sprite) + "' was not found in the items file's \"sprites\", or its image file is missing") : "is missing") + "; it shows as an empty slot");
++
++        variable_struct_set(global.gnx_items, string(_id), { item_type: _id, name: _it.name, full_name: _full, sprite: _spr, mod_name: arg0 });
++        variable_struct_set(global.gnx_item_name_to_id, _full, _id);
++        gnx_log_write(_log, "[GNX] item '" + _full + "' -> item_type " + string(_id) + "\n");
++    }
++
++    gnx_log_close(_log);
++
++    if (is_struct(_json) && variable_struct_exists(_json, "loot"))
++    {
++        if (!is_array(_json.loot))
++            gnx_report_mod_error("Mod '" + arg0 + "': loot must be a list");
++        else
++            for (var _l = 0; _l < array_length(_json.loot); _l++)
++                array_push(global.gnx_loot_raw, { mod_name: arg0, index: _l, entry: _json.loot[_l] });
++    }
++}
++
++
++// raid loot read from the mods' items.json, resolved once every mod has loaded (an entry may name another mod's item
++// or cell): { "stage": s, "level": l, "item": "NAME", "num": n } or { "stage": s, "level": l, "blueprint":
++// "folder.CELL", "piece": 0-2 | "complete": true }. Each entry is added once per save to that stage's loot (vanilla's
++// one-time finds), by gnx_loot_sync.
++function gnx_loot_resolve()
++{
++    global.gnx_loot = [];
++    
++    for (var _i = 0; _i < array_length(global.gnx_loot_raw); _i++)
++    {
++        var _r = global.gnx_loot_raw[_i];
++        var _l = _r.entry;
++        var _who = "Mod '" + _r.mod_name + "': loot[" + string(_r.index) + "]";
++        
++        if (!is_struct(_l) || !variable_struct_exists(_l, "stage") || !variable_struct_exists(_l, "level"))
++        {
++            gnx_report_mod_error(_who + " needs \"stage\" and \"level\"; skipped");
++            continue;
++        }
++        
++        var _stage = floor(gnx_json_num(_l.stage, -1));
++        var _level = floor(gnx_json_num(_l.level, -1));
++        var _entry = undefined;
++        var _what = "";
++        
++        if (variable_struct_exists(_l, "item"))
++        {
++            var _t = gnx_item_resolve(_l.item, _r.mod_name);
++            
++            if (_t == -1)
++                continue;
++            
++            var _num = variable_struct_exists(_l, "num") ? max(1, floor(gnx_json_num(_l.num, 1))) : 1;
++            _entry = [_t, _num, 0];
++            _what = "item " + string(_l.item);
++        }
++        else if (variable_struct_exists(_l, "blueprint"))
++        {
++            var _h = gnx_tool_resolve_cell(_l.blueprint, _r.mod_name);
++            
++            if (_h == -1 || !ds_map_exists(global.cell_registry, _h))
++            {
++                gnx_report_mod_error(_who + ": blueprint '" + string(_l.blueprint) + "' is not a cell of any loaded mod; skipped");
++                continue;
++            }
++            
++            // a complete blueprint is piece 3 (unlocks the cell when picked up); 3 different pieces (0-2) combine
++            var _complete = variable_struct_exists(_l, "complete") && gnx_json_bool(_l.complete, false, _who, "complete");
++            var _piece = _complete ? 3 : clamp(floor(gnx_json_num(variable_struct_exists(_l, "piece") ? _l.piece : 0, 0)), 0, 2);
++            _entry = [5, _h, _piece];
++            _what = "blueprint " + string(_l.blueprint) + (_complete ? "" : " piece " + string(_piece));
++        }
++        else
++        {
++            gnx_report_mod_error(_who + " needs \"item\" or \"blueprint\"; skipped");
++            continue;
++        }
++        
++        // the once-per-save key: mod, entry number and what it gives, without dots (a struct name with a dot is not found)
++        var _key = string_replace_all(_r.mod_name + "|" + string(_r.index) + "|" + _what, ".", "_");
++        array_push(global.gnx_loot, { key: _key, stage: _stage, level: _level, entry: _entry, mod_name: _r.mod_name });
++    }
++}
++
++
++// puts every mod loot entry this save has not had yet into its stage's loot (global.val.stage_item[stage][level],
++// per map like the rest of global.val). Run every 60 frames by obj_control, so new games, loads, trips and newly
++// installed mods all get theirs. A stage or level this map does not have is skipped (and retried, in case a map
++// mod adds it later).
++function gnx_loot_sync()
++{
++    if (!variable_global_exists("gnx_loot") || array_length(global.gnx_loot) == 0 || !variable_struct_exists(global.val, "stage_item"))
++        exit;
++
++    if (!variable_struct_exists(global.val, "gnx_loot_given") || !is_struct(global.val.gnx_loot_given))
++        global.val.gnx_loot_given = {};
++
++    for (var _i = 0; _i < array_length(global.gnx_loot); _i++)
++    {
++        var _l = global.gnx_loot[_i];
++
++        if (variable_struct_exists(global.val.gnx_loot_given, _l.key))
++            continue;
++
++        if (_l.stage < 0 || _l.stage >= array_length(global.val.stage_item) || _l.level < 0 || _l.level >= array_length(global.val.stage_item[_l.stage]))
++            continue;
++
++        var _list = global.val.stage_item[_l.stage][_l.level];
++        array_push(_list, [_l.entry[0], _l.entry[1], _l.entry[2]]);
++        global.val.stage_item[_l.stage][_l.level] = _list;
++        variable_struct_set(global.val.gnx_loot_given, _l.key, true);
++        var _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX] loot " + _l.key + " added to stage " + string(_l.stage) + " level " + string(_l.level) + "\n");
++        gnx_log_close(_log);
++    }
++}
++
++
++enum UnknownEnum
++{
++    Value_0
++}
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2493 @@
+@@ -0,0 +1,2498 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -16424,6 +16776,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    global.gnx_indexed_mods = [];
 +    global.gnx_loaded_mods = [];
 +    global.gnx_tr = {};  // translations of mod text, by language code (gnx_load_translations, gnx_tr)
++    gnx_items_reset();  // mod items and raid loot (items.json)
 +    global.gnx_map_deferred_mods = [];
 +    global.gnx_mod_map_decl = {};
 +    global.gnx_multimap_enabled = true;
@@ -16604,6 +16957,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    
 +    scr_gnx_resolve_birth_classes();
 +    scr_gnx_deferred_resolve_class_map();
++    gnx_loot_resolve();  // mod raid loot may name items and cells of any mod
 +    var _cp = gnx_log_open();
 +    gnx_log_write(_cp, "[GNX-TIME] cp1 after resolve = " + string((get_timer() - _gnx_boot_t0) / 1000) + " ms\n");
 +    gnx_log_close(_cp);
@@ -17330,6 +17684,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    {
 +        if (variable_struct_exists(_manifest, "cells"))
 +            scr_gnx_load_cells(arg0, _manifest.cells);
++
++        if (variable_struct_exists(_manifest, "items"))
++            scr_gnx_load_items(arg0, _manifest.items);
 +    
 +        _tmp_lg = gnx_log_open();
 +        gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " cells = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
@@ -17368,8 +17725,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
 +    gnx_log_close(_tmp_lg);
-+    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json"];
-+    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props"];
++    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json", "items.json"];
++    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props", "items"];
 +    var _mod_dir = global.gnx_mods_root + arg0 + "/";
 +    
 +    for (var _wi = 0; _wi < array_length(_data_files); _wi++)
@@ -20380,7 +20737,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,931 @@
+@@ -0,0 +1,959 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -20811,6 +21168,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        
 +        case "gold_gte":
 +            return global.val.money >= arg0.value;
++
++        case "has_item":  // {"type": "has_item", "item": "MOON SHARD", "value": 3}: at least that many in the inventory
++            var _hit = variable_struct_exists(arg0, "item") ? gnx_item_resolve(arg0.item, arg1) : -1;
++            return _hit != -1 && gnx_item_count(_hit) >= (variable_struct_exists(arg0, "value") ? arg0.value : 1);
 +        
 +        case "floor_gte":
 +            return global.val.floor >= arg0.value;
@@ -21024,6 +21385,20 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            case "add_food":
 +                global.val.food += _se.amount;
 +                break;
++
++            case "give_item":  // {"type": "give_item", "item": "MOON SHARD", "amount": 2}: mod items into the inventory
++            case "take_item":  // {"type": "take_item", "item": "MOON SHARD", "amount": 2}: out of it (as many as there are)
++                var _sit = variable_struct_exists(_se, "item") ? gnx_item_resolve(_se.item, arg1) : -1;
++                var _san = variable_struct_exists(_se, "amount") ? max(0, floor(gnx_json_num(_se.amount, 1))) : 1;
++
++                if (_sit == -1)
++                    gnx_report_mod_error(_type + " without a known \"item\": skipped");
++                else if (_type == "give_item")
++                    scr_add_item(scr_set_item_data(_sit, _san, 0));
++                else
++                    gnx_item_take(_sit, _san);
++
++                break;
 +            
 +            case "unlock_cell":
 +                scr_add_new_slot_h_type(_se.h_type, false);
@@ -21091,6 +21466,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1;
 +        
 +        return scr_set_item_data(UnknownEnum.Value_5, arg0.h_type, _lvl);
++    }
++    else if (_type == "item")
++    {
++        // GNX-ITEM: {"type": "item", "item": "MOON SHARD", "amount": 2}: mod items (items.json)
++        var _ritem = variable_struct_exists(arg0, "item") ? gnx_item_resolve(arg0.item, arg1) : -1;
++
++        if (_ritem != -1)
++            return scr_set_item_data(_ritem, variable_struct_exists(arg0, "amount") ? max(1, floor(gnx_json_num(arg0.amount, 1))) : 1, 0);
++
++        return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
 +    }
 +    else if (_type == "prop")
 +    {
@@ -24634,7 +25019,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_tools.gml
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1734 @@
+@@ -0,0 +1,1747 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -25167,7 +25552,20 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +            break;
 +        
 +        case "give_item":
-+            scr_add_item(scr_set_item_data(arg0.item_type, arg0.data, arg0.level));  // GNX fix: the item was never passed
++            // GNX-ITEM: {"item": "MOON SHARD", "amount": 2} gives mod items (items.json); item_type/data/level is the
++            // game's internal item data
++            if (variable_struct_exists(arg0, "item"))
++            {
++                var _git = gnx_item_resolve(arg0.item, arg1);
++
++                if (_git != -1)
++                    scr_add_item(scr_set_item_data(_git, variable_struct_exists(arg0, "amount") ? max(1, floor(gnx_json_num(arg0.amount, 1))) : 1, 0));
++            }
++            else
++            {
++                scr_add_item(scr_set_item_data(arg0.item_type, arg0.data, arg0.level));  // GNX fix: the item was never passed
++            }
++
 +            break;
 +        
 +        case "give_blueprint":
@@ -29192,11 +29590,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +}
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-27 09:03:58.222170000 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-27 11:32:35.095793300 +0100
 @@ -1,8 +1,18 @@
 +// GNX: this file holds the game's start-up only (scr_create_initials: vanilla plus GNX's boot steps).
 +// GNX's own functions live in one file per topic: s_gnx_content, s_gnx_cells, s_gnx_props, s_gnx_mods,
-+// s_gnx_travel, s_gnx_raid, s_gnx_quests, s_gnx_tools, s_gnx_sound, s_gnx_draw, s_gnx_nest, s_gnx_util, and the
++// s_gnx_travel, s_gnx_raid, s_gnx_quests, s_gnx_items, s_gnx_tools, s_gnx_sound, s_gnx_draw, s_gnx_nest, s_gnx_util, and the
 +// test code s_gnx_tests / s_gnx_harness. docs/GNX_SOURCE_MAP.md lists every function with its file.
 +
  function scr_create_initials()
@@ -32611,6 +33009,763 @@ diff -uN gml_138/gml_GlobalScript_s_invetory_function.gml gml/gml_GlobalScript_s
          image_xscale = 3;
          image_yscale = bar_height;
          bar_c = global.bar_c;
+diff -uN gml_138/gml_GlobalScript_s_item_draw.gml gml/gml_GlobalScript_s_item_draw.gml
+--- gml_138/gml_GlobalScript_s_item_draw.gml	2026-09-02 08:45:16.542617600 +0200
++++ gml/gml_GlobalScript_s_item_draw.gml	2026-10-27 11:26:46.695052900 +0100
+@@ -5,37 +5,36 @@
+     var _index = arg2.index;
+     var _num = arg2.num_draw;
+     var _code = -1;
+-    
+     switch (arg2.item_type)
+     {
+         case UnknownEnum.Value_5:
+             _code = arg2.code_text;
+             break;
+-        
+         case UnknownEnum.Value_7:
+             _code = arg2.code_text;
+             break;
+-        
+         case UnknownEnum.Value_9:
+             _draw_item = false;
+             scr_draw_stage_unit_head(arg0, arg1, arg2.info, false);
+             break;
+     }
+-    
+-    if (_draw_item)
+-        draw_sprite(_spr, _index, arg0, arg1);
+-    
++    if (_draw_item && _spr != -1)
++    {
++        gnx_draw_sprite(_spr, _index, arg0, arg1);  // GNX-ITEM: mod item sprites may be atlas sprites
++    }
+     if (_code != -1)
+     {
+         if (arg3)
++        {
+             scr_draw_shadow(arg0 - 8, arg1 - 9, _code, 0);
+-        
++        }
+         if (_num != -1)
+         {
+             _num = _num % 4;
+-            
+             for (var i = 0; i < 3; i++)
++            {
+                 draw_sprite(spr_item_num, sign(abs(i - _num)), arg0 + 7, arg1 + 4 + (i * 2));
++            }
+         }
+     }
+     else if (_num != -1 && arg3)
+@@ -49,7 +48,6 @@
+     var _mouse_x = device_mouse_x_to_gui(0);
+     var _mouse_y = device_mouse_y_to_gui(0);
+     var _width = 20;
+-    
+     if (_mouse_x >= 14 && _mouse_x <= 162 && _mouse_y >= 167 && _mouse_y <= 218)
+     {
+         var _inv = obj_np.obj_raid;
+@@ -57,45 +55,37 @@
+         var _inv_pos_y = floor((_mouse_y - 167 - _inv.slider_y) / _inv.row_h);
+         var _pos = _inv_pos_x + (_inv_pos_y * 7);
+         var _item_data = ds_list_find_value(global.inv_list, _pos);
+-        
+         if (_item_data != undefined && _item_data.item_name != -1)
+         {
+             var _text_x = 14 + (_inv_pos_x * 21) + 10;
+             var _text_y = 167 + _inv.slider_y + (_inv_pos_y * _inv.row_h);
+             draw_set_halign(fa_center);
+             draw_sprite(spr_button_guide, 0, _text_x, _text_y);
+-            var _name = _item_data.item_name;
++            var _name = gnx_item_name(_item_data);  // GNX-ITEM: mod items and mod-cell blueprints in every language
+             var _lang_pos = scr_change_lang();
+-            
+-            if (global.val.language != UnknownEnum.Value_0)
++            if (global.val.language != UnknownEnum.Value_0 && !gnx_item_own_name(_item_data))
+             {
+                 switch (_item_data.item_type)
+                 {
+                     case UnknownEnum.Value_4:
+                         _name = scr_lang_prop_text_milk(_item_data.num);
+                         break;
+-                    
+                     case UnknownEnum.Value_5:
+                         _name = scr_lang_slot_text(_item_data.num);
+                         break;
+-                    
+                     case UnknownEnum.Value_7:
+                         _name = scr_lang_prop_text(_item_data.num);
+                         break;
+-                    
+                     case UnknownEnum.Value_2:
+                         _name = scr_lang_prop_text_cow_bell(_item_data.num);
+                         break;
+                 }
+             }
+-            
+             draw_text(_text_x + 1 + _lang_pos[0], (_text_y - 3) + _lang_pos[1], _name);
+             draw_set_font(fnt_base_font_eng);
+         }
+     }
+-    
+     var _stage = obj_np.obj_raid.raid_data.stage;
+-    
+     if (_stage != -1 && (obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_0 || obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_1 || obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_2))
+     {
+         var _stage_lvl = min(2, global.val.stage_lvl_sel[_stage]);
+@@ -103,55 +93,46 @@
+         var _max = array_length(_reward_list);
+         _x = 173;
+         _y = 199;
+-        
+         if (_mouse_x >= _x && _mouse_x < (_x + (_width * _max)) && _mouse_y >= _y && _mouse_y < (_y + _width))
+         {
+             var _inv_pos_x = min(_max - 1, floor((_mouse_x - _x) / _width));
+             var _item_data = _reward_list[_inv_pos_x];
+-            
+             if (_item_data != undefined && _item_data.item_name != -1)
+             {
+                 var _text_x = _x + (_inv_pos_x * _width) + 10;
+                 var _text_y = _y;
+                 draw_set_halign(fa_center);
+                 draw_sprite(spr_button_guide, 0, _text_x, _text_y);
+-                var _name = _item_data.item_name;
++                var _name = gnx_item_name(_item_data);  // GNX-ITEM: mod items and mod-cell blueprints in every language
+                 var _lang_pos = scr_change_lang();
+-                
+-                if (global.val.language != UnknownEnum.Value_0)
++                if (global.val.language != UnknownEnum.Value_0 && !gnx_item_own_name(_item_data))
+                 {
+                     switch (_item_data.item_type)
+                     {
+                         case UnknownEnum.Value_5:
+                             _name = scr_lang_slot_text(_item_data.num);
+                             break;
+-                        
+                         case UnknownEnum.Value_7:
+                             _name = scr_lang_prop_text(_item_data.num);
+                             break;
+-                        
+                         case UnknownEnum.Value_4:
+                             _name = scr_lang_prop_text_milk(_item_data.num);
+                             break;
+-                        
+                         case UnknownEnum.Value_2:
+                             _name = scr_lang_prop_text_cow_bell(_item_data.num);
+                             break;
+                     }
+                 }
+-                
+                 draw_text(_text_x + 1 + _lang_pos[0], (_text_y - 3) + _lang_pos[1], _name);
+                 draw_set_font(fnt_base_font_eng);
+             }
+         }
+     }
+-    
+     var _x = 310;
+     var _y = 173;
+     var _row = 2;
+     var _column = 3;
+     var _f_height = 20;
+-    
+     if (_mouse_x >= _x && _mouse_x <= (_x + (21 * _column)) && _mouse_y >= _y && _mouse_y <= (_y + (_f_height * _row)))
+     {
+         var _inv = obj_np.obj_raid;
+@@ -159,30 +140,26 @@
+         var _inv_pos_y = floor((_mouse_y - _y) / _f_height);
+         var _pos = _inv_pos_x + (_inv_pos_y * _column);
+         var _item_data = ds_list_find_value(global.raid_inv_list, _pos);
+-        
+         if (_item_data != undefined && _item_data.item_name != -1)
+         {
+             var _text_x = _x + (_inv_pos_x * 21) + 10;
+             var _text_y = _y + (_inv_pos_y * _f_height);
+             draw_set_halign(fa_center);
+             draw_sprite(spr_button_guide, 0, _text_x, _text_y);
+-            var _name = _item_data.item_name;
++            var _name = gnx_item_name(_item_data);  // GNX-ITEM: mod items and mod-cell blueprints in every language
+             var _lang_pos = scr_change_lang();
+-            
+-            if (global.val.language != UnknownEnum.Value_0)
++            if (global.val.language != UnknownEnum.Value_0 && !gnx_item_own_name(_item_data))
+             {
+                 switch (_item_data.item_type)
+                 {
+                     case UnknownEnum.Value_5:
+                         _name = scr_lang_slot_text(_item_data.num);
+                         break;
+-                    
+                     case UnknownEnum.Value_7:
+                         _name = scr_lang_prop_text(_item_data.num);
+                         break;
+                 }
+             }
+-            
+             draw_text(_text_x + 1 + _lang_pos[0], (_text_y - 3) + _lang_pos[1], _name);
+             draw_set_font(fnt_base_font_eng);
+         }
+diff -uN gml_138/gml_GlobalScript_s_item_function.gml gml/gml_GlobalScript_s_item_function.gml
+--- gml_138/gml_GlobalScript_s_item_function.gml	2026-09-02 08:45:16.403589800 +0200
++++ gml/gml_GlobalScript_s_item_function.gml	2026-10-27 11:31:18.734622600 +0100
+@@ -10,7 +10,6 @@
+     _item_data.item_name = -1;
+     _item_data.code_text = -1;
+     _item_data.price = -1;
+-    
+     switch (arg0)
+     {
+         case UnknownEnum.Value_4:
+@@ -18,7 +17,6 @@
+             _item_data.index = arg2;
+             _item_data.item_name = "MILK";
+             break;
+-        
+         case UnknownEnum.Value_6:
+             _item_data.spr = spr_orangeprint;
+             _item_data.index = arg2;
+@@ -28,7 +26,6 @@
+             _item_data.code_text = _data.code_text;
+             _item_data.price = _data.shop_price;
+             break;
+-        
+         case UnknownEnum.Value_7:
+             _item_data.spr = spr_orangeprint;
+             _item_data.index = arg2;
+@@ -37,53 +34,71 @@
+             _item_data.item_name = _data.text_type;
+             _item_data.price = _data.shop_price;
+             break;
+-        
+         case UnknownEnum.Value_5:
+             _item_data.index = arg2;
+-            
+             if (arg1 <= UnknownEnum.Value_16)
++            {
+                 _item_data.spr = spr_blueprint;
++            }
+             else if (arg1 <= UnknownEnum.Value_26)
++            {
+                 _item_data.spr = spr_redprint;
++            }
+             else if (arg1 <= UnknownEnum.Value_35)
++            {
+                 _item_data.spr = spr_tentprint;
++            }
+             else if (arg1 >= UnknownEnum.Value_39)
++            {
+                 _item_data.spr = spr_marble;
++            }
+             else
++            {
+                 _item_data.spr = spr_speprint;
+-            
++            }
+             if (_item_data.index == UnknownEnum.Value_3 || _item_data.index == UnknownEnum.Value_7)
++            {
+                 _item_data.num_draw = -1;
++            }
+             else
++            {
+                 _item_data.num_draw = arg2;
+-            
++            }
+             var _data = scr_h_slot_text_data(arg1);
+             _item_data.code_text = _data.code_text;
+             _item_data.item_name = _data.text_type;
+             _item_data.price = _data.shop_price;
+             break;
+-        
+         case UnknownEnum.Value_8:
+             _item_data.spr = spr_mon_icon;
+             _item_data.index = arg2 + 1;
+             break;
+-        
+         case UnknownEnum.Value_9:
+             _item_data.info = arg2;
+             break;
+-        
+         case UnknownEnum.Value_2:
+             _item_data.item_name = "COW BELL";
+             _item_data.price = 150;
+             _item_data.num_draw = -1;
+             break;
+-        
+         case UnknownEnum.Value_3:
+             _item_data.item_name = "HELL ORB";
+             _item_data.price = 300;
+             break;
+     }
+-    
++    // GNX-ITEM: a mod item (items.json): its own sprite (frame 0) and name; a count is drawn like vanilla stacks
++    var _gnx_item = gnx_item_entry(arg0);
++    if (_gnx_item != undefined)
++    {
++        _item_data.spr = _gnx_item.sprite;
++        _item_data.index = 0;
++        _item_data.item_name = _gnx_item.name;
++    }
++    else if (is_numeric(arg0) && arg0 >= 100)
++    {
++        // an item of a mod that is not loaded: kept (it comes back with the mod), drawn as nothing
++        _item_data.spr = -1;
++    }
+     return _item_data;
+ }
+ 
+@@ -99,7 +114,6 @@
+ {
+     var _inv_num = ds_list_size(global.inv_list);
+     var _set = false;
+-    
+     switch (arg0.item_type)
+     {
+         case UnknownEnum.Value_0:
+@@ -107,40 +121,32 @@
+             global.val.money += arg0.num;
+             scr_check_steam_achievement(UnknownEnum.Value_4);
+             break;
+-        
+         case UnknownEnum.Value_1:
+             _set = true;
+             global.val.food += arg0.num;
+             break;
+-        
+         case UnknownEnum.Value_5:
+             _set = true;
+             scr_combine_print(arg0);
+             break;
+-        
+         case UnknownEnum.Value_7:
+             _set = true;
+             scr_add_new_prop_type(arg0.num, true);
+             break;
+-        
+         case UnknownEnum.Value_6:
+             _set = true;
+             scr_add_new_between_type(arg0.num, true);
+             break;
+-        
+         case UnknownEnum.Value_4:
+             _set = true;
+             var _exists = false;
+             _inv_num = ds_list_size(global.inv_list);
+-            
+             for (var i = 0; i < _inv_num; i++)
+             {
+                 var _inv_item = ds_list_find_value(global.inv_list, i);
+-                
+                 if (_inv_item.item_type == UnknownEnum.Value_4 && _inv_item.index == arg0.index)
+                 {
+                     _inv_item.num = max(0, _inv_item.num + arg0.num);
+-                    
+                     if (_inv_item.num <= 0)
+                     {
+                         ds_list_delete(global.inv_list, i);
+@@ -150,45 +156,37 @@
+                         ds_list_set(global.inv_list, i, _inv_item);
+                         _inv_item.num_draw = _inv_item.num;
+                     }
+-                    
+                     _exists = true;
+                     i = _inv_num;
+                 }
+             }
+-            
+             if (!_exists)
++            {
+                 ds_list_add(global.inv_list, arg0);
+-            
++            }
+             break;
+-        
+         case UnknownEnum.Value_9:
+             _set = true;
+             scr_insert_unit_to_list(arg0.info, 0, -1);
+             break;
+-        
+         case UnknownEnum.Value_8:
+             scr_mon_num_edit(arg0.index - 1, 0, arg0.num, true);
+             global.val.nest_num[0] = scr_all_mon_num_cal();
+             _set = true;
+             break;
+-        
+         case UnknownEnum.Value_2:
+             scr_add_event(UnknownEnum.Value_31, false);
+             break;
+     }
+-    
+     if (!_set)
+     {
+         var _exists = false;
+-        
+         for (var ii = 0; ii < _inv_num; ii++)
+         {
+             var _inv_item = ds_list_find_value(global.inv_list, ii);
+-            
+             if (_inv_item.item_type == arg0.item_type)
+             {
+                 _inv_item.num = max(0, _inv_item.num + arg0.num);
+-                
+                 if (_inv_item.num <= 0)
+                 {
+                     ds_list_delete(global.inv_list, ii);
+@@ -198,31 +196,27 @@
+                     ds_list_set(global.inv_list, ii, _inv_item);
+                     _inv_item.num_draw = _inv_item.num;
+                 }
+-                
+                 _exists = true;
+                 ii = _inv_num;
+             }
+         }
+-        
+         if (!_exists)
++        {
+             ds_list_add(global.inv_list, arg0);
++        }
+     }
+-    
+     with (obj_np.obj_raid)
+     {
+         var _row = extra_row_num;
+         extra_row_num = scr_set_inventory_row();
+-        
+         if (obj_np.obj_raid.activate && _row != extra_row_num && inv_slider != -1)
+         {
+             var _y = 0;
+-            
+             with (inv_slider)
+             {
+                 _y = y - y_start;
+                 instance_destroy();
+             }
+-            
+             inv_slider = scr_create_inv_slider(_y);
+         }
+     }
+@@ -233,7 +227,6 @@
+     var _p_array = [];
+     var _inv_list = ds_list_size(global.inv_list);
+     var _combine = false;
+-    
+     if (arg0.index == UnknownEnum.Value_3 || arg0.index == UnknownEnum.Value_7)
+     {
+         scr_add_new_slot_h_type(arg0.num, true);
+@@ -243,11 +236,9 @@
+         for (var i = 0; i < _inv_list; i++)
+         {
+             var _item = ds_list_find_value(global.inv_list, i);
+-            
+             if (_item.item_type == UnknownEnum.Value_5 && _item.num == arg0.num)
+             {
+                 array_push(_p_array, i);
+-                
+                 if (array_length(_p_array) >= 2)
+                 {
+                     scr_add_new_slot_h_type(arg0.num, true);
+@@ -258,7 +249,6 @@
+                 }
+             }
+         }
+-        
+         if (!_combine)
+         {
+             ds_list_add(global.inv_list, arg0);
+@@ -277,11 +267,9 @@
+     var _between_list = ds_list_create();
+     var _prop_list = ds_list_create();
+     var _new_list = ds_list_create();
+-    
+     for (var i = 0; i < _max_size; i++)
+     {
+         var _item = ds_list_find_value(global.inv_list, i);
+-        
+         switch (_item.item_type)
+         {
+             case UnknownEnum.Value_4:
+@@ -290,7 +278,6 @@
+                 _max_size--;
+                 i--;
+                 break;
+-            
+             case UnknownEnum.Value_5:
+                 ds_list_add(_print_list, _item);
+                 ds_list_delete(global.inv_list, i);
+@@ -299,15 +286,12 @@
+                 break;
+         }
+     }
+-    
+     _max_size = ds_list_size(_milk_list);
+-    
+     for (var i = 1; i < _max_size; i++)
+     {
+         var _item = ds_list_find_value(_milk_list, i);
+         var _item_2 = ds_list_find_value(_milk_list, i - 1);
+         var _num = 0;
+-        
+         while (_item_2 != undefined && _item.lvl < _item_2.lvl)
+         {
+             ds_list_replace(_milk_list, i - 1 - _num, _item);
+@@ -317,18 +301,15 @@
+             _item_2 = ds_list_find_value(_milk_list, i - 1 - _num);
+         }
+     }
+-    
+     ds_list_clear(_new_list);
+     _array_order = global.breed_order;
+     _order_size = array_length(_array_order);
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var ii = 0; ii < _order_size; ii++)
+     {
+         for (var i = 0; i < _max_size; i++)
+         {
+             var _item = ds_list_find_value(_print_list, i);
+-            
+             if (_item.num == _array_order[ii])
+             {
+                 ds_list_add(_new_list, _item);
+@@ -338,17 +319,14 @@
+             }
+         }
+     }
+-    
+     _array_order = global.utility_order;
+     _order_size = array_length(_array_order);
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var ii = 0; ii < _order_size; ii++)
+     {
+         for (var i = 0; i < _max_size; i++)
+         {
+             var _item = ds_list_find_value(_print_list, i);
+-            
+             if (_item.num == _array_order[ii])
+             {
+                 ds_list_add(_new_list, _item);
+@@ -358,17 +336,14 @@
+             }
+         }
+     }
+-    
+     _array_order = global.pleasure_order;
+     _order_size = array_length(_array_order);
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var ii = 0; ii < _order_size; ii++)
+     {
+         for (var i = 0; i < _max_size; i++)
+         {
+             var _item = ds_list_find_value(_print_list, i);
+-            
+             if (_item.num == _array_order[ii])
+             {
+                 ds_list_add(_new_list, _item);
+@@ -378,17 +353,14 @@
+             }
+         }
+     }
+-    
+     _array_order = global.b_breed_order;
+     _order_size = array_length(_array_order);
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var ii = 0; ii < _order_size; ii++)
+     {
+         for (var i = 0; i < _max_size; i++)
+         {
+             var _item = ds_list_find_value(_print_list, i);
+-            
+             if (_item.num == _array_order[ii])
+             {
+                 ds_list_add(_new_list, _item);
+@@ -398,17 +370,14 @@
+             }
+         }
+     }
+-    
+     _array_order = global.b_utility_order;
+     _order_size = array_length(_array_order);
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var ii = 0; ii < _order_size; ii++)
+     {
+         for (var i = 0; i < _max_size; i++)
+         {
+             var _item = ds_list_find_value(_print_list, i);
+-            
+             if (_item.num == _array_order[ii])
+             {
+                 ds_list_add(_new_list, _item);
+@@ -418,17 +387,14 @@
+             }
+         }
+     }
+-    
+     _array_order = global.b_pleasure_order;
+     _order_size = array_length(_array_order);
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var ii = 0; ii < _order_size; ii++)
+     {
+         for (var i = 0; i < _max_size; i++)
+         {
+             var _item = ds_list_find_value(_print_list, i);
+-            
+             if (_item.num == _array_order[ii])
+             {
+                 ds_list_add(_new_list, _item);
+@@ -438,17 +404,14 @@
+             }
+         }
+     }
+-    
+     _array_order = global.t_breed_order;
+     _order_size = array_length(_array_order);
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var ii = 0; ii < _order_size; ii++)
+     {
+         for (var i = 0; i < _max_size; i++)
+         {
+             var _item = ds_list_find_value(_print_list, i);
+-            
+             if (_item.num == _array_order[ii])
+             {
+                 ds_list_add(_new_list, _item);
+@@ -458,17 +421,14 @@
+             }
+         }
+     }
+-    
+     _array_order = global.t_utility_order;
+     _order_size = array_length(_array_order);
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var ii = 0; ii < _order_size; ii++)
+     {
+         for (var i = 0; i < _max_size; i++)
+         {
+             var _item = ds_list_find_value(_print_list, i);
+-            
+             if (_item.num == _array_order[ii])
+             {
+                 ds_list_add(_new_list, _item);
+@@ -478,15 +438,12 @@
+             }
+         }
+     }
+-    
+     _max_size = ds_list_size(_new_list);
+-    
+     for (var i = 1; i < _max_size; i++)
+     {
+         var _item = ds_list_find_value(_new_list, i);
+         var _item_2 = ds_list_find_value(_new_list, i - 1);
+         var _num = 0;
+-        
+         while (_item_2 != undefined && _item.num == _item_2.num && _item.lvl < _item_2.lvl)
+         {
+             ds_list_replace(_new_list, i - 1 - _num, _item);
+@@ -496,17 +453,14 @@
+             _item_2 = ds_list_find_value(_new_list, i - 1 - _num);
+         }
+     }
+-    
+     ds_list_clear(_print_list);
+     ds_list_copy(_print_list, _new_list);
+     _max_size = ds_list_size(global.inv_list);
+-    
+     for (var i = 1; i < _max_size; i++)
+     {
+         var _item = ds_list_find_value(global.inv_list, i);
+         var _item_2 = ds_list_find_value(global.inv_list, i - 1);
+         var _num = 0;
+-        
+         while (_item_2 != undefined && _item.item_type < _item_2.item_type)
+         {
+             ds_list_replace(global.inv_list, i - 1 - _num, _item);
+@@ -516,23 +470,18 @@
+             _item_2 = ds_list_find_value(global.inv_list, i - 1 - _num);
+         }
+     }
+-    
+     _max_size = ds_list_size(_print_list);
+-    
+     for (var i = 0; i < _max_size; i++)
+     {
+         var _item = ds_list_find_value(_print_list, i);
+         ds_list_insert(global.inv_list, i, _item);
+     }
+-    
+     _max_size = ds_list_size(_milk_list);
+-    
+     for (var i = 0; i < _max_size; i++)
+     {
+         var _item = ds_list_find_value(_milk_list, i);
+         ds_list_insert(global.inv_list, i, _item);
+     }
+-    
+     ds_list_destroy(_milk_list);
+     ds_list_destroy(_print_list);
+     ds_list_destroy(_between_list);
+@@ -543,36 +492,28 @@
+ function scr_reload_all_item()
+ {
+     var _num = ds_list_size(global.quest_list);
+-    
+     for (var i = 0; i < _num; i++)
+     {
+         var _quest = ds_list_find_value(global.quest_list, i);
+-        
+         if (_quest.quest_text != -1)
+         {
+             var _a = _quest.quest_reward;
+             ds_list_find_value(global.quest_list, i).quest_reward = scr_set_item_data(_a.item_type, _a.num, _a.lvl);
+         }
+     }
+-    
+     _num = ds_list_size(global.inv_list);
+-    
+     for (var i = 0; i < _num; i++)
+     {
+         var _a = ds_list_find_value(global.inv_list, i);
+         ds_list_set(global.inv_list, i, scr_set_item_data(_a.item_type, _a.num, _a.lvl));
+     }
+-    
+     _num = ds_list_size(global.raid_inv_list);
+-    
+     for (var i = 0; i < _num; i++)
+     {
+         var _a = ds_list_find_value(global.raid_inv_list, i);
+         ds_list_set(global.raid_inv_list, i, scr_set_item_data(_a.item_type, _a.num, _a.lvl));
+     }
+-    
+     _num = array_length(global.val.stage_info);
+-    
+     for (var i = 0; i < _num; i++)
+     {
+         if (global.val.stage_info[i] != -1)
+@@ -587,15 +528,14 @@
+             }
+         }
+     }
+-    
+     _num = array_length(obj_raid.raid_data.shop_item);
+-    
+     for (var i = 0; i < _num; i++)
+     {
+         var _a = obj_raid.raid_data.shop_item[i];
+-        
+         if (_a != -1)
++        {
+             obj_raid.raid_data.shop_item[i] = scr_set_item_data(_a.item_type, _a.num, _a.lvl);
++        }
+     }
+ }
+ 
 diff -uN gml_138/gml_GlobalScript_s_macro.gml gml/gml_GlobalScript_s_macro.gml
 --- gml_138/gml_GlobalScript_s_macro.gml	2026-09-02 08:45:16.167546400 +0200
 +++ gml/gml_GlobalScript_s_macro.gml	2026-06-17 15:19:55.205328100 +0200
@@ -59313,8 +60468,8 @@ diff -uN gml_138/gml_Object_obj_bg_Draw_0.gml gml/gml_Object_obj_bg_Draw_0.gml
 +}
 diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_Step_0.gml
 --- gml_138/gml_Object_obj_control_Step_0.gml	2026-09-02 08:45:16.157546500 +0200
-+++ gml/gml_Object_obj_control_Step_0.gml	2026-10-19 14:56:40.930502600 +0200
-@@ -1 +1,131 @@
++++ gml/gml_Object_obj_control_Step_0.gml	2026-10-27 11:30:57.447243300 +0100
+@@ -1 +1,134 @@
 -scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
@@ -59421,6 +60576,9 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 +
 +if (global.gnx_multimap_enabled && instance_exists(obj_slot) && (global.gnx_map_unlock_tick mod 60) == 0)  // maps whose unlock condition was just met
 +    scr_gnx_check_map_unlocks();
++
++if (instance_exists(obj_slot) && (global.gnx_map_unlock_tick mod 60) == 0)  // mod raid loot this save has not had yet
++    gnx_loot_sync();
 +
 +if (global.gnx_perf_enabled)
 +{

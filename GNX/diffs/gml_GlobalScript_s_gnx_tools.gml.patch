@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1734 @@
+@@ -0,0 +1,1747 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -533,7 +533,20 @@
 +            break;
 +        
 +        case "give_item":
-+            scr_add_item(scr_set_item_data(arg0.item_type, arg0.data, arg0.level));  // GNX fix: the item was never passed
++            // GNX-ITEM: {"item": "MOON SHARD", "amount": 2} gives mod items (items.json); item_type/data/level is the
++            // game's internal item data
++            if (variable_struct_exists(arg0, "item"))
++            {
++                var _git = gnx_item_resolve(arg0.item, arg1);
++
++                if (_git != -1)
++                    scr_add_item(scr_set_item_data(_git, variable_struct_exists(arg0, "amount") ? max(1, floor(gnx_json_num(arg0.amount, 1))) : 1, 0));
++            }
++            else
++            {
++                scr_add_item(scr_set_item_data(arg0.item_type, arg0.data, arg0.level));  // GNX fix: the item was never passed
++            }
++
 +            break;
 +        
 +        case "give_blueprint":

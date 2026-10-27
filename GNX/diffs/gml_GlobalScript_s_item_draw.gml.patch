@@ -1,0 +1,195 @@
+--- gml_138/gml_GlobalScript_s_item_draw.gml	2026-09-02 08:45:16.542617600 +0200
++++ gml/gml_GlobalScript_s_item_draw.gml	2026-10-27 11:26:46.695052900 +0100
+@@ -5,37 +5,36 @@
+     var _index = arg2.index;
+     var _num = arg2.num_draw;
+     var _code = -1;
+-    
+     switch (arg2.item_type)
+     {
+         case UnknownEnum.Value_5:
+             _code = arg2.code_text;
+             break;
+-        
+         case UnknownEnum.Value_7:
+             _code = arg2.code_text;
+             break;
+-        
+         case UnknownEnum.Value_9:
+             _draw_item = false;
+             scr_draw_stage_unit_head(arg0, arg1, arg2.info, false);
+             break;
+     }
+-    
+-    if (_draw_item)
+-        draw_sprite(_spr, _index, arg0, arg1);
+-    
++    if (_draw_item && _spr != -1)
++    {
++        gnx_draw_sprite(_spr, _index, arg0, arg1);  // GNX-ITEM: mod item sprites may be atlas sprites
++    }
+     if (_code != -1)
+     {
+         if (arg3)
++        {
+             scr_draw_shadow(arg0 - 8, arg1 - 9, _code, 0);
+-        
++        }
+         if (_num != -1)
+         {
+             _num = _num % 4;
+-            
+             for (var i = 0; i < 3; i++)
++            {
+                 draw_sprite(spr_item_num, sign(abs(i - _num)), arg0 + 7, arg1 + 4 + (i * 2));
++            }
+         }
+     }
+     else if (_num != -1 && arg3)
+@@ -49,7 +48,6 @@
+     var _mouse_x = device_mouse_x_to_gui(0);
+     var _mouse_y = device_mouse_y_to_gui(0);
+     var _width = 20;
+-    
+     if (_mouse_x >= 14 && _mouse_x <= 162 && _mouse_y >= 167 && _mouse_y <= 218)
+     {
+         var _inv = obj_np.obj_raid;
+@@ -57,45 +55,37 @@
+         var _inv_pos_y = floor((_mouse_y - 167 - _inv.slider_y) / _inv.row_h);
+         var _pos = _inv_pos_x + (_inv_pos_y * 7);
+         var _item_data = ds_list_find_value(global.inv_list, _pos);
+-        
+         if (_item_data != undefined && _item_data.item_name != -1)
+         {
+             var _text_x = 14 + (_inv_pos_x * 21) + 10;
+             var _text_y = 167 + _inv.slider_y + (_inv_pos_y * _inv.row_h);
+             draw_set_halign(fa_center);
+             draw_sprite(spr_button_guide, 0, _text_x, _text_y);
+-            var _name = _item_data.item_name;
++            var _name = gnx_item_name(_item_data);  // GNX-ITEM: mod items and mod-cell blueprints in every language
+             var _lang_pos = scr_change_lang();
+-            
+-            if (global.val.language != UnknownEnum.Value_0)
++            if (global.val.language != UnknownEnum.Value_0 && !gnx_item_own_name(_item_data))
+             {
+                 switch (_item_data.item_type)
+                 {
+                     case UnknownEnum.Value_4:
+                         _name = scr_lang_prop_text_milk(_item_data.num);
+                         break;
+-                    
+                     case UnknownEnum.Value_5:
+                         _name = scr_lang_slot_text(_item_data.num);
+                         break;
+-                    
+                     case UnknownEnum.Value_7:
+                         _name = scr_lang_prop_text(_item_data.num);
+                         break;
+-                    
+                     case UnknownEnum.Value_2:
+                         _name = scr_lang_prop_text_cow_bell(_item_data.num);
+                         break;
+                 }
+             }
+-            
+             draw_text(_text_x + 1 + _lang_pos[0], (_text_y - 3) + _lang_pos[1], _name);
+             draw_set_font(fnt_base_font_eng);
+         }
+     }
+-    
+     var _stage = obj_np.obj_raid.raid_data.stage;
+-    
+     if (_stage != -1 && (obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_0 || obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_1 || obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_2))
+     {
+         var _stage_lvl = min(2, global.val.stage_lvl_sel[_stage]);
+@@ -103,55 +93,46 @@
+         var _max = array_length(_reward_list);
+         _x = 173;
+         _y = 199;
+-        
+         if (_mouse_x >= _x && _mouse_x < (_x + (_width * _max)) && _mouse_y >= _y && _mouse_y < (_y + _width))
+         {
+             var _inv_pos_x = min(_max - 1, floor((_mouse_x - _x) / _width));
+             var _item_data = _reward_list[_inv_pos_x];
+-            
+             if (_item_data != undefined && _item_data.item_name != -1)
+             {
+                 var _text_x = _x + (_inv_pos_x * _width) + 10;
+                 var _text_y = _y;
+                 draw_set_halign(fa_center);
+                 draw_sprite(spr_button_guide, 0, _text_x, _text_y);
+-                var _name = _item_data.item_name;
++                var _name = gnx_item_name(_item_data);  // GNX-ITEM: mod items and mod-cell blueprints in every language
+                 var _lang_pos = scr_change_lang();
+-                
+-                if (global.val.language != UnknownEnum.Value_0)
++                if (global.val.language != UnknownEnum.Value_0 && !gnx_item_own_name(_item_data))
+                 {
+                     switch (_item_data.item_type)
+                     {
+                         case UnknownEnum.Value_5:
+                             _name = scr_lang_slot_text(_item_data.num);
+                             break;
+-                        
+                         case UnknownEnum.Value_7:
+                             _name = scr_lang_prop_text(_item_data.num);
+                             break;
+-                        
+                         case UnknownEnum.Value_4:
+                             _name = scr_lang_prop_text_milk(_item_data.num);
+                             break;
+-                        
+                         case UnknownEnum.Value_2:
+                             _name = scr_lang_prop_text_cow_bell(_item_data.num);
+                             break;
+                     }
+                 }
+-                
+                 draw_text(_text_x + 1 + _lang_pos[0], (_text_y - 3) + _lang_pos[1], _name);
+                 draw_set_font(fnt_base_font_eng);
+             }
+         }
+     }
+-    
+     var _x = 310;
+     var _y = 173;
+     var _row = 2;
+     var _column = 3;
+     var _f_height = 20;
+-    
+     if (_mouse_x >= _x && _mouse_x <= (_x + (21 * _column)) && _mouse_y >= _y && _mouse_y <= (_y + (_f_height * _row)))
+     {
+         var _inv = obj_np.obj_raid;
+@@ -159,30 +140,26 @@
+         var _inv_pos_y = floor((_mouse_y - _y) / _f_height);
+         var _pos = _inv_pos_x + (_inv_pos_y * _column);
+         var _item_data = ds_list_find_value(global.raid_inv_list, _pos);
+-        
+         if (_item_data != undefined && _item_data.item_name != -1)
+         {
+             var _text_x = _x + (_inv_pos_x * 21) + 10;
+             var _text_y = _y + (_inv_pos_y * _f_height);
+             draw_set_halign(fa_center);
+             draw_sprite(spr_button_guide, 0, _text_x, _text_y);
+-            var _name = _item_data.item_name;
++            var _name = gnx_item_name(_item_data);  // GNX-ITEM: mod items and mod-cell blueprints in every language
+             var _lang_pos = scr_change_lang();
+-            
+-            if (global.val.language != UnknownEnum.Value_0)
++            if (global.val.language != UnknownEnum.Value_0 && !gnx_item_own_name(_item_data))
+             {
+                 switch (_item_data.item_type)
+                 {
+                     case UnknownEnum.Value_5:
+                         _name = scr_lang_slot_text(_item_data.num);
+                         break;
+-                    
+                     case UnknownEnum.Value_7:
+                         _name = scr_lang_prop_text(_item_data.num);
+                         break;
+                 }
+             }
+-            
+             draw_text(_text_x + 1 + _lang_pos[0], (_text_y - 3) + _lang_pos[1], _name);
+             draw_set_font(fnt_base_font_eng);
+         }

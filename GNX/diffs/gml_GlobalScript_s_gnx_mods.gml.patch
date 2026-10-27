@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2493 @@
+@@ -0,0 +1,2498 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1387,6 +1387,7 @@
 +    global.gnx_indexed_mods = [];
 +    global.gnx_loaded_mods = [];
 +    global.gnx_tr = {};  // translations of mod text, by language code (gnx_load_translations, gnx_tr)
++    gnx_items_reset();  // mod items and raid loot (items.json)
 +    global.gnx_map_deferred_mods = [];
 +    global.gnx_mod_map_decl = {};
 +    global.gnx_multimap_enabled = true;
@@ -1567,6 +1568,7 @@
 +    
 +    scr_gnx_resolve_birth_classes();
 +    scr_gnx_deferred_resolve_class_map();
++    gnx_loot_resolve();  // mod raid loot may name items and cells of any mod
 +    var _cp = gnx_log_open();
 +    gnx_log_write(_cp, "[GNX-TIME] cp1 after resolve = " + string((get_timer() - _gnx_boot_t0) / 1000) + " ms\n");
 +    gnx_log_close(_cp);
@@ -2293,6 +2295,9 @@
 +    {
 +        if (variable_struct_exists(_manifest, "cells"))
 +            scr_gnx_load_cells(arg0, _manifest.cells);
++
++        if (variable_struct_exists(_manifest, "items"))
++            scr_gnx_load_items(arg0, _manifest.items);
 +    
 +        _tmp_lg = gnx_log_open();
 +        gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " cells = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
@@ -2331,8 +2336,8 @@
 +    _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
 +    gnx_log_close(_tmp_lg);
-+    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json"];
-+    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props"];
++    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json", "items.json"];
++    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props", "items"];
 +    var _mod_dir = global.gnx_mods_root + arg0 + "/";
 +    
 +    for (var _wi = 0; _wi < array_length(_data_files); _wi++)

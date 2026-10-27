@@ -6,6 +6,7 @@
 
 ### New Features
 
+- **Mod items and raid loot** (`items.json`): a mod can add inventory items (a name and a 20 x 20 picture) and put them, or blueprint pieces and complete blueprints of its cells, into the finds of raid stages. Each find is added once per save, old saves included. Quests check, give and take items (`has_item`, `give_item`, `take_item`, reward `item`) and tools give them. The names of mod items and of mod-cell blueprints now show in every language (modding guide 25).
 - **Mod translations**: a mod can ship `lang/<code>.json` files (`fr`, `ja`, `zh`, `de`, ... ) mapping its English texts to another language. Cell, prop and class names, quest texts and dialogs, popups, tool menus, map names and the MODS menu then show in the player's language, and follow a language change at once; names used as references are not affected (modding guide 4.6).
 - **`min_gnx_version`** (manifest key): the oldest GNX a mod works with. An older GNX does not load the mod (it would silently miss the newer keys), shows it as "needs GNX x" in the MODS menu and asks the player to update GNX; mods that require it are skipped too (modding guide 4.2).
 

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4205 @@
+@@ -0,0 +1,4259 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1576,6 +1576,60 @@
 +    }
 +    
 +    return "none";
++}
++
++
++// for {"assert": "fn"}: item_type of mod item arg0 ("folder.NAME"), or the number given
++function gnx_scn_item_type(arg0)
++{
++    return is_string(arg0) ? gnx_item_resolve(arg0, "") : arg0;
++}
++
++
++// for {"assert": "fn"}: how many of item arg0 ("folder.NAME" or an item_type) the inventory holds
++function gnx_scn_item_count(arg0)
++{
++    return gnx_item_count(gnx_scn_item_type(arg0));
++}
++
++
++// for {"assert": "fn"}: how many loot entries stage arg0, level arg1 holds for item arg2 ("folder.NAME" or an item_type)
++function gnx_scn_loot_count(arg0, arg1, arg2)
++{
++    var _t = gnx_scn_item_type(arg2);
++    var _list = global.val.stage_item[arg0][arg1];
++    var _n = 0;
++    
++    for (var _i = 0; _i < array_length(_list); _i++)
++    {
++        if (_list[_i][0] == _t)
++            _n++;
++    }
++    
++    return _n;
++}
++
++
++// for {"assert": "fn"}: how many blueprint loot entries (pieces or complete) stage arg0, level arg1 holds for cell arg2
++function gnx_scn_loot_blueprints(arg0, arg1, arg2)
++{
++    var _list = global.val.stage_item[arg0][arg1];
++    var _n = 0;
++    
++    for (var _i = 0; _i < array_length(_list); _i++)
++    {
++        if (_list[_i][0] == 5 && _list[_i][1] == arg2)
++            _n++;
++    }
++    
++    return _n;
++}
++
++
++// for {"assert": "fn"}: the name an item (arg0 = item_type or "folder.NAME", arg1 = data) shows, in the current language
++function gnx_scn_item_name(arg0, arg1 = 1)
++{
++    return gnx_item_name(scr_set_item_data(gnx_scn_item_type(arg0), arg1, 3));
 +}
 +
 +

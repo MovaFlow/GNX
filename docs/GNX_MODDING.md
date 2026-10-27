@@ -28,6 +28,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 - [22. Scene timing: frame counts, start, ej and loop strips](#22-scene-timing-frame-counts-start-ej-and-loop-strips)
 - [23. Intermissions](#23-intermissions)
 - [24. Underground cells](#24-underground-cells)
+- [25. Items and raid loot (items.json)](#25-items-and-raid-loot-itemsjson)
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
 
@@ -107,6 +108,7 @@ In GNX files `-1` almost always means **"none" or "not used"**: `"icon_hair": -1
 | Make props animate, glow, react to a cell or count | [19.7](#197-animation) to [19.11](#1911-counter) |
 | Give a cell its own frame counts and timing, or add intermissions | [22. Scene timing](#22-scene-timing-frame-counts-start-ej-and-loop-strips), [23. Intermissions](#23-intermissions) |
 | Make a cell below the floor line | [24. Underground cells](#24-underground-cells) |
+| Add items, raid loot or blueprints of my cells to raids | [25. Items and raid loot](#25-items-and-raid-loot-itemsjson) |
 | Let several monsters use a cell each on their own | [11.5 Independent places](#115-independent-places) |
 | Make many sprites load faster | [20. Atlas packing](#20-atlas-packing) |
 | Write quests and events | [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) |
@@ -323,7 +325,7 @@ What this example does:
 | `name` | Display name in the MODS menu and the log. | text | required |
 | `version` | Your mod version, for example `"1.0.0"`, shown in the MODS menu and the log. | text | required |
 | `compatible_game_versions` | Must contain `"1.38"`, `"1.39"` or `"1.40"` ([4.2](#42-the-version-check)). | list | required |
-| `classes`, `cells`, `quests`, `tools`, `sounds`, `props` | Paths of the data files, relative to the mod folder ([4.4](#44-data-file-keys)); see [§6](#6-classes-classesjson), [§8](#8-cells-cellsjson), [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md), [§17](#17-tools-toolsjson), [§18](#18-sounds-soundsjson), [§19](#19-props-propsjson). | text | — |
+| `classes`, `cells`, `quests`, `tools`, `sounds`, `props`, `items` | Paths of the data files, relative to the mod folder ([4.4](#44-data-file-keys)); see [§6](#6-classes-classesjson), [§8](#8-cells-cellsjson), [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md), [§17](#17-tools-toolsjson), [§18](#18-sounds-soundsjson), [§19](#19-props-propsjson), [§25](#25-items-and-raid-loot-itemsjson). | text | — |
 | `save_state` | Saved variables ([4.3](#43-save_state)). | object | — |
 | `mod_id` | A second name for other mods' `requires`, usually the folder name. References always use the folder name. | text | — |
 | `requires` | Mods this one needs, by folder name or `mod_id` ([4.5](#45-requires-and-the-mods-menu)). | list | — |
@@ -3004,7 +3006,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **39** a
 | `add_food` | `amount` (required) | Adds food. Never below 0. |
 | `add_milk` | `rarity` (default -1), `amount` (default 1) | Adds milk of rarity 0–4; `-1` adds `amount` of every rarity. |
 | `add_orbs` | `amount` (required) | Adds orbs (the vanilla orb counter). Never below 0. |
-| `give_item` | `item_type`, `data`, `level` (all required) | Creates one inventory item from the game's internal item data. Advanced; the actions below are easier. |
+| `give_item` | `item` (a mod item, [§25](#25-items-and-raid-loot-itemsjson)) and `amount` (default 1); or `item_type`, `data`, `level` (all required) | Gives mod items; or, with `item_type`, creates one inventory item from the game's internal item data (advanced; the actions below are easier). |
 | `give_blueprint` | `h_type` (cell reference, required), `fragment` (default false), `lvl` (default 1) | Gives a complete blueprint, or with `"fragment": true` a fragment of level `lvl` (a complete blueprint is level 3). |
 | `give_prop` | `prop_id` (required) | Unlocks a prop in the edit-mode menu with the vanilla popup. `prop_id` is the prop's name (`"my_mod.iron_candle"`, or `"iron_candle"` for your own mod; new in 1.5) or its number ([§19.5](#195-prop-ids)). Same as `unlock_prop`. |
 
@@ -4440,6 +4442,58 @@ How a milk strip plays:
 - **TRANSFER.** The hobgoblins of a TRANSFER cell take no captive out of an underground cell and bring none in. The player can still move captives in and out by hand. `"transfer": true` in `physical` allows it ([9.9](#99-optional-keys)).
 - **Frog shrine.** It works for underground cells: a captive with no pregnancies left, and not pregnant, is swapped for a unit of the same class from the prison that still has pregnancies. In a cell that milks, the swap waits until her milk is used up.
 - **Payout.** `spawn_info` is paid after each ejaculation, as in other cells ([8.6](#86-spawn_info-gold-and-mood)).
+
+---
+
+## 25. Items and raid loot (items.json)
+
+A mod can add its own inventory items, and put them, or blueprints of its cells, into the loot of raid stages. Declare the file in `manifest.json` with `"items": "items.json"`.
+
+```json
+{
+  "sprites": {
+    "shard": { "strip": "strips/shard.png", "frames": 1 }
+  },
+  "items": [
+    { "name": "MOON SHARD", "sprite": "gnx:shard" }
+  ],
+  "loot": [
+    { "stage": 0, "level": 1, "item": "MOON SHARD", "num": 2 },
+    { "stage": 1, "level": 0, "blueprint": "ALTAR", "piece": 0 },
+    { "stage": 2, "level": 2, "blueprint": "ALTAR", "complete": true }
+  ]
+}
+```
+
+### 25.1 Items
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `name` | The item's name: shown when the player points at it, and how quests, tools and loot refer to it (`"MOON SHARD"` in your own mod, `"my_mod.MOON SHARD"` from another). | text | required |
+| `sprite` | Its picture, 20 x 20 like the game's items: a `gnx:` key of the file's `sprites` ([5.1](#51-the-sprites-dict)). Only frame 0 is drawn. | text | required |
+
+- An item stacks: the inventory shows one slot with the count, like the game's own items. It is saved with the game and travels between maps with the rest of the inventory ([21](#21-multi-map-travel)).
+- An item does nothing by itself. Quests give it, count it and take it ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md): reward `item`, condition `has_item`, side effects `give_item` and `take_item`); tools give it (`give_item` with `item`, [17.6](#176-action-reference)).
+- Its name follows the player's language when your mod translates it ([4.6](#46-translations-lang)).
+- Items came after GNX 1.5.0: set `min_gnx_version` to the GNX version that first has them, so an older GNX tells the player to update instead of loading the mod without its items ([4.2](#42-the-version-check)).
+
+> **When** a save holds items of a mod that is no longer loaded, they stay in the inventory as empty slots and come back with the mod.
+
+### 25.2 Raid loot
+
+Each entry of `loot` adds **one find** to a raid stage, like the game's own finds: the stage's reward list shows it, a won raid can bring it home, and once found it is gone. Each entry is added once per save (and per map, when the player has several), the first time the game runs with your mod, so an old save gets it too.
+
+| Key | What it means | Type |
+|---|---|---|
+| `stage` | The raid stage, from 0 ([13.1](#131-stages-and-encounter-levels)). | number |
+| `level` | The stage's level, from 0. | number |
+| `item` + `num` | One of your items (or another mod's, `"mod.NAME"`), `num` of them (default 1). | text, number |
+| `blueprint` | A cell (`"ALTAR"`, `"other_mod.CELL"`): a blueprint **piece**, `piece` 0, 1 or 2 (three different pieces combine into the cell, as for the game's cells), or with `"complete": true` the whole blueprint, which unlocks the cell when it is picked up. | text |
+
+- A stage or level the map does not have is skipped (it is added if it appears later, for example on a mod map).
+- Changing an entry of an existing save does not add it again; add a new entry instead.
+
+> **When** an entry names an item or a cell that no loaded mod has, or has neither `item` nor `blueprint`, it is skipped and the log says so (`[GNX] ERROR: Mod 'my_mod': loot[1]: blueprint 'ALTER' is not a cell of any loaded mod; skipped`). The log lists each find it adds: `[GNX] loot my_mod|0|item MOON SHARD added to stage 0 level 1`.
 
 ---
 

@@ -131,6 +131,7 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `state_lte` | `key`, `value` | mod save state key <= value |
 | `unit_count` | `class` (optional), `value` | units of that class >= value. Omit `class` to count all units |
 | `gold_gte` | `value` | `global.val.money >= value` |
+| `has_item` | `item`, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
 | `floor_gte` | `value` | `global.val.floor >= value` |
 | `cell_count` | `h_type`, `value` | count of built cells with that h_type >= value |
 | `cell_built` | `h_type` (string ref or int) | at least one cell with that h_type exists |
@@ -154,6 +155,8 @@ time. You can use string refs or integer IDs interchangeably in `class` and
 | `set_state` | `key`, `value` | sets mod save state key to value |
 | `add_gold` | `amount` | adds gold |
 | `add_food` | `amount` | adds food |
+| `give_item` | `item`, `amount` (default 1) | puts that many of a mod item (items.json) into the inventory |
+| `take_item` | `item`, `amount` (default 1) | takes that many out (as many as there are) |
 | `unlock_cell` | `h_type` (string ref or int) | unlocks cell in build menu |
 | `unlock_class` | `class` (string ref or int) | adds class to raid encounter pools |
 | `unlock_map` | `map` | opens a mod map in the travel menu for good, as its `map_info.unlock` would (saved, shared by every map, announced with `New map: <label>`). A map without a travel entry (its mod is off) is logged and ignored |
@@ -169,6 +172,7 @@ event fires, before the dialog is displayed.
 | `food` | `amount` | Adds food |
 | `blueprint` | `h_type`, optional `fragment`, optional `lvl` | Default: complete blueprint (instant unlock, lvl=3). With `"fragment": true`: single fragment (need 3 to combine), `lvl` controls pip display (default 1) |
 | `prop` | `prop_id` | Unlocks a prop in the customization menu |
+| `item` | `item`, `amount` (default 1) | A mod item (items.json), `"NAME"` of the quest's mod or `"mod.NAME"` |
 
 ## Hook points (triggers)
 
