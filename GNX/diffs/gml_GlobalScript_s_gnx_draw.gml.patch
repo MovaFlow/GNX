@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,970 @@
+@@ -0,0 +1,1005 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -954,6 +954,41 @@
 +    draw_rectangle(_track_x, _thumb_y, _track_x + _track_w, _thumb_y + _thumb_h, true);
 +    draw_set_alpha(1);
 +    draw_set_color(c_white);
++}
++
++
++// GNX-SKIN: the frame of a monster overlay (touch / enter) drawn over the captive of this cell. The game's generic
++// overlays hold 3 rows per cell, one per skin tone; a captive with no skin tone (skin -1: special classes, most mod
++// characters) indexes 1 row per cell, which read another cell's row (wrong pose in WALL 3 and 4). Her cell's row,
++// skin 0, instead. arg2 = the frame count per row when the caller's is not anim_struct.frame_c.
++function gnx_mon_frame(arg0, arg1, arg2 = -1)
++{
++    if (unit_data == -1 || unit_data.skin != -1 || !gnx_is_skin3_overlay(arg0))
++        return arg1;
++
++    var _fc = (arg2 == -1) ? slot_data.anim_struct.frame_c : arg2;
++    var _row = floor(arg1 / _fc);
++    return (_row * 3 * _fc) + (arg1 - (_row * _fc));
++}
++
++
++// GNX-SKIN: true when sprite arg0 is one of the game's generic monster overlays with 3 skin rows per cell (the
++// class versions, _nyx / _cow / ..., have 1 row per cell)
++function gnx_is_skin3_overlay(arg0)
++{
++    if (!variable_global_exists("gnx_skin3_overlays"))
++    {
++        global.gnx_skin3_overlays = [];
++        var _names = ["spr_h_goblin_enter_loop", "spr_h_goblin_enter_loop_anal", "spr_h_goblin_enter_start", "spr_h_goblin_touch_ej",
++            "spr_h_goblin_touch_loop_anal", "spr_h_goblin_touch_loop_v1", "spr_h_goblin_touch_loop_v2", "spr_h_goblin_touch_start",
++            "spr_h_goblin_touch_start_anal_v1", "spr_h_goblin_touch_start_anal_v2", "spr_h_hobgoblin_enter_loop",
++            "spr_h_hobgoblin_enter_loop_anal", "spr_h_hobgoblin_touch_loop", "spr_h_hobgoblin_touch_loop_anal", "spr_h_ogre_touch_loop"];
++
++        for (var i = 0; i < array_length(_names); i++)
++            array_push(global.gnx_skin3_overlays, asset_get_index(_names[i]));
++    }
++
++    return !is_struct(arg0) && array_contains(global.gnx_skin3_overlays, arg0);
 +}
 +
 +

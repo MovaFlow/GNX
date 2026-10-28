@@ -9895,7 +9895,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw.gml
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,970 @@
+@@ -0,0 +1,1005 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -10852,6 +10852,41 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +}
 +
 +
++// GNX-SKIN: the frame of a monster overlay (touch / enter) drawn over the captive of this cell. The game's generic
++// overlays hold 3 rows per cell, one per skin tone; a captive with no skin tone (skin -1: special classes, most mod
++// characters) indexes 1 row per cell, which read another cell's row (wrong pose in WALL 3 and 4). Her cell's row,
++// skin 0, instead. arg2 = the frame count per row when the caller's is not anim_struct.frame_c.
++function gnx_mon_frame(arg0, arg1, arg2 = -1)
++{
++    if (unit_data == -1 || unit_data.skin != -1 || !gnx_is_skin3_overlay(arg0))
++        return arg1;
++
++    var _fc = (arg2 == -1) ? slot_data.anim_struct.frame_c : arg2;
++    var _row = floor(arg1 / _fc);
++    return (_row * 3 * _fc) + (arg1 - (_row * _fc));
++}
++
++
++// GNX-SKIN: true when sprite arg0 is one of the game's generic monster overlays with 3 skin rows per cell (the
++// class versions, _nyx / _cow / ..., have 1 row per cell)
++function gnx_is_skin3_overlay(arg0)
++{
++    if (!variable_global_exists("gnx_skin3_overlays"))
++    {
++        global.gnx_skin3_overlays = [];
++        var _names = ["spr_h_goblin_enter_loop", "spr_h_goblin_enter_loop_anal", "spr_h_goblin_enter_start", "spr_h_goblin_touch_ej",
++            "spr_h_goblin_touch_loop_anal", "spr_h_goblin_touch_loop_v1", "spr_h_goblin_touch_loop_v2", "spr_h_goblin_touch_start",
++            "spr_h_goblin_touch_start_anal_v1", "spr_h_goblin_touch_start_anal_v2", "spr_h_hobgoblin_enter_loop",
++            "spr_h_hobgoblin_enter_loop_anal", "spr_h_hobgoblin_touch_loop", "spr_h_hobgoblin_touch_loop_anal", "spr_h_ogre_touch_loop"];
++
++        for (var i = 0; i < array_length(_names); i++)
++            array_push(global.gnx_skin3_overlays, asset_get_index(_names[i]));
++    }
++
++    return !is_struct(arg0) && array_contains(global.gnx_skin3_overlays, arg0);
++}
++
++
 +enum UnknownEnum
 +{
 +    Value_0,
@@ -10869,7 +10904,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4460 @@
+@@ -0,0 +1,4482 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -13059,6 +13094,28 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    surface_save(_surf, arg1);
 +    surface_free(_surf);
 +    return string(_w) + " " + string(_h) + " " + string(sprite_get_xoffset(_spr)) + " " + string(sprite_get_yoffset(_spr)) + " " + string(_n);
++}
++
++
++// the frame gnx_mon_frame gives overlay sprite arg0 (a name) at frame arg1 in the first occupied WALL 3 (h_type 7),
++// for a captive with skin arg2 (her skin is put back after); "" when there is no such cell (fn asserts pass 3 args)
++function gnx_scn_mon_frame(arg0, arg1, arg2)
++{
++    var _r = "";
++
++    with (obj_slot)
++    {
++        if (_r == "" && unit_data != -1 && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == 7)
++        {
++            var _old = unit_data.skin;
++            unit_data.skin = arg2;
++            slot_data.anim_struct.frame_c = 5;
++            _r = gnx_mon_frame(asset_get_index(arg0), arg1);
++            unit_data.skin = _old;
++        }
++    }
++
++    return _r;
 +}
 +
 +
@@ -46112,7 +46169,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_data.gml gml/gml_GlobalScript_s_slot_da
 -}
 diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_draw.gml
 --- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-09-02 08:45:16.434590200 +0200
-+++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-27 08:54:51.158121400 +0100
++++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-28 10:27:33.397589500 +0100
 @@ -2,27 +2,31 @@
  {
      switch (slot_data.slot_type)
@@ -46357,11 +46414,11 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                            draw_sprite(_touch, _final_index, x, y);
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                            gnx_draw_sprite(_touch, _final_index, x, y);
++                            gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
                          
                          if (_enter != -1)
 -                            draw_sprite(_enter, _final_index, x, y);
-+                            gnx_draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, gnx_mon_frame(_enter, _final_index), x, y);
                      }
                      
                      if (_index == 0 && _c_spr != -1)
@@ -46653,11 +46710,11 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                            draw_sprite(_touch, _final_index, x, y);
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                            gnx_draw_sprite(_touch, _final_index, x, y);
++                            gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
                          
                          if (_enter != -1)
 -                            draw_sprite(_enter, _final_index, x, y);
-+                            gnx_draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, gnx_mon_frame(_enter, _final_index), x, y);
                      }
                      
                      if (_index == 0 && _c_spr != -1)
@@ -46824,7 +46881,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                    if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                        draw_sprite_ext(_touch, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
 +                    if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                        gnx_draw_sprite_ext(_touch, _final_index, x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
++                        gnx_draw_sprite_ext(_touch, gnx_mon_frame(_touch, _final_index), x + (image_xscale * _flip), y, _scale, 1, image_angle, image_blend, image_alpha);
                      
                      break;
              }
@@ -46907,7 +46964,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
          
          if (_enter != -1)
 -            draw_sprite(_enter, _final_index, x, y);
-+            gnx_draw_sprite(_enter, _final_index, x, y);
++            gnx_draw_sprite(_enter, gnx_mon_frame(_enter, _final_index), x, y);
          
          if (slot_data.mod_index[7] == 0)
 -            draw_sprite(spr_slot[7][UnknownEnum.Value_3], _final_index, x, y);
@@ -47075,7 +47132,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -            draw_sprite(_touch, _final_index, x, y);
 +        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+            gnx_draw_sprite(_touch, _final_index, x, y);
++            gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
          
 -        draw_sprite(spr_slot[10][UnknownEnum.Value_1], _final_index, x, y);
 +        gnx_draw_sprite(spr_slot[10][1], _final_index, x, y);
@@ -47987,7 +48044,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                            draw_sprite_ext(_touch, _final_index, x + (image_xscale * _flip) + _x_shift, y, _scale, 1, image_angle, image_blend, image_alpha);
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                            gnx_draw_sprite_ext(_touch, _final_index, x + (image_xscale * _flip) + _x_shift, y, _scale, 1, image_angle, image_blend, image_alpha);
++                            gnx_draw_sprite_ext(_touch, gnx_mon_frame(_touch, _final_index, _base_frame_c), x + (image_xscale * _flip) + _x_shift, y, _scale, 1, image_angle, image_blend, image_alpha);
                      }
                      
                      if (_index == 0 && _c_spr != -1)
@@ -48172,7 +48229,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                            draw_sprite(_touch, _final_index, x, y);
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                            gnx_draw_sprite(_touch, _final_index, x, y);
++                            gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
                          
                          if (_index == 0 && _c_spr != -1)
 -                            draw_sprite(_c_spr, _final_index, x, y);
@@ -48437,7 +48494,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                    if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                        draw_sprite(_touch, _final_index, x, y);
 +                    if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                        gnx_draw_sprite(_touch, _final_index, x, y);
++                        gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
                      
                      break;
                  
@@ -48450,7 +48507,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
                          
                          if (_enter != -1)
 -                            draw_sprite(_enter, _final_index, x, y);
-+                            gnx_draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, gnx_mon_frame(_enter, _final_index), x, y);
                      }
                      
                      if (_index == 0 && _c_spr != -1)
@@ -48705,11 +48762,11 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                            draw_sprite(_touch, _final_index, x, y);
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                            gnx_draw_sprite(_touch, _final_index, x, y);
++                            gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
                          
                          if (_enter != -1)
 -                            draw_sprite(_enter, _final_index, x, y);
-+                            gnx_draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, gnx_mon_frame(_enter, _final_index), x, y);
                      }
                      
                      if (_index == 0 && _c_spr != -1)
@@ -48943,11 +49000,11 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                            draw_sprite(_touch, _final_index, x, y);
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                            gnx_draw_sprite(_touch, _final_index, x, y);
++                            gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
                          
                          if (_enter != -1)
 -                            draw_sprite(_enter, _final_index, x, y);
-+                            gnx_draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, gnx_mon_frame(_enter, _final_index), x, y);
                      }
                      
                      if (_index == 0 && _c_spr != -1)
@@ -49200,7 +49257,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 -                        if (_touch != -1 && (global.val.alpha_type == UnknownEnum.Value_0 || global.val.alpha_type == UnknownEnum.Value_1))
 -                            draw_sprite(_touch, _final_index, x, y);
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                            gnx_draw_sprite(_touch, _final_index, x, y);
++                            gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
                          
                          if (_index == 0 && _c_spr != -1)
 -                            draw_sprite(_c_spr, _final_index, x, y);
@@ -49494,10 +49551,10 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
 +                        gnx_draw_sprite(_spr, gnx_loop_index(_spr, _final_index), x, y);
 +                        
 +                        if (_touch != -1 && (global.val.alpha_type == 0 || global.val.alpha_type == 1))
-+                            gnx_draw_sprite(_touch, _final_index, x, y);
++                            gnx_draw_sprite(_touch, gnx_mon_frame(_touch, _final_index), x, y);
 +                        
 +                        if (_enter != -1)
-+                            gnx_draw_sprite(_enter, _final_index, x, y);
++                            gnx_draw_sprite(_enter, gnx_mon_frame(_enter, _final_index), x, y);
 +                    }
 +                    
 +                    if (_index == 0 && _c_spr != -1)

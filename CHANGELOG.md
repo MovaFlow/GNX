@@ -15,6 +15,7 @@
 
 ### Bug Fixes
 
+- Mod characters (and other classes without a skin tone) in WALL 3 and WALL 4: the goblin's and hobgoblin's touch and enter overlays showed another cell's pose. The game's generic overlays hold one row per skin tone; these characters now read their own cell's row.
 - COPY DOWN refused to copy a floor built partly to the left (cells added from the starting pillar with the build side on the left) with "the floor below is not empty", even onto an empty floor. It now copies the whole layout, and also builds the cell of the floor's start slot, which it left out before.
 - Wording: the FLOOR button is on each floor's starting pillar (the one every new floor comes with, also the one with UP / DOWN), not on the vanilla entrance; that pillar is not always the leftmost one.
 - In any language but English, the quest log showed mod quests through the game's own quest list, which only knows vanilla quests; it now shows their own text.

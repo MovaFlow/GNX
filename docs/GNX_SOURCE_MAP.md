@@ -10,8 +10,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 |---|---|---|---|
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 43 | 1568 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 56 | 3890 |
-| `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 28 | 971 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 83 | 4461 |
+| `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 30 | 1006 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 84 | 4483 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 295 |
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 49 | 2499 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 26 | 596 |
@@ -123,6 +123,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_inter_parse` | `s_gnx_cells.gml` |
 | `gnx_inter_push_scripts` | `s_gnx_cells.gml` |
 | `gnx_inter_resolve_tables` | `s_gnx_cells.gml` |
+| `gnx_is_skin3_overlay` | `s_gnx_draw.gml` |
 | `gnx_item_count` | `s_gnx_items.gml` |
 | `gnx_item_entry` | `s_gnx_items.gml` |
 | `gnx_item_name` | `s_gnx_items.gml` |
@@ -171,6 +172,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_mods_on_text` | `s_gnx_mods.gml` |
 | `gnx_mods_per_page` | `s_gnx_mods.gml` |
 | `gnx_mon_birth` | `s_gnx_content.gml` |
+| `gnx_mon_frame` | `s_gnx_draw.gml` |
 | `gnx_mon_have` | `s_gnx_travel.gml` |
 | `gnx_mon_inside_at` | `s_gnx_cells.gml` |
 | `gnx_mon_pos_at` | `s_gnx_cells.gml` |
@@ -286,6 +288,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_loot_count` | `s_gnx_harness.gml` |
 | `gnx_scn_mod_index` | `s_gnx_harness.gml` |
 | `gnx_scn_mod_rows` | `s_gnx_harness.gml` |
+| `gnx_scn_mon_frame` | `s_gnx_harness.gml` |
 | `gnx_scn_mso` | `s_gnx_harness.gml` |
 | `gnx_scn_new_dots` | `s_gnx_harness.gml` |
 | `gnx_scn_occupied_called` | `s_gnx_harness.gml` |

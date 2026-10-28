@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4460 @@
+@@ -0,0 +1,4482 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2190,6 +2190,28 @@
 +    surface_save(_surf, arg1);
 +    surface_free(_surf);
 +    return string(_w) + " " + string(_h) + " " + string(sprite_get_xoffset(_spr)) + " " + string(sprite_get_yoffset(_spr)) + " " + string(_n);
++}
++
++
++// the frame gnx_mon_frame gives overlay sprite arg0 (a name) at frame arg1 in the first occupied WALL 3 (h_type 7),
++// for a captive with skin arg2 (her skin is put back after); "" when there is no such cell (fn asserts pass 3 args)
++function gnx_scn_mon_frame(arg0, arg1, arg2)
++{
++    var _r = "";
++
++    with (obj_slot)
++    {
++        if (_r == "" && unit_data != -1 && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == 7)
++        {
++            var _old = unit_data.skin;
++            unit_data.skin = arg2;
++            slot_data.anim_struct.frame_c = 5;
++            _r = gnx_mon_frame(asset_get_index(arg0), arg1);
++            unit_data.skin = _old;
++        }
++    }
++
++    return _r;
 +}
 +
 +
