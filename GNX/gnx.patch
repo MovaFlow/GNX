@@ -10904,7 +10904,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4482 @@
+@@ -0,0 +1,4505 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -13119,6 +13119,42 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
++// renames mod item arg0 ("folder.NAME") in memory only: a reload must bring the name from items.json back
++function gnx_scn_tamper_item(arg0)
++{
++    gnx_item_entry(gnx_item_resolve(arg0, "")).name = "TAMPERED";
++}
++
++
++// starts the day clock as the tutorial quest does (a fresh game has none until then)
++function gnx_scn_start_time()
++{
++    global.unlock.timer = true;
++    obj_np.scr_time = scr_nest_time;
++}
++
++
++// ends the current day: the next game step starts a new one (scr_nest_time), as 18000 frames of play do
++function gnx_scn_end_day()
++{
++    global.val.day_timer = 18000;
++}
++
++
++// the current day
++function gnx_scn_day()
++{
++    return global.val.day;
++}
++
++
++// mod arg0's save state value arg1 (fn asserts call scripts only)
++function gnx_scn_mod_state(arg0, arg1)
++{
++    return scr_gnx_get_state(arg0, arg1);
++}
++
++
 +// how many slots the deepest floor holds
 +function gnx_scn_last_floor_size()
 +{
@@ -15270,20 +15306,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        else if (variable_struct_exists(_st, "reload"))
 +        {
 +            // same teardown as quit-to-menu, then load slot 9 instead of showing the menu
-+            for (var i = 0; i <= global.val.floor; i++)
-+                ds_list_destroy(global.slot_list[i]);
-+
-+            ds_list_destroy(global.unit_list);
-+            ds_list_destroy(global.front_row);
-+            ds_list_destroy(global.back_row);
-+            ds_list_destroy(global.new_button_list);
-+            ds_list_destroy(global.noti_list);
-+            ds_list_destroy(global.inv_list);
-+            ds_list_destroy(global.raid_inv_list);
-+            ds_list_destroy(global.quest_list);
-+            ds_list_destroy(global.new_guide_list);
-+            ds_list_destroy(global.front_row_save);
-+            ds_list_destroy(global.back_row_save);
++            gnx_game_teardown();
 +            // initials run while load_file still names the slot just played, exactly like quit-to-menu
 +            scr_create_initials();
 +            random_set_seed(_s.seed);  // initials call randomize(); keep scenarios reproducible
@@ -15688,7 +15711,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2498 @@
+@@ -0,0 +1,2566 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -17394,6 +17417,19 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +                guard_fail_popup: ""
 +            }, 
 +            {
++                label: "RELOAD MODS",
++                actions: [
++                {
++                    type: "reload_mods"
++                }],
++                popup: "",
++                toggle: "",
++                undo_actions: [],
++                undo_popup: "",
++                guard: -1,
++                guard_fail_popup: ""
++            },
++            {
 +                label: "FREE COPY",
 +                toggle: "free_floor_copy",
 +                actions: [
@@ -18173,6 +18209,61 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +}
 +
 +
++// GNX-RELOAD: what quitting to the menu frees: the game's lists (scr_create_initials makes new ones)
++function gnx_game_teardown()
++{
++    for (var i = 0; i <= global.val.floor; i++)
++        ds_list_destroy(global.slot_list[i]);
++
++    ds_list_destroy(global.unit_list);
++    ds_list_destroy(global.front_row);
++    ds_list_destroy(global.back_row);
++    ds_list_destroy(global.new_button_list);
++    ds_list_destroy(global.noti_list);
++    ds_list_destroy(global.inv_list);
++    ds_list_destroy(global.raid_inv_list);
++    ds_list_destroy(global.quest_list);
++    ds_list_destroy(global.new_guide_list);
++    ds_list_destroy(global.front_row_save);
++    ds_list_destroy(global.back_row_save);
++}
++
++
++// GNX-RELOAD: GNX DEBUG > RELOAD MODS (tool action "reload_mods"): the game is saved to the autosave slot, every
++// mod's files are read again (JSON, sprites, sounds: the caches are emptied) and the autosave is loaded back, without
++// the menu. Runs at the end of the game step (gnx_reload_now), not from the button, so nothing this frame uses the
++// freed lists. Refused while a raid is out or a trip is under way.
++function gnx_reload_mods()
++{
++    if (scr_gnx_travel_pending() || obj_np.obj_raid.raid_data.raid_state != 0)
++    {
++        scr_gnx_pop_up_create("Reload refused: wait for the raid or the trip to end");
++        exit;
++    }
++
++    global.gnx_reload_pending = true;
++}
++
++
++// GNX-RELOAD: the reload itself (end of scr_main_end_step). The previous load's sprites and sounds are not freed:
++// ponytail: a debug-only leak per reload, quit the game after many reloads
++function gnx_reload_now()
++{
++    global.gnx_reload_pending = false;
++    scr_save_game(0);
++    gnx_game_teardown();
++    ds_map_clear(global.gnx_sprite_cache);
++    ds_map_clear(global.gnx_sound_cache);
++    ds_map_clear(global.gnx_mod_atlases);
++    scr_create_initials();
++    global.load_file = 0;
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] RELOAD MODS: mods read again, loading the autosave\n");
++    gnx_log_close(_log);
++    room_goto(rm_game);
++}
++
++
 +enum UnknownEnum
 +{
 +    Value_0,
@@ -18190,7 +18281,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 diff -uN gml_138/gml_GlobalScript_s_gnx_nest.gml gml/gml_GlobalScript_s_gnx_nest.gml
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,595 @@
+@@ -0,0 +1,600 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18502,11 +18593,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_nest.gml gml/gml_GlobalScript_s_gnx_nest
 +}
 +
 +
-+// GNX-OFF: whether cell arg0's window offers the on/off row: cells that call monsters, except those with a
-+// toggle of their own (the giant's breeding toggle, layer 13)
++// GNX-OFF: whether cell arg0's window offers the on/off row: cells whose idle script calls walking monsters
++// (scr_slot_call_mon, gated by gnx_slot_off) and the drink cell (gated in its search), except those with a toggle of
++// their own (the giant's breeding toggle, layer 13). Tentacle, underground, birth, transfer and recover cells start
++// without walking monsters: the row would do nothing there.
 +function gnx_cell_off_offered(arg0)
 +{
-+    if (!variable_struct_exists(arg0.scr_slot, "h"))
++    if (!variable_struct_exists(arg0.scr_slot, "h") || !variable_struct_exists(arg0.scr_slot, "idle"))
++        return false;
++
++    if (!array_contains([scr_slot_h_state_idle, scr_slot_h_chain_idle, scr_slot_h_gb_2_idle, scr_slot_h_milk_idle, scr_slot_patrol_idle, scr_slot_drink_idle], arg0.scr_slot.idle))
 +        return false;
 +
 +    for (var i = 0; i < array_length(arg0.spr_slot); i++)
@@ -21133,7 +21229,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,959 @@
+@@ -0,0 +1,968 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -21477,6 +21573,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            _v = scr_gnx_get_state(arg1, arg0.key);
 +            return _v != undefined && _v <= arg0.value;
 +        
++        case "day_gte":
++            return global.val.day >= gnx_json_num(arg0.value, 1);
++
++        case "day_every":
++            // GNX-DAY: every value days (day 0, n, 2n... shifted by offset); value 1 = every day
++            var _every = max(1, floor(gnx_json_num(arg0.value, 1)));
++            var _off = variable_struct_exists(arg0, "offset") ? floor(gnx_json_num(arg0.offset, 0)) : 0;
++            return ((global.val.day - _off) mod _every) == 0;
++
 +        case "stage_discovered":
 +            var _s = arg0.stage;
 +            return global.val.stage_info[_s] != -1;
@@ -23991,7 +24096,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 +        _fail++;
 +    }
 +    
-+    var _known_types = ["add_gold", "add_food", "add_milk", "add_orbs", "give_item", "give_blueprint", "give_prop", "spawn_mon", "set_troop_level", "add_troop_exp", "set_skill_level", "set_troop_size", "create_unit", "create_unit_cage", "unlock_boss", "unlock_stage_next", "unlock_breeds", "unlock_cell", "unlock_prop", "unlock_raid", "unlock_all_cells", "add_floor", "set_day", "add_day_time", "set_speed", "swap_mouse", "show_debug_overlay", "set_val", "set_var", "reroll_shop", "reroll_trade", "reroll_encounters", "set_state", "set_continuous", "fire_event", "fire_trigger", "popup", "play_sfx", "travel_map"];
++    var _known_types = ["add_gold", "add_food", "add_milk", "add_orbs", "give_item", "give_blueprint", "give_prop", "spawn_mon", "set_troop_level", "add_troop_exp", "set_skill_level", "set_troop_size", "create_unit", "create_unit_cage", "unlock_boss", "unlock_stage_next", "unlock_breeds", "unlock_cell", "unlock_prop", "unlock_raid", "unlock_all_cells", "add_floor", "set_day", "add_day_time", "set_speed", "swap_mouse", "show_debug_overlay", "set_val", "set_var", "reroll_shop", "reroll_trade", "reroll_encounters", "reload_mods", "set_state", "set_continuous", "fire_event", "fire_trigger", "popup", "play_sfx", "travel_map"];
 +    var _bad37 = "";
 +    
 +    for (var _mi = 0; _mi < array_length(global.gnx_tool_registry); _mi++)
@@ -25460,7 +25565,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_tools.gml
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1747 @@
+@@ -0,0 +1,1751 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -26611,6 +26716,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +            
 +            break;
 +        
++        case "reload_mods":
++            gnx_reload_mods();  // GNX-RELOAD
++            break;
++
 +        case "reroll_shop":
 +            with (obj_np.obj_raid)
 +            {
@@ -30071,7 +30180,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +}
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-28 09:34:37.144521200 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-28 14:24:20.301718100 +0100
 @@ -1,8 +1,18 @@
 +// GNX: this file holds the game's start-up only (scr_create_initials: vanilla plus GNX's boot steps).
 +// GNX's own functions live in one file per topic: s_gnx_content, s_gnx_cells, s_gnx_props, s_gnx_mods,
@@ -30181,7 +30290,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +191,3253 @@
+@@ -167,12 +191,3254 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -33296,6 +33405,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    global.gnx_force_capture_100 = false;
 +    // GNX-FLOOR: COPY DOWN costs nothing (GNX DEBUG toggle FREE COPY)
 +    global.gnx_free_floor_copy = false;
++    global.gnx_reload_pending = false;  // GNX-RELOAD: a reload asked for and not done yet
 +global.gnx_debug_verbose = false;
 +    global.gnx_trace_entities = false;
 +    global.gnx_perf_hud = false;
@@ -33437,7 +33547,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +3448,9 @@
+@@ -183,42 +3449,9 @@
      Value_3,
      Value_4,
      Value_5,
@@ -34264,7 +34374,7 @@ diff -uN gml_138/gml_GlobalScript_s_macro.gml gml/gml_GlobalScript_s_macro.gml
 +#macro GNX_LOG "gnx_debug.txt"
 diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_main_room_step.gml
 --- gml_138/gml_GlobalScript_s_main_room_step.gml	2026-09-02 08:45:16.123548000 +0200
-+++ gml/gml_GlobalScript_s_main_room_step.gml	2026-10-27 15:01:46.798092700 +0100
++++ gml/gml_GlobalScript_s_main_room_step.gml	2026-10-28 11:01:56.228042700 +0100
 @@ -41,6 +41,23 @@
                  var _bgm = global.val.bgm_vol;
                  var _load = scr_load_slot();
@@ -34379,13 +34489,16 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
              if (h_unit_list != -1 && array_length(h_unit_list) > 0)
              {
                  for (var i = 0; i < array_length(h_unit_list); i++)
-@@ -281,6 +324,9 @@
+@@ -281,6 +324,12 @@
              }
          }
      }
 +
 +    if (global.gnx_scn != -1)
 +        scr_gnx_scn_step();
++
++    if (variable_global_exists("gnx_reload_pending") && global.gnx_reload_pending)
++        gnx_reload_now();  // GNX-RELOAD: last, once the frame no longer needs the game's lists
  }
  
  enum UnknownEnum
@@ -56458,6 +56571,197 @@ diff -uN gml_138/gml_GlobalScript_s_textbox_function.gml gml/gml_GlobalScript_s_
          instance_destroy();
          
          with (source_id)
+diff -uN gml_138/gml_GlobalScript_s_time.gml gml/gml_GlobalScript_s_time.gml
+--- gml_138/gml_GlobalScript_s_time.gml	2026-09-02 08:45:16.384589800 +0200
++++ gml/gml_GlobalScript_s_time.gml	2026-10-28 10:58:41.138076300 +0100
+@@ -6,7 +6,6 @@
+         var _red = global.val.mood_red * -1 * global.w_spd;
+         scr_mood_value_set(_red);
+         global.val.day_timer += global.w_spd;
+-        
+         if (global.val.day_timer >= 18000)
+         {
+             global.val.day_timer = 0;
+@@ -15,26 +14,28 @@
+             scr_food_cost();
+             var _raid_data = obj_raid.raid_data;
+             var _num = array_length(global.val.stage_info);
+-            
+             for (var i = 0; i < _num; i++)
+             {
+                 if (global.val.stage_info[i] != -1)
++                {
+                     scr_set_stage_data(i, -1, false);
++                }
+             }
+-            
+             with (obj_raid)
+             {
+                 with (obj_button)
+                 {
+                     if (interact_type == UnknownEnum.Value_49 || interact_type == UnknownEnum.Value_48)
++                    {
+                         instance_destroy();
++                    }
+                 }
+-                
+                 scr_choose_trade_item();
+                 scr_choose_shop_item();
+             }
+-            
+             scr_check_all_boss_exists();
++            scr_gnx_check_triggers("day_start");  // GNX-DAY: mod triggers on a new day, before the autosave keeps their effects
++            scr_gnx_check_quest_completion("day_start");
+             scr_save_game(0);
+         }
+     }
+@@ -43,10 +44,10 @@
+ function scr_all_mon_num_cal()
+ {
+     var _unit_num = 0;
+-    
+     for (var i = 0; i < array_length(global.val.mon_num); i++)
++    {
+         _unit_num += max(0, global.val.mon_num[i]);
+-    
++    }
+     _unit_num += scr_calculate_troop_size();
+     return _unit_num;
+ }
+@@ -55,24 +56,25 @@
+ {
+     var _unit_num = 0;
+     var _num = ds_list_size(global.unit_list);
+-    
+     for (var i = 0; i < _num; i++)
+     {
+         var _unit = ds_list_find_value(global.unit_list, i);
+-        
+         if (_unit != -1)
++        {
+             _unit_num++;
++        }
+     }
+-    
+     with (obj_slot)
+     {
+         if (unit_data != -1)
++        {
+             _unit_num++;
++        }
+     }
+-    
+     if (obj_control.hold_id != -1 && instance_exists(obj_control.hold_id) && obj_control.hold_id.interact_type == UnknownEnum.Value_20 && obj_control.hold_id.drag_type == UnknownEnum.Value_2)
++    {
+         _unit_num++;
+-    
++    }
+     return _unit_num;
+ }
+ 
+@@ -88,74 +90,92 @@
+     var _num = ds_list_size(global.unit_list);
+     var _boss_unlock = global.unlock.boss;
+     var _boss_exists = [];
+-    
+     for (var i = 0; i < array_length(_boss_unlock); i++)
++    {
+         array_push(_boss_exists, false);
+-    
++    }
+     for (var i = 0; i < _num; i++)
+     {
+         var _unit = ds_list_find_value(global.unit_list, i);
+-        
+         if (_unit != -1 && _unit.class >= UnknownEnum.Value_8 && _unit.lvl == 5)
+         {
+             if (_unit.class == UnknownEnum.Value_8)
++            {
+                 _boss_exists[4] = true;
++            }
+             else if (_unit.class == UnknownEnum.Value_13)
++            {
+                 _boss_exists[5] = true;
++            }
+             else
++            {
+                 _boss_exists[_unit.class - UnknownEnum.Value_8 - 1] = true;
++            }
+         }
+     }
+-    
+     with (obj_slot)
+     {
+         var _unit = unit_data;
+-        
+         if (_unit != -1 && _unit.class >= UnknownEnum.Value_8 && _unit.lvl == 5)
+         {
+             if (_unit.class == UnknownEnum.Value_8)
++            {
+                 _boss_exists[4] = true;
++            }
+             else if (_unit.class == UnknownEnum.Value_13)
++            {
+                 _boss_exists[5] = true;
++            }
+             else
++            {
+                 _boss_exists[_unit.class - UnknownEnum.Value_8 - 1] = true;
++            }
+         }
+     }
+-    
+     if (obj_control.hold_id != -1 && obj_control.hold_id.interact_type == UnknownEnum.Value_20 && obj_control.hold_id.drag_type == UnknownEnum.Value_2)
+     {
+         var _unit = obj_control.hold_id.unit_data;
+-        
+         if (_unit.class >= UnknownEnum.Value_8 && _unit.lvl == 5)
+         {
+             if (_unit.class == UnknownEnum.Value_8)
++            {
+                 _boss_exists[4] = true;
++            }
+             else if (_unit.class == UnknownEnum.Value_13)
++            {
+                 _boss_exists[5] = true;
++            }
+             else
++            {
+                 _boss_exists[_unit.class - UnknownEnum.Value_8 - 1] = true;
++            }
+         }
+     }
+-    
+     for (var i = 0; i < array_length(global.val.cage); i++)
+     {
+         var _unit = global.val.cage[i];
+-        
+         if (_unit != -1 && _unit.class >= UnknownEnum.Value_8 && _unit.lvl == 5)
+         {
+             if (_unit.class == UnknownEnum.Value_8)
++            {
+                 _boss_exists[4] = true;
++            }
+             else if (_unit.class == UnknownEnum.Value_13)
++            {
+                 _boss_exists[5] = true;
++            }
+             else
++            {
+                 _boss_exists[_unit.class - UnknownEnum.Value_8 - 1] = true;
++            }
+         }
+     }
+-    
+     for (var i = 0; i < array_length(_boss_unlock); i++)
+     {
+         if (global.unlock.boss[i] == 1 && !_boss_exists[i])
++        {
+             global.unlock.boss[i] = 0;
++        }
+     }
+ }
+ 
 diff -uN gml_138/gml_GlobalScript_s_trade_draw.gml gml/gml_GlobalScript_s_trade_draw.gml
 --- gml_138/gml_GlobalScript_s_trade_draw.gml	2026-09-02 08:45:16.163547800 +0200
 +++ gml/gml_GlobalScript_s_trade_draw.gml	2026-10-27 10:09:32.914876000 +0100

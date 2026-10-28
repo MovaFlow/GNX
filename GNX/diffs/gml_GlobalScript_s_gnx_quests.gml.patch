@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,959 @@
+@@ -0,0 +1,968 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -344,6 +344,15 @@
 +            _v = scr_gnx_get_state(arg1, arg0.key);
 +            return _v != undefined && _v <= arg0.value;
 +        
++        case "day_gte":
++            return global.val.day >= gnx_json_num(arg0.value, 1);
++
++        case "day_every":
++            // GNX-DAY: every value days (day 0, n, 2n... shifted by offset); value 1 = every day
++            var _every = max(1, floor(gnx_json_num(arg0.value, 1)));
++            var _off = variable_struct_exists(arg0, "offset") ? floor(gnx_json_num(arg0.offset, 0)) : 0;
++            return ((global.val.day - _off) mod _every) == 0;
++
 +        case "stage_discovered":
 +            var _s = arg0.stage;
 +            return global.val.stage_info[_s] != -1;

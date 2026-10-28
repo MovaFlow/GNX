@@ -6,7 +6,9 @@
 
 ### New Features
 
-- **Turn a cell off**: a cell's window has a new last row, with the giant cell's breeding icon, that turns the cell on or off (yellow = on). A cell turned off keeps its captive, but no monster comes in; monsters already inside finish. Saved with the cell.
+- **RELOAD MODS** (GNX DEBUG): saves to the autosave slot, reads every mod's files again and loads the game back, without the menu (modding guide 17.3).
+- **Daily hook**: quest triggers can run when a new day starts (hook `day_start`), with the conditions `day_every` (every n days) and `day_gte`: daily income, upkeep, events on a given day (QUESTS_SCHEMA.md).
+- **Turn a cell off**: a cell's window has a new last row, with the giant cell's breeding icon, that turns the cell on or off (yellow = on). A cell turned off keeps its captive, but no monster comes in; monsters already inside or already on their way finish. Offered on cells that call walking monsters (not tentacle, underground, birth or transfer cells). Saved with the cell.
 - **`-gnx-load <slot>`** (launch option): starts straight into save slot 1-6 (or `a`, the autosave), skipping the logo, credits and menu. For modders restarting the game often (modding guide 3.6).
 - **Mod music** (`sounds.json` `music`): a mod can add tracks to the gameplay music, or replace the game's tracks with its own. On a map mod's map the music is that map's own (modding guide 18.9).
 - **Mod items and raid loot** (`items.json`): a mod can add inventory items (a name and a 20 x 20 picture) and put them, or blueprint pieces and complete blueprints of its cells, into the finds of raid stages. Each find is added once per save, old saves included. Quests check, give and take items (`has_item`, `give_item`, `take_item`, reward `item`) and tools give them. The names of mod items and of mod-cell blueprints now show in every language (modding guide 25).
@@ -15,6 +17,7 @@
 
 ### Bug Fixes
 
+- Docs: QUESTS_SCHEMA.md said a trigger fires at most once per save; it fires every time its hook runs and its conditions hold (guard one-time events with a state key).
 - Mod characters (and other classes without a skin tone) in WALL 3 and WALL 4: the goblin's and hobgoblin's touch and enter overlays showed another cell's pose. The game's generic overlays hold one row per skin tone; these characters now read their own cell's row.
 - COPY DOWN refused to copy a floor built partly to the left (cells added from the starting pillar with the build side on the left) with "the floor below is not empty", even onto an empty floor. It now copies the whole layout, and also builds the cell of the floor's start slot, which it left out before.
 - Wording: the FLOOR button is on each floor's starting pillar (the one every new floor comes with, also the one with UP / DOWN), not on the vanilla entrance; that pillar is not always the leftmost one.

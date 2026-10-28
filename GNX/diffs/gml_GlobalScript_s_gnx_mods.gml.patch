@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2498 @@
+@@ -0,0 +1,2566 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1706,6 +1706,19 @@
 +                guard_fail_popup: ""
 +            }, 
 +            {
++                label: "RELOAD MODS",
++                actions: [
++                {
++                    type: "reload_mods"
++                }],
++                popup: "",
++                toggle: "",
++                undo_actions: [],
++                undo_popup: "",
++                guard: -1,
++                guard_fail_popup: ""
++            },
++            {
 +                label: "FREE COPY",
 +                toggle: "free_floor_copy",
 +                actions: [
@@ -2482,6 +2495,61 @@
 +    }
 +    
 +    instance_destroy();
++}
++
++
++// GNX-RELOAD: what quitting to the menu frees: the game's lists (scr_create_initials makes new ones)
++function gnx_game_teardown()
++{
++    for (var i = 0; i <= global.val.floor; i++)
++        ds_list_destroy(global.slot_list[i]);
++
++    ds_list_destroy(global.unit_list);
++    ds_list_destroy(global.front_row);
++    ds_list_destroy(global.back_row);
++    ds_list_destroy(global.new_button_list);
++    ds_list_destroy(global.noti_list);
++    ds_list_destroy(global.inv_list);
++    ds_list_destroy(global.raid_inv_list);
++    ds_list_destroy(global.quest_list);
++    ds_list_destroy(global.new_guide_list);
++    ds_list_destroy(global.front_row_save);
++    ds_list_destroy(global.back_row_save);
++}
++
++
++// GNX-RELOAD: GNX DEBUG > RELOAD MODS (tool action "reload_mods"): the game is saved to the autosave slot, every
++// mod's files are read again (JSON, sprites, sounds: the caches are emptied) and the autosave is loaded back, without
++// the menu. Runs at the end of the game step (gnx_reload_now), not from the button, so nothing this frame uses the
++// freed lists. Refused while a raid is out or a trip is under way.
++function gnx_reload_mods()
++{
++    if (scr_gnx_travel_pending() || obj_np.obj_raid.raid_data.raid_state != 0)
++    {
++        scr_gnx_pop_up_create("Reload refused: wait for the raid or the trip to end");
++        exit;
++    }
++
++    global.gnx_reload_pending = true;
++}
++
++
++// GNX-RELOAD: the reload itself (end of scr_main_end_step). The previous load's sprites and sounds are not freed:
++// ponytail: a debug-only leak per reload, quit the game after many reloads
++function gnx_reload_now()
++{
++    global.gnx_reload_pending = false;
++    scr_save_game(0);
++    gnx_game_teardown();
++    ds_map_clear(global.gnx_sprite_cache);
++    ds_map_clear(global.gnx_sound_cache);
++    ds_map_clear(global.gnx_mod_atlases);
++    scr_create_initials();
++    global.load_file = 0;
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] RELOAD MODS: mods read again, loading the autosave\n");
++    gnx_log_close(_log);
++    room_goto(rm_game);
 +}
 +
 +

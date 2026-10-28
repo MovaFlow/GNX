@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,595 @@
+@@ -0,0 +1,600 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -312,11 +312,16 @@
 +}
 +
 +
-+// GNX-OFF: whether cell arg0's window offers the on/off row: cells that call monsters, except those with a
-+// toggle of their own (the giant's breeding toggle, layer 13)
++// GNX-OFF: whether cell arg0's window offers the on/off row: cells whose idle script calls walking monsters
++// (scr_slot_call_mon, gated by gnx_slot_off) and the drink cell (gated in its search), except those with a toggle of
++// their own (the giant's breeding toggle, layer 13). Tentacle, underground, birth, transfer and recover cells start
++// without walking monsters: the row would do nothing there.
 +function gnx_cell_off_offered(arg0)
 +{
-+    if (!variable_struct_exists(arg0.scr_slot, "h"))
++    if (!variable_struct_exists(arg0.scr_slot, "h") || !variable_struct_exists(arg0.scr_slot, "idle"))
++        return false;
++
++    if (!array_contains([scr_slot_h_state_idle, scr_slot_h_chain_idle, scr_slot_h_gb_2_idle, scr_slot_h_milk_idle, scr_slot_patrol_idle, scr_slot_drink_idle], arg0.scr_slot.idle))
 +        return false;
 +
 +    for (var i = 0; i < array_length(arg0.spr_slot); i++)

@@ -118,7 +118,7 @@ Array of trigger definitions. Each trigger fires an event when all conditions ar
 ]
 ```
 
-A trigger fires at most once per save (use a state key guard to prevent re-firing).
+A trigger fires **every time** its hook runs and its conditions hold. For a one-time event, add a state key guard (`state_equals` on a key the event's side effects then change). A notification without dialog applies its side effects each time; one with dialog is not queued twice while the first is still waiting.
 
 ## Condition types
 
@@ -131,6 +131,8 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `state_lte` | `key`, `value` | mod save state key <= value |
 | `unit_count` | `class` (optional), `value` | units of that class >= value. Omit `class` to count all units |
 | `gold_gte` | `value` | `global.val.money >= value` |
+| `day_gte` | `value` | the day counter (shown under the clock) >= value |
+| `day_every` | `value`, `offset` (default 0) | the day is a multiple of `value` (after subtracting `offset`): `{"value": 7}` on days 7, 14, 21...; `{"value": 1}` every day. Meant for the `day_start` hook |
 | `has_item` | `item`, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
 | `floor_gte` | `value` | `global.val.floor >= value` |
 | `cell_count` | `h_type`, `value` | count of built cells with that h_type >= value |
@@ -182,6 +184,7 @@ event fires, before the dialog is displayed.
 | `post_raid` | after any raid return | stage-based quest completions |
 | `post_raid_loss` | after losing a raid | loss-specific events |
 | `cell_built` | when any cell is placed via build menu | construction-gated triggers |
+| `day_start` | when a new day starts (the clock wraps; only once the game's day clock runs, after the early tutorial quest), before that day's autosave. Days skipped at once (a trip's day cost, the SET DAY tool) do not fire it | daily income or upkeep, events on a given day: combine with `day_every` / `day_gte`. Quests with `"completion_hook": "day_start"` are checked then too |
 | `map_arrive` | once after every trip, when the destination is up (after its `map_start` and what was taken along) | map storylines: combine with `on_map` / `map_visited`, and guard with a state key for once-only events |
 
 A mod's triggers only run on the maps the mod loads on (its manifest `map`), and

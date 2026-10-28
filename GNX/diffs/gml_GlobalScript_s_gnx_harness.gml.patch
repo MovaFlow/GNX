@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4482 @@
+@@ -0,0 +1,4505 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2215,6 +2215,42 @@
 +}
 +
 +
++// renames mod item arg0 ("folder.NAME") in memory only: a reload must bring the name from items.json back
++function gnx_scn_tamper_item(arg0)
++{
++    gnx_item_entry(gnx_item_resolve(arg0, "")).name = "TAMPERED";
++}
++
++
++// starts the day clock as the tutorial quest does (a fresh game has none until then)
++function gnx_scn_start_time()
++{
++    global.unlock.timer = true;
++    obj_np.scr_time = scr_nest_time;
++}
++
++
++// ends the current day: the next game step starts a new one (scr_nest_time), as 18000 frames of play do
++function gnx_scn_end_day()
++{
++    global.val.day_timer = 18000;
++}
++
++
++// the current day
++function gnx_scn_day()
++{
++    return global.val.day;
++}
++
++
++// mod arg0's save state value arg1 (fn asserts call scripts only)
++function gnx_scn_mod_state(arg0, arg1)
++{
++    return scr_gnx_get_state(arg0, arg1);
++}
++
++
 +// how many slots the deepest floor holds
 +function gnx_scn_last_floor_size()
 +{
@@ -4366,20 +4402,7 @@
 +        else if (variable_struct_exists(_st, "reload"))
 +        {
 +            // same teardown as quit-to-menu, then load slot 9 instead of showing the menu
-+            for (var i = 0; i <= global.val.floor; i++)
-+                ds_list_destroy(global.slot_list[i]);
-+
-+            ds_list_destroy(global.unit_list);
-+            ds_list_destroy(global.front_row);
-+            ds_list_destroy(global.back_row);
-+            ds_list_destroy(global.new_button_list);
-+            ds_list_destroy(global.noti_list);
-+            ds_list_destroy(global.inv_list);
-+            ds_list_destroy(global.raid_inv_list);
-+            ds_list_destroy(global.quest_list);
-+            ds_list_destroy(global.new_guide_list);
-+            ds_list_destroy(global.front_row_save);
-+            ds_list_destroy(global.back_row_save);
++            gnx_game_teardown();
 +            // initials run while load_file still names the slot just played, exactly like quit-to-menu
 +            scr_create_initials();
 +            random_set_seed(_s.seed);  // initials call randomize(); keep scenarios reproducible
