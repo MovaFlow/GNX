@@ -15711,7 +15711,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2566 @@
+@@ -0,0 +1,2577 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18245,11 +18245,22 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +}
 +
 +
-+// GNX-RELOAD: the reload itself (end of scr_main_end_step). The previous load's sprites and sounds are not freed:
++// GNX-RELOAD: the reload itself (end of scr_main_end_step). The autosave it replaces is kept as
++// save_file_a.json.bak_reload. The previous load's sprites and sounds are not freed: a save keeps sprite ids (a cell's
++// spr_touch / spr_enter), so a cell loaded back mid-scene can still draw one of them until its next phase.
 +// ponytail: a debug-only leak per reload, quit the game after many reloads
 +function gnx_reload_now()
 +{
 +    global.gnx_reload_pending = false;
++
++    if (file_exists("save_file_a.json"))
++    {
++        if (file_exists("save_file_a.json.bak_reload"))
++            file_delete("save_file_a.json.bak_reload");
++
++        file_copy("save_file_a.json", "save_file_a.json.bak_reload");
++    }
++
 +    scr_save_game(0);
 +    gnx_game_teardown();
 +    ds_map_clear(global.gnx_sprite_cache);
@@ -29623,7 +29634,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_tr
 diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util.gml
 --- gml_138/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,554 @@
+@@ -0,0 +1,580 @@
 +// GNX: logging and small shared helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -29864,6 +29875,32 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +    if (_file == -1 || !file_exists(_file))
 +    {
 +        gnx_log_write(_log, "[GNX] -gnx-load " + arg0 + ": no save in that slot (1-" + string(global.gnx_save_slots) + " or a); normal start\n");
++        gnx_log_close(_log);
++        return false;
++    }
++
++    // the main menu warns before loading a save made with mods that are not loaded; -gnx-load would skip that
++    // warning, so it starts normally instead and the menu warns when the player opens the save
++    var _missing = [];
++
++    try
++    {
++        var _sb = buffer_load(_file);
++        _missing = scr_gnx_save_missing(json_parse(buffer_read(_sb, buffer_text)));
++        buffer_delete(_sb);
++    }
++    catch (_e)
++    {
++    }
++
++    if (array_length(_missing) > 0)
++    {
++        var _names = "";
++
++        for (var i = 0; i < array_length(_missing); i++)
++            _names += ((i > 0) ? ", " : "") + gnx_missing_line(_missing[i]);
++
++        gnx_log_write(_log, "[GNX] -gnx-load " + arg0 + ": the save needs mods that are not loaded (" + _names + "); normal start, the menu warns when you open it\n");
 +        gnx_log_close(_log);
 +        return false;
 +    }

@@ -13,8 +13,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 30 | 1006 |
 | `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 89 | 4506 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 295 |
-| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 52 | 2567 |
-| `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 26 | 596 |
+| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 52 | 2578 |
+| `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 26 | 601 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2341 |
 | `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 14 | 969 |
 | `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 7 | 425 |
@@ -22,8 +22,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 7 | 2357 |
 | `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 21 | 1752 |
 | `s_gnx_travel.gml` | multi-map travel: maps, selector, carry, troops | 61 | 2300 |
-| `s_gnx_util.gml` | logging and small shared helpers | 26 | 555 |
-| `s_initials.gml` | the game's start-up: vanilla `scr_create_initials` plus GNX's boot steps (registries, mod loading, tests) | 1 | 3457 |
+| `s_gnx_util.gml` | logging and small shared helpers | 26 | 581 |
+| `s_initials.gml` | the game's start-up: vanilla `scr_create_initials` plus GNX's boot steps (registries, mod loading, tests) | 1 | 3458 |
 
 ## Every GNX function
 

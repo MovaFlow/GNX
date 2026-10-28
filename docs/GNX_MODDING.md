@@ -296,7 +296,7 @@ While testing a mod you restart the game often. Launch it with `-gnx-load <slot>
 
 To apply changes to your mod's files without restarting at all, use GNX DEBUG > RELOAD MODS ([17.3](#173-built-in-menus-spawn-and-gnx-debug)).
 
-The log says `[GNX] -gnx-load 1: loading save_file_1.json`. An empty or unknown slot starts the game normally (`no save in that slot`). Mods load as usual, so the mods the save needs must be installed; the main menu's warning about a save made with other mods is skipped. New in 1.5.1.
+The log says `[GNX] -gnx-load 1: loading save_file_1.json`. An empty or unknown slot starts the game normally (`no save in that slot`). Mods load as usual. A save that needs mods which are not loaded (off in the MODS menu, or missing) is not loaded this way: the game starts normally, the log names the missing mods, and the main menu warns when you open that save. New in 1.5.1.
 
 ---
 
@@ -2931,7 +2931,7 @@ A button list whose buttons include one starting with `create_unit` (also in you
 |---|---|
 | PERF LOG | `Perf logging ON (gnx_debug.txt)`: a performance line every 120 frames (about 2 seconds). |
 | VERBOSE | `Verbose debug logging ON`: many extra trace lines; use it when a cell or class draws wrong. |
-| RELOAD MODS | Saves the game to the autosave slot, reads every mod's files again (JSON, sprites, sounds) and loads the autosave back, without the menu: edit a mod, press it, see the change. Refused while a raid is out or during a trip. The previous load's images stay in memory, so restart the game after many reloads. |
+| RELOAD MODS | Saves the game to the autosave slot, reads every mod's files again (JSON, sprites, sounds) and loads the autosave back, without the menu: edit a mod, press it, see the change. Refused while a raid is out or during a trip. The autosave it replaces is kept as `save_file_a.json.bak_reload`. The previous load's images and sounds stay in memory (a cell loaded back mid-scene can still show one until its next phase), so restart the game after many reloads. |
 | FREE COPY | `Floor copies are free`: COPY DOWN in a floor's FLOOR menu (on its starting pillar) costs nothing. |
 | CAPT100 | `Raid capture rate forced to 100%`: every capture roll succeeds (except in `no_capture` encounters, [21.2](#212-map_info)). |
 | TRACE | `Entity lifecycle tracing ON (gnx_debug.txt)` |

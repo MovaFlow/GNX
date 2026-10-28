@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2566 @@
+@@ -0,0 +1,2577 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2534,11 +2534,22 @@
 +}
 +
 +
-+// GNX-RELOAD: the reload itself (end of scr_main_end_step). The previous load's sprites and sounds are not freed:
++// GNX-RELOAD: the reload itself (end of scr_main_end_step). The autosave it replaces is kept as
++// save_file_a.json.bak_reload. The previous load's sprites and sounds are not freed: a save keeps sprite ids (a cell's
++// spr_touch / spr_enter), so a cell loaded back mid-scene can still draw one of them until its next phase.
 +// ponytail: a debug-only leak per reload, quit the game after many reloads
 +function gnx_reload_now()
 +{
 +    global.gnx_reload_pending = false;
++
++    if (file_exists("save_file_a.json"))
++    {
++        if (file_exists("save_file_a.json.bak_reload"))
++            file_delete("save_file_a.json.bak_reload");
++
++        file_copy("save_file_a.json", "save_file_a.json.bak_reload");
++    }
++
 +    scr_save_game(0);
 +    gnx_game_teardown();
 +    ds_map_clear(global.gnx_sprite_cache);

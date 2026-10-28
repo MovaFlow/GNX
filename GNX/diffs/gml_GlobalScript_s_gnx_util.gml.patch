@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,554 @@
+@@ -0,0 +1,580 @@
 +// GNX: logging and small shared helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -241,6 +241,32 @@
 +    if (_file == -1 || !file_exists(_file))
 +    {
 +        gnx_log_write(_log, "[GNX] -gnx-load " + arg0 + ": no save in that slot (1-" + string(global.gnx_save_slots) + " or a); normal start\n");
++        gnx_log_close(_log);
++        return false;
++    }
++
++    // the main menu warns before loading a save made with mods that are not loaded; -gnx-load would skip that
++    // warning, so it starts normally instead and the menu warns when the player opens the save
++    var _missing = [];
++
++    try
++    {
++        var _sb = buffer_load(_file);
++        _missing = scr_gnx_save_missing(json_parse(buffer_read(_sb, buffer_text)));
++        buffer_delete(_sb);
++    }
++    catch (_e)
++    {
++    }
++
++    if (array_length(_missing) > 0)
++    {
++        var _names = "";
++
++        for (var i = 0; i < array_length(_missing); i++)
++            _names += ((i > 0) ? ", " : "") + gnx_missing_line(_missing[i]);
++
++        gnx_log_write(_log, "[GNX] -gnx-load " + arg0 + ": the save needs mods that are not loaded (" + _names + "); normal start, the menu warns when you open it\n");
 +        gnx_log_close(_log);
 +        return false;
 +    }

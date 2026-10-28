@@ -6,10 +6,10 @@
 
 ### New Features
 
-- **RELOAD MODS** (GNX DEBUG): saves to the autosave slot, reads every mod's files again and loads the game back, without the menu (modding guide 17.3).
+- **RELOAD MODS** (GNX DEBUG): saves to the autosave slot (the autosave it replaces is kept as `save_file_a.json.bak_reload`), reads every mod's files again and loads the game back, without the menu (modding guide 17.3).
 - **Daily hook**: quest triggers can run when a new day starts (hook `day_start`), with the conditions `day_every` (every n days) and `day_gte`: daily income, upkeep, events on a given day (QUESTS_SCHEMA.md).
 - **Turn a cell off**: a cell's window has a new last row, with the giant cell's breeding icon, that turns the cell on or off (yellow = on). A cell turned off keeps its captive, but no monster comes in; monsters already inside or already on their way finish. Offered on cells that call walking monsters (not tentacle, underground, birth or transfer cells). Saved with the cell.
-- **`-gnx-load <slot>`** (launch option): starts straight into save slot 1-6 (or `a`, the autosave), skipping the logo, credits and menu. For modders restarting the game often (modding guide 3.6).
+- **`-gnx-load <slot>`** (launch option): starts straight into save slot 1-6 (or `a`, the autosave), skipping the logo, credits and menu. For modders restarting the game often. A save that needs mods which are not loaded starts the game normally instead, so the menu can warn (modding guide 3.6).
 - **Mod music** (`sounds.json` `music`): a mod can add tracks to the gameplay music, or replace the game's tracks with its own. On a map mod's map the music is that map's own (modding guide 18.9).
 - **Mod items and raid loot** (`items.json`): a mod can add inventory items (a name and a 20 x 20 picture) and put them, or blueprint pieces and complete blueprints of its cells, into the finds of raid stages. Each find is added once per save, old saves included. Quests check, give and take items (`has_item`, `give_item`, `take_item`, reward `item`) and tools give them. The names of mod items and of mod-cell blueprints now show in every language (modding guide 25).
 - **Mod translations**: a mod can ship `lang/<code>.json` files (`fr`, `ja`, `zh`, `de`, ... ) mapping its English texts to another language. Cell, prop and class names, quest texts and dialogs, popups, tool menus, map names and the MODS menu then show in the player's language, and follow a language change at once; names used as references are not affected (modding guide 4.6).
