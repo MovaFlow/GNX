@@ -33,18 +33,78 @@ EXPECTED = {
     ("harness_spawn_bad", "cells.json", "[0].spawn_info"),
     ("moan_mod", "manifest.json", "(top)"),  # community mod: "display_name", which GNX never reads
 }
-# real problems found in mods, reported and waiting for their authors (a path prefix is enough)
+# real problems found in community mods, reported and waiting for their authors: exact paths, so a new
+# problem in the same files still fails the test
 KNOWN = {
-    ("Emira", "quests.json", "triggers[2]"),  # "popup" on a trigger
-    ("cowgirls", "classes.json", "["),  # carry_hair_spr, hand / hair in naked leg entries
-    ("shiny_cleric", "classes.json", "["),  # hand in naked leg entries, head / hair / hand in carry_base_spr
-    ("shiny_knight", "classes.json", "["),
-    ("shiny_peasant", "classes.json", "["),
-    ("heroine_conquest", "classes.json", "["),  # name_zh, name_zht, unique
-    ("Jezebel", "classes.json", "["),  # shrine_spr_overrides_NON_FUNCTIONAL (marked so by its author)
-    ("py_more_cells_mod", "cells.json", "["),  # head inside mon_spr body (not read there)
-    ("heroine_conquest", "cells.json", "["),  # name_zh, name_zht
-    ("heroine_conquest", "quests.json", "events."),  # old per-language keys (text_zh...), now lang/ files
+    ('Emira', 'quests.json', 'triggers[2]'),
+    ('Jezebel', 'classes.json', '[0]'),
+    ('cowgirls', 'classes.json', '[0]'),
+    ('cowgirls', 'classes.json', '[0].naked_standard.phase_1.leg_any'),
+    ('cowgirls', 'classes.json', '[0].naked_standard.phase_2.leg_any'),
+    ('cowgirls', 'classes.json', '[0].naked_tent.phase_1.leg_any'),
+    ('cowgirls', 'classes.json', '[0].naked_tent.phase_2.leg_any'),
+    ('cowgirls', 'classes.json', '[0].naked_tent.phase_4.leg_any'),
+    ('heroine_conquest', 'cells.json', '[0]'),
+    ('heroine_conquest', 'cells.json', '[1]'),
+    ('heroine_conquest', 'classes.json', '[0]'),
+    ('heroine_conquest', 'classes.json', '[1]'),
+    ('heroine_conquest', 'quests.json', 'events.azure_intro.dialog[0]'),
+    ('heroine_conquest', 'quests.json', 'events.azure_intro.dialog[1]'),
+    ('heroine_conquest', 'quests.json', 'events.azure_intro.dialog[2]'),
+    ('heroine_conquest', 'quests.json', 'events.azure_quest'),
+    ('heroine_conquest', 'quests.json', 'events.azure_win.dialog[0]'),
+    ('heroine_conquest', 'quests.json', 'events.azure_win.dialog[1]'),
+    ('heroine_conquest', 'quests.json', 'events.mel_intro.dialog[0]'),
+    ('heroine_conquest', 'quests.json', 'events.mel_intro.dialog[1]'),
+    ('heroine_conquest', 'quests.json', 'events.mel_intro.dialog[2]'),
+    ('heroine_conquest', 'quests.json', 'events.mel_quest'),
+    ('heroine_conquest', 'quests.json', 'events.mel_win.dialog[0]'),
+    ('heroine_conquest', 'quests.json', 'events.mel_win.dialog[1]'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_hob_p0.loop.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_hob_p0.start.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_hob_p1.loop.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_hob_p1.start.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_hob_p2.loop.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_hob_p2.start.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_p0.loop.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_p0.start.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_p1.loop.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_p1.start.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_p2.loop.body'),
+    ('py_more_cells_mod', 'cells.json', '[3].mon_spr_p2.start.body'),
+    ('shiny_cleric', 'classes.json', '[0].carry_base_spr'),
+    ('shiny_cleric', 'classes.json', '[0].naked_standard.phase_1.leg_1'),
+    ('shiny_cleric', 'classes.json', '[0].naked_standard.phase_1.leg_2'),
+    ('shiny_cleric', 'classes.json', '[0].naked_standard.phase_2.leg_1'),
+    ('shiny_cleric', 'classes.json', '[0].naked_standard.phase_2.leg_2'),
+    ('shiny_cleric', 'classes.json', '[0].naked_tent.phase_1.leg_1'),
+    ('shiny_cleric', 'classes.json', '[0].naked_tent.phase_1.leg_2'),
+    ('shiny_cleric', 'classes.json', '[0].naked_tent.phase_2.leg_1'),
+    ('shiny_cleric', 'classes.json', '[0].naked_tent.phase_2.leg_2'),
+    ('shiny_cleric', 'classes.json', '[0].naked_tent.phase_4.leg_1'),
+    ('shiny_cleric', 'classes.json', '[0].naked_tent.phase_4.leg_2'),
+    ('shiny_knight', 'classes.json', '[0].carry_base_spr'),
+    ('shiny_knight', 'classes.json', '[0].naked_standard.phase_1.leg_1'),
+    ('shiny_knight', 'classes.json', '[0].naked_standard.phase_1.leg_2'),
+    ('shiny_knight', 'classes.json', '[0].naked_standard.phase_2.leg_1'),
+    ('shiny_knight', 'classes.json', '[0].naked_standard.phase_2.leg_2'),
+    ('shiny_knight', 'classes.json', '[0].naked_tent.phase_1.leg_1'),
+    ('shiny_knight', 'classes.json', '[0].naked_tent.phase_1.leg_2'),
+    ('shiny_knight', 'classes.json', '[0].naked_tent.phase_2.leg_1'),
+    ('shiny_knight', 'classes.json', '[0].naked_tent.phase_2.leg_2'),
+    ('shiny_knight', 'classes.json', '[0].naked_tent.phase_4.leg_1'),
+    ('shiny_knight', 'classes.json', '[0].naked_tent.phase_4.leg_2'),
+    ('shiny_peasant', 'classes.json', '[0].carry_base_spr'),
+    ('shiny_peasant', 'classes.json', '[0].naked_standard.phase_1.leg_1'),
+    ('shiny_peasant', 'classes.json', '[0].naked_standard.phase_1.leg_2'),
+    ('shiny_peasant', 'classes.json', '[0].naked_standard.phase_2.leg_1'),
+    ('shiny_peasant', 'classes.json', '[0].naked_standard.phase_2.leg_2'),
+    ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_1.leg_1'),
+    ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_1.leg_2'),
+    ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_2.leg_1'),
+    ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_2.leg_2'),
+    ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_4.leg_1'),
+    ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_4.leg_2'),
 }
 
 # one typo per file type: (file kind, json path to an object in a known-good file, key to misspell)
@@ -78,7 +138,7 @@ def test_corpus(js):
         key = (p.parent.name if p.parent.name != "lang" else p.parent.parent.name, p.name, where)
         if key in EXPECTED:
             seen.add(key)
-        elif any(key[0] == k[0] and key[1] == k[1] and where.startswith(k[2]) for k in KNOWN):
+        elif key in KNOWN:
             pass
         else:
             bad.append(f"  unexpected: {p}: {where}: {msg}")

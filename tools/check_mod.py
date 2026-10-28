@@ -42,19 +42,18 @@ def schema_for(kind: str):
     return load_json(p) if p.exists() else None
 
 
-_REGISTRY = None
-
-
-def registry():
-    """Every schema of tools/schemas/ by its $id, so "common.schema.json#/..." references resolve offline."""
-    global _REGISTRY
-    if _REGISTRY is None:
+def validator_for(schema, jsonschema):
+    """A Draft 7 validator for which "common.schema.json#/..." references resolve to tools/schemas/, offline.
+    jsonschema 4.18+ takes a registry; older versions a RefResolver with a store."""
+    schemas = [load_json(p) for p in SCHEMA_DIR.glob("*.schema.json")]
+    try:
         from referencing import Registry, Resource
         from referencing.jsonschema import DRAFT7
-        _REGISTRY = Registry().with_resources(
-            (s["$id"], Resource.from_contents(s, default_specification=DRAFT7))
-            for s in (load_json(p) for p in SCHEMA_DIR.glob("*.schema.json")))
-    return _REGISTRY
+    except ImportError:
+        resolver = jsonschema.RefResolver(schema["$id"], schema, store={s["$id"]: s for s in schemas})
+        return jsonschema.Draft7Validator(schema, resolver=resolver)
+    reg = Registry().with_resources((s["$id"], Resource.from_contents(s, default_specification=DRAFT7)) for s in schemas)
+    return jsonschema.Draft7Validator(schema, registry=reg)
 
 
 def fmt_path(err) -> str:
@@ -86,7 +85,7 @@ def check_file(path: Path, kind: str, jsonschema, report):
     except (OSError, ValueError) as e:
         report(path, "(file)", f"cannot be read as JSON: {e}", True)
         return
-    validator = jsonschema.Draft7Validator(schema, registry=registry())
+    validator = validator_for(schema, jsonschema)
     for err in sorted(validator.iter_errors(data), key=lambda e: list(map(str, e.absolute_path))):
         report(path, fmt_path(err), message(err), is_blocking(kind, err))
 
@@ -120,7 +119,7 @@ def check_mod(mod_dir: Path, jsonschema, report):
             if p.exists():
                 check_file(p, key, jsonschema, report)
             else:
-                report(manifest, key, f"names '{rel}', which does not exist", True)
+                report(manifest, key, f"names '{rel}', which does not exist (GNX logs a mod error and loads the rest)", False)
     for p in sorted((mod_dir / "lang").glob("*.json")):
         check_file(p, "lang", jsonschema, report)
 

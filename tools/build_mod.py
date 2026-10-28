@@ -20,21 +20,19 @@ Steps:
 """
 
 import argparse
-import json
-import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
+import check_mod
+
 PACK_STRIPS = Path(__file__).resolve().parent / "gnx_pack_strips.py"
 
 
 def load_json_loose(path: Path):
-    raw = path.read_text(encoding="utf-8")
-    # GMS2 json_parse allows trailing commas; strip them before Python parsing
-    raw = re.sub(r",\s*([}\]])", r"\1", raw)
-    return json.loads(raw)
+    # GMS2 json_parse allows trailing commas: read as check_mod does
+    return check_mod.load_json(path)
 
 
 def find_unpacked(data) -> list[tuple[str, str]]:
@@ -258,7 +256,6 @@ def main():
     # 2c. Schema check (tools/check_mod.py): unknown keys, wrong types. Unknown keys where they decide what the
     # mod or an entry is (manifest, class / cell entry top level) block the deploy unless --deploy-anyway.
     print("--- Schema check ---")
-    import check_mod
     rc = check_mod.main([str(mod_dir)])
     if rc == 2 and not args.deploy_anyway:
         sys.exit("Blocking problems above: fix them, or deploy with --deploy-anyway.")
