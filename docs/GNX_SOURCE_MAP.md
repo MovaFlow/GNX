@@ -11,10 +11,10 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 43 | 1568 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 56 | 3890 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 28 | 971 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 72 | 4283 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 83 | 4461 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 295 |
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 49 | 2499 |
-| `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 22 | 499 |
+| `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 26 | 596 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2341 |
 | `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 14 | 960 |
 | `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 7 | 425 |
@@ -22,8 +22,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 7 | 2357 |
 | `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 21 | 1748 |
 | `s_gnx_travel.gml` | multi-map travel: maps, selector, carry, troops | 61 | 2300 |
-| `s_gnx_util.gml` | logging and small shared helpers | 25 | 515 |
-| `s_initials.gml` | the game's start-up: vanilla `scr_create_initials` plus GNX's boot steps (registries, mod loading, tests) | 1 | 3452 |
+| `s_gnx_util.gml` | logging and small shared helpers | 26 | 555 |
+| `s_initials.gml` | the game's start-up: vanilla `scr_create_initials` plus GNX's boot steps (registries, mod loading, tests) | 1 | 3457 |
 
 ## Every GNX function
 
@@ -49,6 +49,9 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_cell_mon_check` | `s_gnx_content.gml` |
 | `gnx_cell_mon_type` | `s_gnx_content.gml` |
 | `gnx_cell_no_transfer` | `s_gnx_cells.gml` |
+| `gnx_cell_off_offered` | `s_gnx_nest.gml` |
+| `gnx_cell_off_power` | `s_gnx_nest.gml` |
+| `gnx_cell_off_toggle` | `s_gnx_nest.gml` |
 | `gnx_cell_state_events` | `s_gnx_content.gml` |
 | `gnx_cell_unlocked` | `s_gnx_content.gml` |
 | `gnx_class_cell_listed_ok` | `s_gnx_content.gml` |
@@ -56,6 +59,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_class_has_home_cell` | `s_gnx_content.gml` |
 | `gnx_cleanup_sounds` | `s_gnx_sound.gml` |
 | `gnx_cli_has` | `s_gnx_util.gml` |
+| `gnx_cli_load` | `s_gnx_util.gml` |
 | `gnx_cli_value` | `s_gnx_util.gml` |
 | `gnx_close_mod_confirm` | `s_gnx_mods.gml` |
 | `gnx_cmp_frame_num` | `s_gnx_cells.gml` |
@@ -251,6 +255,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_birth` | `s_gnx_harness.gml` |
 | `gnx_scn_boss_unlock` | `s_gnx_harness.gml` |
 | `gnx_scn_br_has` | `s_gnx_harness.gml` |
+| `gnx_scn_build_left` | `s_gnx_harness.gml` |
 | `gnx_scn_build_on_last` | `s_gnx_harness.gml` |
 | `gnx_scn_button_count` | `s_gnx_harness.gml` |
 | `gnx_scn_button_num_nth` | `s_gnx_harness.gml` |
@@ -274,6 +279,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_item_name` | `s_gnx_harness.gml` |
 | `gnx_scn_item_type` | `s_gnx_harness.gml` |
 | `gnx_scn_last_floor_size` | `s_gnx_harness.gml` |
+| `gnx_scn_last_floor_types` | `s_gnx_harness.gml` |
 | `gnx_scn_load_page_slots` | `s_gnx_harness.gml` |
 | `gnx_scn_log` | `s_gnx_harness.gml` |
 | `gnx_scn_loot_blueprints` | `s_gnx_harness.gml` |
@@ -282,14 +288,21 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_mod_rows` | `s_gnx_harness.gml` |
 | `gnx_scn_mso` | `s_gnx_harness.gml` |
 | `gnx_scn_new_dots` | `s_gnx_harness.gml` |
+| `gnx_scn_occupied_called` | `s_gnx_harness.gml` |
 | `gnx_scn_occupied_cell` | `s_gnx_harness.gml` |
+| `gnx_scn_occupied_mons` | `s_gnx_harness.gml` |
+| `gnx_scn_occupied_off` | `s_gnx_harness.gml` |
+| `gnx_scn_off_icon` | `s_gnx_harness.gml` |
+| `gnx_scn_open_cell_window` | `s_gnx_harness.gml` |
 | `gnx_scn_open_edit_menu` | `s_gnx_harness.gml` |
+| `gnx_scn_open_occupied_window` | `s_gnx_harness.gml` |
 | `gnx_scn_open_slot_menu` | `s_gnx_harness.gml` |
 | `gnx_scn_paid_build_cost` | `s_gnx_harness.gml` |
 | `gnx_scn_passage_prop` | `s_gnx_harness.gml` |
 | `gnx_scn_patrol_spr_name` | `s_gnx_harness.gml` |
 | `gnx_scn_place_prop` | `s_gnx_harness.gml` |
 | `gnx_scn_point` | `s_gnx_harness.gml` |
+| `gnx_scn_press_cell_off` | `s_gnx_harness.gml` |
 | `gnx_scn_press_nth` | `s_gnx_harness.gml` |
 | `gnx_scn_press_save` | `s_gnx_harness.gml` |
 | `gnx_scn_prison_check` | `s_gnx_harness.gml` |
@@ -299,6 +312,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_prison_vary` | `s_gnx_harness.gml` |
 | `gnx_scn_raid_go_refusal` | `s_gnx_harness.gml` |
 | `gnx_scn_ref` | `s_gnx_harness.gml` |
+| `gnx_scn_refind_occupied` | `s_gnx_harness.gml` |
+| `gnx_scn_save_sprite` | `s_gnx_harness.gml` |
 | `gnx_scn_set_gold` | `s_gnx_harness.gml` |
 | `gnx_scn_set_language` | `s_gnx_harness.gml` |
 | `gnx_scn_sure_yes` | `s_gnx_harness.gml` |
@@ -308,6 +323,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_sel_section` | `s_gnx_travel.gml` |
 | `gnx_set_between` | `s_gnx_nest.gml` |
 | `gnx_short_num` | `s_gnx_util.gml` |
+| `gnx_slot_off` | `s_gnx_nest.gml` |
 | `gnx_slot_pos` | `s_gnx_travel.gml` |
 | `gnx_sprite_exists` | `s_gnx_draw.gml` |
 | `gnx_sprite_get_height` | `s_gnx_draw.gml` |

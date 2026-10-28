@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4332 @@
+@@ -0,0 +1,4460 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2067,6 +2067,132 @@
 +}
 +
 +
++// opens the window of the cell the last occupy step filled, as a click on it does
++function gnx_scn_open_occupied_window()
++{
++    with (global.gnx_scn_occupied)
++        scr_create_window_slot_mod(id, 240, 135, false);
++}
++
++
++// clicks the on/off row of the open cell window (its oval button), as the mouse does; 1 when found
++function gnx_scn_press_cell_off()
++{
++    var _hit = 0;
++
++    with (obj_button)
++    {
++        if (_hit == 0 && interact_type == 27 && instance_exists(source_id) && source_id.pos_array[button_num + source_id.skip_row] == -1)
++        {
++            gnx_scn_click();
++            _hit = 1;
++        }
++    }
++
++    return _hit;
++}
++
++
++// the sprite name of the open cell window's on/off row icon, or "" when there is none
++function gnx_scn_off_icon()
++{
++    var _name = "";
++
++    with (obj_button)
++    {
++        if (sprite_index != -1 && instance_exists(source_id) && variable_instance_exists(source_id, "pos_array") && is_array(source_id.pos_array)
++            && (sprite_index == spr_mod_icon || sprite_get_name(sprite_index) == "spr_gnx_power_icon") && source_id.pos_array[button_num] == -1)
++            _name = sprite_get_name(sprite_index);
++    }
++
++    return _name;
++}
++
++
++// closes every cell window, then opens the window of the first occupied cell of type arg0 that offers the on/off
++// row; 1 when found
++function gnx_scn_open_cell_window(arg0)
++{
++    with (obj_window)
++    {
++        if (variable_instance_exists(id, "pos_array"))
++            instance_destroy();
++    }
++
++    var _hit = 0;
++
++    with (obj_slot)
++    {
++        if (_hit == 0 && unit_data != -1 && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg0 && gnx_cell_off_offered(id))
++        {
++            scr_create_window_slot_mod(id, 240, 135, false);
++            _hit = 1;
++        }
++    }
++
++    return _hit;
++}
++
++
++// 1 when the cell the last occupy step filled is turned off
++function gnx_scn_occupied_off()
++{
++    return gnx_slot_off(global.gnx_scn_occupied) ? 1 : 0;
++}
++
++
++// how many monsters are inside or on their way to the cell the last occupy step filled
++function gnx_scn_occupied_mons()
++{
++    var _c = global.gnx_scn_occupied;
++    var _n = array_length(_c.h_unit_list);
++
++    with (obj_mon)
++    {
++        if (mon_data.slot_id == _c && !array_contains(_c.h_unit_list, id))
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// 1 when at least one monster is inside or on its way to that cell
++function gnx_scn_occupied_called()
++{
++    return min(1, gnx_scn_occupied_mons());
++}
++
++
++// after a reload: the cell the last occupy step filled, found again by its place (instances are new)
++function gnx_scn_refind_occupied()
++{
++    global.gnx_scn_occupied = ds_list_find_value(global.slot_list[global.gnx_scn_occupied_pos[0]], global.gnx_scn_occupied_pos[1]);
++}
++
++
++// writes every frame of sprite arg0 (a name) side by side into arg1 (a PNG in the save folder), for art matching;
++// returns "w h xorig yorig frames"
++function gnx_scn_save_sprite(arg0, arg1)
++{
++    var _spr = asset_get_index(arg0);
++    var _w = sprite_get_width(_spr);
++    var _h = sprite_get_height(_spr);
++    var _n = sprite_get_number(_spr);
++    var _surf = surface_create(_w * _n, _h);
++    surface_set_target(_surf);
++    draw_clear_alpha(c_black, 0);
++
++    for (var i = 0; i < _n; i++)
++        draw_sprite(_spr, i, (i * _w) + sprite_get_xoffset(_spr), sprite_get_yoffset(_spr));
++
++    surface_reset_target();
++    surface_save(_surf, arg1);
++    surface_free(_surf);
++    return string(_w) + " " + string(_h) + " " + string(sprite_get_xoffset(_spr)) + " " + string(sprite_get_yoffset(_spr)) + " " + string(_n);
++}
++
++
 +// how many slots the deepest floor holds
 +function gnx_scn_last_floor_size()
 +{
@@ -2171,7 +2297,7 @@
 +        if (variable_instance_exists(id, "icon_array") && is_array(icon_array) && variable_instance_exists(id, "pos_array"))
 +        {
 +            for (var i = 0; i < array_length(icon_array); i++)
-+                _t += ((i > 0) ? "," : "") + string(_order[icon_array[i]]);
++                _t += ((i > 0) ? "," : "") + ((pos_array[i] == -1) ? "off" : string(_order[icon_array[i]]));
 +        }
 +    }
 +    
@@ -4054,6 +4180,8 @@
 +                    _oc_u.preg = _st.occupy.preg;
 +
 +                scr_occupy_slot(_oc_c, _oc_u, false, 1);
++                global.gnx_scn_occupied = _oc_c;  // the cell the last occupy step filled
++                global.gnx_scn_occupied_pos = [_oc_c.slot_data.slot_floor, ds_list_find_index(global.slot_list[_oc_c.slot_data.slot_floor], _oc_c)];
 +                gnx_scn_log("occupy h=" + string(_oc_h) + " class=" + string(_oc_cls) + " cell " + string(_oc_c));
 +            }
 +        }

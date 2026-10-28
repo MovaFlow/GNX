@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_mod_button.gml	2026-09-02 08:45:16.165546100 +0200
-+++ gml/gml_GlobalScript_s_mod_button.gml	2026-10-15 10:43:25.086962500 +0200
-@@ -1,92 +1,92 @@
++++ gml/gml_GlobalScript_s_mod_button.gml	2026-10-28 10:07:07.268314400 +0100
+@@ -1,92 +1,106 @@
 -function scr_create_mod_button()
 -{
 -    follow = true;
@@ -156,7 +156,9 @@
 +    var _pos_array = source_id.pos_array;
 +    var _mod_pos = _pos_array[button_num + source_id.skip_row];
 +    
-+    if (source_id.source_id.slot_data.mod_index[_mod_pos] == 1)
++    if (_mod_pos == -1)  // GNX-OFF: the on/off row
++        sprite_index = gnx_slot_off(source_id.source_id) ? spr_button_oval_2 : spr_button_oval;
++    else if (source_id.source_id.slot_data.mod_index[_mod_pos] == 1)
 +        sprite_index = spr_button_oval_2;
 +    else
 +        sprite_index = spr_button_oval;
@@ -167,6 +169,18 @@
 +    follow = true;
 +    var _array = source_id.icon_array;
 +    image_index = _array[button_num];
++
++    // GNX-OFF: the on/off row of a utility cell shows the power icon (GNX asset), not the breeding icon
++    if (source_id.pos_array[button_num] == -1 && gnx_cell_off_power(source_id.source_id.slot_data.h_type))
++    {
++        var _gnx_pw = asset_get_index("spr_gnx_power_icon");
++
++        if (sprite_exists(_gnx_pw))
++        {
++            sprite_index = _gnx_pw;
++            image_index = 0;
++        }
++    }
 +    
 +    if (source_id.skip_row > 0 && button_num >= source_id.skip_row)
 +    {

@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_slot_function.gml	2026-09-02 08:45:16.550128500 +0200
-+++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-26 08:07:39.083141300 +0100
++++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-28 09:51:07.684022800 +0100
 @@ -3,7 +3,7 @@
      var _list = global.slot_list[arg1];
      var _x;
@@ -1234,7 +1234,7 @@
          var _slot_id = ds_list_find_value(global.slot_list[arg2], _c_pos);
          
 -        if (_slot_id != undefined && _slot_id.slot_data.slot_type == UnknownEnum.Value_0 && _slot_id.slot_data.h_type == UnknownEnum.Value_11 && _slot_id.unit_data != -1 && array_length(_slot_id.h_unit_list) < 2 && _slot_id.slot_data.drink_num > 0)
-+        if (_slot_id != undefined && _slot_id.slot_data.slot_type == 0 && _slot_id.slot_data.h_type == 11 && _slot_id.unit_data != -1 && array_length(_slot_id.h_unit_list) < 2 && _slot_id.slot_data.drink_num > 0)
++        if (_slot_id != undefined && _slot_id.slot_data.slot_type == 0 && _slot_id.slot_data.h_type == 11 && _slot_id.unit_data != -1 && array_length(_slot_id.h_unit_list) < 2 && _slot_id.slot_data.drink_num > 0 && !gnx_slot_off(_slot_id))
          {
              if (abs(arg0 - _c_pos) < _slot_dist)
              {
@@ -2062,7 +2062,7 @@
 +
  function scr_slot_call_mon(arg0)
  {
-+    if (!variable_struct_exists(scr_slot, "h"))
++    if (!variable_struct_exists(scr_slot, "h") || gnx_slot_off(id))  // GNX-OFF: a cell turned off calls nobody
 +        exit;
 +    
      var _num = array_length(h_unit_list);
@@ -2133,7 +2133,7 @@
  {
      arg1 += global.val.add_range;
      var _floor = arg0.slot_data.slot_floor;
-@@ -2446,8 +3038,13 @@
+@@ -2446,8 +3038,16 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
@@ -2144,11 +2144,14 @@
 +            // (wczesniej np. goblin z DRINK mogl trafic na miejsce tylko dla hobgoblina)
 +            if (arg2 != -1 && gnx_cell_has_mon_rules(_slot_id) && gnx_cell_place_for_type(_slot_id, arg2) == -1)
 +                continue;
++
++            if (gnx_slot_off(_slot_id))  // GNX-OFF
++                continue;
 +            
              var _num = array_length(_slot_id.h_unit_list);
              
              if (abs(_pos - _c_pos) < _slot_dist)
-@@ -2456,7 +3053,7 @@
+@@ -2456,7 +3056,7 @@
                  
                  switch (_slot_id.slot_data.h_type)
                  {
@@ -2157,7 +2160,7 @@
                          _check = true;
                          
                          if (_num == 1)
-@@ -2467,10 +3064,10 @@
+@@ -2467,10 +3067,10 @@
                          
                          break;
                      
@@ -2170,7 +2173,7 @@
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2478,10 +3075,10 @@
+@@ -2478,10 +3078,10 @@
                          
                          break;
                      
@@ -2183,7 +2186,7 @@
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2509,7 +3106,7 @@
+@@ -2509,7 +3109,7 @@
  {
      var _exists = false;
      
@@ -2192,7 +2195,7 @@
          _exists = true;
      
      if (_exists)
-@@ -2527,7 +3124,7 @@
+@@ -2527,7 +3127,7 @@
      
      switch (arg0)
      {
@@ -2201,7 +2204,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2535,7 +3132,7 @@
+@@ -2535,7 +3135,7 @@
              
              break;
          
@@ -2210,7 +2213,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2543,7 +3140,7 @@
+@@ -2543,7 +3143,7 @@
              
              break;
          
@@ -2219,7 +2222,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2558,7 +3155,7 @@
+@@ -2558,7 +3158,7 @@
              
              break;
          
@@ -2228,7 +2231,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2573,12 +3170,28 @@
+@@ -2573,12 +3173,28 @@
              
              break;
          
@@ -2258,7 +2261,7 @@
      if (!_slot && slot_data.allow_preg)
      {
          if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1)
-@@ -2602,7 +3215,7 @@
+@@ -2602,7 +3218,7 @@
              var _c_pos = _start_pos + i;
              var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
              
@@ -2267,7 +2270,7 @@
              {
                  i = _dist;
                  _frog = true;
-@@ -2623,8 +3236,8 @@
+@@ -2623,8 +3239,8 @@
                  ds_list_set(global.unit_list, _swap_pos, -1);
                  scr_insert_unit_to_list(_unit_data, _swap_pos, -1);
                  var _button = scr_reset_single_unit_window(_swap_pos);
@@ -2278,7 +2281,7 @@
                  scr_create_slot_head(true, id);
                  scr_swap_emitter(x + round(image_xscale * 0.5), y - 30, false);
                  scr_swap_emitter(_button.x, _button.y, true);
-@@ -2641,7 +3254,7 @@
+@@ -2641,7 +3257,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -2287,7 +2290,7 @@
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2662,14 +3275,14 @@
+@@ -2662,14 +3278,14 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -2304,7 +2307,7 @@
      return _swap_pos;
  }
  
-@@ -2681,18 +3294,27 @@
+@@ -2681,18 +3297,27 @@
      var _class = arg0.class;
      var _same_check = false;
      var _tent = false;
@@ -2335,7 +2338,7 @@
          {
              _swap_pos = i;
              i = _num;
-@@ -2700,13 +3322,13 @@
+@@ -2700,13 +3325,13 @@
          }
      }
      
@@ -2351,7 +2354,7 @@
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2725,7 +3347,7 @@
+@@ -2725,7 +3350,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -2360,7 +2363,7 @@
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2746,7 +3368,7 @@
+@@ -2746,7 +3371,7 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -2369,7 +2372,7 @@
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2773,23 +3395,30 @@
+@@ -2773,23 +3398,30 @@
          }
          else
          {
@@ -2406,7 +2409,7 @@
          }
      }
      
-@@ -2804,23 +3433,30 @@
+@@ -2804,23 +3436,30 @@
          }
          else
          {
@@ -2443,7 +2446,7 @@
          }
      }
  }
-@@ -2832,67 +3468,94 @@
+@@ -2832,67 +3471,94 @@
      
      switch (arg0.slot_data.slot_type)
      {
@@ -2560,7 +2563,7 @@
              break;
      }
      
-@@ -2929,35 +3592,167 @@
+@@ -2929,35 +3595,167 @@
      ds_list_destroy(_new_list_1);
      ds_list_destroy(_new_list_2);
      
@@ -2743,7 +2746,7 @@
  }
  
  function scr_slot_anim_base()
-@@ -2978,49 +3773,3 @@
+@@ -2978,49 +3776,3 @@
              bar_glow_rep = 0;
      }
  }

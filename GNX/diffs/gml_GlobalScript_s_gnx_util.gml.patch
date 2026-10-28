@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,514 @@
+@@ -0,0 +1,554 @@
 +// GNX: logging and small shared helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -226,6 +226,46 @@
 +    }
 +
 +    return "";
++}
++
++
++// GNX-CLI: -gnx-load <slot> (1-6, or "a" = the autosave) starts straight into that save, without the logo,
++// credits and menu (modders relaunch the game often). Reads lang.json first, as the menu does. False when the
++// slot is empty or unknown: the game then starts normally.
++function gnx_cli_load(arg0)
++{
++    var _slot = (arg0 == "a") ? 0 : ((arg0 != "" && string_digits(arg0) == arg0) ? real(arg0) : -1);
++    var _file = (_slot == -1) ? -1 : gnx_save_file(_slot);
++    var _log = gnx_log_open();
++
++    if (_file == -1 || !file_exists(_file))
++    {
++        gnx_log_write(_log, "[GNX] -gnx-load " + arg0 + ": no save in that slot (1-" + string(global.gnx_save_slots) + " or a); normal start\n");
++        gnx_log_close(_log);
++        return false;
++    }
++
++    if (file_exists("lang.json"))
++    {
++        try
++        {
++            var _buff = buffer_load("lang.json");
++            var _lang = json_parse(buffer_read(_buff, buffer_text));
++            buffer_delete(_buff);
++            global.val.language = _lang.language;
++            global.val.sfx_vol = _lang.sfx_vol;
++            global.val.bgm_vol = _lang.bgm_vol;
++        }
++        catch (_e)
++        {
++        }
++    }
++
++    gnx_log_write(_log, "[GNX] -gnx-load " + arg0 + ": loading " + _file + "\n");
++    gnx_log_close(_log);
++    global.load_file = _slot;
++    room_goto(rm_game);
++    return true;
 +}
 +
 +

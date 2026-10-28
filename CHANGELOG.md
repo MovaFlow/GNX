@@ -6,6 +6,8 @@
 
 ### New Features
 
+- **Turn a cell off**: a cell's window has a new last row, with the giant cell's breeding icon, that turns the cell on or off (yellow = on). A cell turned off keeps its captive, but no monster comes in; monsters already inside finish. Saved with the cell.
+- **`-gnx-load <slot>`** (launch option): starts straight into save slot 1-6 (or `a`, the autosave), skipping the logo, credits and menu. For modders restarting the game often (modding guide 3.6).
 - **Mod music** (`sounds.json` `music`): a mod can add tracks to the gameplay music, or replace the game's tracks with its own. On a map mod's map the music is that map's own (modding guide 18.9).
 - **Mod items and raid loot** (`items.json`): a mod can add inventory items (a name and a 20 x 20 picture) and put them, or blueprint pieces and complete blueprints of its cells, into the finds of raid stages. Each find is added once per save, old saves included. Quests check, give and take items (`has_item`, `give_item`, `take_item`, reward `item`) and tools give them. The names of mod items and of mod-cell blueprints now show in every language (modding guide 25).
 - **Mod translations**: a mod can ship `lang/<code>.json` files (`fr`, `ja`, `zh`, `de`, ... ) mapping its English texts to another language. Cell, prop and class names, quest texts and dialogs, popups, tool menus, map names and the MODS menu then show in the player's language, and follow a language change at once; names used as references are not affected (modding guide 4.6).

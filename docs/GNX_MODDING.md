@@ -290,6 +290,12 @@ What to look for, in this order:
 3. `[GNX] class <N> registered: <name>` and `[GNX] cell OK: h=<N> name=<name> cat=<category>`: the ID each entry got, needed for numeric IDs elsewhere.
 4. Any line with `ERROR`, `WARN` or `FAIL`; [Appendix B](#appendix-b-troubleshooting) explains them.
 
+### 3.6 Starting straight into a save
+
+While testing a mod you restart the game often. Launch it with `-gnx-load <slot>` to skip the logo, the credits and the main menu and load that save slot at once: `1` to `6`, or `a` for the autosave. In Steam: right-click Goblin Nest > Properties > Launch options, type `-gnx-load 1`, and clear it again when you are done; or from a shortcut or a terminal: `GoblinNest.exe -gnx-load 1`.
+
+The log says `[GNX] -gnx-load 1: loading save_file_1.json`. An empty or unknown slot starts the game normally (`no save in that slot`). Mods load as usual, so the mods the save needs must be installed; the main menu's warning about a save made with other mods is skipped. New in 1.5.1.
+
 ---
 
 ## 4. manifest.json

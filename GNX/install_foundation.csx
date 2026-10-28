@@ -126,6 +126,12 @@ if (assetsDir != null)
             UndertaleSprite refSpr = Data.Sprites.ByName("spr_big_slot_back_rock");
             if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
         }
+        else if (baseName == "gnx_power_icon")
+        {
+            // drawn where the cell window's spr_mod_icon rows are
+            UndertaleSprite refSpr = Data.Sprites.ByName("spr_mod_icon");
+            if (refSpr != null) { ox = refSpr.OriginX; oy = refSpr.OriginY; }
+        }
         else if (baseName == "gnx_travel_button")
         {
             // centred, so the press animation (act_resize) scales around the middle

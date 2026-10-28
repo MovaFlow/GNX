@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,540 @@
+@@ -0,0 +1,595 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -300,6 +300,61 @@
 +function gnx_entrance_floor_button()
 +{
 +    return 2 + (2 * max(0, sign(global.val.floor)));
++}
++
++
++// GNX-OFF: a cell turned off (the on/off button of its window) keeps its captive but no monster comes in:
++// it calls none, and monsters leaving a cell or looking for a drink skip it. Monsters already inside finish.
++// slot_data.gnx_off is saved with the cell.
++function gnx_slot_off(arg0)
++{
++    return variable_struct_exists(arg0.slot_data, "gnx_off") && arg0.slot_data.gnx_off;
++}
++
++
++// GNX-OFF: whether cell arg0's window offers the on/off row: cells that call monsters, except those with a
++// toggle of their own (the giant's breeding toggle, layer 13)
++function gnx_cell_off_offered(arg0)
++{
++    if (!variable_struct_exists(arg0.scr_slot, "h"))
++        return false;
++
++    for (var i = 0; i < array_length(arg0.spr_slot); i++)
++    {
++        if (arg0.spr_slot[i][0] == 13)
++            return false;
++    }
++
++    return true;
++}
++
++
++// GNX-OFF: true when cell type arg0 gets the power icon on its on/off row instead of the giant's breeding icon.
++// The tag is the cell's build category: the utility tabs (utility, b_utility, t_utility: drink, milk, birth,
++// transfer, ...) get the power icon, the breed and pleasure tabs the breeding icon. Mod cells: their cells.json
++// "category"; vanilla cells: the build lists (global.*_order).
++function gnx_cell_off_power(arg0)
++{
++    var _power = ["utility", "b_utility", "t_utility"];
++
++    for (var i = 0; i < array_length(global.gnx_registered_cells); i++)
++    {
++        if (global.gnx_registered_cells[i].h_type == arg0)
++            return array_contains(_power, global.gnx_registered_cells[i].category);
++    }
++
++    return array_contains(global.utility_order, arg0) || array_contains(global.b_utility_order, arg0) || array_contains(global.t_utility_order, arg0);
++}
++
++
++// GNX-OFF: the window's on/off row pressed (self = its oval button; source_id = the window, its source_id =
++// the cell). Dark oval = off, as the window's other toggles.
++function gnx_cell_off_toggle()
++{
++    var _cell = source_id.source_id;
++    _cell.slot_data.gnx_off = !gnx_slot_off(_cell);
++    sprite_index = _cell.slot_data.gnx_off ? spr_button_oval_2 : spr_button_oval;
++    scr_gnx_pop_up_create(_cell.slot_data.gnx_off ? "Cell off: no monster comes in" : "Cell on");
 +}
 +
 +
