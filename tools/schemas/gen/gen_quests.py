@@ -47,6 +47,7 @@ d['condition'] = typed({
     "stage_discovered": ({"stage": STAGE}, ["stage"], "That raid stage is discovered."),
     "stage_cleared": ({"stage": STAGE, "min_level": {"type": "integer", "minimum": 0}}, ["stage", "min_level"], "That raid stage's highest cleared level >= min_level."),
     "boss_captured": ({"class": REF}, ["class"], "A unit of that class is in the cage."),
+    "class_unlocked": ({"class": REF}, ["class"], "A quest side effect unlock_class has unlocked that class in this save."),
     "raid_won": ({}, [], "Always true (meaningful at the post_raid_win hook)."),
     "on_map": ({"map": S}, ["map"], "The player is on that map (\"vanilla\" = the village)."),
     "map_visited": ({"map": S}, ["map"], "The player has been on that map."),
@@ -63,7 +64,7 @@ side_effect = typed({
     "give_item": ({"item": S, "amount": {"type": "integer", "minimum": 1}}, ["item"], "Puts that many (default 1) of a mod item into the inventory."),
     "take_item": ({"item": S, "amount": {"type": "integer", "minimum": 1}}, ["item"], "Takes that many (default 1) out."),
     "unlock_cell": ({"h_type": {"$ref": C + "ref"}}, ["h_type"], "Unlocks a cell in the build menu."),
-    "unlock_class": ({"class": {"$ref": C + "ref"}}, ["class"], "Adds a class to the raid encounter pools."),
+    "unlock_class": ({"class": {"$ref": C + "ref"}}, ["class"], "Unlocks a class (saved, shared by every map); gate raid_spawns entries or quests on it with the condition class_unlocked."),
     "unlock_map": ({"map": S}, ["map"], "Opens a mod map in the travel menu for good."),
 }, "A side effect, applied when the event fires (QUESTS_SCHEMA.md, Side effect types).")
 for a in side_effect['allOf']:

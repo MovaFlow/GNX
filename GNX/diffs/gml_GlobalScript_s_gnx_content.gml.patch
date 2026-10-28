@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3909 @@
+@@ -0,0 +1,3913 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -3473,6 +3473,10 @@
 +    {
 +        var _k = _keys[_i];
 +        
++        // GNX lists (gnx_classes, gnx_maps) are created on first use, so the map we arrive on may not have one yet
++        if (string_copy(_k, 1, 4) == "gnx_" && is_array(variable_struct_get(arg0, _k)) && !variable_struct_exists(global.unlock, _k))
++            variable_struct_set(global.unlock, _k, []);
++
 +        if (_k == "boss" || !variable_struct_exists(global.unlock, _k))
 +            continue;
 +        

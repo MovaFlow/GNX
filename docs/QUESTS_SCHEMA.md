@@ -141,6 +141,7 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `stage_discovered` | `stage` (0-4) | `stage_info[stage] != -1` |
 | `stage_cleared` | `stage`, `min_level` | `stage_info[stage].max_lvl >= min_level` |
 | `boss_captured` | `class` (string ref or int) | unit with that class exists in cage |
+| `class_unlocked` | `class` (string ref or int) | an `unlock_class` side effect has unlocked that class in this save |
 | `raid_won` | (none) | always true (only meaningful at post_raid_win hook) |
 | `on_map` | `map` | the player is on that map (`"vanilla"` = the village) |
 | `map_visited` | `map` | the player has been on that map (or is on it now) |
@@ -160,7 +161,7 @@ time. You can use string refs or integer IDs interchangeably in `class` and
 | `give_item` | `item`, `amount` (default 1) | puts that many of a mod item (items.json) into the inventory |
 | `take_item` | `item`, `amount` (default 1) | takes that many out (as many as there are) |
 | `unlock_cell` | `h_type` (string ref or int) | unlocks cell in build menu |
-| `unlock_class` | `class` (string ref or int) | adds class to raid encounter pools |
+| `unlock_class` | `class` (string ref or int) | unlocks the class: saved, and shared by every map like the game's own unlocks. On its own it changes nothing in raids; gate a `raid_spawns` entry on it with `"condition": {"type": "class_unlocked", "class": "my_mod.NAME"}` so the class only appears once unlocked |
 | `unlock_map` | `map` | opens a mod map in the travel menu for good, as its `map_info.unlock` would (saved, shared by every map, announced with `New map: <label>`). A map without a travel entry (its mod is off) is logged and ignored |
 
 Side effects are applied **immediately** (synchronous) when a notification

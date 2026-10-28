@@ -28,6 +28,7 @@
 - COPY DOWN refused to copy a floor built partly to the left (cells added from the starting pillar with the build side on the left) with "the floor below is not empty", even onto an empty floor. It now copies the whole layout, and also builds the cell of the floor's start slot, which it left out before.
 - Wording: the FLOOR button is on each floor's starting pillar (the one every new floor comes with, also the one with UP / DOWN), not on the vanilla entrance; that pillar is not always the leftmost one.
 - In any language but English, the quest log showed mod quests through the game's own quest list, which only knows vanilla quests; it now shows their own text.
+- The quest side effect `unlock_class` did nothing (the docs said it added the class to the raid encounters). It now unlocks the class for good (saved, shared by every map), and the new condition `class_unlocked` reads it: put it in a `raid_spawns` entry's `condition` to keep a class out of raids until a quest unlocks it (QUESTS_SCHEMA.md, modding guide 13.2).
 
 ## v1.5.0
 

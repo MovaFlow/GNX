@@ -6002,7 +6002,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3909 @@
+@@ -0,0 +1,3913 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -9475,6 +9475,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    {
 +        var _k = _keys[_i];
 +        
++        // GNX lists (gnx_classes, gnx_maps) are created on first use, so the map we arrive on may not have one yet
++        if (string_copy(_k, 1, 4) == "gnx_" && is_array(variable_struct_get(arg0, _k)) && !variable_struct_exists(global.unlock, _k))
++            variable_struct_set(global.unlock, _k, []);
++
 +        if (_k == "boss" || !variable_struct_exists(global.unlock, _k))
 +            continue;
 +        
@@ -21696,6 +21700,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            var _ml = arg0.min_level;
 +            return global.val.stage_info[_s] != -1 && global.val.stage_info[_s].max_lvl >= _ml;
 +        
++        case "class_unlocked":
++            return gnx_class_unlocked(arg0.class);
++
 +        case "boss_captured":
 +            var _cls = arg0.class;
 +            var _cage = global.val.cage;
@@ -22011,38 +22018,35 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +                break;
 +            
 +            case "unlock_class":
++                // records the class in global.unlock.gnx_classes (saved, shared by every map); raid_spawns entries
++                // and quests gate on it with the condition class_unlocked. It used to append to the encounter pools
++                // with the wrong key and fields, from a registry field that never exists: a no-op.
 +                var _cls = _se.class;
-+                
-+                if (ds_map_exists(global.class_registry, _cls))
++
++                if (!is_real(_cls) || (_cls >= 14 && !ds_map_exists(global.class_registry, _cls)))
 +                {
-+                    var _cr = ds_map_find_value(global.class_registry, _cls);
-+                    
-+                    if (variable_struct_exists(_cr, "raid_spawns"))
-+                    {
-+                        var _rs = _cr.raid_spawns;
-+                        
-+                        for (var _ri = 0; _ri < array_length(_rs); _ri++)
-+                        {
-+                            var _sp = _rs[_ri];
-+                            var _stage = _sp.stage;
-+                            var _pool = ds_map_find_value(global.gnx_encounter_pools, _stage);
-+                            
-+                            if (_pool != undefined)
-+                            {
-+                                ds_list_add(_pool, 
-+                                {
-+                                    class_id: _cls,
-+                                    level_range: _sp.level_range,
-+                                    weight: variable_struct_exists(_sp, "weight") ? _sp.weight : 1
-+                                });
-+                            }
-+                        }
-+                    }
++                    var _ul = gnx_log_open();
++                    gnx_log_write(_ul, "[GNX-WARN] unlock_class: unknown class " + string(_cls) + " (mod " + string(arg1) + ")\n");
++                    gnx_log_close(_ul);
++                    break;
 +                }
-+                
++
++                if (!variable_struct_exists(global.unlock, "gnx_classes"))
++                    global.unlock.gnx_classes = [];
++
++                if (!array_contains(global.unlock.gnx_classes, _cls))
++                    array_push(global.unlock.gnx_classes, _cls);
++
 +                break;
 +        }
 +    }
++}
++
++
++// true once a quest side effect unlock_class named class arg0 (an id) in this save
++function gnx_class_unlocked(arg0)
++{
++    return variable_struct_exists(global.unlock, "gnx_classes") && array_contains(global.unlock.gnx_classes, arg0);
 +}
 +
 +

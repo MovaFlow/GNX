@@ -1,0 +1,82 @@
+{
+  "about": "Quest side effect unlock_class records the class in global.unlock.gnx_classes (saved); the condition class_unlocked reads it. Regression: unlock_class used to do nothing (class registry entries carry no raid_spawns, and the pool lookup used the wrong key).",
+  "mods": [
+    "tools/scenarios/mods/harness_unlock_class"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_class_unlocked",
+      "args": [1],
+      "is": 0,
+      "why": "Elf is not unlocked on a new game"
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "day_start"
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": ["harness_unlock_class", "seen"],
+      "is": 0,
+      "why": "class_unlocked is false: the guarded trigger does not fire"
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "cell_built"
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_class_unlocked",
+      "args": [1],
+      "is": 1,
+      "why": "unlock_class recorded Elf"
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "day_start"
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": ["harness_unlock_class", "seen"],
+      "is": 1,
+      "why": "class_unlocked is now true: the guarded trigger fires"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_class_unlocked",
+      "args": [1],
+      "is": 1,
+      "why": "the unlock survives save/reload"
+    }
+  ]
+}

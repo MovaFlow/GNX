@@ -2351,7 +2351,7 @@ Encounter level `0` is special:
 | `weight` | How often the class is picked compared to the rest of the pool | number | `10` |
 | `min_lvl` | Lowest unit level of a spawned unit | number | `0` |
 | `max_lvl` | Highest unit level. Keep both between 0 and 7, with `min_lvl` ≤ `max_lvl`. | number | `1` |
-| `condition` | Spawn only while this is true. Quest condition format ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)), checked in your mod's state when an encounter is built. | object | always |
+| `condition` | Spawn only while this is true. Quest condition format ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)), checked in your mod's state when an encounter is built. To keep a class out of raids until a quest unlocks it, use `{"type": "class_unlocked", "class": "my_mod.NAME"}` with the quest side effect `unlock_class`. | object | always |
 | `max_per_encounter` | Most units of this class in one encounter | number | unlimited |
 | `ap_override` | `[HP, AP]` the unit adds to the encounter instead of `fap_mul × level` and `bap_mul × level`. Exactly 2 numbers, otherwise ignored. **Ignored in the Tower**, where enemy HP and AP are fixed. | list | class values |
 
