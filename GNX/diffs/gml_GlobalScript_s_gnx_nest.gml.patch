@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,498 @@
+@@ -0,0 +1,540 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -123,9 +123,11 @@
 +
 +
 +// GNX-FLOOR: COPY DOWN: builds floor arg0's layout on the floor below: every slot with the same cell, then the
-+// passages' styles and props. Only onto a floor that holds nothing yet (its entrance, stairs and first
-+// passage, laid out like this floor's start). Costs what building it by hand costs (slot + cell prices),
-+// unless the GNX DEBUG toggle FREE COPY is on. Captives, monsters and cell upgrades are not copied.
++// passages' styles and props. Only onto a floor that holds nothing yet (a new floor: entrance, start slot,
++// passage). Slots left of the entrance (NEW on the entrance with the build side on the left) are built the same
++// way, slots right of it in order; the first type-3 slot right of the entrance is the floor below's own start
++// slot (only its cell is built). Costs what building it by hand costs (slot + cell prices), unless the GNX DEBUG
++// toggle FREE COPY is on. Captives, monsters and cell upgrades are not copied.
 +// Returns "" when done, else why not (shown in a popup).
 +function gnx_floor_copy_down(arg0)
 +{
@@ -136,39 +138,53 @@
 +
 +    var _src = global.slot_list[arg0];
 +    var _dst = global.slot_list[_t];
-+    var _n0 = ds_list_size(_dst);
 +
-+    // the floor below must be empty: only the start every floor has (types 3, 4, 5), matching this floor's
-+    for (var i = 0; i < _n0; i++)
++    // the floor below must be a new one: entrance, start slot without a cell, passage
++    var _fresh = ds_list_size(_dst) == 3;
++    var _new_floor = [4, 3, 5];
++
++    for (var i = 0; _fresh && i < 3; i++)
 +    {
-+        var _ty = ds_list_find_value(_dst, i).slot_data.slot_type;
-+
-+        if ((_ty != 3 && _ty != 4 && _ty != 5) || i >= ds_list_size(_src) || ds_list_find_value(_src, i).slot_data.slot_type != _ty)
-+            return "Copy impossible: the floor below is not empty.";
++        var _d = ds_list_find_value(_dst, i).slot_data;
++        _fresh = _d.slot_type == _new_floor[i] && (!variable_struct_exists(_d, "h_type") || _d.h_type == -1);
 +    }
 +
-+    // the slots to build: everything after the start but the passages, in order (each slot is built with its
-+    // passage). Type 3 is not only part of a floor's start: it is also built mid-floor.
-+    var _cells = [];
-+    var _cost = 0;
++    if (!_fresh)
++        return "Copy impossible: the floor below is not empty.";
 +
-+    for (var i = _n0; i < ds_list_size(_src); i++)
++    // the slots to build, passages left out (each slot is built with its passage): left of the entrance, then right
++    var _left = [];
++    var _right = [];
++    var _past = false;
++    var _cost = 0;
++    var _start_used = false;
++
++    for (var i = 0; i < ds_list_size(_src); i++)
 +    {
 +        var _s = ds_list_find_value(_src, i);
 +        var _ty = _s.slot_data.slot_type;
 +
-+        if (_ty == 5)
++        if (_ty == 4)
++            _past = true;
++
++        if (_ty == 4 || _ty == 5)
 +            continue;
 +
 +        var _h = variable_struct_exists(_s.slot_data, "h_type") ? _s.slot_data.h_type : -1;
-+        array_push(_cells, { type: _ty, h: _h });
-+        _cost += max(0, scr_slot_type_price_data(_ty).price);
++        var _reuse = _past && _ty == 3 && !_start_used;  // the floor below's start slot
++
++        if (_reuse)
++            _start_used = true;
++        else
++            _cost += max(0, scr_slot_type_price_data(_ty).price);
 +
 +        if (_h != -1)
 +            _cost += max(0, scr_h_slot_text_data(_h).price);
++
++        array_push(_past ? _right : _left, { type: _ty, h: _h, reuse: _reuse });
 +    }
 +
-+    if (array_length(_cells) == 0)
++    if (array_length(_left) + array_length(_right) == 0)
 +        return "Nothing to copy: this floor has no cells.";
 +
 +    if (global.gnx_free_floor_copy)
@@ -180,34 +196,60 @@
 +    global.val.money -= _cost;
 +    global.gnx_floor_copy_charged = _cost;  // what this copy took (the harness checks it against the build price)
 +    var _side = global.build_side;
-+    global.build_side = false;  // build left to right, as the source floor reads
++    var _list = _dst;
 +
-+    for (var i = 0; i < array_length(_cells); i++)
++    for (var i = 0; i < array_length(_left) + array_length(_right); i++)
 +    {
-+        var _list = global.slot_list[_t];
-+        var _before = [];
++        var _c = (i < array_length(_left)) ? _left[i] : _right[i - array_length(_left)];
++        var _slot = -1;
++        var _e = 0;
 +
-+        for (var k = 0; k < ds_list_size(_list); k++)
-+            array_push(_before, ds_list_find_value(_list, k));
++        while (ds_list_find_value(_list, _e).slot_data.slot_type != 4)
++            _e++;
 +
-+        // as the build menu does: scr_create_slot(..., true) adds the slot and its passage, and returns the passage
-+        scr_create_slot(_cells[i].type, _t, ds_list_size(_list), true);
-+
-+        if (_cells[i].h != -1)
++        if (_c.reuse)
 +        {
++            // right of the entrance, after the slots built so far (2 list entries each)
++            _slot = ds_list_find_value(_list, _e + 1 + (2 * (i - array_length(_left))));
++        }
++        else
++        {
++            var _before = [];
++
++            for (var k = 0; k < ds_list_size(_list); k++)
++                array_push(_before, ds_list_find_value(_list, k));
++
++            if (i < array_length(_left))
++            {
++                // as NEW on the entrance with the build side on the left: just left of the entrance
++                global.build_side = true;
++                scr_create_slot(_c.type, _t, _e + 1, true);
++            }
++            else
++            {
++                // as NEW on the passage before it with the build side on the right
++                global.build_side = false;
++                scr_create_slot(_c.type, _t, _e + 1 + (2 * (i - array_length(_left))), true);
++            }
++
 +            for (var k = 0; k < ds_list_size(_list); k++)
 +            {
 +                var _new = ds_list_find_value(_list, k);
 +
-+                if (!array_contains(_before, _new) && _new.slot_data.slot_type == _cells[i].type)
++                if (!array_contains(_before, _new) && _new.slot_data.slot_type == _c.type)
 +                {
-+                    scr_set_slot_h_data(_new, _cells[i].h);
-+                    // once per cell, as building it by hand does (quests counting built cells see each one)
-+                    scr_gnx_check_triggers("cell_built");
-+                    scr_gnx_check_quest_completion("cell_built");
++                    _slot = _new;
 +                    break;
 +                }
 +            }
++        }
++
++        if (_c.h != -1 && _slot != -1)
++        {
++            scr_set_slot_h_data(_slot, _c.h);
++            // once per cell, as building it by hand does (quests counting built cells see each one)
++            scr_gnx_check_triggers("cell_built");
++            scr_gnx_check_quest_completion("cell_built");
 +        }
 +    }
 +

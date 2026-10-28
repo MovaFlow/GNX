@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4282 @@
+@@ -0,0 +1,4332 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2025,6 +2025,48 @@
 +}
 +
 +
++// builds a slot of type arg0 holding cell arg1 (-1 = none) left of the deepest floor's entrance, as NEW on the
++// entrance does with the build side on the left
++function gnx_scn_build_left(arg0, arg1)
++{
++    var _list = global.slot_list[global.val.floor];
++    var _before = [];
++
++    for (var k = 0; k < ds_list_size(_list); k++)
++        array_push(_before, ds_list_find_value(_list, k));
++
++    var _e = 0;
++
++    while (ds_list_find_value(_list, _e).slot_data.slot_type != 4)
++        _e++;
++
++    global.build_side = true;
++    scr_create_slot(arg0, global.val.floor, _e + 1, true);
++    global.build_side = false;
++
++    for (var k = 0; k < ds_list_size(_list); k++)
++    {
++        var _new = ds_list_find_value(_list, k);
++
++        if (!array_contains(_before, _new) && _new.slot_data.slot_type == arg0 && arg1 != -1)
++            scr_set_slot_h_data(_new, arg1);
++    }
++}
++
++
++// the deepest floor's slot types, left to right ("4 3 5")
++function gnx_scn_last_floor_types()
++{
++    var _list = global.slot_list[global.val.floor];
++    var _s = "";
++
++    for (var k = 0; k < ds_list_size(_list); k++)
++        _s += (k > 0 ? " " : "") + string(ds_list_find_value(_list, k).slot_data.slot_type);
++
++    return _s;
++}
++
++
 +// how many slots the deepest floor holds
 +function gnx_scn_last_floor_size()
 +{
@@ -2050,15 +2092,23 @@
 +{
 +    var _src = global.slot_list[global.val.floor - 1];
 +    var _c = 0;
++    var _right = false;
++    var _start_used = false;
 +
-+    for (var i = 3; i < ds_list_size(_src); i++)
++    for (var i = 0; i < ds_list_size(_src); i++)
 +    {
 +        var _d = ds_list_find_value(_src, i).slot_data;
 +
-+        if (_d.slot_type == 5)
++        if (_d.slot_type == 4)
++            _right = true;
++
++        if (_d.slot_type == 4 || _d.slot_type == 5)
 +            continue;
 +
-+        _c += max(0, scr_slot_type_price_data(_d.slot_type).price);
++        if (_right && _d.slot_type == 3 && !_start_used)
++            _start_used = true;
++        else
++            _c += max(0, scr_slot_type_price_data(_d.slot_type).price);
 +
 +        if (variable_struct_exists(_d, "h_type") && _d.h_type != -1)
 +            _c += max(0, scr_h_slot_text_data(_d.h_type).price);

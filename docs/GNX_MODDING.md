@@ -2923,7 +2923,7 @@ A button list whose buttons include one starting with `create_unit` (also in you
 |---|---|
 | PERF LOG | `Perf logging ON (gnx_debug.txt)`: a performance line every 120 frames (about 2 seconds). |
 | VERBOSE | `Verbose debug logging ON`: many extra trace lines; use it when a cell or class draws wrong. |
-| FREE COPY | `Floor copies are free`: COPY DOWN in an entrance's FLOOR menu costs nothing. |
+| FREE COPY | `Floor copies are free`: COPY DOWN in a floor's FLOOR menu (on its starting pillar) costs nothing. |
 | CAPT100 | `Raid capture rate forced to 100%`: every capture roll succeeds (except in `no_capture` encounters, [21.2](#212-map_info)). |
 | TRACE | `Entity lifecycle tracing ON (gnx_debug.txt)` |
 | OVERLAY | `GameMaker debug overlay ON (FPS, memory, textures)` |

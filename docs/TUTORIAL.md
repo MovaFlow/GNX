@@ -566,6 +566,12 @@ Full reference: [GNX_MODDING.md §21](GNX_MODDING.md#21-multi-map-travel).
 All scripts are in `<tools>/` (see [§0](#0-prerequisites) for how to find that
 path). Run them with Python 3. All require Pillow (`pip install Pillow`).
 
+**On Windows:** open PowerShell in a folder (Shift + right-click on an empty spot of the folder, "Open PowerShell
+window here") and type the command there; double-clicking a script does nothing useful. The commands below are
+split over several lines with `\` at the line ends: in PowerShell or cmd, write the whole command on **one line**
+without the `\`. Replace each `<...>` with the real path, without the `<` `>`, and keep the quotes around any path
+that has spaces in it (`"C:\Games\Goblin Nest\GNX_mods\my_mod\sprites"`).
+
 ---
 
 ### `export_class_sprites.py`  - copy + rename a vanilla class

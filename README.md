@@ -34,7 +34,7 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Mod Menu**  - a MODS button on the main menu turns installed mods on and off (with `requires` dependencies between mods). Saves remember the mods they were made with, and the load page warns when one is missing.
 
-**Building & Nest Management**  - edit a whole floor from its entrance (FLOOR: style, props and CLEAR for every passage at once), copy a floor onto the empty floor below (COPY DOWN, at the normal build price), move floors up or down from the entrance, sort the prison (class, level, milk, fertility), six save slots (three per page), and grouped prop menus (by `category` or mod).
+**Building & Nest Management**  - edit a whole floor from its starting pillar, the one every new floor comes with (FLOOR: style, props and CLEAR for every passage at once), copy a floor onto the empty floor below (COPY DOWN, at the normal build price), move floors up or down from that pillar, sort the prison (class, level, milk, fertility), six save slots (three per page), and grouped prop menus (by `category` or mod).
 
 **Raid Variety**  - map mods can mark raid encounters that bring loot and quest progress but no captives (`map_info.no_capture`; bosses stay capturable).
 
