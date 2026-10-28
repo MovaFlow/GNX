@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/sounds.schema.json",
+  "title": "GNX sounds.json",
+  "description": "Moan voices, sex-scene sound effects, monster ambience and music. Audio files are OGG Vorbis, in the mod's sounds/ folder. Modding guide section 18.",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "voice_banks": {
+      "type": "object",
+      "description": "Named moan banks: { \"<bank name>\": { \"clips\": [ ... ] } } (guide 18.2).",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["clips"],
+        "properties": {
+          "clips": { "$ref": "#/definitions/files", "description": "Moan clips: file names inside sounds/." },
+          "orgasm": { "$ref": "#/definitions/files", "description": "This bank's own orgasm clips (else the shared sfx.orgasm pool)." }
+        },
+        "patternProperties": { "^_": {} },
+        "additionalProperties": false
+      }
+    },
+    "voice_map": {
+      "type": "object",
+      "description": "Fixed voice per class ID (guide 18.3): { \"<class id>\": { \"bank\": ..., \"pitch\": ... } }.",
+      "propertyNames": { "pattern": "^(_.*|-?[0-9]+)$" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "bank": { "type": "string", "description": "A bank of this sounds.json, without the folder prefix." },
+          "pitch": { "type": "number" },
+          "by_mon_type": { "$ref": "#/definitions/by_mon_type" }
+        },
+        "patternProperties": { "^_": {} },
+        "additionalProperties": false
+      }
+    },
+    "sfx": {
+      "type": "object",
+      "description": "File lists for the shared effect pools (guide 18.4).",
+      "properties": {
+        "orgasm": { "$ref": "#/definitions/files" },
+        "bj_slurp": { "$ref": "#/definitions/files" },
+        "bj_gag": { "$ref": "#/definitions/files" },
+        "bj_moan": { "$ref": "#/definitions/files" },
+        "bj_breathe": { "$ref": "#/definitions/files" }
+      },
+      "patternProperties": { "^_": {} },
+      "additionalProperties": false
+    },
+    "settings_defaults": {
+      "type": "object",
+      "description": "Starting values of the sound sliders (guide 18.6).",
+      "properties": {
+        "moan_vol": { "type": "number", "minimum": 0, "maximum": 5 },
+        "plap_vol": { "type": "number", "minimum": 0, "maximum": 5 },
+        "ej_vol": { "type": "number", "minimum": 0, "maximum": 5 },
+        "bj_vol": { "type": "number", "minimum": 0, "maximum": 5 },
+        "moan_frq": { "type": "number", "minimum": 0, "maximum": 100 },
+        "orgasm_frq": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "patternProperties": { "^_": {} },
+      "additionalProperties": false
+    },
+    "ambience": {
+      "type": "object",
+      "description": "Monster ambience voices (guide 18.7).",
+      "properties": {
+        "variants": { "type": "array", "items": { "enum": ["balanced", "three_lane", "individual"] } },
+        "species": {
+          "type": "object",
+          "properties": {
+            "goblin": { "$ref": "#/definitions/species" },
+            "hobgoblin": { "$ref": "#/definitions/species" },
+            "ogre": { "$ref": "#/definitions/species" }
+          },
+          "patternProperties": { "^_": {} },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": { "^_": {} },
+      "additionalProperties": false
+    },
+    "music": {
+      "type": "object",
+      "required": ["tracks"],
+      "description": "Gameplay music tracks (guide 18.9).",
+      "properties": {
+        "tracks": { "$ref": "#/definitions/files", "description": "File names inside sounds/." },
+        "replace": { "type": ["boolean", "integer"], "description": "true: only the mods' tracks play, not the game's own." }
+      },
+      "patternProperties": { "^_": {} },
+      "additionalProperties": false
+    }
+  },
+  "patternProperties": { "^_": {} },
+  "additionalProperties": false,
+  "definitions": {
+    "files": { "type": "array", "items": { "type": "string", "pattern": "\\.ogg$" } },
+    "voice": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "object", "required": ["bank"], "properties": { "bank": { "type": "string" }, "pitch": { "type": "number" } }, "additionalProperties": false }
+      ]
+    },
+    "by_mon_type": {
+      "type": "object",
+      "description": "Another voice for one monster type: a bank name or { bank, pitch }.",
+      "properties": {
+        "goblin": { "$ref": "#/definitions/voice" },
+        "hobgoblin": { "$ref": "#/definitions/voice" },
+        "tentacle": { "$ref": "#/definitions/voice" },
+        "ogre": { "$ref": "#/definitions/voice" }
+      },
+      "additionalProperties": false
+    },
+    "species": {
+      "type": "object",
+      "properties": {
+        "ambient": { "$ref": "#/definitions/files", "description": "Normal lines of that species." },
+        "breeding": { "$ref": "#/definitions/files", "description": "Second pool, picked 45 % of the time." },
+        "victory": { "$ref": "#/definitions/files", "description": "Played once when a raid is won." },
+        "defeat": { "$ref": "#/definitions/files", "description": "Played once when a raid is lost." }
+      },
+      "patternProperties": { "^_": {} },
+      "additionalProperties": false
+    }
+  }
+}

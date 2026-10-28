@@ -1,0 +1,376 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/manifest.schema.json",
+  "title": "GNX mod manifest.json",
+  "description": "Makes a folder a GNX mod: its name, the game versions it supports, its data files and saved variables. Modding guide section 4.",
+  "type": "object",
+  "required": [
+    "name",
+    "version",
+    "compatible_game_versions"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name in the MODS menu and the log."
+    },
+    "version": {
+      "type": "string",
+      "description": "Your mod version, for example \"1.0.0\", shown in the MODS menu and the log."
+    },
+    "author": {
+      "type": "string",
+      "description": "Shown in the MODS menu."
+    },
+    "description": {
+      "type": "string",
+      "description": "Shown in the MODS menu."
+    },
+    "compatible_game_versions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "description": "Must contain \"1.38\", \"1.39\" or \"1.40\" (guide 4.2)."
+    },
+    "min_gnx_version": {
+      "type": "string",
+      "description": "The oldest GNX your mod works with, for example \"1.5.0\" (guide 4.2)."
+    },
+    "mod_id": {
+      "type": "string",
+      "description": "A second name for other mods' requires, usually the folder name."
+    },
+    "requires": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Mods this one needs, by folder name or mod_id (guide 4.5)."
+    },
+    "classes": {
+      "$ref": "#/definitions/data_file",
+      "description": "classes.json path, relative to the mod folder (guide 6)."
+    },
+    "cells": {
+      "$ref": "#/definitions/data_file",
+      "description": "cells.json path (guide 8)."
+    },
+    "quests": {
+      "$ref": "#/definitions/data_file",
+      "description": "quests.json path (QUESTS_SCHEMA.md)."
+    },
+    "tools": {
+      "$ref": "#/definitions/data_file",
+      "description": "tools.json path (guide 17)."
+    },
+    "sounds": {
+      "$ref": "#/definitions/data_file",
+      "description": "sounds.json path (guide 18)."
+    },
+    "props": {
+      "$ref": "#/definitions/data_file",
+      "description": "props.json path (guide 19)."
+    },
+    "items": {
+      "$ref": "#/definitions/data_file",
+      "description": "items.json path (guide 25)."
+    },
+    "save_state": {
+      "type": "object",
+      "description": "Saved variables (guide 4.3).",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "description": "Version of your field list, stored as _version."
+        },
+        "fields": {
+          "type": "object",
+          "description": "State keys and their start values. Use numbers: state_gte and state_lte compare sizes."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "map": {
+      "description": "Which map(s) the mod belongs to: \"vanilla\" (default), \"all\", a map ID, or a list of maps (guide 21.1).",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "map_info": {
+      "$ref": "#/definitions/map_info"
+    },
+    "map_button": {
+      "$ref": "#/definitions/map_info",
+      "description": "Old name of map_info (before 1.4.9); still read."
+    },
+    "map_start": {
+      "$ref": "#/definitions/map_start"
+    }
+  },
+  "patternProperties": {
+    "^_": {
+      "description": "Comment: keys starting with _ are ignored."
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "data_file": {
+      "type": "string",
+      "pattern": "\\.json$"
+    },
+    "map_info": {
+      "type": "object",
+      "description": "Your own map in the travel menu (guide 21.2).",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "The map's name in the travel menu and on the load page."
+        },
+        "map_sprite": {
+          "type": "string",
+          "description": "PNG in your mod's sprites/ folder (133 x 91), the raid panel's world map on this map."
+        },
+        "no_capture": {
+          "type": "array",
+          "description": "Raid encounters of this map that can be won but capture nobody.",
+          "items": {
+            "type": "object",
+            "required": [
+              "stage",
+              "level"
+            ],
+            "properties": {
+              "stage": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "return_label": {
+          "type": "string",
+          "description": "The village's name in the travel menu while on this map."
+        },
+        "travel": {
+          "enum": [
+            "simple",
+            "advanced",
+            "complex"
+          ],
+          "description": "What may be taken along to or from this map."
+        },
+        "travel_cost": {
+          "type": "object",
+          "description": "What a trip to or from this map costs.",
+          "properties": {
+            "gold": {
+              "type": "number",
+              "minimum": 0
+            },
+            "food": {
+              "type": "number",
+              "minimum": 0
+            },
+            "days": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "unlock": {
+          "description": "A condition, or a list that must all hold (QUESTS_SCHEMA.md). Until then the map is hidden.",
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/definitions/condition"
+            },
+            {
+              "$ref": "common.schema.json#/definitions/conditions"
+            }
+          ]
+        },
+        "x": {
+          "type": "number",
+          "description": "Not used."
+        },
+        "y": {
+          "type": "number",
+          "description": "Not used."
+        },
+        "return_x": {
+          "type": "number",
+          "description": "Not used."
+        },
+        "return_y": {
+          "type": "number",
+          "description": "Not used."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "ref_or_id": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "description": "A number, or a reference such as \"my_mod.NAME\"."
+    },
+    "map_start": {
+      "type": "object",
+      "description": "How a new game starts on your map (guide 21.3).",
+      "properties": {
+        "floors": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Extra floors below the entrance floor."
+        },
+        "money": {
+          "type": "number"
+        },
+        "food": {
+          "type": "number"
+        },
+        "mood": {
+          "type": "number"
+        },
+        "goblins": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Basic goblins at the start (default 5)."
+        },
+        "troops": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "description": "goblin, hobgoblin, tentacle or ogre (or 0-3).",
+                "oneOf": [
+                  {
+                    "enum": [
+                      "goblin",
+                      "hobgoblin",
+                      "tentacle",
+                      "ogre"
+                    ]
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3
+                  }
+                ]
+              },
+              "kind": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "num": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        "prisoners": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "$ref": "#/definitions/ref_or_id"
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5
+              },
+              "num": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "h_type"
+            ],
+            "properties": {
+              "h_type": {
+                "$ref": "#/definitions/ref_or_id"
+              },
+              "slot_type": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "floor": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        "unlock_cells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ref_or_id"
+          }
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    }
+  }
+}

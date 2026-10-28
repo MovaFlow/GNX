@@ -1,0 +1,654 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/quests.schema.json",
+  "title": "GNX quests.json",
+  "description": "Portraits, popups, events (notifications and quests) and triggers. See docs/QUESTS_SCHEMA.md.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "portraits": {
+      "type": "object",
+      "description": "Portrait key -> PNG in the mod's portraits/ folder (133 x 113 per frame).",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "strip"
+        ],
+        "properties": {
+          "strip": {
+            "type": "string",
+            "description": "File name inside portraits/."
+          },
+          "frames": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "patternProperties": {
+          "^_": {}
+        },
+        "additionalProperties": false
+      }
+    },
+    "popups": {
+      "type": "object",
+      "description": "Popup key -> text.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "events": {
+      "type": "object",
+      "description": "Event ID -> notification or quest.",
+      "additionalProperties": {
+        "$ref": "#/definitions/event"
+      }
+    },
+    "triggers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/trigger"
+      }
+    }
+  },
+  "patternProperties": {
+    "^_": {}
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "side_effect": {
+      "type": "object",
+      "description": "A side effect, applied when the event fires (QUESTS_SCHEMA.md, Side effect types).",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "set_state",
+            "add_gold",
+            "add_food",
+            "give_item",
+            "take_item",
+            "unlock_cell",
+            "unlock_class",
+            "unlock_map"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_state"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Sets the mod's save state key to value.",
+            "properties": {
+              "type": {
+                "const": "set_state"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_gold"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds gold.",
+            "properties": {
+              "type": {
+                "const": "add_gold"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_food"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds food.",
+            "properties": {
+              "type": {
+                "const": "add_food"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "give_item"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Puts that many (default 1) of a mod item into the inventory.",
+            "properties": {
+              "type": {
+                "const": "give_item"
+              },
+              "item": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "type",
+              "item"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "take_item"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Takes that many (default 1) out.",
+            "properties": {
+              "type": {
+                "const": "take_item"
+              },
+              "item": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "type",
+              "item"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_cell"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Unlocks a cell in the build menu.",
+            "properties": {
+              "type": {
+                "const": "unlock_cell"
+              },
+              "h_type": {
+                "$ref": "common.schema.json#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_class"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds a class to the raid encounter pools.",
+            "properties": {
+              "type": {
+                "const": "unlock_class"
+              },
+              "class": {
+                "$ref": "common.schema.json#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "class"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_map"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Opens a mod map in the travel menu for good.",
+            "properties": {
+              "type": {
+                "const": "unlock_map"
+              },
+              "map": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "map"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "reward": {
+      "type": "object",
+      "description": "A quest reward (QUESTS_SCHEMA.md, Reward types).",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "gold",
+            "food",
+            "blueprint",
+            "prop",
+            "item"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "gold"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds gold.",
+            "properties": {
+              "type": {
+                "const": "gold"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "food"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds food.",
+            "properties": {
+              "type": {
+                "const": "food"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "blueprint"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "A complete blueprint (unlocks the cell), or with fragment: true one piece.",
+            "properties": {
+              "type": {
+                "const": "blueprint"
+              },
+              "h_type": {
+                "$ref": "common.schema.json#/definitions/ref"
+              },
+              "fragment": {
+                "type": [
+                  "boolean",
+                  "integer"
+                ]
+              },
+              "lvl": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "prop"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Unlocks a prop in the customization menu.",
+            "properties": {
+              "type": {
+                "const": "prop"
+              },
+              "prop_id": {
+                "type": [
+                  "integer",
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "prop_id"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "item"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "A mod item (items.json).",
+            "properties": {
+              "type": {
+                "const": "item"
+              },
+              "item": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "type",
+              "item"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "dialog_line": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "speaker": {
+          "type": "string"
+        },
+        "portrait": {
+          "type": [
+            "string",
+            "integer"
+          ],
+          "description": "A key of portraits, -1 = the vanilla Lilith portrait, or 0-94 = a vanilla portrait frame."
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "notification",
+            "quest"
+          ]
+        },
+        "dialog": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/dialog_line"
+          },
+          "description": "Without dialog, a notification fires silently."
+        },
+        "side_effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/side_effect"
+          }
+        },
+        "next_event": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The event that follows (null = the chain ends)."
+        },
+        "quest_text": {
+          "type": "string"
+        },
+        "reward": {
+          "$ref": "#/definitions/reward"
+        },
+        "completion": {
+          "$ref": "common.schema.json#/definitions/condition"
+        },
+        "completion_hook": {
+          "enum": [
+            "frame",
+            "post_raid",
+            "post_raid_win",
+            "cell_built",
+            "day_start"
+          ],
+          "description": "When the completion condition is checked (default \"frame\": every frame). map_arrive and post_raid_loss are trigger hooks only."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "trigger": {
+      "type": "object",
+      "required": [
+        "event",
+        "hook"
+      ],
+      "description": "Fires the event every time the hook runs and all conditions hold (guard one-time events with a state key).",
+      "properties": {
+        "event": {
+          "type": "string"
+        },
+        "hook": {
+          "enum": [
+            "post_raid_win",
+            "post_raid",
+            "post_raid_loss",
+            "cell_built",
+            "day_start",
+            "map_arrive"
+          ]
+        },
+        "conditions": {
+          "$ref": "common.schema.json#/definitions/conditions"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    }
+  }
+}

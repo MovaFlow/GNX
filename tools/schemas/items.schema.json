@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/items.schema.json",
+  "title": "GNX items.json",
+  "description": "Mod inventory items and raid loot. Modding guide section 25.",
+  "if": {
+    "type": "array"
+  },
+  "then": {
+    "type": "array",
+    "items": {
+      "$ref": "#/definitions/item"
+    }
+  },
+  "else": {
+    "type": "object",
+    "properties": {
+      "$schema": {
+        "type": "string"
+      },
+      "sprites": {
+        "$ref": "#/definitions/sprites"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/item"
+        }
+      },
+      "loot": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/loot"
+        }
+      }
+    },
+    "patternProperties": {
+      "^_": {}
+    },
+    "additionalProperties": false
+  },
+  "definitions": {
+    "item": {
+      "type": "object",
+      "required": [
+        "name",
+        "sprite"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The item's name; quests, tools and loot refer to it (\"MOON SHARD\", or \"my_mod.MOON SHARD\" from another mod)."
+        },
+        "sprite": {
+          "type": "string",
+          "description": "20 x 20 picture: a gnx: key of this file's sprites. Only frame 0 is drawn."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "loot": {
+      "type": "object",
+      "required": [
+        "stage",
+        "level"
+      ],
+      "description": "One find added once per save to a raid stage's loot: an item (item + num) or a blueprint (blueprint + piece | complete).",
+      "properties": {
+        "stage": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The raid stage, from 0."
+        },
+        "level": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The stage's level, from 0."
+        },
+        "item": {
+          "type": "string",
+          "description": "One of your items, or another mod's (\"mod.NAME\")."
+        },
+        "num": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many of the item (default 1)."
+        },
+        "blueprint": {
+          "type": "string",
+          "description": "A cell (\"ALTAR\", \"other_mod.CELL\")."
+        },
+        "piece": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Which blueprint piece, 0-2 (three different pieces combine)."
+        },
+        "complete": {
+          "type": [
+            "boolean",
+            "integer"
+          ],
+          "description": "true: the whole blueprint, which unlocks the cell when picked up."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "item"
+          ]
+        },
+        {
+          "required": [
+            "blueprint"
+          ]
+        }
+      ]
+    },
+    "sprites": {
+      "$ref": "common.schema.json#/definitions/sprites"
+    }
+  }
+}

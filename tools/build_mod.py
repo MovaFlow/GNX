@@ -178,6 +178,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Write nothing, just show what would happen")
     parser.add_argument("--force", action="store_true", help="Repack all sprites (passed through to gnx_pack_strips.py)")
     parser.add_argument("--skip-pack", action="store_true", help="Skip gnx_pack_strips.py (strips/ already up to date)")
+    parser.add_argument("--deploy-anyway", action="store_true", help="Deploy even when check_mod.py finds blocking problems")
     args = parser.parse_args()
 
     mod_dir = Path(args.mod_dir).resolve()
@@ -191,10 +192,15 @@ def main():
         sys.exit(f"manifest.json not found in {mod_dir}")
 
     manifest = load_json_loose(manifest_path)
+    # the deployed folder's name is the mod's identity: class and cell IDs are hashed from "<folder>.<NAME>",
+    # so renaming it changes every ID and breaks saves. mod_id keeps it fixed whatever the source folder is called.
     mod_id = manifest.get("mod_id")
     if not mod_id:
-        sys.exit("manifest.json: missing 'mod_id' field")
-    if mod_id != mod_dir.name:
+        mod_id = mod_dir.name
+        print(f"WARN: no 'mod_id' in manifest.json: deploying as '{mod_id}' (the source folder's name). "
+              "Add \"mod_id\" so the deployed name, which your class and cell IDs are made from, stays the same "
+              "if you rename the folder.")
+    elif mod_id != mod_dir.name:
         print(f"WARN: mod_id '{mod_id}' != folder name '{mod_dir.name}' (mod_id is used as the folder name in mods/)")
 
     print(f"Mod: {manifest.get('name', mod_id)} v{manifest.get('version', '?')} (mod_id={mod_id})")
@@ -212,7 +218,7 @@ def main():
     print("--- Pack verification ---")
     leftovers = []
     json_files = {}
-    for role in ("classes", "cells", "quests", "tools", "sounds", "props"):
+    for role in ("classes", "cells", "quests", "tools", "sounds", "props", "items"):
         rel = manifest.get(role)
         if not rel:
             continue
@@ -249,6 +255,15 @@ def main():
             print(f"OK - map {manifest['map']!r}")
         print()
 
+    # 2c. Schema check (tools/check_mod.py): unknown keys, wrong types. Unknown keys where they decide what the
+    # mod or an entry is (manifest, class / cell entry top level) block the deploy unless --deploy-anyway.
+    print("--- Schema check ---")
+    import check_mod
+    rc = check_mod.main([str(mod_dir)])
+    if rc == 2 and not args.deploy_anyway:
+        sys.exit("Blocking problems above: fix them, or deploy with --deploy-anyway.")
+    print()
+
     # 3. Deploy
     dest = game_dir / "GNX_mods" / mod_id
     print(f"--- Deploying to {dest} (GNX_mods/) ---")
@@ -263,7 +278,7 @@ def main():
         print(f"[dry] would create {dest}")
         for f in files_to_copy:
             print(f"[dry] would copy {f}")
-        for folder in ("strips", "atlas", "sounds", "portraits"):
+        for folder in ("strips", "atlas", "sounds", "portraits", "lang"):
             if (mod_dir / folder).is_dir():
                 n = sum(1 for f in (mod_dir / folder).rglob("*") if f.is_file())
                 print(f"[dry] would copy {folder}/ ({n} files)")
@@ -283,7 +298,7 @@ def main():
             (dest / "sprites").mkdir(exist_ok=True)
             shutil.copy2(mod_dir / "sprites" / ms_name, dest / "sprites" / ms_name)
             print(f"  copied: sprites/{ms_name}")
-        for folder in ("strips", "atlas", "sounds", "portraits"):  # everything the loader reads from the mod folder
+        for folder in ("strips", "atlas", "sounds", "portraits", "lang"):  # everything the loader reads from the mod folder
             src_dir = mod_dir / folder
             if src_dir.is_dir():
                 shutil.copytree(src_dir, dest / folder)

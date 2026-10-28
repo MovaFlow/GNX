@@ -29,6 +29,7 @@ worked*.
   - [scaffold_cell.py](#scaffold_cellpy--generate-a-cell-stub)
   - [generate_class.py](#generate_classpy--interactive-classesjson-generator)
   - [generate_cell.py](#generate_cellpy--interactive-cellsjson-generator)
+  - [check_mod.py](#check_modpy--find-typos-and-wrong-keys)
   - [build_mod.py](#build_modpy--pack--verify--deploy)
 
 ---
@@ -720,6 +721,10 @@ resulting object into your mod's `cells.json` array. Advanced physical fields
 if needed; see [GNX_MODDING.md §9](GNX_MODDING.md#9-the-physical-block-how-a-cell-behaves).
 
 ---
+
+### `check_mod.py`  - find typos and wrong keys
+
+`python <tools>/check_mod.py <your mod folder>` checks every JSON file of the mod against the schemas in `<tools>/schemas/`: unknown keys (usually typos, which GNX silently ignores) and wrong types. `build_mod.py` runs it for you. To get the same warnings while you type, see the modding guide, section 26.
 
 ### `build_mod.py`  - pack + verify + deploy
 

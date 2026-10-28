@@ -1,0 +1,813 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/common.schema.json",
+  "title": "GNX shared definitions",
+  "description": "Pieces several GNX file schemas use: sprite entries, colours.",
+  "definitions": {
+    "sprites": {
+      "type": "object",
+      "description": "Sprite entries by key, referenced as \"gnx:<key>\" (guide 5.1).",
+      "additionalProperties": {
+        "$ref": "#/definitions/sprite"
+      }
+    },
+    "sprite": {
+      "description": "Where GNX takes the image from: strip, frames (list), path, folder or from_game; or plain text = one PNG (guide 5.2).",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "strip": {
+              "type": "string",
+              "description": "Path of a PNG strip, relative to the mod folder."
+            },
+            "frames": {
+              "description": "With strip: the number of frames. Without strip: a list of PNG paths.",
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "path": {
+              "type": "string",
+              "description": "Path of a single-frame PNG."
+            },
+            "folder": {
+              "type": "string",
+              "description": "Folder of per-frame PNGs (or strips/<folder>)."
+            },
+            "from_game": {
+              "type": "string",
+              "description": "Name of a vanilla sprite; GNX copies one frame of it."
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Which frame from_game copies."
+            },
+            "xorig": {
+              "description": "Origin x: pixels, or \"left\" / \"center\" / \"right\".",
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                }
+              ]
+            },
+            "yorig": {
+              "description": "Origin y: pixels, or \"top\" / \"middle\" / \"bottom\".",
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "enum": [
+                    "top",
+                    "middle",
+                    "bottom"
+                  ]
+                }
+              ]
+            },
+            "origin_from": {
+              "type": "string",
+              "description": "Vanilla sprite whose origin is copied."
+            },
+            "loop": {
+              "type": [
+                "boolean",
+                "integer"
+              ],
+              "description": "Captive strips in cells: the strip loops its own frames inside a longer phase (guide 22.6)."
+            },
+            "canvas_w": {
+              "type": "number",
+              "description": "Ignored."
+            },
+            "canvas_h": {
+              "type": "number",
+              "description": "Ignored."
+            }
+          },
+          "patternProperties": {
+            "^_": {}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "colour": {
+      "description": "\"#RRGGBB\", \"RRGGBB\" or [r, g, b] with 0-255.",
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^#?[0-9A-Fa-f]{6}$"
+        },
+        {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          }
+        }
+      ]
+    },
+    "colours": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/definitions/colour"
+      }
+    },
+    "ref": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "description": "A number, or a reference such as \"my_mod.NAME\" (\"NAME\" alone for your own mod)."
+    },
+    "condition": {
+      "type": "object",
+      "description": "A quest condition (QUESTS_SCHEMA.md, Condition types).",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "state_equals",
+            "state_gte",
+            "state_lte",
+            "unit_count",
+            "gold_gte",
+            "day_gte",
+            "day_every",
+            "has_item",
+            "floor_gte",
+            "cell_count",
+            "cell_built",
+            "cell_occupied",
+            "stage_discovered",
+            "stage_cleared",
+            "boss_captured",
+            "raid_won",
+            "on_map",
+            "map_visited",
+            "map_unlocked"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "state_equals"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The mod's save state key == value.",
+            "properties": {
+              "type": {
+                "const": "state_equals"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "state_gte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The mod's save state key >= value.",
+            "properties": {
+              "type": {
+                "const": "state_gte"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "state_lte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The mod's save state key <= value.",
+            "properties": {
+              "type": {
+                "const": "state_lte"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unit_count"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Units of that class (all units without class) >= value (default 1).",
+            "properties": {
+              "type": {
+                "const": "unit_count"
+              },
+              "class": {
+                "$ref": "#/definitions/ref"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "gold_gte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Gold >= value.",
+            "properties": {
+              "type": {
+                "const": "gold_gte"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "day_gte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The day counter >= value.",
+            "properties": {
+              "type": {
+                "const": "day_gte"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "day_every"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The day is a multiple of value (after subtracting offset). Meant for the day_start hook.",
+            "properties": {
+              "type": {
+                "const": "day_every"
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "offset": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_item"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The inventory holds at least value (default 1) of that mod item.",
+            "properties": {
+              "type": {
+                "const": "has_item"
+              },
+              "item": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "item"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "floor_gte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Floors >= value.",
+            "properties": {
+              "type": {
+                "const": "floor_gte"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cell_count"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Built cells of that type >= value (default 1).",
+            "properties": {
+              "type": {
+                "const": "cell_count"
+              },
+              "h_type": {
+                "$ref": "#/definitions/ref"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cell_built"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "At least one cell of that type is built.",
+            "properties": {
+              "type": {
+                "const": "cell_built"
+              },
+              "h_type": {
+                "$ref": "#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cell_occupied"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "At least one cell of that type has a captive.",
+            "properties": {
+              "type": {
+                "const": "cell_occupied"
+              },
+              "h_type": {
+                "$ref": "#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "stage_discovered"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That raid stage is discovered.",
+            "properties": {
+              "type": {
+                "const": "stage_discovered"
+              },
+              "stage": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "type",
+              "stage"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "stage_cleared"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That raid stage's highest cleared level >= min_level.",
+            "properties": {
+              "type": {
+                "const": "stage_cleared"
+              },
+              "stage": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              },
+              "min_level": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type",
+              "stage",
+              "min_level"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "boss_captured"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "A unit of that class is in the cage.",
+            "properties": {
+              "type": {
+                "const": "boss_captured"
+              },
+              "class": {
+                "$ref": "#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "class"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "raid_won"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Always true (meaningful at the post_raid_win hook).",
+            "properties": {
+              "type": {
+                "const": "raid_won"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "on_map"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The player is on that map (\"vanilla\" = the village).",
+            "properties": {
+              "type": {
+                "const": "on_map"
+              },
+              "map": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "map"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "map_visited"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The player has been on that map.",
+            "properties": {
+              "type": {
+                "const": "map_visited"
+              },
+              "map": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "map"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "map_unlocked"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That map can be travelled to.",
+            "properties": {
+              "type": {
+                "const": "map_unlocked"
+              },
+              "map": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "map"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/condition"
+      }
+    }
+  }
+}

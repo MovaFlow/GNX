@@ -1,0 +1,607 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/props.schema.json",
+  "title": "GNX props.json",
+  "description": "Decorative props placed on passages in edit mode. Modding guide section 19.",
+  "if": {
+    "type": "array"
+  },
+  "then": {
+    "type": "array",
+    "items": {
+      "$ref": "#/definitions/prop"
+    }
+  },
+  "else": {
+    "type": "object",
+    "properties": {
+      "$schema": {
+        "type": "string"
+      },
+      "sprites": {
+        "$ref": "#/definitions/sprites"
+      },
+      "props": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/prop"
+        }
+      },
+      "schema_version": {
+        "description": "Ignored (guide 19.1)."
+      }
+    },
+    "patternProperties": {
+      "^_": {}
+    },
+    "additionalProperties": false
+  },
+  "definitions": {
+    "colour": {
+      "$ref": "common.schema.json#/definitions/colour"
+    },
+    "colours": {
+      "$ref": "common.schema.json#/definitions/colours"
+    },
+    "num_or_range": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number"
+          }
+        }
+      ]
+    },
+    "prop": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Prop name in your mod; its name <folder>.<id> and its number are made from it (guide 19.5)."
+        },
+        "display_name_key": {
+          "type": "string",
+          "description": "Button text in edit mode."
+        },
+        "code_text": {
+          "type": "string",
+          "description": "Stored, but nothing draws it for props."
+        },
+        "position": {
+          "enum": [
+            "top",
+            "mid",
+            "bot"
+          ],
+          "description": "Menu group and default height (default \"bot\")."
+        },
+        "category": {
+          "type": "string",
+          "description": "The group the prop is listed under when a menu row has props of several groups (guide 19.4)."
+        },
+        "sprite": {
+          "type": "string",
+          "description": "\"gnx:<key>\" or \"<key>\" from the sprites block."
+        },
+        "anchor": {
+          "enum": [
+            "center",
+            "left"
+          ],
+          "description": "Where the prop's x is counted from (default \"center\")."
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 60,
+          "description": "Frames per second of the prop's own animation; 0 = frame 0 only (guide 19.7)."
+        },
+        "random_frame": {
+          "type": [
+            "boolean",
+            "integer"
+          ],
+          "description": "Each placed prop starts on a random frame."
+        },
+        "price": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 99999999,
+          "description": "Price stored on the prop's unlock item, not a cost for placing it."
+        },
+        "y_offset": {
+          "type": "number",
+          "minimum": -200,
+          "maximum": 200,
+          "description": "Vertical shift in pixels; negative moves up."
+        },
+        "x_random_range": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 64,
+          "description": "Random sideways shift per placed prop."
+        },
+        "xscale_random": {
+          "type": [
+            "boolean",
+            "integer"
+          ],
+          "description": "Each placed prop is mirrored at random."
+        },
+        "locked": {
+          "type": [
+            "boolean",
+            "integer"
+          ],
+          "description": "Not in the menu until unlocked (guide 19.6)."
+        },
+        "fx": {
+          "$ref": "#/definitions/fx"
+        },
+        "react": {
+          "$ref": "#/definitions/react"
+        },
+        "counter": {
+          "$ref": "#/definitions/counter"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "fx": {
+      "type": "object",
+      "description": "Visual effects: pulse, float, rotation, colour and glows (guide 19.8). GNX reports unknown keys here.",
+      "properties": {
+        "pulse": {
+          "type": "object",
+          "properties": {
+            "scale": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "alpha": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "period": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 60
+            }
+          },
+          "additionalProperties": false
+        },
+        "float": {
+          "type": "object",
+          "properties": {
+            "height": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 64
+            },
+            "period": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 60
+            }
+          },
+          "additionalProperties": false
+        },
+        "rotate": {
+          "type": "object",
+          "properties": {
+            "speed": {
+              "type": "number",
+              "minimum": -720,
+              "maximum": 720
+            },
+            "swing": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 180
+            },
+            "period": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 60
+            }
+          },
+          "additionalProperties": false
+        },
+        "color": {
+          "type": "object",
+          "properties": {
+            "colors": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/definitions/colour"
+              }
+            },
+            "period": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 60
+            }
+          },
+          "additionalProperties": false
+        },
+        "glow": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/glow"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/definitions/glow"
+              }
+            }
+          ]
+        },
+        "random_phase": {
+          "type": [
+            "boolean",
+            "integer"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "glow": {
+      "type": "object",
+      "description": "Light round the outline, on a masked part (mask) or at a point (at) (guide 19.9).",
+      "properties": {
+        "color": {
+          "$ref": "#/definitions/colour"
+        },
+        "colors": {
+          "$ref": "#/definitions/colours"
+        },
+        "rings": {
+          "$ref": "#/definitions/colours"
+        },
+        "alpha": {
+          "$ref": "#/definitions/num_or_range"
+        },
+        "pulse": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "size": {
+          "$ref": "#/definitions/num_or_range"
+        },
+        "radius": {
+          "$ref": "#/definitions/num_or_range"
+        },
+        "period": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 60
+        },
+        "mask": {
+          "type": "string",
+          "description": "\"gnx:<sprite>\": only the pixels painted in the mask light up."
+        },
+        "at": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "minimum": -128,
+            "maximum": 128
+          },
+          "description": "A point light at [x, y] from the prop's origin."
+        },
+        "mode": {
+          "enum": [
+            "pingpong",
+            "loop"
+          ]
+        },
+        "flicker": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "offset": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "style": {
+          "enum": [
+            "soft",
+            "bands"
+          ]
+        },
+        "layer": {
+          "enum": [
+            "front",
+            "behind"
+          ]
+        },
+        "corners": {
+          "type": [
+            "boolean",
+            "integer"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "react_actions": {
+      "type": "object",
+      "properties": {
+        "frame": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Jump to this frame."
+        },
+        "step": {
+          "type": "integer",
+          "minimum": -64,
+          "maximum": 64,
+          "description": "Move this many frames at once."
+        },
+        "play": {
+          "description": "Run this many frames forward at speed (1-999), or \"next_stop\".",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999
+            },
+            {
+              "const": "next_stop"
+            }
+          ]
+        },
+        "flash": {
+          "description": "Seconds of a fading flash, or { time, color, alpha }.",
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 10
+            },
+            {
+              "type": "object",
+              "properties": {
+                "time": {
+                  "type": "number",
+                  "minimum": 0.05,
+                  "maximum": 10
+                },
+                "color": {
+                  "$ref": "#/definitions/colour"
+                },
+                "alpha": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "count_set": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999999999,
+          "description": "Set the prop's counter."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": -999999,
+          "maximum": 999999,
+          "description": "Add to the counter."
+        },
+        "chance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "How likely the reaction is each time."
+        }
+      },
+      "additionalProperties": false
+    },
+    "react": {
+      "type": "object",
+      "required": [
+        "on"
+      ],
+      "description": "Reactions to the cell next to the prop (guide 19.10). GNX reports unknown keys here.",
+      "properties": {
+        "side": {
+          "enum": [
+            "left",
+            "right",
+            "both",
+            "facing"
+          ]
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 60
+        },
+        "at_end": {
+          "enum": [
+            "loop",
+            "hold"
+          ]
+        },
+        "stops": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "every": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "until": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "mon_exit",
+              "scene_start",
+              "scene_end",
+              "birth",
+              "milk",
+              "phase_idle",
+              "phase_start",
+              "phase_loop",
+              "phase_ej",
+              "phase_birth",
+              "phase_idle_start",
+              "phase_start_loop",
+              "phase_loop_ej",
+              "phase_ej_birth"
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/react_actions"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "counter": {
+      "type": "object",
+      "description": "A number drawn on the prop (guide 19.11). GNX reports unknown keys here.",
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": -64,
+          "maximum": 64
+        },
+        "y": {
+          "type": "number",
+          "minimum": -128,
+          "maximum": 64
+        },
+        "align": {
+          "enum": [
+            "center",
+            "left",
+            "right"
+          ]
+        },
+        "valign": {
+          "enum": [
+            "bottom",
+            "middle",
+            "top"
+          ]
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "follow_fx": {
+          "type": [
+            "boolean",
+            "integer"
+          ]
+        },
+        "turn_digits": {
+          "type": [
+            "boolean",
+            "integer"
+          ]
+        },
+        "color": {
+          "$ref": "#/definitions/colour"
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 4
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 999999999
+        },
+        "at_max": {
+          "enum": [
+            "hold",
+            "loop"
+          ]
+        },
+        "pad": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9
+        },
+        "show": {
+          "enum": [
+            "always",
+            "hover"
+          ]
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "suffix": {
+          "type": "string"
+        },
+        "outline": {
+          "$ref": "#/definitions/colour"
+        },
+        "digits": {
+          "type": "string",
+          "description": "A sprite of the props file whose frames 0-9 are the digits."
+        },
+        "spacing": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 16
+        }
+      },
+      "additionalProperties": false
+    },
+    "sprites": {
+      "$ref": "common.schema.json#/definitions/sprites"
+    }
+  }
+}

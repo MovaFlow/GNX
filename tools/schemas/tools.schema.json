@@ -1,0 +1,2436 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/tools.schema.json",
+  "title": "GNX tools.json",
+  "description": "Buttons in the settings window's DEBUG > TOOLS menu, and keybinds. Modding guide section 17.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/category"
+      }
+    },
+    "keybinds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/keybind"
+      }
+    }
+  },
+  "patternProperties": {
+    "^_": {}
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "action": {
+      "type": "object",
+      "description": "A tool action (guide 17.6).",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "add_gold",
+            "add_food",
+            "add_milk",
+            "add_orbs",
+            "give_item",
+            "give_blueprint",
+            "give_prop",
+            "spawn_mon",
+            "set_troop_level",
+            "add_troop_exp",
+            "set_skill_level",
+            "set_troop_size",
+            "create_unit",
+            "create_unit_cage",
+            "unlock_boss",
+            "unlock_stage_next",
+            "unlock_breeds",
+            "unlock_cell",
+            "unlock_prop",
+            "unlock_raid",
+            "unlock_all_cells",
+            "add_floor",
+            "set_day",
+            "add_day_time",
+            "set_speed",
+            "swap_mouse",
+            "show_debug_overlay",
+            "set_val",
+            "set_var",
+            "reload_mods",
+            "reroll_shop",
+            "reroll_trade",
+            "reroll_encounters",
+            "set_state",
+            "set_continuous",
+            "fire_event",
+            "fire_trigger",
+            "popup",
+            "play_sfx",
+            "travel_map"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_gold"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds gold; negative values subtract.",
+            "properties": {
+              "type": {
+                "const": "add_gold"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_food"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds food.",
+            "properties": {
+              "type": {
+                "const": "add_food"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_milk"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds milk of rarity 0-4; -1 adds amount of every rarity.",
+            "properties": {
+              "type": {
+                "const": "add_milk"
+              },
+              "rarity": {
+                "type": "integer",
+                "minimum": -1,
+                "maximum": 4
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_orbs"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds orbs.",
+            "properties": {
+              "type": {
+                "const": "add_orbs"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "give_item"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Gives a mod item (item, amount); or with item_type, data, level one inventory item.",
+            "properties": {
+              "type": {
+                "const": "give_item"
+              },
+              "item": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "item_type": {
+                "type": "integer"
+              },
+              "data": {
+                "type": "number"
+              },
+              "level": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "give_blueprint"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Gives a complete blueprint, or with fragment: true a fragment.",
+            "properties": {
+              "type": {
+                "const": "give_blueprint"
+              },
+              "h_type": {
+                "$ref": "common.schema.json#/definitions/ref"
+              },
+              "fragment": {
+                "type": [
+                  "boolean",
+                  "integer"
+                ]
+              },
+              "lvl": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "give_prop"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Unlocks a prop in the edit-mode menu.",
+            "properties": {
+              "type": {
+                "const": "give_prop"
+              },
+              "prop_id": {
+                "type": [
+                  "string",
+                  "integer"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "prop_id"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "spawn_mon"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds monsters to that class, or without class to each of the four.",
+            "properties": {
+              "type": {
+                "const": "spawn_mon"
+              },
+              "species": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre."
+              },
+              "class": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "The troop class 0-3 of that species."
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "species",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_troop_level"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Sets the level of that monster class.",
+            "properties": {
+              "type": {
+                "const": "set_troop_level"
+              },
+              "species": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre."
+              },
+              "class": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "The troop class 0-3 of that species."
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "species",
+              "class",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_troop_exp"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds experience through the normal level-up logic.",
+            "properties": {
+              "type": {
+                "const": "add_troop_exp"
+              },
+              "species": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre."
+              },
+              "class": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "The troop class 0-3 of that species."
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "species",
+              "class",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_skill_level"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Sets the skill level of that monster class.",
+            "properties": {
+              "type": {
+                "const": "set_skill_level"
+              },
+              "species": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre."
+              },
+              "class": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3,
+                "description": "The troop class 0-3 of that species."
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "species",
+              "class",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_troop_size"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Sets the maximum troop size: 0 = 10 ... 7 = unlimited.",
+            "properties": {
+              "type": {
+                "const": "set_troop_size"
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "create_unit"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Puts a new captive in the first free prison slot.",
+            "properties": {
+              "type": {
+                "const": "create_unit"
+              },
+              "class_id": {
+                "$ref": "common.schema.json#/definitions/ref"
+              },
+              "level": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "class_id"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "create_unit_cage"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds a new cage slot holding a new captive.",
+            "properties": {
+              "type": {
+                "const": "create_unit_cage"
+              },
+              "class_id": {
+                "$ref": "common.schema.json#/definitions/ref"
+              },
+              "level": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "class_id"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_boss"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Starts the intro of a locked boss: 0 cow, 1 Nyx, 2 goddess, 3 Morrigan, 4 Lilith.",
+            "properties": {
+              "type": {
+                "const": "unlock_boss"
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "type",
+              "index"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_stage_next"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Discovers a raid stage, or raises its highest level by one.",
+            "properties": {
+              "type": {
+                "const": "unlock_stage_next"
+              },
+              "stage": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              }
+            },
+            "required": [
+              "type",
+              "stage"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_breeds"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Unlocks all breeding tips.",
+            "properties": {
+              "type": {
+                "const": "unlock_breeds"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_cell"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds the cell to its build menu tab.",
+            "properties": {
+              "type": {
+                "const": "unlock_cell"
+              },
+              "h_type": {
+                "$ref": "common.schema.json#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_prop"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Same as give_prop.",
+            "properties": {
+              "type": {
+                "const": "unlock_prop"
+              },
+              "prop_id": {
+                "type": [
+                  "string",
+                  "integer"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "prop_id"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_raid"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Enables the raid button.",
+            "properties": {
+              "type": {
+                "const": "unlock_raid"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unlock_all_cells"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Unlocks every cell in every build list.",
+            "properties": {
+              "type": {
+                "const": "unlock_all_cells"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_floor"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds a cave floor.",
+            "properties": {
+              "type": {
+                "const": "add_floor"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_day"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Sets the day counter.",
+            "properties": {
+              "type": {
+                "const": "set_day"
+              },
+              "value": {
+                "type": "number",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "add_day_time"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Adds to the day timer.",
+            "properties": {
+              "type": {
+                "const": "add_day_time"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "amount"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_speed"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "world: game speed 0-10; cart: raid cart speed 0-10; range: extra cell range 0-20.",
+            "properties": {
+              "type": {
+                "const": "set_speed"
+              },
+              "target": {
+                "enum": [
+                  "world",
+                  "cart",
+                  "range"
+                ]
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "target",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "swap_mouse"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Swaps the mouse buttons for moving the camera and selecting.",
+            "properties": {
+              "type": {
+                "const": "swap_mouse"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "show_debug_overlay"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Shows or hides GameMaker's debug overlay.",
+            "properties": {
+              "type": {
+                "const": "show_debug_overlay"
+              },
+              "enable": {
+                "type": [
+                  "boolean",
+                  "integer"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_val"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Sets one game value (guide 17.6).",
+            "properties": {
+              "type": {
+                "const": "set_val"
+              },
+              "key": {
+                "enum": [
+                  "mood",
+                  "food",
+                  "money",
+                  "orb_num",
+                  "day_timer",
+                  "day",
+                  "cart_spd",
+                  "add_range",
+                  "sfx_vol",
+                  "bgm_vol",
+                  "alpha_type",
+                  "crate_alpha_type",
+                  "mon_alpha",
+                  "crate_alpha",
+                  "show_head",
+                  "ui_place"
+                ]
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_var"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Sets one global setting (guide 17.6).",
+            "properties": {
+              "type": {
+                "const": "set_var"
+              },
+              "key": {
+                "enum": [
+                  "w_spd",
+                  "gnx_perf_enabled",
+                  "gnx_debug_verbose",
+                  "gnx_force_capture_100",
+                  "gnx_free_floor_copy",
+                  "gnx_trace_entities",
+                  "gnx_perf_hud",
+                  "gnx_cull_step_off",
+                  "gnx_econ_on"
+                ]
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "reload_mods"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Autosaves, reads every mod's files again and loads the autosave back (guide 17.3).",
+            "properties": {
+              "type": {
+                "const": "reload_mods"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "reroll_shop"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Re-rolls the raid shop stock (raid screen open).",
+            "properties": {
+              "type": {
+                "const": "reroll_shop"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "reroll_trade"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Re-rolls the trade stock (raid screen open).",
+            "properties": {
+              "type": {
+                "const": "reroll_trade"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "reroll_encounters"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Re-rolls the encounters of the open stage (raid screen open).",
+            "properties": {
+              "type": {
+                "const": "reroll_encounters"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_state"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Sets a key in your mod's save state.",
+            "properties": {
+              "type": {
+                "const": "set_state"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_continuous"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Starts or stops a continuous effect (guide 17.9). The field is value, not enable.",
+            "properties": {
+              "type": {
+                "const": "set_continuous"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": [
+                  "boolean",
+                  "integer"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "fire_event"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Fires a quest event, written with your folder name (\"my_mod.witch_intro\").",
+            "properties": {
+              "type": {
+                "const": "fire_event"
+              },
+              "event_id": {
+                "type": [
+                  "string",
+                  "integer"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "event_id"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "fire_trigger"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Runs the quest triggers of that hook now, from all mods.",
+            "properties": {
+              "type": {
+                "const": "fire_trigger"
+              },
+              "hook": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "hook"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "popup"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Shows a popup; can be a popup key (\"my_mod.<key>\").",
+            "properties": {
+              "type": {
+                "const": "popup"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "text"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "play_sfx"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Plays a vanilla sound (sfx_type, not type).",
+            "properties": {
+              "type": {
+                "const": "play_sfx"
+              },
+              "sfx_type": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "type",
+              "sfx_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "travel_map"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Opens the travel selector for that map (guide 21).",
+            "properties": {
+              "type": {
+                "const": "travel_map"
+              },
+              "target": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "target"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "guard": {
+      "type": "object",
+      "description": "One condition checked before a button runs (guide 17.7). A guard of another type is a quest condition (QUESTS_SCHEMA.md).",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "boss_locked",
+            "boss_unlocked",
+            "stage_undiscovered",
+            "has_unit_slot",
+            "on_screen",
+            "state_equals",
+            "state_gte",
+            "state_lte",
+            "unit_count",
+            "gold_gte",
+            "day_gte",
+            "day_every",
+            "has_item",
+            "floor_gte",
+            "cell_count",
+            "cell_built",
+            "cell_occupied",
+            "stage_discovered",
+            "stage_cleared",
+            "boss_captured",
+            "raid_won",
+            "on_map",
+            "map_visited",
+            "map_unlocked"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "boss_locked"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That boss is still locked.",
+            "properties": {
+              "type": {
+                "const": "boss_locked"
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "type",
+              "index"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "boss_unlocked"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That boss is unlocked.",
+            "properties": {
+              "type": {
+                "const": "boss_unlocked"
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "type",
+              "index"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "stage_undiscovered"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That raid stage is not discovered yet.",
+            "properties": {
+              "type": {
+                "const": "stage_undiscovered"
+              },
+              "stage": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "type",
+              "stage"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_unit_slot"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The prison has a free slot.",
+            "properties": {
+              "type": {
+                "const": "has_unit_slot"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "on_screen"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The raid screen is open.",
+            "properties": {
+              "type": {
+                "const": "on_screen"
+              },
+              "screen": {
+                "description": "Ignored."
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "state_equals"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The mod's save state key == value.",
+            "properties": {
+              "type": {
+                "const": "state_equals"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "string",
+                  "boolean"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "state_gte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The mod's save state key >= value.",
+            "properties": {
+              "type": {
+                "const": "state_gte"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "state_lte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The mod's save state key <= value.",
+            "properties": {
+              "type": {
+                "const": "state_lte"
+              },
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "key",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unit_count"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Units of that class (all units without class) >= value (default 1).",
+            "properties": {
+              "type": {
+                "const": "unit_count"
+              },
+              "class": {
+                "$ref": "common.schema.json#/definitions/ref"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "gold_gte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Gold >= value.",
+            "properties": {
+              "type": {
+                "const": "gold_gte"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "day_gte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The day counter >= value.",
+            "properties": {
+              "type": {
+                "const": "day_gte"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "day_every"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The day is a multiple of value (after subtracting offset). Meant for the day_start hook.",
+            "properties": {
+              "type": {
+                "const": "day_every"
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "offset": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_item"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The inventory holds at least value (default 1) of that mod item.",
+            "properties": {
+              "type": {
+                "const": "has_item"
+              },
+              "item": {
+                "type": "string"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "item"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "floor_gte"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Floors >= value.",
+            "properties": {
+              "type": {
+                "const": "floor_gte"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cell_count"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Built cells of that type >= value (default 1).",
+            "properties": {
+              "type": {
+                "const": "cell_count"
+              },
+              "h_type": {
+                "$ref": "common.schema.json#/definitions/ref"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cell_built"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "At least one cell of that type is built.",
+            "properties": {
+              "type": {
+                "const": "cell_built"
+              },
+              "h_type": {
+                "$ref": "common.schema.json#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cell_occupied"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "At least one cell of that type has a captive.",
+            "properties": {
+              "type": {
+                "const": "cell_occupied"
+              },
+              "h_type": {
+                "$ref": "common.schema.json#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "h_type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "stage_discovered"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That raid stage is discovered.",
+            "properties": {
+              "type": {
+                "const": "stage_discovered"
+              },
+              "stage": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "type",
+              "stage"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "stage_cleared"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That raid stage's highest cleared level >= min_level.",
+            "properties": {
+              "type": {
+                "const": "stage_cleared"
+              },
+              "stage": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              },
+              "min_level": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type",
+              "stage",
+              "min_level"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "boss_captured"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "A unit of that class is in the cage.",
+            "properties": {
+              "type": {
+                "const": "boss_captured"
+              },
+              "class": {
+                "$ref": "common.schema.json#/definitions/ref"
+              }
+            },
+            "required": [
+              "type",
+              "class"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "raid_won"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Always true (meaningful at the post_raid_win hook).",
+            "properties": {
+              "type": {
+                "const": "raid_won"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "on_map"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The player is on that map (\"vanilla\" = the village).",
+            "properties": {
+              "type": {
+                "const": "on_map"
+              },
+              "map": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "map"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "map_visited"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "The player has been on that map.",
+            "properties": {
+              "type": {
+                "const": "map_visited"
+              },
+              "map": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "map"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "map_unlocked"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "That map can be travelled to.",
+            "properties": {
+              "type": {
+                "const": "map_unlocked"
+              },
+              "map": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "map"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+    "category": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "description": "A TOOLS entry: buttons, or sub-menus (categories). Without label the game errors.",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "buttons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/button"
+          }
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/category"
+          }
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "button": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "description": "Without label the game errors (guide 17.4).",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/action"
+          }
+        },
+        "popup": {
+          "type": "string"
+        },
+        "toggle": {
+          "type": "string",
+          "description": "Makes it an ON/OFF button; the save-state key that stores ON or OFF."
+        },
+        "undo_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/action"
+          }
+        },
+        "undo_popup": {
+          "type": "string"
+        },
+        "guard": {
+          "$ref": "#/definitions/guard"
+        },
+        "guard_fail_popup": {
+          "type": "string"
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "keybind": {
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^(F([1-9]|1[0-2])|[A-Z]|[0-9]|space|tab|escape|0-9)$",
+          "description": "F1-F12, A-Z (capitals), 0-9 (number row), space, tab, escape, or the range \"0-9\"."
+        },
+        "modifier": {
+          "enum": [
+            "none",
+            "shift",
+            "ctrl",
+            "alt"
+          ]
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/action"
+          }
+        },
+        "action_per_key": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "add_gold",
+                "add_food",
+                "add_milk",
+                "add_orbs",
+                "give_item",
+                "give_blueprint",
+                "give_prop",
+                "spawn_mon",
+                "set_troop_level",
+                "add_troop_exp",
+                "set_skill_level",
+                "set_troop_size",
+                "create_unit",
+                "create_unit_cage",
+                "unlock_boss",
+                "unlock_stage_next",
+                "unlock_breeds",
+                "unlock_cell",
+                "unlock_prop",
+                "unlock_raid",
+                "unlock_all_cells",
+                "add_floor",
+                "set_day",
+                "add_day_time",
+                "set_speed",
+                "swap_mouse",
+                "show_debug_overlay",
+                "set_val",
+                "set_var",
+                "reload_mods",
+                "reroll_shop",
+                "reroll_trade",
+                "reroll_encounters",
+                "set_state",
+                "set_continuous",
+                "fire_event",
+                "fire_trigger",
+                "popup",
+                "play_sfx",
+                "travel_map"
+              ]
+            }
+          },
+          "description": "One action for \"0-9\"; its value is replaced with the pressed digit (so \"{key}\" is fine there)."
+        },
+        "popup": {
+          "type": "string"
+        },
+        "popup_template": {
+          "type": "string",
+          "description": "Message for \"0-9\"; the first {key} becomes the digit."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    }
+  }
+}
