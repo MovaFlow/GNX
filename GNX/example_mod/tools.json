@@ -137,15 +137,15 @@
       "buttons": [
         {
           "label": "+1 FLOOR",
-          "actions": [{"type": "add_floor", "amount": 1}]
+          "actions": [{"type": "add_floor"}]
         },
         {
           "label": "SET DAY 30",
-          "actions": [{"type": "set_day", "day": 30}]
+          "actions": [{"type": "set_day", "value": 30}]
         },
         {
           "label": "+6H TIME",
-          "actions": [{"type": "add_day_time", "hours": 6}]
+          "actions": [{"type": "add_day_time", "amount": 4500}]
         }
       ]
     },
@@ -156,7 +156,7 @@
       "buttons": [
         {
           "label": "SPEED x3",
-          "actions": [{"type": "set_speed", "value": 3}]
+          "actions": [{"type": "set_speed", "target": "world", "value": 3}]
         },
         {
           "label": "SWAP MOUSE",
@@ -247,8 +247,8 @@
         },
         {
           "label": "FIRE WITCH INTRO",
-          "_comment": "fire_event: directly fires a named event from quests.json",
-          "actions": [{"type": "fire_event", "event": "witch_intro"}]
+          "_comment": "fire_event: directly fires a named event from quests.json; write it with the folder name (GNX adds no prefix here)",
+          "actions": [{"type": "fire_event", "event_id": "example_mod.witch_intro"}]
         },
         {
           "label": "CHECK TRIGGERS",
@@ -257,14 +257,14 @@
         },
         {
           "label": "TEST POPUP",
-          "_comment": "popup: shows a named popup from quests.json popups",
-          "actions": [{"type": "popup", "popup": "witch_welcome"}],
+          "_comment": "popup: shows a text, or a popup key from quests.json written <folder>.<key>",
+          "actions": [{"type": "popup", "text": "example_mod.witch_welcome"}],
           "guard": {"type": "state_equals", "key": "quest_progress", "value": -1}
         },
         {
           "label": "DING SFX",
-          "_comment": "play_sfx: plays a sound effect",
-          "actions": [{"type": "play_sfx", "sfx": "snd_coin"}]
+          "_comment": "play_sfx: plays a vanilla sound by number (5 = coins; the list is in the modding guide 17.6)",
+          "actions": [{"type": "play_sfx", "sfx_type": 5}]
         },
         {
           "label": "FULL RESET",
@@ -273,7 +273,7 @@
             {"type": "set_state", "key": "quest_progress", "value": -1},
             {"type": "set_state", "key": "boss_state", "value": -1},
             {"type": "set_state", "key": "escape_count", "value": 0},
-            {"type": "popup", "popup": "quest_done"}
+            {"type": "popup", "text": "example_mod.quest_done"}
           ]
         }
       ]
@@ -306,12 +306,12 @@
       "actions": [{"type": "add_orbs", "amount": 5}]
     },
     {
-      "_comment": "Range key with {n} template substitution",
+      "_comment": "Range key 0-9: action_per_key runs with its value replaced by the pressed digit; {key} in popup_template becomes the digit",
       "_modifiers": "Valid modifiers: none / shift / ctrl / alt",
-      "key_type": "range",
       "key": "0-9",
       "modifier": "none",
-      "actions": [{"type": "set_speed", "value": "{n}"}]
+      "action_per_key": {"type": "set_speed", "target": "world", "value": 0},
+      "popup_template": "Game speed {key}"
     }
   ]
 }

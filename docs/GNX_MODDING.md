@@ -29,6 +29,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 - [23. Intermissions](#23-intermissions)
 - [24. Underground cells](#24-underground-cells)
 - [25. Items and raid loot (items.json)](#25-items-and-raid-loot-itemsjson)
+- [26. Checking your mod: schemas and check_mod.py](#26-checking-your-mod-schemas-and-check_modpy)
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
 
@@ -332,10 +333,11 @@ What this example does:
 |---|---|---|---|
 | `name` | Display name in the MODS menu and the log. | text | required |
 | `version` | Your mod version, for example `"1.0.0"`, shown in the MODS menu and the log. | text | required |
+| `author`, `description` | Shown with the mod in the MODS menu. | text | — |
 | `compatible_game_versions` | Must contain `"1.38"`, `"1.39"` or `"1.40"` ([4.2](#42-the-version-check)). | list | required |
 | `classes`, `cells`, `quests`, `tools`, `sounds`, `props`, `items` | Paths of the data files, relative to the mod folder ([4.4](#44-data-file-keys)); see [§6](#6-classes-classesjson), [§8](#8-cells-cellsjson), [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md), [§17](#17-tools-toolsjson), [§18](#18-sounds-soundsjson), [§19](#19-props-propsjson), [§25](#25-items-and-raid-loot-itemsjson). | text | — |
 | `save_state` | Saved variables ([4.3](#43-save_state)). | object | — |
-| `mod_id` | A second name for other mods' `requires`, usually the folder name. References always use the folder name. | text | — |
+| `mod_id` | A second name for other mods' `requires`, usually the folder name. References always use the folder name. `build_mod.py` deploys the mod into `GNX_mods/<mod_id>/` (the source folder's name without it): that folder name is what your class and cell IDs and references are made from, so keep it fixed once players have saves. | text | the folder name |
 | `requires` | Mods this one needs, by folder name or `mod_id` ([4.5](#45-requires-and-the-mods-menu)). | list | — |
 | `min_gnx_version` | The oldest GNX your mod works with, for example `"1.5.0"` when it uses keys new in 1.5 ([4.2](#42-the-version-check)). | text | — |
 | `map`, `map_info`, `map_start` | Which map(s) the mod belongs to, and your own map for multi-map travel ([§21](#21-multi-map-travel)). `map_info` was called `map_button` before 1.4.9; the old name is still read. | — | — |
@@ -3322,6 +3324,14 @@ Each key is a class ID as text (read as a number, so a mod class's numeric ID wo
 
 **`voice` in classes.json** does the same from the class side: `"voice": { "bank": "soft", "pitch": 1.0 }` gives every Witch `my_mod.soft` at pitch 1.0, unless `voice_map` has an entry for her class ID.
 
+**A voice per monster type.** A `voice_map` entry or a class `voice` can add `by_mon_type`: another bank (and pitch) used while that monster type is with her, for example a different moan with ogres:
+
+```json
+"voice": { "bank": "soft", "by_mon_type": { "ogre": { "bank": "loud", "pitch": 0.95 }, "tentacle": "wet" } }
+```
+
+Keys are `goblin`, `hobgoblin`, `tentacle` and `ogre`; each value is a bank name or `{ "bank", "pitch" }`. A type left out, or naming a bank that does not exist, uses her usual voice. `voice_map` wins over the class's `voice` here too.
+
 > **When** `voice_map` or a class `voice` names a bank, GNX always adds **its own** mod's folder name, so only banks from the same mod's `sounds.json` can be used.
 
 > **When** two mods put the same class ID in `voice_map`, the later-loading mod wins.
@@ -4528,6 +4538,68 @@ Each entry of `loot` adds **one find** to a raid stage, like the game's own find
 - Changing an entry of an existing save does not add it again; add a new entry instead.
 
 > **When** an entry names an item or a cell that no loaded mod has, or has neither `item` nor `blueprint`, it is skipped and the log says so (`[GNX] ERROR: Mod 'my_mod': loot[1]: blueprint 'ALTER' is not a cell of any loaded mod; skipped`). The log lists each find it adds: `[GNX] loot my_mod|0|item MOON SHARD added to stage 0 level 1`.
+
+---
+
+## 26. Checking your mod: schemas and check_mod.py
+
+GNX skips keys it does not know without a word, so a typo (`"categroy"`, `"scr_ide"`) simply does nothing and the setting falls back to its default. The files in `tools/schemas/` describe every key GNX reads, file by file, so an editor or a script can tell you right away. New in 1.5.1.
+
+### 26.1 check_mod.py
+
+```
+python tools/check_mod.py my_mod
+```
+
+It reads `manifest.json`, then every data file the manifest names and `lang/*.json`, and prints one line per problem, for example:
+
+```
+my_mod/cells.json: [0].physical: unknown key 'scr_ide': GNX ignores it (known here: allow_preg, max_mon_num, ...)
+```
+
+- An **unknown key** is usually a typo: the line lists the keys that are valid at that spot.
+- A few places decide what your mod or an entry *is*: the top level of `manifest.json`, and the top level of a class or cell entry (`map`, `override`, `h_type`, `category`...). An unknown key there is marked `BLOCKING`.
+- Exit code 0 = clean, 1 = warnings only, 2 = blocking problems.
+- `build_mod.py` runs the same check before deploying: warnings are printed, and blocking problems stop the deploy unless you add `--deploy-anyway`.
+- It needs the `jsonschema` Python package (`pip install jsonschema`); without it the check is skipped with a note.
+- Keys starting with `_` (`"_comment"`, `"_about"`) are notes and are always accepted.
+
+### 26.2 In your editor
+
+Editors that read JSON Schema (VS Code, and others) then underline unknown keys and wrong types as you type, and show what a key means when you hover it.
+
+**VS Code settings** (your workspace's `.vscode/settings.json`, or the user settings), for every file:
+
+```json
+{
+  "json.schemas": [
+    { "fileMatch": ["**/GNX_mods/*/manifest.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/manifest.schema.json" },
+    { "fileMatch": ["**/GNX_mods/*/classes.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/classes.schema.json" },
+    { "fileMatch": ["**/GNX_mods/*/cells.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/cells.schema.json" },
+    { "fileMatch": ["**/GNX_mods/*/quests.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/quests.schema.json" },
+    { "fileMatch": ["**/GNX_mods/*/tools.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/tools.schema.json" },
+    { "fileMatch": ["**/GNX_mods/*/sounds.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/sounds.schema.json" },
+    { "fileMatch": ["**/GNX_mods/*/props.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/props.schema.json" },
+    { "fileMatch": ["**/GNX_mods/*/items.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/items.schema.json" },
+    { "fileMatch": ["**/GNX_mods/*/lang/*.json"], "url": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/lang.schema.json" }
+  ]
+}
+```
+
+Change the `fileMatch` patterns if your mod folders live elsewhere, or point `url` at your local copy (`"./tools/schemas/cells.schema.json"`) to work offline.
+
+**Or a `"$schema"` key** at the top of a file that is an object:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/quests.schema.json",
+  "events": { }
+}
+```
+
+GNX ignores that key. It does not work in a file that is a list (`classes.json` always is; `cells.json`, `props.json` and `items.json` when written as a plain list): use the VS Code settings for those.
+
+> **When** the check reports something your mod relies on, the schema may lag behind GNX: GNX's behaviour is what counts. Report it so the schema can be fixed.
 
 ---
 

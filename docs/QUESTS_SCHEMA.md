@@ -48,7 +48,7 @@ Map of popup key → text string. Creates vanilla-style toast notifications.
 
 Referenced by `post_raid.cage_escape.popup` (see
 [GNX_MODDING.md §15](GNX_MODDING.md#15-bosses-cage-escape-and-tower)) and by
-the `popup` side effect type.
+the tool action `popup` (`"text": "my_mod.<key>"`, modding guide 17.6).
 
 ### events
 
@@ -74,13 +74,13 @@ Map of event_id → event definition. Two types: `notification` and `quest`.
 
 If `dialog` is omitted or an empty array, the notification fires silently: side
 effects apply immediately, `next_event` chains, and no bell icon or dialog is
-shown. Use this for invisible quest steps (e.g. tracking raid count).
+shown. Use this for invisible quest steps (e.g. moving a storyline on).
 
 ```json
-"raid_counter_step": {
+"story_step_2": {
   "type": "notification",
   "side_effects": [
-    {"type": "increment_state", "key": "raids_done", "value": 1}
+    {"type": "set_state", "key": "story", "value": 2}
   ],
   "next_event": null
 }
@@ -129,13 +129,13 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `state_equals` | `key`, `value` | mod save state key == value |
 | `state_gte` | `key`, `value` | mod save state key >= value |
 | `state_lte` | `key`, `value` | mod save state key <= value |
-| `unit_count` | `class` (optional), `value` | units of that class >= value. Omit `class` to count all units |
+| `unit_count` | `class` (optional), `value` (default 1) | units of that class >= value. Omit `class` to count all units |
 | `gold_gte` | `value` | `global.val.money >= value` |
 | `day_gte` | `value` | the day counter (shown under the clock) >= value |
 | `day_every` | `value`, `offset` (default 0) | the day is a multiple of `value` (after subtracting `offset`): `{"value": 7}` on days 7, 14, 21...; `{"value": 1}` every day. Meant for the `day_start` hook |
 | `has_item` | `item`, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
 | `floor_gte` | `value` | `global.val.floor >= value` |
-| `cell_count` | `h_type`, `value` | count of built cells with that h_type >= value |
+| `cell_count` | `h_type`, `value` (default 1) | count of built cells with that h_type >= value |
 | `cell_built` | `h_type` (string ref or int) | at least one cell with that h_type exists |
 | `cell_occupied` | `h_type` | at least one cell with that h_type has a unit |
 | `stage_discovered` | `stage` (0-4) | `stage_info[stage] != -1` |

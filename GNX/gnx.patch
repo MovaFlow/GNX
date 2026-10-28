@@ -6002,7 +6002,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3889 @@
+@@ -0,0 +1,3909 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -6317,6 +6317,27 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    gnx_log_write(_log, "[GNX] " + arg1 + ": frames=" + string(array_length(_fps)) + " idx=" + string(_loaded) + " xo=" + string(_xo) + " yo=" + string(_yo) + "\n");
 +    gnx_log_close(_log);
 +    return (_loaded != -1) ? _loaded : arg3;
++}
++
++
++/// GNX-FIX: a cell's spawn_info as the game reads it: an object with all four fields (coin, mood, coin_mul, mood_mul,
++/// missing ones get 0 / false), or -1 (none) when it is not an object. The build menu and the payout read the four
++/// fields directly, so text or a missing field there was a GameMaker error. arg1 = the cell's name, for the error.
++function gnx_spawn_info_norm(arg0, arg1)
++{
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error("Cell '" + string(arg1) + "': spawn_info must be an object like { \"coin\": 2, \"mood\": 1 }, not " + string(arg0) + "; left out");
++        return -1;
++    }
++
++    var _who = "Cell '" + string(arg1) + "' spawn_info";
++    return {
++        coin: variable_struct_exists(arg0, "coin") ? gnx_json_num(arg0.coin, 0) : 0,
++        mood: variable_struct_exists(arg0, "mood") ? gnx_json_num(arg0.mood, 0) : 0,
++        coin_mul: variable_struct_exists(arg0, "coin_mul") && gnx_json_bool(arg0.coin_mul, false, _who, "coin_mul"),
++        mood_mul: variable_struct_exists(arg0, "mood_mul") && gnx_json_bool(arg0.mood_mul, false, _who, "mood_mul")
++    };
 +}
 +
 +
@@ -6650,7 +6671,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        name: _cn,
 +        gnx_price: variable_struct_exists(arg0, "price") ? arg0.price : 100,
 +        gnx_code_text: variable_struct_exists(arg0, "code_text") ? arg0.code_text : -1,
-+        gnx_spawn_info: variable_struct_exists(arg0, "spawn_info") ? arg0.spawn_info : -1,
++        gnx_spawn_info: variable_struct_exists(arg0, "spawn_info") ? gnx_spawn_info_norm(arg0.spawn_info, _cn) : -1,
 +        physical: 
 +        {
 +            allow_preg: _phys.allow_preg,
@@ -6785,7 +6806,6 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        for (var _si2 = 0; _si2 < 7; _si2++)
 +            variable_struct_set(_cp.gnx_speed, _sk[_si2], variable_struct_exists(_ugs, _sk[_si2]) ? gnx_json_num_in(variable_struct_get(_ugs, _sk[_si2]), _sd[_si2], 0.1, 60, _cn, "speed." + _sk[_si2]) : _sd[_si2]);
 +        
-+        _cp.gnx_milk_loops = variable_struct_exists(_phys, "milk_loops") ? max(1, floor(gnx_json_num(_phys.milk_loops, 3))) : 3;
 +        // GNX-UG: milking runs alongside every phase while the captive has milk (MILK 2 rhythm):
 +        // one milk item every milk_interval frames, milk_items items in all, then the milk is used up.
 +        // GNX-FIX: numbers as text are read here too (before, "4" was silently the default)
@@ -7418,7 +7438,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        _cell.gnx_code_text = arg1.code_text;
 +    
 +    if (variable_struct_exists(arg1, "spawn_info"))
-+        _cell.gnx_spawn_info = arg1.spawn_info;
++        _cell.gnx_spawn_info = gnx_spawn_info_norm(arg1.spawn_info, _cell.name);
 +    
 +    if (variable_struct_exists(arg1, "slot_type"))
 +        _cell.slot_type = arg1.slot_type;
@@ -10904,7 +10924,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4505 @@
+@@ -0,0 +1,4579 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -13152,6 +13172,80 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +function gnx_scn_mod_state(arg0, arg1)
 +{
 +    return scr_gnx_get_state(arg0, arg1);
++}
++
++
++// presses every tools.json button of mod arg0, through the real button handler (actions, toggles, guards):
++// a button that crashes ends the run with its error; returns how many were pressed
++function gnx_scn_press_all_tools(arg0)
++{
++    var _n = 0;
++
++    for (var i = 0; i < array_length(global.gnx_tool_registry); i++)
++    {
++        var _e = global.gnx_tool_registry[i];
++
++        if (_e.mod_name == arg0)
++            _n += gnx_scn_press_tool_cats(_e.categories, arg0);
++    }
++
++    return _n;
++}
++
++
++function gnx_scn_press_tool_cats(arg0, arg1)
++{
++    var _n = 0;
++
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        var _c = arg0[i];
++
++        if (variable_struct_exists(_c, "buttons"))
++        {
++            for (var b = 0; b < array_length(_c.buttons); b++)
++            {
++                scr_gnx_exec_tool_button(_c.buttons[b], arg1);
++                _n++;
++            }
++        }
++
++        if (variable_struct_exists(_c, "categories"))
++            _n += gnx_scn_press_tool_cats(_c.categories, arg1);
++    }
++
++    return _n;
++}
++
++
++// the item_type of the inventory item quest reward arg0 gives (0 with 0 gold = nothing), for the reward guards
++function gnx_scn_reward_type(arg0)
++{
++    var _it = scr_gnx_make_reward(arg0, "harness_quests");
++    return _it.item_type * 1000 + _it.num;
++}
++
++
++// reads coin, as the build menu's cell buttons do (s_slot_button), from the spawn_info of every mod cell (arg0: unused);
++// returns how many were read (a cell whose spawn_info is not an object stops the run with a GameMaker error)
++function gnx_scn_read_spawn_info(arg0)
++{
++    var _n = 0;
++
++    for (var i = 0; i < array_length(global.gnx_registered_cells); i++)
++    {
++        var _e = global.gnx_registered_cells[i];
++
++        if (_e.h_type >= 100)  // the mod cells (scenarios load one mod)
++        {
++            var _d = scr_h_slot_text_data(_e.h_type);
++            if (_d.spawn_info != -1)  // as s_slot_button: no spawn_info, no gold / mood line
++                var _c = _d.spawn_info.coin + _d.spawn_info.mood + _d.spawn_info.coin_mul + _d.spawn_info.mood_mul;
++            _n++;
++        }
++    }
++
++    return _n;
 +}
 +
 +
@@ -21240,7 +21334,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,968 @@
+@@ -0,0 +1,974 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -21947,9 +22041,6 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +                }
 +                
 +                break;
-+            
-+            case "add_shop_item":
-+                break;
 +        }
 +    }
 +}
@@ -21960,15 +22051,18 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +    if (arg0 == undefined || arg0 == -1)
 +        return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
 +    
-+    var _type = arg0.type;
-+    
++    // GNX-FIX: every field is checked before it is read: a reward missing one gave a GameMaker error (crash)
++    // when the quest was completed
++    var _type = variable_struct_exists(arg0, "type") ? arg0.type : "";
++    var _amount = variable_struct_exists(arg0, "amount") ? gnx_json_num(arg0.amount, 0) : 0;
++
 +    if (_type == "gold")
 +    {
-+        return scr_set_item_data(UnknownEnum.Value_0, arg0.amount, -1);
++        return scr_set_item_data(UnknownEnum.Value_0, _amount, -1);
 +    }
 +    else if (_type == "food")
 +    {
-+        return scr_set_item_data(UnknownEnum.Value_1, arg0.amount, -1);
++        return scr_set_item_data(UnknownEnum.Value_1, _amount, -1);
 +    }
 +    else if (_type == "blueprint")
 +    {
@@ -21977,6 +22071,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        if (variable_struct_exists(arg0, "fragment") && arg0.fragment == true)
 +            _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1;
 +        
++        if (!variable_struct_exists(arg0, "h_type"))
++        {
++            gnx_report_mod_error("Mod '" + string(arg1) + "': a blueprint reward needs \"h_type\"; no reward given");
++            return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
++        }
++
 +        return scr_set_item_data(UnknownEnum.Value_5, arg0.h_type, _lvl);
 +    }
 +    else if (_type == "item")
@@ -21992,7 +22092,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +    else if (_type == "prop")
 +    {
 +        // GNX-PROP: prop_id may be a name ("Mod.id", or "id" of the quest's own mod, arg1)
-+        var _rpid = gnx_prop_resolve_id(arg0.prop_id, arg1);
++        var _rpid = gnx_prop_resolve_id(variable_struct_exists(arg0, "prop_id") ? arg0.prop_id : undefined, arg1);
 +        
 +        if (_rpid != -1)
 +            return scr_set_item_data(UnknownEnum.Value_7, _rpid, 0);

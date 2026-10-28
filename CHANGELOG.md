@@ -6,6 +6,7 @@
 
 ### New Features
 
+- **Mod file checking** (`tools/schemas/`, `tools/check_mod.py`): JSON schemas for every mod file type (manifest, classes, cells, quests, tools, sounds, props, items, lang). Editors such as VS Code underline unknown keys and wrong types as you type; `check_mod.py` reports them from the command line, and `build_mod.py` runs it before deploying (an unknown key where it decides what a mod or an entry is blocks the deploy unless `--deploy-anyway`) (modding guide 26).
 - **RELOAD MODS** (GNX DEBUG): saves to the autosave slot (the autosave it replaces is kept as `save_file_a.json.bak_reload`), reads every mod's files again and loads the game back, without the menu (modding guide 17.3).
 - **Daily hook**: quest triggers can run when a new day starts (hook `day_start`), with the conditions `day_every` (every n days) and `day_gte`: daily income, upkeep, events on a given day (QUESTS_SCHEMA.md).
 - **Turn a cell off**: a cell's window has a new last row, with the giant cell's breeding icon, that turns the cell on or off (yellow = on). A cell turned off keeps its captive, but no monster comes in; monsters already inside or already on their way finish. Offered on cells that call walking monsters (not tentacle, underground, birth or transfer cells). Saved with the cell.
@@ -17,6 +18,11 @@
 
 ### Bug Fixes
 
+- A cell whose `spawn_info` was text (`"coin 2 mood 1"`) or missed a field crashed the game in the build menu or at its first payout. Text is now a mod error and left out; missing fields default to 0 / false.
+- A quest reward missing a field (`amount`, `h_type`, `prop_id`, `type`) crashed the game when the quest was completed; it now gives nothing and logs a mod error.
+- The example mod: several tool buttons crashed the game (actions with wrong field names); its Siren's clothing, monster sprites of its cells and its ogre overrides used formats GNX does not read; its cell `spawn_info` was text; its "reference" trigger was live; its patch forced vanilla WALL 2 into fixed mode. All fixed, and its files now check clean.
+- `build_mod.py` did not deploy `items.json` or the `lang/` folder, and refused a mod without `mod_id` (it now deploys under the source folder's name, with a warning).
+- Docs: QUESTS_SCHEMA.md used a side effect that does not exist (`increment_state`) and mentioned a `popup` side effect; `unit_count` / `cell_count` default `value` to 1; manifest `author` / `description` and voices per monster type (`by_mon_type`) are now documented.
 - Docs: QUESTS_SCHEMA.md said a trigger fires at most once per save; it fires every time its hook runs and its conditions hold (guard one-time events with a state key).
 - Mod characters (and other classes without a skin tone) in WALL 3 and WALL 4: the goblin's and hobgoblin's touch and enter overlays showed another cell's pose. The game's generic overlays hold one row per skin tone; these characters now read their own cell's row.
 - COPY DOWN refused to copy a floor built partly to the left (cells added from the starting pillar with the build side on the left) with "the floor below is not empty", even onto an empty floor. It now copies the whole layout, and also builds the cell of the floor's start slot, which it left out before.

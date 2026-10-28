@@ -1044,6 +1044,11 @@ def main(argv=None):
                 r["scn"]["fails"].append("FAIL  expected dialog containing '" + sc["expect_dialog"] + "' never appeared")
             if sc.get("expect_dialog"):  # the expected problem is also logged as a mod error
                 r["mod_errors"] = [m for m in r["mod_errors"] if sc["expect_dialog"] not in m]
+            for want in sc.get("expect_mod_errors", []):
+                # mod errors the scenario provokes on purpose (runtime ones show no dialog): each must be logged
+                if r.get("scn") is not None and not any(want in m for m in r["mod_errors"]):
+                    r["scn"]["fails"].append("FAIL  expected mod error containing '" + want + "' was not logged")
+                r["mod_errors"] = [m for m in r["mod_errors"] if want not in m]
             if len(r["dismissed_dialogs"]) > 1 and r.get("scn"):
                 r["scn"]["fails"].append(f"FAIL  expected dialog appeared {len(r['dismissed_dialogs'])} times (should show once per session)")
             r["suite_ignored"] = sc.get("check_boot_suite", True) is False

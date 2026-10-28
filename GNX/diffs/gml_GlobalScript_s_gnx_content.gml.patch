@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3889 @@
+@@ -0,0 +1,3909 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -315,6 +315,27 @@
 +    gnx_log_write(_log, "[GNX] " + arg1 + ": frames=" + string(array_length(_fps)) + " idx=" + string(_loaded) + " xo=" + string(_xo) + " yo=" + string(_yo) + "\n");
 +    gnx_log_close(_log);
 +    return (_loaded != -1) ? _loaded : arg3;
++}
++
++
++/// GNX-FIX: a cell's spawn_info as the game reads it: an object with all four fields (coin, mood, coin_mul, mood_mul,
++/// missing ones get 0 / false), or -1 (none) when it is not an object. The build menu and the payout read the four
++/// fields directly, so text or a missing field there was a GameMaker error. arg1 = the cell's name, for the error.
++function gnx_spawn_info_norm(arg0, arg1)
++{
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error("Cell '" + string(arg1) + "': spawn_info must be an object like { \"coin\": 2, \"mood\": 1 }, not " + string(arg0) + "; left out");
++        return -1;
++    }
++
++    var _who = "Cell '" + string(arg1) + "' spawn_info";
++    return {
++        coin: variable_struct_exists(arg0, "coin") ? gnx_json_num(arg0.coin, 0) : 0,
++        mood: variable_struct_exists(arg0, "mood") ? gnx_json_num(arg0.mood, 0) : 0,
++        coin_mul: variable_struct_exists(arg0, "coin_mul") && gnx_json_bool(arg0.coin_mul, false, _who, "coin_mul"),
++        mood_mul: variable_struct_exists(arg0, "mood_mul") && gnx_json_bool(arg0.mood_mul, false, _who, "mood_mul")
++    };
 +}
 +
 +
@@ -648,7 +669,7 @@
 +        name: _cn,
 +        gnx_price: variable_struct_exists(arg0, "price") ? arg0.price : 100,
 +        gnx_code_text: variable_struct_exists(arg0, "code_text") ? arg0.code_text : -1,
-+        gnx_spawn_info: variable_struct_exists(arg0, "spawn_info") ? arg0.spawn_info : -1,
++        gnx_spawn_info: variable_struct_exists(arg0, "spawn_info") ? gnx_spawn_info_norm(arg0.spawn_info, _cn) : -1,
 +        physical: 
 +        {
 +            allow_preg: _phys.allow_preg,
@@ -783,7 +804,6 @@
 +        for (var _si2 = 0; _si2 < 7; _si2++)
 +            variable_struct_set(_cp.gnx_speed, _sk[_si2], variable_struct_exists(_ugs, _sk[_si2]) ? gnx_json_num_in(variable_struct_get(_ugs, _sk[_si2]), _sd[_si2], 0.1, 60, _cn, "speed." + _sk[_si2]) : _sd[_si2]);
 +        
-+        _cp.gnx_milk_loops = variable_struct_exists(_phys, "milk_loops") ? max(1, floor(gnx_json_num(_phys.milk_loops, 3))) : 3;
 +        // GNX-UG: milking runs alongside every phase while the captive has milk (MILK 2 rhythm):
 +        // one milk item every milk_interval frames, milk_items items in all, then the milk is used up.
 +        // GNX-FIX: numbers as text are read here too (before, "4" was silently the default)
@@ -1416,7 +1436,7 @@
 +        _cell.gnx_code_text = arg1.code_text;
 +    
 +    if (variable_struct_exists(arg1, "spawn_info"))
-+        _cell.gnx_spawn_info = arg1.spawn_info;
++        _cell.gnx_spawn_info = gnx_spawn_info_norm(arg1.spawn_info, _cell.name);
 +    
 +    if (variable_struct_exists(arg1, "slot_type"))
 +        _cell.slot_type = arg1.slot_type;
