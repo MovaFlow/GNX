@@ -17,7 +17,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 26 | 601 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2341 |
 | `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 15 | 975 |
-| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 18 | 911 |
+| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 19 | 969 |
 | `s_gnx_sound.gml` | sounds.json, voices, sfx, ambience | 11 | 573 |
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 7 | 2357 |
 | `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 21 | 1752 |
@@ -361,6 +361,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_stage_encounter_data` | `s_gnx_raid.gml` |
 | `gnx_stage_field` | `s_gnx_raid.gml` |
 | `gnx_stage_index` | `s_gnx_raid.gml` |
+| `gnx_stage_load_icon` | `s_gnx_raid.gml` |
 | `gnx_stage_max_lvl` | `s_gnx_raid.gml` |
 | `gnx_stage_parse_level` | `s_gnx_raid.gml` |
 | `gnx_stage_pool_add` | `s_gnx_raid.gml` |

@@ -1,0 +1,88 @@
+--- gml_138/gml_GlobalScript_s_raid_map_button.gml	2026-09-02 08:45:16.543618000 +0200
++++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-29 10:37:49.579183300 +0100
+@@ -14,6 +14,17 @@
+         switch_type = false;
+         act_resize = true;
+         spr_sel = spr_button_stage_sel;
++        // GNX-STAGE: a mod stage (5+) takes its place and picture from raids.json
++        var _gnx_sdef = gnx_stage_def(button_num);
++        
++        if (_gnx_sdef != undefined)
++        {
++            x = _gnx_sdef.x;
++            y = _gnx_sdef.y;
++            sprite_index = _gnx_sdef.icon.spr;
++            image_index = max(0, _gnx_sdef.icon.vanilla);
++            spr_sel = (_gnx_sdef.icon.vanilla >= 0) ? spr_button_stage_sel : -1;
++        }
+         
+         switch (button_num)
+         {
+@@ -74,7 +85,8 @@
+     hover = false;
+     gui = true;
+     act_resize = true;
+-    image_index = button_num * 2;
++    // GNX-STAGE: the arrow sprite has a pair of frames per vanilla stage; mod stages use the first pair
++    image_index = ((button_num < 5) ? button_num : 0) * 2;
+     
+     if (button_num == 1)
+         image_xscale = -1;
+@@ -82,7 +94,39 @@
+ 
+ function scr_draw_stage_button()
+ {
+-    scr_draw_hover_sel_index_button();
++    // GNX-STAGE: a mod stage's own picture: its hover frame, or the picture lightened when it has none
++    var _gnx_sdef = gnx_stage_def(button_num);
++    var _gnx_hover = hover != -1 && hover && !trigger;
++    
++    if (_gnx_sdef != undefined && _gnx_sdef.icon.vanilla < 0)
++    {
++        draw_sprite_ext(sprite_index, (_gnx_hover && _gnx_sdef.icon.frames > 1) ? 1 : 0, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++        
++        if (_gnx_hover && _gnx_sdef.icon.frames == 1)
++        {
++            gpu_set_blendmode(bm_add);
++            draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, c_white, 0.35);
++            gpu_set_blendmode(bm_normal);
++        }
++        
++        hover = false;
++    }
++    else
++    {
++        scr_draw_hover_sel_index_button();
++    }
++    
++    // GNX-STAGE: the stage's name over a hovered mod stage (vanilla stages have none)
++    if (_gnx_sdef != undefined && _gnx_hover)
++    {
++        draw_set_font(fnt_base_font_eng);
++        draw_set_halign(fa_center);
++        draw_set_valign(fa_bottom);
++        draw_text_color(x, y - (sprite_get_yoffset(sprite_index) + 1), _gnx_sdef.label, c_white, c_white, c_white, c_white, 1);
++        draw_set_halign(fa_left);
++        draw_set_valign(fa_top);
++    }
++
+     var _y = y + 16;
+     var _max_lvl = global.val.stage_info[button_num].max_lvl;
+     var _c_lvl = global.val.stage_lvl_sel[button_num];
+@@ -92,14 +136,14 @@
+     
+     if (_c_lvl != _max_lvl && button_num != UnknownEnum.Value_4)
+     {
+-        if (_c_lvl == 2)
++        if (_c_lvl == gnx_stage_max_lvl(button_num))
+             _c = 65280;
+         
+         _xp = _max_xp;
+     }
+     
+     scr_draw_bar_h(x - 8, _y + 1, _xp, _max_xp, _c, 17, false);
+-    var _lvl = min(2, global.val.stage_lvl_sel[button_num]) + 1;
++    var _lvl = min(gnx_stage_max_lvl(button_num), global.val.stage_lvl_sel[button_num]) + 1;
+     
+     if (button_num == UnknownEnum.Value_4)
+     {

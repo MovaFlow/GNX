@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,910 @@
+@@ -0,0 +1,968 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -429,6 +429,64 @@
 +}
 +
 +
++// the raid-map button picture of a stage: icon arg1 of mod arg0. A number 0-4 reuses that vanilla stage's button;
++// a PNG in the mod's sprites/ folder is one square frame (vanilla 27 x 27), or two side by side (normal, hover).
++// Returns { spr, frames, vanilla } (vanilla = the vanilla frame, or -1).
++function gnx_stage_load_icon(arg0, arg1)
++{
++    var _out = { spr: spr_button_stage, frames: 1, vanilla: 0 };
++
++    if (is_numeric(arg1))
++    {
++        _out.vanilla = clamp(floor(arg1), 0, 4);
++        return _out;
++    }
++
++    if (!is_string(arg1) || arg1 == "")
++        return _out;
++
++    var _path = global.gnx_mods_root + arg0 + "/sprites/" + arg1;
++    var _cache = _path + "#stage";
++    var _spr = -1;
++
++    if (ds_map_exists(global.gnx_sprite_cache, _cache) && gnx_sprite_exists(ds_map_find_value(global.gnx_sprite_cache, _cache)))
++    {
++        _spr = ds_map_find_value(global.gnx_sprite_cache, _cache);
++    }
++    else if (file_exists(_path))
++    {
++        // measured with one frame first: a strip twice as wide as high holds the hover frame
++        var _probe = sprite_add(_path, 1, false, false, 0, 0);
++
++        if (_probe != -1)
++        {
++            var _w = sprite_get_width(_probe);
++            var _h = sprite_get_height(_probe);
++            var _n = (_w >= 2 * _h) ? 2 : 1;
++            sprite_delete(_probe);
++            _spr = sprite_add(_path, _n, false, false, (_w div _n) div 2, _h div 2);
++
++            if (_spr != -1)
++            {
++                array_push(global.gnx_runtime_sprites, _spr);
++                ds_map_set(global.gnx_sprite_cache, _cache, _spr);
++            }
++        }
++    }
++
++    if (_spr == -1)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': stage icon sprites/" + arg1 + " not found or not a PNG; the vanilla button is used");
++        return _out;
++    }
++
++    _out.spr = _spr;
++    _out.frames = sprite_get_number(_spr);
++    _out.vanilla = -1;
++    return _out;
++}
++
++
 +// a [min, max] range from a number or a two-number list (mod JSON), else arg1 (the default range)
 +function gnx_stage_range(arg0, arg1)
 +{
@@ -640,7 +698,7 @@
 +            label: (variable_struct_exists(_s, "label") && is_string(_s.label)) ? _s.label : _s.id,
 +            x: gnx_json_num(_pos[0], 0),
 +            y: gnx_json_num(_pos[1], 0),
-+            icon: (variable_struct_exists(_s, "icon") && is_string(_s.icon)) ? _s.icon : "",
++            icon: gnx_stage_load_icon(arg0, gnx_stage_field(_s, "icon", "")),
 +            raid_time: max(60, floor(gnx_json_num(variable_struct_exists(_s, "raid_time") ? _s.raid_time : 3600, 3600))),
 +            unlock: (variable_struct_exists(_s, "unlock") && is_struct(_s.unlock)) ? _s.unlock : undefined,
 +            levels: []

@@ -931,7 +931,7 @@ diff -uN gml_138/gml_GlobalScript_PropertyHolder.gml gml/gml_GlobalScript_Proper
 +}
 diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_button_activate.gml
 --- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-29 10:22:19.452499400 +0100
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-29 10:38:00.372875600 +0100
 @@ -29,6 +29,15 @@
              trigger = false;
              global.click_lock = false;
@@ -1802,7 +1802,21 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          instance_destroy();
                                  }
                              }
-@@ -1673,6 +1978,12 @@
+@@ -1602,6 +1907,13 @@
+                     break;
+                 
+                 case UnknownEnum.Value_41:
++                    // GNX-STAGE: the raid itself (cart, return) does not reach mod stages yet
++                    if (obj_np.obj_raid.raid_data.stage >= 5)
++                    {
++                        scr_gnx_pop_up_create("This place cannot be raided yet.");
++                        break;
++                    }
++                    
+                     with (obj_np.obj_raid)
+                     {
+                         raid_data.ff = true;
+@@ -1673,6 +1985,12 @@
                      break;
                  
                  case UnknownEnum.Value_45:
@@ -1815,7 +1829,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
-@@ -1824,7 +2135,7 @@
+@@ -1824,7 +2142,7 @@
                  
                  case UnknownEnum.Value_30:
                      var _stage = source_id.button_num;
@@ -1824,7 +1838,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      var _val;
                      
                      if (button_num == 0)
-@@ -1853,6 +2164,7 @@
+@@ -1853,6 +2171,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
                          scr_create_map_buttons();
@@ -1832,7 +1846,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      break;
-@@ -2046,6 +2358,17 @@
+@@ -2046,6 +2365,17 @@
                              break;
                          
                          case 3:
@@ -1850,7 +1864,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              game_end();
                              break;
                      }
-@@ -2056,43 +2379,43 @@
+@@ -2056,43 +2386,43 @@
                      switch (button_num)
                      {
                          case 0:
@@ -1904,7 +1918,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                      }
                      
-@@ -2135,6 +2458,9 @@
+@@ -2135,6 +2465,9 @@
                          switch (button_num)
                          {
                              case 0:
@@ -1914,7 +1928,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  if (source_id.load_data.ver > 0.43 && source_id.load_data.ver < 1.07)
                                  {
                                      scr_sfx_play(UnknownEnum.Value_1);
-@@ -2167,45 +2493,45 @@
+@@ -2167,45 +2500,45 @@
                                  
                                  switch (global.val.language)
                                  {
@@ -1970,7 +1984,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          _text = "Deletar arquivo salvo?";
                                          break;
                                  }
-@@ -2233,27 +2559,13 @@
+@@ -2233,27 +2566,13 @@
                              instance_destroy();
                      }
                      
@@ -2002,7 +2016,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                          load_data = scr_set_save_date(button_pos);
                      }
                      else
-@@ -2265,48 +2577,48 @@
+@@ -2265,48 +2584,48 @@
                          
                          switch (global.val.language)
                          {
@@ -2061,7 +2075,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  _text = "Sobrescrever arquivo salvo?";
                                  break;
                          }
-@@ -2481,6 +2793,315 @@
+@@ -2481,6 +2800,315 @@
                      
                      scr_reset_unit_window(-1);
                      break;
@@ -22432,7 +22446,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,910 @@
+@@ -0,0 +1,968 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -22861,6 +22875,64 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +}
 +
 +
++// the raid-map button picture of a stage: icon arg1 of mod arg0. A number 0-4 reuses that vanilla stage's button;
++// a PNG in the mod's sprites/ folder is one square frame (vanilla 27 x 27), or two side by side (normal, hover).
++// Returns { spr, frames, vanilla } (vanilla = the vanilla frame, or -1).
++function gnx_stage_load_icon(arg0, arg1)
++{
++    var _out = { spr: spr_button_stage, frames: 1, vanilla: 0 };
++
++    if (is_numeric(arg1))
++    {
++        _out.vanilla = clamp(floor(arg1), 0, 4);
++        return _out;
++    }
++
++    if (!is_string(arg1) || arg1 == "")
++        return _out;
++
++    var _path = global.gnx_mods_root + arg0 + "/sprites/" + arg1;
++    var _cache = _path + "#stage";
++    var _spr = -1;
++
++    if (ds_map_exists(global.gnx_sprite_cache, _cache) && gnx_sprite_exists(ds_map_find_value(global.gnx_sprite_cache, _cache)))
++    {
++        _spr = ds_map_find_value(global.gnx_sprite_cache, _cache);
++    }
++    else if (file_exists(_path))
++    {
++        // measured with one frame first: a strip twice as wide as high holds the hover frame
++        var _probe = sprite_add(_path, 1, false, false, 0, 0);
++
++        if (_probe != -1)
++        {
++            var _w = sprite_get_width(_probe);
++            var _h = sprite_get_height(_probe);
++            var _n = (_w >= 2 * _h) ? 2 : 1;
++            sprite_delete(_probe);
++            _spr = sprite_add(_path, _n, false, false, (_w div _n) div 2, _h div 2);
++
++            if (_spr != -1)
++            {
++                array_push(global.gnx_runtime_sprites, _spr);
++                ds_map_set(global.gnx_sprite_cache, _cache, _spr);
++            }
++        }
++    }
++
++    if (_spr == -1)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': stage icon sprites/" + arg1 + " not found or not a PNG; the vanilla button is used");
++        return _out;
++    }
++
++    _out.spr = _spr;
++    _out.frames = sprite_get_number(_spr);
++    _out.vanilla = -1;
++    return _out;
++}
++
++
 +// a [min, max] range from a number or a two-number list (mod JSON), else arg1 (the default range)
 +function gnx_stage_range(arg0, arg1)
 +{
@@ -23072,7 +23144,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +            label: (variable_struct_exists(_s, "label") && is_string(_s.label)) ? _s.label : _s.id,
 +            x: gnx_json_num(_pos[0], 0),
 +            y: gnx_json_num(_pos[1], 0),
-+            icon: (variable_struct_exists(_s, "icon") && is_string(_s.icon)) ? _s.icon : "",
++            icon: gnx_stage_load_icon(arg0, gnx_stage_field(_s, "icon", "")),
 +            raid_time: max(60, floor(gnx_json_num(variable_struct_exists(_s, "raid_time") ? _s.raid_time : 3600, 3600))),
 +            unlock: (variable_struct_exists(_s, "unlock") && is_struct(_s.unlock)) ? _s.unlock : undefined,
 +            levels: []
@@ -40990,7 +41062,7 @@ diff -uN gml_138/gml_GlobalScript_s_quest_function.gml gml/gml_GlobalScript_s_qu
                  {
 diff -uN gml_138/gml_GlobalScript_s_raid_button.gml gml/gml_GlobalScript_s_raid_button.gml
 --- gml_138/gml_GlobalScript_s_raid_button.gml	2026-09-02 08:45:16.120550900 +0200
-+++ gml/gml_GlobalScript_s_raid_button.gml	2026-10-19 10:49:25.123774800 +0200
++++ gml/gml_GlobalScript_s_raid_button.gml	2026-10-29 10:39:53.181375500 +0100
 @@ -26,7 +26,8 @@
  
  function scr_step_slider()
@@ -41001,6 +41073,16 @@ diff -uN gml_138/gml_GlobalScript_s_raid_button.gml gml/gml_GlobalScript_s_raid_
  }
  
  function scr_reset_mon_cat_head(arg0, arg1, arg2)
+@@ -39,7 +40,8 @@
+ function scr_create_map_buttons()
+ {
+     scr_create_button(291, 143, depth - 5, spr_button_raid, UnknownEnum.Value_41, id, scr_create_raid_start_button, -1, scr_draw_hover_button, 0, 0);
+-    scr_create_button_layout(0, 0, depth - 5, 5, 1, 10, 0, 0, spr_button_stage, UnknownEnum.Value_43, id, false, scr_create_stage_button, -1, scr_draw_stage_button);
++    // GNX-STAGE: one button per stage, the mod stages of this map included (undiscovered ones remove themselves)
++    scr_create_button_layout(0, 0, depth - 5, 5 + array_length(global.gnx_stage_registry), 1, 10, 0, 0, spr_button_stage, UnknownEnum.Value_43, id, false, scr_create_stage_button, -1, scr_draw_stage_button);
+     scr_create_button(223, 76, depth - 5, spr_raid_trade_button, UnknownEnum.Value_44, id, scr_create_trade_button, -1, scr_draw_hover_button, 0, 0);
+     scr_create_button(233, 50, depth - 5, spr_raid_shop_button, UnknownEnum.Value_45, id, scr_create_shop_button, -1, scr_draw_hover_button, 0, 0);
+ }
 diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_raid_cal_stat.gml
 --- gml_138/gml_GlobalScript_s_raid_cal_stat.gml	2026-09-02 08:45:16.522590500 +0200
 +++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-29 10:22:19.440988300 +0100
@@ -41085,7 +41167,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
              scr_pop_up_create(UnknownEnum.Value_28);
 diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_draw.gml
 --- gml_138/gml_GlobalScript_s_raid_draw.gml	2026-09-02 08:45:16.419590000 +0200
-+++ gml/gml_GlobalScript_s_raid_draw.gml	2026-10-29 10:22:19.451497400 +0100
++++ gml/gml_GlobalScript_s_raid_draw.gml	2026-10-29 10:38:00.371873800 +0100
 @@ -10,7 +10,7 @@
          
          switch (global.val.language)
@@ -41446,7 +41528,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_dr
          {
              _x = 285;
              _y = 129;
-@@ -478,16 +483,16 @@
+@@ -478,36 +483,30 @@
  {
      draw_sprite(spr_button_stage, 0, 240, 92);
      
@@ -41466,8 +41548,18 @@ diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_dr
 +    if (global.val.stage_info[4] != -1)
          draw_sprite(spr_button_stage, 4, 294, 80);
      
++    // GNX-STAGE: the discovered mod stages of this map
++    for (var _gs = 0; _gs < array_length(global.gnx_stage_registry); _gs++)
++    {
++        var _gdef = global.gnx_stage_registry[_gs];
++        
++        if ((5 + _gs) < array_length(global.val.stage_info) && global.val.stage_info[5 + _gs] != -1)
++            draw_sprite(_gdef.icon.spr, max(0, _gdef.icon.vanilla), _gdef.x, _gdef.y);
++    }
++    
      draw_sprite(spr_raid_shop_button, 0, 233, 50);
-@@ -496,18 +501,3 @@
+     draw_sprite(spr_raid_trade_button, 0, 223, 76);
+     
      if (instance_exists(obj_carriage))
          draw_sprite(spr_carriage, image_index, obj_carriage.x, obj_carriage.y);
  }
@@ -42803,6 +42895,95 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
 -    Value_62 = 62,
 -    Value_63
 -}
+diff -uN gml_138/gml_GlobalScript_s_raid_map_button.gml gml/gml_GlobalScript_s_raid_map_button.gml
+--- gml_138/gml_GlobalScript_s_raid_map_button.gml	2026-09-02 08:45:16.543618000 +0200
++++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-29 10:37:49.579183300 +0100
+@@ -14,6 +14,17 @@
+         switch_type = false;
+         act_resize = true;
+         spr_sel = spr_button_stage_sel;
++        // GNX-STAGE: a mod stage (5+) takes its place and picture from raids.json
++        var _gnx_sdef = gnx_stage_def(button_num);
++        
++        if (_gnx_sdef != undefined)
++        {
++            x = _gnx_sdef.x;
++            y = _gnx_sdef.y;
++            sprite_index = _gnx_sdef.icon.spr;
++            image_index = max(0, _gnx_sdef.icon.vanilla);
++            spr_sel = (_gnx_sdef.icon.vanilla >= 0) ? spr_button_stage_sel : -1;
++        }
+         
+         switch (button_num)
+         {
+@@ -74,7 +85,8 @@
+     hover = false;
+     gui = true;
+     act_resize = true;
+-    image_index = button_num * 2;
++    // GNX-STAGE: the arrow sprite has a pair of frames per vanilla stage; mod stages use the first pair
++    image_index = ((button_num < 5) ? button_num : 0) * 2;
+     
+     if (button_num == 1)
+         image_xscale = -1;
+@@ -82,7 +94,39 @@
+ 
+ function scr_draw_stage_button()
+ {
+-    scr_draw_hover_sel_index_button();
++    // GNX-STAGE: a mod stage's own picture: its hover frame, or the picture lightened when it has none
++    var _gnx_sdef = gnx_stage_def(button_num);
++    var _gnx_hover = hover != -1 && hover && !trigger;
++    
++    if (_gnx_sdef != undefined && _gnx_sdef.icon.vanilla < 0)
++    {
++        draw_sprite_ext(sprite_index, (_gnx_hover && _gnx_sdef.icon.frames > 1) ? 1 : 0, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++        
++        if (_gnx_hover && _gnx_sdef.icon.frames == 1)
++        {
++            gpu_set_blendmode(bm_add);
++            draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, c_white, 0.35);
++            gpu_set_blendmode(bm_normal);
++        }
++        
++        hover = false;
++    }
++    else
++    {
++        scr_draw_hover_sel_index_button();
++    }
++    
++    // GNX-STAGE: the stage's name over a hovered mod stage (vanilla stages have none)
++    if (_gnx_sdef != undefined && _gnx_hover)
++    {
++        draw_set_font(fnt_base_font_eng);
++        draw_set_halign(fa_center);
++        draw_set_valign(fa_bottom);
++        draw_text_color(x, y - (sprite_get_yoffset(sprite_index) + 1), _gnx_sdef.label, c_white, c_white, c_white, c_white, 1);
++        draw_set_halign(fa_left);
++        draw_set_valign(fa_top);
++    }
++
+     var _y = y + 16;
+     var _max_lvl = global.val.stage_info[button_num].max_lvl;
+     var _c_lvl = global.val.stage_lvl_sel[button_num];
+@@ -92,14 +136,14 @@
+     
+     if (_c_lvl != _max_lvl && button_num != UnknownEnum.Value_4)
+     {
+-        if (_c_lvl == 2)
++        if (_c_lvl == gnx_stage_max_lvl(button_num))
+             _c = 65280;
+         
+         _xp = _max_xp;
+     }
+     
+     scr_draw_bar_h(x - 8, _y + 1, _xp, _max_xp, _c, 17, false);
+-    var _lvl = min(2, global.val.stage_lvl_sel[button_num]) + 1;
++    var _lvl = min(gnx_stage_max_lvl(button_num), global.val.stage_lvl_sel[button_num]) + 1;
+     
+     if (button_num == UnknownEnum.Value_4)
+     {
 diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_load.gml
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
 +++ gml/gml_GlobalScript_s_save_load.gml	2026-10-28 18:35:36.273556600 +0100

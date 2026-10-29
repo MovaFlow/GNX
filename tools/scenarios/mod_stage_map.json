@@ -1,0 +1,144 @@
+{
+  "about": "Mod raid stages on the raid map: discovered mod stages get a button at their raids.json pos, with their own PNG (two frames: normal, hover) or a vanilla stage's picture (icon 0-4). Selecting one works like a vanilla stage; Go is refused until mod stages can be raided (P4).",
+  "mods": [
+    "tools/scenarios/mods/harness_cells",
+    "tools/scenarios/mods/harness_items",
+    "tools/scenarios/mods/harness_raid_a",
+    "tools/scenarios/mods/harness_raid_full",
+    "tools/scenarios/mods/harness_raid_spawner"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_index",
+      "args": [
+        "harness_raid_a.CRYPT"
+      ],
+      "is": 5,
+      "why": "load order"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_index",
+      "args": [
+        "harness_raid_full.DEN"
+      ],
+      "is": 6,
+      "why": "load order"
+    },
+    {
+      "call": "gnx_scn_stage_open",
+      "args": [
+        "harness_raid_a.CRYPT",
+        0
+      ]
+    },
+    {
+      "call": "gnx_scn_stage_open",
+      "args": [
+        "harness_raid_full.DEN",
+        1
+      ]
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 10
+    },
+    {
+      "wait": 20
+    },
+    {
+      "screenshot": "map"
+    },
+    {
+      "assert": "button_var",
+      "type": 43,
+      "num": 6,
+      "field": "x",
+      "is": 215,
+      "why": "DEN at its pos"
+    },
+    {
+      "assert": "button_var",
+      "type": 43,
+      "num": 6,
+      "field": "y",
+      "is": 58
+    },
+    {
+      "assert": "button_var",
+      "type": 43,
+      "num": 5,
+      "field": "x",
+      "is": 180,
+      "why": "CRYPT at its pos"
+    },
+    {
+      "assert": "button_var",
+      "type": 43,
+      "num": 5,
+      "field": "image_index",
+      "is": 3,
+      "why": "icon 3 = the Castle's picture"
+    },
+    {
+      "assert": "button_var",
+      "type": 43,
+      "num": 0,
+      "field": "x",
+      "is": 240,
+      "why": "vanilla Village unchanged"
+    },
+    {
+      "raid_stage": 0
+    },
+    {
+      "wait": 5
+    },
+    {
+      "wait": 20
+    },
+    {
+      "screenshot": "village_selected"
+    },
+    {
+      "raid_stage": 6
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "stage": 6
+    },
+    {
+      "wait": 20
+    },
+    {
+      "screenshot": "den_selected"
+    },
+    {
+      "press": {
+        "type": 41,
+        "num": 0
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "popup_shown",
+      "contains": "cannot be raided yet"
+    },
+    {
+      "assert": "raid",
+      "state": 0
+    }
+  ]
+}
