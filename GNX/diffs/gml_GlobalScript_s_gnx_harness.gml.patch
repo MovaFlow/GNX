@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4777 @@
+@@ -0,0 +1,4820 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1711,6 +1711,49 @@
 +    }
 +
 +    return _seen;
++}
++
++
++// for {"assert": "fn"}: "x y" (rounded) of mod stage arg0's cart route on this map at fraction arg1 (0 nest, 1 stage)
++function gnx_scn_route(arg0, arg1)
++{
++    var _def = gnx_stage_def(gnx_stage_index(arg0));
++
++    if (_def == undefined)
++        return "none";
++
++    var _p = gnx_route_at(_def.route, arg1);
++    return string(round(_p[0])) + " " + string(round(_p[1]));
++}
++
++
++// {"call": "gnx_scn_raid_clock", "args": [f]}: puts the raid cart at fraction f of its trip (0 nest, 1 stage), on the
++// way there (state 1) or back (state 2), through the raid clock
++function gnx_scn_raid_clock(arg0)
++{
++    with (obj_np.obj_raid)
++    {
++        var _half = raid_data.max_time * 0.5;
++        raid_data.time_left = (raid_data.raid_state == 1) ? (raid_data.max_time - (arg0 * _half)) : (arg0 * _half);
++    }
++}
++
++
++// for {"assert": "fn"}: how many mod errors reported since boot contain text arg0
++function gnx_scn_mod_error_count(arg0)
++{
++    var _n = 0;
++
++    if (variable_global_exists("gnx_mod_errors") && is_array(global.gnx_mod_errors))
++    {
++        for (var _i = 0; _i < array_length(global.gnx_mod_errors); _i++)
++        {
++            if (string_pos(arg0, global.gnx_mod_errors[_i]) > 0)
++                _n++;
++        }
++    }
++
++    return _n;
 +}
 +
 +

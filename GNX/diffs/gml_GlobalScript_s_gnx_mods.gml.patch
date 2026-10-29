@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2581 @@
+@@ -0,0 +1,2605 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1739,6 +1739,26 @@
 +                guard_fail_popup: ""
 +            },
 +            {
++                label: "RAID ROUTES",
++                toggle: "raid_routes",
++                actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_raid_routes",
++                    value: 1
++                }],
++                undo_actions: [
++                {
++                    type: "set_var",
++                    key: "gnx_raid_routes",
++                    value: 0
++                }],
++                popup: "Mod raid routes shown on the raid map",
++                undo_popup: "Mod raid routes hidden",
++                guard: -1,
++                guard_fail_popup: ""
++            },
++            {
 +                label: "CAPT100",
 +                toggle: "capture100",
 +                actions: [
@@ -2250,6 +2270,10 @@
 +            _tl.return_y = variable_struct_exists(_mb, "return_y") ? _mb.return_y : _tl.y;
 +            _tl.return_label = variable_struct_exists(_mb, "return_label") ? _mb.return_label : "Return";
 +            _tl.no_capture = gnx_parse_no_capture(_mb, arg0);
++
++            // GNX-STAGE: where raid carts leave from on this map's own map_sprite
++            if (variable_struct_exists(_mb, "nest") && is_array(_mb.nest) && array_length(_mb.nest) == 2)
++                _tl.nest = [gnx_json_num(_mb.nest[0], 200), gnx_json_num(_mb.nest[1], 59)];
 +            array_push(global.gnx_travel_locations, _tl);
 +            _log = gnx_log_open();
 +            gnx_log_write(_log, "[GNX-MAP] travel location: '" + _tl.label + "' -> " + _tl.target + " at (" + string(_tl.x) + "," + string(_tl.y) + ")\n");

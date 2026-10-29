@@ -1,0 +1,67 @@
+{
+  "about": "Load warnings for badly placed mod stages (D1, A6): a button that does not fit on the raid map panel with its level bar (pos within x 186-293, y 52-109), a path point outside the panel, a button within 12 px of another stage's. Stages exactly on the limits do not warn. Reported as mod errors (the mods still load).",
+  "mods": [
+    "tools/scenarios/mods/harness_raid_badpos"
+  ],
+  "expect_dialog": "raid map",
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_error_count",
+      "args": [
+        "stage 'OFFMAP': its button"
+      ],
+      "is": 1,
+      "why": "OFFMAP's button is off the map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_error_count",
+      "args": [
+        "stage 'OFFMAP': path point 0"
+      ],
+      "is": 1,
+      "why": "and its path point"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_error_count",
+      "args": [
+        "stage 'LOWEDGE'"
+      ],
+      "is": 1,
+      "why": "y 110: one px too low, the level bar would hang under the frame"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_error_count",
+      "args": [
+        "stage 'CORNER_"
+      ],
+      "is": 0,
+      "why": "exactly on the limits (186,52) and (293,109): no warning"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_error_count",
+      "args": [
+        "covers the Village"
+      ],
+      "is": 1,
+      "why": "ONVILLAGE sits on the Village's button"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_index",
+      "args": [
+        "harness_raid_badpos.ONVILLAGE"
+      ],
+      "is": 6,
+      "why": "warnings only: the stages load"
+    }
+  ]
+}

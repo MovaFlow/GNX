@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1155 @@
+@@ -0,0 +1,1382 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -427,7 +427,10 @@
 +    global.gnx_stage_registry = [];
 +    global.gnx_stage_spawn_refs = [];  // raid_spawns naming a mod stage, waiting for that stage to load
 +    global.gnx_stage_trade_refs = [];  // trade_stage naming a stage ({stage, class_id, mod_name})
-+    global.gnx_stage_cart_origin = [200, 59];  // where the vanilla raid cart leaves from on the world map (the nest)
++    global.gnx_stage_cart_origin = [200, 59];
++
++    if (!variable_global_exists("gnx_raid_routes"))
++        global.gnx_raid_routes = false;  // GNX DEBUG toggle RAID ROUTES  // where the vanilla raid cart leaves from on the world map (the nest)
 +}
 +
 +
@@ -706,6 +709,10 @@
 +            raid_time: max(60, floor(gnx_json_num(variable_struct_exists(_s, "raid_time") ? _s.raid_time : 3600, 3600))),
 +            unlock: (variable_struct_exists(_s, "unlock") && (is_struct(_s.unlock) || is_array(_s.unlock))) ? _s.unlock : undefined,
 +            on_discover: is_string(gnx_stage_field(_s, "on_discover", "")) ? gnx_stage_field(_s, "on_discover", "") : "",
++            path: gnx_stage_points(gnx_stage_field(_s, "path", []), _who),
++            curve: gnx_json_num(gnx_stage_field(_s, "curve", false), 0) != 0,
++            cart: gnx_stage_load_cart(arg0, gnx_stage_field(_s, "cart", "")),
++            route: undefined,  // built per map by scr_gnx_stage_apply (it starts at that map's nest)
 +            levels: []
 +        };
 +
@@ -742,6 +749,7 @@
 +            }
 +        }
 +
++        gnx_stage_check_place(_def, _who);
 +        array_push(global.gnx_stage_registry, _def);
 +        gnx_log_write(_log, "[GNX-STAGE] " + _key + " registered: " + string(array_length(_def.levels)) + " level(s) at (" + string(_def.x) + "," + string(_def.y) + ")\n");
 +    }
@@ -973,6 +981,226 @@
 +}
 +
 +
++// the raid map panel (spr_map drawn at 173,39, 133 x 91)
++#macro GNX_MAP_X0 173
++#macro GNX_MAP_Y0 39
++#macro GNX_MAP_X1 306
++#macro GNX_MAP_Y1 130
++
++
++// a list of [x, y] points from mod JSON (bad entries dropped with an error)
++function gnx_stage_points(arg0, arg1)
++{
++    var _out = [];
++
++    if (!is_array(arg0))
++    {
++        gnx_report_mod_error(arg1 + ": path must be a list of [x, y]; ignored");
++        return _out;
++    }
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        var _p = arg0[_i];
++
++        if (is_array(_p) && array_length(_p) == 2)
++            array_push(_out, [gnx_json_num(_p[0], 0), gnx_json_num(_p[1], 0)]);
++        else
++            gnx_report_mod_error(arg1 + ": path point " + string(_i) + " is not [x, y]; skipped");
++    }
++
++    return _out;
++}
++
++
++// the cart picture of a stage: a PNG in the mod's sprites/ (origin placed like the vanilla cart's, 12,19 of 28 x 24),
++// else spr_carriage
++function gnx_stage_load_cart(arg0, arg1)
++{
++    if (!is_string(arg1) || arg1 == "")
++        return spr_carriage;
++
++    var _path = global.gnx_mods_root + arg0 + "/sprites/" + arg1;
++    var _cache = _path + "#cart";
++
++    if (ds_map_exists(global.gnx_sprite_cache, _cache) && gnx_sprite_exists(ds_map_find_value(global.gnx_sprite_cache, _cache)))
++        return ds_map_find_value(global.gnx_sprite_cache, _cache);
++
++    var _probe = file_exists(_path) ? sprite_add(_path, 1, false, false, 0, 0) : -1;
++
++    if (_probe == -1)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': cart sprites/" + arg1 + " not found or not a PNG; the vanilla cart is used");
++        return spr_carriage;
++    }
++
++    var _w = sprite_get_width(_probe);
++    var _h = sprite_get_height(_probe);
++    sprite_delete(_probe);
++    var _spr = sprite_add(_path, 1, false, false, round(_w * 12 / 28), round(_h * 19 / 24));
++    array_push(global.gnx_runtime_sprites, _spr);
++    ds_map_set(global.gnx_sprite_cache, _cache, _spr);
++    return _spr;
++}
++
++
++// load-time warnings for stage arg0: its button (with the level art under it) or a path point off the map panel,
++// or a button within 12 px of a vanilla stage's or an earlier mod stage's (D1)
++function gnx_stage_check_place(arg0, arg1)
++{
++    // the button is 27 x 27 around pos (origin 13,13); the level label, xp bar and level bar under it reach 21 px
++    // below pos (spr_stage_lvl / _num at y+16, spr_stage_lvl_bar at y+18, 4 px high, origin y 1)
++    var _x0 = GNX_MAP_X0 + 13;
++    var _x1 = GNX_MAP_X1 - 13;
++    var _y0 = GNX_MAP_Y0 + 13;
++    var _y1 = GNX_MAP_Y1 - 21;
++
++    if (arg0.x < _x0 || arg0.x > _x1 || arg0.y < _y0 || arg0.y > _y1)
++        gnx_report_mod_error(arg1 + ": its button at " + string([arg0.x, arg0.y]) + " does not fit on the raid map with its level bar: keep pos within x " + string(_x0) + "-" + string(_x1) + ", y " + string(_y0) + "-" + string(_y1));
++
++    for (var _i = 0; _i < array_length(arg0.path); _i++)
++    {
++        var _p = arg0.path[_i];
++
++        if (_p[0] < GNX_MAP_X0 || _p[0] > GNX_MAP_X1 || _p[1] < GNX_MAP_Y0 || _p[1] > GNX_MAP_Y1)
++            gnx_report_mod_error(arg1 + ": path point " + string(_i) + " " + string(_p) + " is outside the raid map (x " + string(GNX_MAP_X0) + "-" + string(GNX_MAP_X1) + ", y " + string(GNX_MAP_Y0) + "-" + string(GNX_MAP_Y1) + ")");
++    }
++
++    var _others = [[240, 92, "the Village"], [188, 108, "the Mountain"], [266, 50, "the Forest"], [272, 103, "the Castle"], [294, 80, "the Tower"]];
++
++    for (var _i = 0; _i < array_length(global.gnx_stage_registry); _i++)
++        array_push(_others, [global.gnx_stage_registry[_i].x, global.gnx_stage_registry[_i].y, "stage '" + global.gnx_stage_registry[_i].key + "'"]);
++
++    for (var _i = 0; _i < array_length(_others); _i++)
++    {
++        if (point_distance(arg0.x, arg0.y, _others[_i][0], _others[_i][1]) < 12)
++            gnx_report_mod_error(arg1 + ": its button at " + string([arg0.x, arg0.y]) + " covers " + _others[_i][2] + "'s on the raid map");
++    }
++}
++
++
++// where carts leave from on the map the player is on: map_info.nest of that map, else the vanilla nest
++function gnx_stage_nest()
++{
++    if (variable_global_exists("gnx_travel_locations") && is_array(global.gnx_travel_locations))
++    {
++        for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++        {
++            var _tl = global.gnx_travel_locations[_i];
++
++            if (_tl.target == global.gnx_active_map && variable_struct_exists(_tl, "nest") && is_array(_tl.nest))
++                return _tl.nest;
++        }
++    }
++
++    return global.gnx_stage_cart_origin;
++}
++
++
++// the cart route of stage arg0 on this map: nest -> path points -> stage (2 px left of and 5 px below its button,
++// where the vanilla Village cart stops), straight legs or (curve) a Catmull-Rom curve through the points, sampled
++// into { pts: [[x, y]...], cum: [length up to each point], len }
++function gnx_stage_build_route(arg0)
++{
++    var _ctl = [gnx_stage_nest()];
++
++    for (var _i = 0; _i < array_length(arg0.path); _i++)
++        array_push(_ctl, arg0.path[_i]);
++
++    array_push(_ctl, [arg0.x - 2, arg0.y + 5]);
++    var _pts = [];
++    var _n = array_length(_ctl);
++
++    if (!arg0.curve || _n < 3)
++    {
++        _pts = _ctl;
++    }
++    else
++    {
++        for (var _i = 0; _i < _n - 1; _i++)
++        {
++            var _p0 = _ctl[max(0, _i - 1)];
++            var _p1 = _ctl[_i];
++            var _p2 = _ctl[_i + 1];
++            var _p3 = _ctl[min(_n - 1, _i + 2)];
++
++            for (var _k = 0; _k < 8; _k++)
++            {
++                var _t = _k / 8;
++                var _t2 = _t * _t;
++                var _t3 = _t2 * _t;
++                var _pt = [0, 0];
++
++                for (var _a = 0; _a < 2; _a++)
++                    _pt[_a] = 0.5 * ((2 * _p1[_a]) + ((-_p0[_a] + _p2[_a]) * _t) + (((2 * _p0[_a]) - (5 * _p1[_a]) + (4 * _p2[_a]) - _p3[_a]) * _t2) + ((-_p0[_a] + (3 * _p1[_a]) - (3 * _p2[_a]) + _p3[_a]) * _t3));
++
++                array_push(_pts, _pt);
++            }
++        }
++
++        array_push(_pts, _ctl[_n - 1]);
++    }
++
++    var _cum = [0];
++
++    for (var _i = 1; _i < array_length(_pts); _i++)
++        array_push(_cum, _cum[_i - 1] + point_distance(_pts[_i - 1][0], _pts[_i - 1][1], _pts[_i][0], _pts[_i][1]));
++
++    return { pts: _pts, cum: _cum, len: _cum[array_length(_cum) - 1] };
++}
++
++
++// the point at fraction arg1 (0 = nest, 1 = stage) of route arg0, at constant speed along its length
++function gnx_route_at(arg0, arg1)
++{
++    var _pts = arg0.pts;
++
++    if (array_length(_pts) == 1 || arg0.len <= 0)
++        return [_pts[0][0], _pts[0][1]];
++
++    var _d = clamp(arg1, 0, 1) * arg0.len;
++
++    for (var _i = 1; _i < array_length(_pts); _i++)
++    {
++        if (_d <= arg0.cum[_i])
++        {
++            var _seg = arg0.cum[_i] - arg0.cum[_i - 1];
++            var _f = (_seg > 0) ? ((_d - arg0.cum[_i - 1]) / _seg) : 1;
++            return [lerp(_pts[_i - 1][0], _pts[_i][0], _f), lerp(_pts[_i - 1][1], _pts[_i][1], _f)];
++        }
++    }
++
++    var _last = _pts[array_length(_pts) - 1];
++    return [_last[0], _last[1]];
++}
++
++
++// GNX DEBUG toggle RAID ROUTES: every mod stage's route (yellow), its path points (red) and button box (cyan)
++function gnx_draw_stage_routes()
++{
++    if (!global.gnx_raid_routes)
++        exit;
++
++    for (var _i = 0; _i < array_length(global.gnx_stage_registry); _i++)
++    {
++        var _def = global.gnx_stage_registry[_i];
++
++        if (!is_struct(_def.route))
++            continue;
++
++        var _pts = _def.route.pts;
++
++        for (var _k = 1; _k < array_length(_pts); _k++)
++            draw_line_color(_pts[_k - 1][0], _pts[_k - 1][1], _pts[_k][0], _pts[_k][1], c_yellow, c_yellow);
++
++        for (var _k = 0; _k < array_length(_def.path); _k++)
++            draw_rectangle_color(_def.path[_k][0] - 1, _def.path[_k][1] - 1, _def.path[_k][0] + 1, _def.path[_k][1] + 1, c_red, c_red, c_red, c_red, false);
++
++        draw_rectangle_color(_def.x - 13, _def.y - 13, _def.x + 13, _def.y + 13, c_aqua, c_aqua, c_aqua, c_aqua, true);
++    }
++}
++
++
 +// where the raid cart is on the world map while a raid is out to a mod stage ([x, y]), else -1. Mod stages have no
 +// cart sequence: the cart goes in a straight line from the nest to the stage and back, timed by the raid clock.
 +function gnx_stage_cart_pos()
@@ -989,9 +1217,7 @@
 +    var _half = _rd.max_time * 0.5;
 +    // outbound: the clock runs from max_time down to half; back: from half down to 0
 +    var _p = (_rd.raid_state == 1) ? clamp((_rd.max_time - _rd.time_left) / _half, 0, 1) : clamp(_rd.time_left / _half, 0, 1);
-+    var _o = global.gnx_stage_cart_origin;
-+    // the vanilla carts stop 2 px left of and 5 px below the stage button (Village: button 240,92, cart 238,97)
-+    return [lerp(_o[0], _def.x - 2, _p), lerp(_o[1], _def.y + 5, _p)];
++    return gnx_route_at(_def.route, _p);
 +}
 +
 +
@@ -1108,6 +1334,7 @@
 +        array_push(global.base_raid_time, _def.raid_time);
 +        array_push(global.reward, _rw);
 +        array_push(_keys, _def.key);
++        _def.route = gnx_stage_build_route(_def);  // this map's nest
 +    }
 +    
 +    _v.gnx_stage_keys = _keys;

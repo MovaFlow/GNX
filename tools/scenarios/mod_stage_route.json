@@ -1,0 +1,188 @@
+{
+  "about": "Mod stage cart routes: path points between the nest and the stage, straight legs or a Catmull-Rom curve (curve: true), at constant speed along the length (expected points computed separately). In a real raid the cart follows the route on the raid clock, there and back (the same points). Screenshot with the GNX DEBUG toggle RAID ROUTES.",
+  "fixture": "mid",
+  "seed": 3,
+  "timeout": 120,
+  "check_boot_suite": false,
+  "mods": [
+    "tools/scenarios/mods/harness_cells",
+    "tools/scenarios/mods/harness_items",
+    "tools/scenarios/mods/harness_raid_a",
+    "tools/scenarios/mods/harness_raid_full",
+    "tools/scenarios/mods/harness_raid_spawner"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_route",
+      "args": [
+        "harness_raid_a.CRYPT",
+        0
+      ],
+      "is": "200 59",
+      "why": "starts at the vanilla nest"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_route",
+      "args": [
+        "harness_raid_a.CRYPT",
+        0.25
+      ],
+      "is": "197 70",
+      "why": "straight: a quarter of the length"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_route",
+      "args": [
+        "harness_raid_a.CRYPT",
+        0.5
+      ],
+      "is": "193 81",
+      "why": "straight: half the length, still on the first leg (the longer one)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_route",
+      "args": [
+        "harness_raid_a.CRYPT",
+        1
+      ],
+      "is": "190 77",
+      "why": "ends 2 px left of and 5 px below the button"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_route",
+      "args": [
+        "harness_raid_full.DEN",
+        0.25
+      ],
+      "is": "201 80",
+      "why": "curve"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_route",
+      "args": [
+        "harness_raid_full.DEN",
+        0.5
+      ],
+      "is": "215 89",
+      "why": "curve"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_route",
+      "args": [
+        "harness_raid_full.DEN",
+        0.75
+      ],
+      "is": "229 77",
+      "why": "curve"
+    },
+    {
+      "do": {
+        "type": "set_var",
+        "key": "gnx_raid_routes",
+        "value": 1
+      }
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "raid_stage": 6
+    },
+    {
+      "wait": 10
+    },
+    {
+      "raid_clear_formation": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "raid_formation": {
+        "front": [
+          [
+            0,
+            40
+          ]
+        ],
+        "back": [
+          [
+            1,
+            20
+          ]
+        ]
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "raid_go": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "call": "gnx_scn_raid_clock",
+      "args": [
+        0.5
+      ]
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cart_pos",
+      "args": [],
+      "is": "215 89",
+      "why": "the cart is on the curve, half way there"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "screenshot": "routes"
+    },
+    {
+      "raid_finish": 1200,
+      "until_state": 2
+    },
+    {
+      "wait": 1
+    },
+    {
+      "call": "gnx_scn_raid_clock",
+      "args": [
+        0.75
+      ]
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cart_pos",
+      "args": [],
+      "is": "229 77",
+      "why": "on the way back it uses the same route"
+    },
+    {
+      "raid_finish": 1200
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 0
+    }
+  ]
+}
