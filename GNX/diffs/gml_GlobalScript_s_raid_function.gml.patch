@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_raid_function.gml	2026-09-02 08:45:16.402592000 +0200
-+++ gml/gml_GlobalScript_s_raid_function.gml	2026-10-29 10:52:54.071713100 +0100
++++ gml/gml_GlobalScript_s_raid_function.gml	2026-10-29 15:40:56.614986200 +0100
 @@ -7,7 +7,7 @@
          sprite_index = spr_pixel;
          image_xscale = 480;
@@ -132,7 +132,7 @@
                      visible = false;
              }
              
-@@ -189,27 +190,27 @@
+@@ -189,53 +190,66 @@
      {
          raid_data.ff = false;
          var _pos = raid_data.raid_pos;
@@ -166,7 +166,10 @@
                  _seq = seq_stage_5;
                  break;
          }
-@@ -217,25 +218,35 @@
+         
++        if (gnx_vstage_moved(raid_data.stage))
++            _seq = -1;  // GNX-VSTAGE: moved by this map: its sequence drives to the old place
++
          if (raid_layer == -1)
          {
              raid_layer = layer_create(9999, "seq");
@@ -209,7 +212,7 @@
      }
  }
  
-@@ -245,27 +256,27 @@
+@@ -245,64 +259,82 @@
      {
          raid_data.ff = false;
          var _pos = raid_data.raid_pos;
@@ -243,7 +246,10 @@
                  _seq = seq_stage_5;
                  break;
          }
-@@ -273,36 +284,51 @@
+         
++        if (gnx_vstage_moved(raid_data.stage))
++            _seq = -1;  // GNX-VSTAGE
++
          if (raid_layer == -1)
          {
              raid_layer = layer_create(-9998, "seq");
@@ -307,7 +313,7 @@
                  _data.en_ap[0] -= _ap[0];
                  _data.en_ap[1] -= _ap[1];
              }
-@@ -312,54 +338,56 @@
+@@ -312,54 +344,57 @@
          
          if (!raid_data.lost)
          {
@@ -373,7 +379,8 @@
 +                _nyx_add += ((global.val.stage_info[3].max_lvl + 1) * 7);
              
 -            if (global.unlock.boss[UnknownEnum.Value_1] == 0 && irandom_range(1, 100) <= _nyx_add)
-+            if (global.unlock.boss[1] == 0 && irandom_range(1, 100) <= _nyx_add)
++            // GNX-VSTAGE (D5): Nyx needs a discovered vanilla stage this map does not hide
++            if (global.unlock.boss[1] == 0 && irandom_range(1, 100) <= _nyx_add && gnx_nyx_has_target())
              {
 -                scr_pop_up_create(UnknownEnum.Value_26);
 +                scr_pop_up_create(26);
@@ -386,7 +393,7 @@
                          array_push(_array, i);
                  }
                  
-@@ -381,23 +409,43 @@
+@@ -381,23 +416,43 @@
                      array_delete(_units, array_length(_units) - 1, 1);
                  }
                  
@@ -434,7 +441,7 @@
          
          if (instance_exists(obj_carriage))
          {
-@@ -413,7 +461,7 @@
+@@ -413,7 +468,7 @@
      
      with (obj_button)
      {
@@ -443,7 +450,7 @@
              instance_destroy();
      }
      
-@@ -425,49 +473,11 @@
+@@ -425,49 +480,11 @@
      with (_raid_id)
      {
          var _num = ds_list_size(global.front_row);

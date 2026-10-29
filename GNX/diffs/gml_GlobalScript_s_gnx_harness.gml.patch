@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4820 @@
+@@ -0,0 +1,4856 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1613,7 +1613,7 @@
 +// {"call": "gnx_scn_set_stage_sel", "args": ["folder.ID", n]}: a marker that must follow the stage by name
 +function gnx_scn_set_stage_sel(arg0, arg1)
 +{
-+    var _i = gnx_stage_index(arg0);
++    var _i = gnx_stage_ref(arg0, "");  // a mod stage or vanilla.NAME
 +
 +    if (_i != -1)
 +        global.val.stage_lvl_sel[_i] = arg1;
@@ -1640,7 +1640,7 @@
 +// arg1 holds; with arg3 also of that unit level
 +function gnx_scn_enc_count(arg0, arg1, arg2, arg3 = -1)
 +{
-+    var _i = gnx_stage_index(arg0);
++    var _i = gnx_stage_ref(arg0, "");  // a mod stage or vanilla.NAME
 +
 +    if (_i == -1 || global.val.stage_info[_i] == -1)
 +        return -1;
@@ -1719,6 +1719,10 @@
 +{
 +    var _def = gnx_stage_def(gnx_stage_index(arg0));
 +
++    // a vanilla stage moved by this map's vanilla_stages
++    if (_def == undefined && gnx_vstage_moved(gnx_stage_ref(arg0, "")))
++        _def = gnx_vstage_ov(gnx_stage_ref(arg0, ""));
++
 +    if (_def == undefined)
 +        return "none";
 +
@@ -1736,6 +1740,38 @@
 +        var _half = raid_data.max_time * 0.5;
 +        raid_data.time_left = (raid_data.raid_state == 1) ? (raid_data.max_time - (arg0 * _half)) : (arg0 * _half);
 +    }
++}
++
++
++// for {"assert": "fn"}: 1 when button type arg0 number arg1 exists, else 0
++function gnx_scn_button_num(arg0, arg1)
++{
++    var _n = 0;
++
++    with (obj_button)
++    {
++        if (interact_type == arg0 && button_num == arg1)
++            _n = 1;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: 1 when arg1 rolls of Nyx's target (scr_check_raid_target) ever picked stage arg0, else 0
++function gnx_scn_nyx_picks(arg0, arg1)
++{
++    var _hit = 0;
++
++    repeat (arg1)
++    {
++        var _t = scr_check_raid_target();
++
++        if (_t[0] == arg0)
++            _hit = 1;
++    }
++
++    return _hit;
 +}
 +
 +
@@ -1795,7 +1831,7 @@
 +// for {"assert": "fn"}: "<gold> <food>" the win of mod stage arg0, level arg1 pays (global.reward)
 +function gnx_scn_stage_reward(arg0, arg1)
 +{
-+    var _r = global.reward[gnx_stage_index(arg0)][arg1];
++    var _r = global.reward[gnx_stage_ref(arg0, "")][arg1];  // a mod stage or vanilla.NAME
 +    return string(_r[0].num) + " " + string(_r[1].num);
 +}
 +

@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_raid_draw.gml	2026-09-02 08:45:16.419590000 +0200
-+++ gml/gml_GlobalScript_s_raid_draw.gml	2026-10-29 15:00:00.127330700 +0100
++++ gml/gml_GlobalScript_s_raid_draw.gml	2026-10-29 15:37:58.307320900 +0100
 @@ -10,7 +10,7 @@
          
          switch (global.val.language)
@@ -362,26 +362,33 @@
          {
              _x = 285;
              _y = 129;
-@@ -478,36 +485,40 @@
+@@ -476,38 +483,39 @@
+ 
+ function scr_draw_stage_icon()
  {
-     draw_sprite(spr_button_stage, 0, 240, 92);
-     
+-    draw_sprite(spr_button_stage, 0, 240, 92);
+-    
 -    if (global.val.stage_info[UnknownEnum.Value_1] != -1)
-+    if (global.val.stage_info[1] != -1)
-         draw_sprite(spr_button_stage, 1, 188, 108);
-     
+-        draw_sprite(spr_button_stage, 1, 188, 108);
+-    
 -    if (global.val.stage_info[UnknownEnum.Value_2] != -1)
-+    if (global.val.stage_info[2] != -1)
-         draw_sprite(spr_button_stage, 2, 266, 50);
-     
+-        draw_sprite(spr_button_stage, 2, 266, 50);
+-    
 -    if (global.val.stage_info[UnknownEnum.Value_3] != -1)
-+    if (global.val.stage_info[3] != -1)
-         draw_sprite(spr_button_stage, 3, 272, 103);
+-        draw_sprite(spr_button_stage, 3, 272, 103);
++    // GNX-VSTAGE: the vanilla stages at their place on this map (hidden ones not at all); the Village always shows
++    var _gnx_vpos = [[240, 92], [188, 108], [266, 50], [272, 103], [294, 80]];
++
++    for (var _gvs = 0; _gvs < 5; _gvs++)
++    {
++        var _gov = gnx_vstage_ov(_gvs);
++
++        if ((_gvs == 0 || global.val.stage_info[_gvs] != -1) && !(_gov != undefined && _gov.hidden))
++            draw_sprite(spr_button_stage, _gvs, (_gov != undefined && _gov.moved) ? _gov.x : _gnx_vpos[_gvs][0], (_gov != undefined && _gov.moved) ? _gov.y : _gnx_vpos[_gvs][1]);
++    }
      
 -    if (global.val.stage_info[UnknownEnum.Value_4] != -1)
-+    if (global.val.stage_info[4] != -1)
-         draw_sprite(spr_button_stage, 4, 294, 80);
-     
+-        draw_sprite(spr_button_stage, 4, 294, 80);
 +    // GNX-STAGE: the discovered mod stages of this map
 +    for (var _gs = 0; _gs < array_length(global.gnx_stage_registry); _gs++)
 +    {
@@ -390,7 +397,7 @@
 +        if ((5 + _gs) < array_length(global.val.stage_info) && global.val.stage_info[5 + _gs] != -1)
 +            draw_sprite(_gdef.icon.spr, max(0, _gdef.icon.vanilla), _gdef.x, _gdef.y);
 +    }
-+    
+     
      draw_sprite(spr_raid_shop_button, 0, 233, 50);
      draw_sprite(spr_raid_trade_button, 0, 223, 76);
      
@@ -419,6 +426,6 @@
 +        var _gcart = gnx_stage_cart_pos();
 +        
 +        if (is_array(_gcart))
-+            draw_sprite(gnx_stage_def(raid_data.stage).cart, image_index, _gcart[0], _gcart[1]);
++            draw_sprite((gnx_stage_def(raid_data.stage) != undefined) ? gnx_stage_def(raid_data.stage).cart : spr_carriage, image_index, _gcart[0], _gcart[1]);
 +    }
  }

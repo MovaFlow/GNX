@@ -10947,7 +10947,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4820 @@
+@@ -0,0 +1,4856 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -12560,7 +12560,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +// {"call": "gnx_scn_set_stage_sel", "args": ["folder.ID", n]}: a marker that must follow the stage by name
 +function gnx_scn_set_stage_sel(arg0, arg1)
 +{
-+    var _i = gnx_stage_index(arg0);
++    var _i = gnx_stage_ref(arg0, "");  // a mod stage or vanilla.NAME
 +
 +    if (_i != -1)
 +        global.val.stage_lvl_sel[_i] = arg1;
@@ -12587,7 +12587,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +// arg1 holds; with arg3 also of that unit level
 +function gnx_scn_enc_count(arg0, arg1, arg2, arg3 = -1)
 +{
-+    var _i = gnx_stage_index(arg0);
++    var _i = gnx_stage_ref(arg0, "");  // a mod stage or vanilla.NAME
 +
 +    if (_i == -1 || global.val.stage_info[_i] == -1)
 +        return -1;
@@ -12666,6 +12666,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +{
 +    var _def = gnx_stage_def(gnx_stage_index(arg0));
 +
++    // a vanilla stage moved by this map's vanilla_stages
++    if (_def == undefined && gnx_vstage_moved(gnx_stage_ref(arg0, "")))
++        _def = gnx_vstage_ov(gnx_stage_ref(arg0, ""));
++
 +    if (_def == undefined)
 +        return "none";
 +
@@ -12683,6 +12687,38 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        var _half = raid_data.max_time * 0.5;
 +        raid_data.time_left = (raid_data.raid_state == 1) ? (raid_data.max_time - (arg0 * _half)) : (arg0 * _half);
 +    }
++}
++
++
++// for {"assert": "fn"}: 1 when button type arg0 number arg1 exists, else 0
++function gnx_scn_button_num(arg0, arg1)
++{
++    var _n = 0;
++
++    with (obj_button)
++    {
++        if (interact_type == arg0 && button_num == arg1)
++            _n = 1;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: 1 when arg1 rolls of Nyx's target (scr_check_raid_target) ever picked stage arg0, else 0
++function gnx_scn_nyx_picks(arg0, arg1)
++{
++    var _hit = 0;
++
++    repeat (arg1)
++    {
++        var _t = scr_check_raid_target();
++
++        if (_t[0] == arg0)
++            _hit = 1;
++    }
++
++    return _hit;
 +}
 +
 +
@@ -12742,7 +12778,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +// for {"assert": "fn"}: "<gold> <food>" the win of mod stage arg0, level arg1 pays (global.reward)
 +function gnx_scn_stage_reward(arg0, arg1)
 +{
-+    var _r = global.reward[gnx_stage_index(arg0)][arg1];
++    var _r = global.reward[gnx_stage_ref(arg0, "")][arg1];  // a mod stage or vanilla.NAME
 +    return string(_r[0].num) + " " + string(_r[1].num);
 +}
 +
@@ -16072,7 +16108,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2605 @@
+@@ -0,0 +1,2607 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18346,6 +18382,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            // GNX-STAGE: where raid carts leave from on this map's own map_sprite
 +            if (variable_struct_exists(_mb, "nest") && is_array(_mb.nest) && array_length(_mb.nest) == 2)
 +                _tl.nest = [gnx_json_num(_mb.nest[0], 200), gnx_json_num(_mb.nest[1], 59)];
++
++            _tl.vanilla_stages = gnx_parse_vanilla_stages(_mb, arg0);  // GNX-VSTAGE
 +            array_push(global.gnx_travel_locations, _tl);
 +            _log = gnx_log_open();
 +            gnx_log_write(_log, "[GNX-MAP] travel location: '" + _tl.label + "' -> " + _tl.target + " at (" + string(_tl.x) + "," + string(_tl.y) + ")\n");
@@ -22608,7 +22646,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1382 @@
+@@ -0,0 +1,1543 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -22874,12 +22912,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +    var _total = 0;
 +    var _i = 0;
 +    
++    // GNX-VSTAGE: a vanilla stage whose pool this map replaces keeps only the mods' entries
++    var _gnx_ov = gnx_vstage_ov(_stage);
++    var _no_vanilla = _gnx_ov != undefined && _gnx_ov.replace_pool;
++
 +    repeat (_count)
 +    {
 +        var _e = ds_list_find_value(_pool, _i);
-+        var _eligible = true;
-+        
-+        if (variable_struct_exists(_e, "condition") && variable_struct_exists(_e, "mod_name"))
++        var _eligible = !(_no_vanilla && !variable_struct_exists(_e, "mod_name"));
++
++        if (_eligible && variable_struct_exists(_e, "condition") && variable_struct_exists(_e, "mod_name"))
 +            _eligible = scr_gnx_eval_condition(_e.condition, _e.mod_name);
 +        
 +        if (_eligible && _exclude != -1 && variable_struct_exists(_e, "max_per_encounter"))
@@ -22919,9 +22961,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +    repeat (_count)
 +    {
 +        _entry = ds_list_find_value(_pool, _i);
-+        var _elig = true;
-+        
-+        if (variable_struct_exists(_entry, "condition") && variable_struct_exists(_entry, "mod_name"))
++        var _elig = !(_no_vanilla && !variable_struct_exists(_entry, "mod_name"));  // GNX-VSTAGE, as above
++
++        if (_elig && variable_struct_exists(_entry, "condition") && variable_struct_exists(_entry, "mod_name"))
 +            _elig = scr_gnx_eval_condition(_entry.condition, _entry.mod_name);
 +        
 +        if (_elig && _exclude != -1 && variable_struct_exists(_entry, "max_per_encounter"))
@@ -23652,12 +23694,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +}
 +
 +
-+// load-time warnings for stage arg0: its button (with the level art under it) or a path point off the map panel,
-+// or a button within 12 px of a vanilla stage's or an earlier mod stage's (D1)
-+function gnx_stage_check_place(arg0, arg1)
++// stage arg0 ({x, y, path}) fits on the raid map panel: its button with the level art under it, and its path points
++function gnx_stage_check_bounds(arg0, arg1)
 +{
-+    // the button is 27 x 27 around pos (origin 13,13); the level label, xp bar and level bar under it reach 21 px
-+    // below pos (spr_stage_lvl / _num at y+16, spr_stage_lvl_bar at y+18, 4 px high, origin y 1)
 +    var _x0 = GNX_MAP_X0 + 13;
 +    var _x1 = GNX_MAP_X1 - 13;
 +    var _y0 = GNX_MAP_Y0 + 13;
@@ -23673,6 +23712,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +        if (_p[0] < GNX_MAP_X0 || _p[0] > GNX_MAP_X1 || _p[1] < GNX_MAP_Y0 || _p[1] > GNX_MAP_Y1)
 +            gnx_report_mod_error(arg1 + ": path point " + string(_i) + " " + string(_p) + " is outside the raid map (x " + string(GNX_MAP_X0) + "-" + string(GNX_MAP_X1) + ", y " + string(GNX_MAP_Y0) + "-" + string(GNX_MAP_Y1) + ")");
 +    }
++}
++
++
++// load-time warnings for stage arg0: its button (with the level art under it) or a path point off the map panel,
++// or a button within 12 px of a vanilla stage's or an earlier mod stage's (D1)
++function gnx_stage_check_place(arg0, arg1)
++{
++    // the button is 27 x 27 around pos (origin 13,13); the level label, xp bar and level bar under it reach 21 px
++    // below pos (spr_stage_lvl / _num at y+16, spr_stage_lvl_bar at y+18, 4 px high, origin y 1)
++    gnx_stage_check_bounds(arg0, arg1);
 +
 +    var _others = [[240, 92, "the Village"], [188, 108, "the Mountain"], [266, 50, "the Forest"], [272, 103, "the Castle"], [294, 80, "the Tower"]];
 +
@@ -23809,6 +23858,131 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +}
 +
 +
++// GNX-VSTAGE: map_info.vanilla_stages of a map mod (its own map only): { "VILLAGE" | "MOUNTAIN" | "FOREST" | "CASTLE" |
++// "TOWER": { "hidden", "pos", "path", "curve", "replace_pool", "reward" } } -> an array of 5 (undefined = untouched)
++function gnx_parse_vanilla_stages(arg0, arg1)
++{
++    var _out = [undefined, undefined, undefined, undefined, undefined];
++
++    if (!variable_struct_exists(arg0, "vanilla_stages"))
++        return _out;
++
++    var _vs = arg0.vanilla_stages;
++
++    if (!is_struct(_vs))
++    {
++        gnx_report_mod_error("Mod '" + arg1 + "': map_info.vanilla_stages must be an object keyed by VILLAGE, MOUNTAIN, FOREST, CASTLE, TOWER; ignored");
++        return _out;
++    }
++
++    var _names = ["VILLAGE", "MOUNTAIN", "FOREST", "CASTLE", "TOWER"];
++    var _keys = variable_struct_get_names(_vs);
++
++    for (var _k = 0; _k < array_length(_keys); _k++)
++    {
++        var _n = string_upper(string_replace(_keys[_k], "vanilla.", ""));
++        var _i = -1;
++
++        for (var _j = 0; _j < 5; _j++)
++        {
++            if (_names[_j] == _n)
++                _i = _j;
++        }
++
++        var _who = "Mod '" + arg1 + "': map_info.vanilla_stages." + _keys[_k];
++        var _e = variable_struct_get(_vs, _keys[_k]);
++
++        if (_i == -1 || !is_struct(_e))
++        {
++            gnx_report_mod_error(_who + ": not a vanilla stage name (VILLAGE, MOUNTAIN, FOREST, CASTLE, TOWER) with an object; ignored");
++            continue;
++        }
++
++        var _pos = gnx_stage_field(_e, "pos", undefined);
++        var _ov =
++        {
++            key: "vanilla." + _names[_i],
++            hidden: gnx_json_num(gnx_stage_field(_e, "hidden", false), 0) != 0,
++            moved: is_array(_pos) && array_length(_pos) == 2,
++            x: is_array(_pos) ? gnx_json_num(_pos[0], 0) : 0,
++            y: is_array(_pos) ? gnx_json_num(_pos[1], 0) : 0,
++            path: gnx_stage_points(gnx_stage_field(_e, "path", []), _who),
++            curve: gnx_json_num(gnx_stage_field(_e, "curve", false), 0) != 0,
++            replace_pool: gnx_json_num(gnx_stage_field(_e, "replace_pool", false), 0) != 0,
++            reward: undefined,
++            route: undefined
++        };
++
++        if (!_ov.moved && array_length(_ov.path) > 0)
++            gnx_report_mod_error(_who + ": a path needs a pos (the stage keeps its vanilla cart otherwise); path ignored");
++
++        if (_ov.moved)
++            gnx_stage_check_bounds(_ov, _who);
++
++        // reward: {gold, food} for every level, or a list of them per level (the last one repeats)
++        var _rw = gnx_stage_field(_e, "reward", undefined);
++        var _list = is_array(_rw) ? _rw : (is_struct(_rw) ? [_rw] : []);
++
++        if (array_length(_list) > 0)
++        {
++            _ov.reward = [];
++
++            for (var _r = 0; _r < array_length(_list); _r++)
++                array_push(_ov.reward, [max(0, floor(gnx_json_num(gnx_stage_field(_list[_r], "gold", 0), 0))), max(0, floor(gnx_json_num(gnx_stage_field(_list[_r], "food", 0), 0)))]);
++        }
++
++        _out[_i] = _ov;
++    }
++
++    return _out;
++}
++
++
++// the vanilla_stages entry of vanilla stage arg0 on the map the player is on, or undefined
++function gnx_vstage_ov(arg0)
++{
++    if (!is_real(arg0) || arg0 < 0 || arg0 > 4 || !variable_global_exists("gnx_travel_locations") || !is_array(global.gnx_travel_locations))
++        return undefined;
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++
++        if (_tl.target == global.gnx_active_map && variable_struct_exists(_tl, "vanilla_stages"))
++            return _tl.vanilla_stages[arg0];
++    }
++
++    return undefined;
++}
++
++
++function gnx_vstage_hidden(arg0)
++{
++    var _ov = gnx_vstage_ov(arg0);
++    return _ov != undefined && _ov.hidden;
++}
++
++
++function gnx_vstage_moved(arg0)
++{
++    var _ov = gnx_vstage_ov(arg0);
++    return _ov != undefined && _ov.moved;
++}
++
++
++// D5: Nyx can only join a discovered vanilla stage this map shows; without one there is no robbery
++function gnx_nyx_has_target()
++{
++    for (var _i = 0; _i < min(5, array_length(global.val.stage_info)); _i++)
++    {
++        if (global.val.stage_info[_i] != -1 && !gnx_vstage_hidden(_i))
++            return true;
++    }
++
++    return false;
++}
++
++
 +// where the raid cart is on the world map while a raid is out to a mod stage ([x, y]), else -1. Mod stages have no
 +// cart sequence: the cart goes in a straight line from the nest to the stage and back, timed by the raid clock.
 +function gnx_stage_cart_pos()
@@ -23818,6 +23992,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +
 +    var _rd = obj_np.obj_raid.raid_data;
 +    var _def = gnx_stage_def(_rd.stage);
++
++    // a vanilla stage a map mod moved (vanilla_stages pos) has a GNX route too
++    if (_def == undefined && gnx_vstage_moved(_rd.stage))
++        _def = gnx_vstage_ov(_rd.stage);
 +
 +    if (_def == undefined || (_rd.raid_state != 1 && _rd.raid_state != 2) || _rd.max_time <= 0)
 +        return -1;
@@ -23946,6 +24124,27 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +    }
 +    
 +    _v.gnx_stage_keys = _keys;
++
++    // GNX-VSTAGE: this map's vanilla_stages: routes from its nest, and the rewards that replace vanilla's
++    for (var _vs = 0; _vs < 5; _vs++)
++    {
++        var _ov = gnx_vstage_ov(_vs);
++
++        if (_ov == undefined)
++            continue;
++
++        if (_ov.moved)
++            _ov.route = gnx_stage_build_route(_ov);
++
++        if (is_array(_ov.reward))
++        {
++            for (var _lv = 0; _lv < array_length(global.reward[_vs]); _lv++)
++            {
++                var _r = _ov.reward[min(_lv, array_length(_ov.reward) - 1)];
++                global.reward[_vs][_lv] = [scr_set_item_data(UnknownEnum.Value_0, _r[0], -1), scr_set_item_data(UnknownEnum.Value_1, _r[1], -1)];
++            }
++        }
++    }
 +    
 +    // A4: a stage without an unlock is simply there from the start, without a popup
 +    for (var _q = 0; _q < array_length(_quiet); _q++)
@@ -41774,7 +41973,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
              scr_pop_up_create(UnknownEnum.Value_28);
 diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_draw.gml
 --- gml_138/gml_GlobalScript_s_raid_draw.gml	2026-09-02 08:45:16.419590000 +0200
-+++ gml/gml_GlobalScript_s_raid_draw.gml	2026-10-29 15:00:00.127330700 +0100
++++ gml/gml_GlobalScript_s_raid_draw.gml	2026-10-29 15:37:58.307320900 +0100
 @@ -10,7 +10,7 @@
          
          switch (global.val.language)
@@ -42137,26 +42336,33 @@ diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_dr
          {
              _x = 285;
              _y = 129;
-@@ -478,36 +485,40 @@
+@@ -476,38 +483,39 @@
+ 
+ function scr_draw_stage_icon()
  {
-     draw_sprite(spr_button_stage, 0, 240, 92);
-     
+-    draw_sprite(spr_button_stage, 0, 240, 92);
+-    
 -    if (global.val.stage_info[UnknownEnum.Value_1] != -1)
-+    if (global.val.stage_info[1] != -1)
-         draw_sprite(spr_button_stage, 1, 188, 108);
-     
+-        draw_sprite(spr_button_stage, 1, 188, 108);
+-    
 -    if (global.val.stage_info[UnknownEnum.Value_2] != -1)
-+    if (global.val.stage_info[2] != -1)
-         draw_sprite(spr_button_stage, 2, 266, 50);
-     
+-        draw_sprite(spr_button_stage, 2, 266, 50);
+-    
 -    if (global.val.stage_info[UnknownEnum.Value_3] != -1)
-+    if (global.val.stage_info[3] != -1)
-         draw_sprite(spr_button_stage, 3, 272, 103);
+-        draw_sprite(spr_button_stage, 3, 272, 103);
++    // GNX-VSTAGE: the vanilla stages at their place on this map (hidden ones not at all); the Village always shows
++    var _gnx_vpos = [[240, 92], [188, 108], [266, 50], [272, 103], [294, 80]];
++
++    for (var _gvs = 0; _gvs < 5; _gvs++)
++    {
++        var _gov = gnx_vstage_ov(_gvs);
++
++        if ((_gvs == 0 || global.val.stage_info[_gvs] != -1) && !(_gov != undefined && _gov.hidden))
++            draw_sprite(spr_button_stage, _gvs, (_gov != undefined && _gov.moved) ? _gov.x : _gnx_vpos[_gvs][0], (_gov != undefined && _gov.moved) ? _gov.y : _gnx_vpos[_gvs][1]);
++    }
      
 -    if (global.val.stage_info[UnknownEnum.Value_4] != -1)
-+    if (global.val.stage_info[4] != -1)
-         draw_sprite(spr_button_stage, 4, 294, 80);
-     
+-        draw_sprite(spr_button_stage, 4, 294, 80);
 +    // GNX-STAGE: the discovered mod stages of this map
 +    for (var _gs = 0; _gs < array_length(global.gnx_stage_registry); _gs++)
 +    {
@@ -42165,7 +42371,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_dr
 +        if ((5 + _gs) < array_length(global.val.stage_info) && global.val.stage_info[5 + _gs] != -1)
 +            draw_sprite(_gdef.icon.spr, max(0, _gdef.icon.vanilla), _gdef.x, _gdef.y);
 +    }
-+    
+     
      draw_sprite(spr_raid_shop_button, 0, 233, 50);
      draw_sprite(spr_raid_trade_button, 0, 223, 76);
      
@@ -42194,12 +42400,12 @@ diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_dr
 +        var _gcart = gnx_stage_cart_pos();
 +        
 +        if (is_array(_gcart))
-+            draw_sprite(gnx_stage_def(raid_data.stage).cart, image_index, _gcart[0], _gcart[1]);
++            draw_sprite((gnx_stage_def(raid_data.stage) != undefined) ? gnx_stage_def(raid_data.stage).cart : spr_carriage, image_index, _gcart[0], _gcart[1]);
 +    }
  }
 diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_raid_encounter.gml
 --- gml_138/gml_GlobalScript_s_raid_encounter.gml	2026-09-02 08:45:16.461589300 +0200
-+++ gml/gml_GlobalScript_s_raid_encounter.gml	2026-10-29 10:25:40.609900700 +0100
++++ gml/gml_GlobalScript_s_raid_encounter.gml	2026-10-29 15:37:58.330319900 +0100
 @@ -7,16 +7,23 @@
      var _pool_num = 0;
      var _data = {};
@@ -42967,7 +43173,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
          array_push(_item_pool, _item_data);
      }
      
-@@ -669,7 +672,8 @@
+@@ -669,9 +672,10 @@
  {
      var _stage = [];
      
@@ -42975,8 +43181,11 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
 +    // GNX-STAGE (D5): Nyx only joins vanilla stages (0-4), never a mod stage
 +    for (var i = 0; i < min(5, array_length(global.val.stage_info)); i++)
      {
-         if (global.val.stage_info[i] != -1)
+-        if (global.val.stage_info[i] != -1)
++        if (global.val.stage_info[i] != -1 && !gnx_vstage_hidden(i))
              _stage[i] = min(2, global.val.stage_info[i].max_lvl);
+         else
+             _stage[i] = -1;
 @@ -692,55 +696,10 @@
  
  function scr_stage_raid_reward()
@@ -43037,7 +43246,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
  }
 diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_raid_function.gml
 --- gml_138/gml_GlobalScript_s_raid_function.gml	2026-09-02 08:45:16.402592000 +0200
-+++ gml/gml_GlobalScript_s_raid_function.gml	2026-10-29 10:52:54.071713100 +0100
++++ gml/gml_GlobalScript_s_raid_function.gml	2026-10-29 15:40:56.614986200 +0100
 @@ -7,7 +7,7 @@
          sprite_index = spr_pixel;
          image_xscale = 480;
@@ -43170,7 +43379,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
                      visible = false;
              }
              
-@@ -189,27 +190,27 @@
+@@ -189,53 +190,66 @@
      {
          raid_data.ff = false;
          var _pos = raid_data.raid_pos;
@@ -43204,7 +43413,10 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
                  _seq = seq_stage_5;
                  break;
          }
-@@ -217,25 +218,35 @@
+         
++        if (gnx_vstage_moved(raid_data.stage))
++            _seq = -1;  // GNX-VSTAGE: moved by this map: its sequence drives to the old place
++
          if (raid_layer == -1)
          {
              raid_layer = layer_create(9999, "seq");
@@ -43247,7 +43459,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
      }
  }
  
-@@ -245,27 +256,27 @@
+@@ -245,64 +259,82 @@
      {
          raid_data.ff = false;
          var _pos = raid_data.raid_pos;
@@ -43281,7 +43493,10 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
                  _seq = seq_stage_5;
                  break;
          }
-@@ -273,36 +284,51 @@
+         
++        if (gnx_vstage_moved(raid_data.stage))
++            _seq = -1;  // GNX-VSTAGE
++
          if (raid_layer == -1)
          {
              raid_layer = layer_create(-9998, "seq");
@@ -43345,7 +43560,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
                  _data.en_ap[0] -= _ap[0];
                  _data.en_ap[1] -= _ap[1];
              }
-@@ -312,54 +338,56 @@
+@@ -312,54 +344,57 @@
          
          if (!raid_data.lost)
          {
@@ -43411,7 +43626,8 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
 +                _nyx_add += ((global.val.stage_info[3].max_lvl + 1) * 7);
              
 -            if (global.unlock.boss[UnknownEnum.Value_1] == 0 && irandom_range(1, 100) <= _nyx_add)
-+            if (global.unlock.boss[1] == 0 && irandom_range(1, 100) <= _nyx_add)
++            // GNX-VSTAGE (D5): Nyx needs a discovered vanilla stage this map does not hide
++            if (global.unlock.boss[1] == 0 && irandom_range(1, 100) <= _nyx_add && gnx_nyx_has_target())
              {
 -                scr_pop_up_create(UnknownEnum.Value_26);
 +                scr_pop_up_create(26);
@@ -43424,7 +43640,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
                          array_push(_array, i);
                  }
                  
-@@ -381,23 +409,43 @@
+@@ -381,23 +416,43 @@
                      array_delete(_units, array_length(_units) - 1, 1);
                  }
                  
@@ -43472,7 +43688,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
          
          if (instance_exists(obj_carriage))
          {
-@@ -413,7 +461,7 @@
+@@ -413,7 +468,7 @@
      
      with (obj_button)
      {
@@ -43481,7 +43697,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
              instance_destroy();
      }
      
-@@ -425,49 +473,11 @@
+@@ -425,49 +480,11 @@
      with (_raid_id)
      {
          var _num = ds_list_size(global.front_row);
@@ -43535,7 +43751,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
 -}
 diff -uN gml_138/gml_GlobalScript_s_raid_map_button.gml gml/gml_GlobalScript_s_raid_map_button.gml
 --- gml_138/gml_GlobalScript_s_raid_map_button.gml	2026-09-02 08:45:16.543618000 +0200
-+++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-29 11:36:58.790961100 +0100
++++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-29 15:40:56.575469200 +0100
 @@ -14,6 +14,17 @@
          switch_type = false;
          act_resize = true;
@@ -43554,7 +43770,29 @@ diff -uN gml_138/gml_GlobalScript_s_raid_map_button.gml gml/gml_GlobalScript_s_r
          
          switch (button_num)
          {
-@@ -74,7 +85,8 @@
+@@ -43,6 +54,21 @@
+                 break;
+         }
+         
++        // GNX-VSTAGE: a vanilla stage this map hides or moves (map_info.vanilla_stages)
++        var _gnx_ov = gnx_vstage_ov(button_num);
++
++        if (_gnx_ov != undefined && _gnx_ov.hidden)
++        {
++            instance_destroy();
++            exit;
++        }
++
++        if (_gnx_ov != undefined && _gnx_ov.moved)
++        {
++            x = _gnx_ov.x;
++            y = _gnx_ov.y;
++        }
++
+         if (source_id.raid_data.stage == button_num)
+             scr_create_button_layout(-13, 14, depth - 5, 2, 2, 27, 0, 0, spr_button_arrow, UnknownEnum.Value_30, id, false, scr_create_stage_sel_arrow, -1, scr_draw_hover_button);
+     }
+@@ -74,7 +100,8 @@
      hover = false;
      gui = true;
      act_resize = true;
@@ -43564,7 +43802,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_map_button.gml gml/gml_GlobalScript_s_r
      
      if (button_num == 1)
          image_xscale = -1;
-@@ -82,24 +94,56 @@
+@@ -82,24 +109,56 @@
  
  function scr_draw_stage_button()
  {

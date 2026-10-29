@@ -11,13 +11,13 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 43 | 1568 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 57 | 3924 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 30 | 1006 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 109 | 4821 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 111 | 4857 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 298 |
-| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 52 | 2606 |
+| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 52 | 2608 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 26 | 601 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2341 |
 | `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 15 | 976 |
-| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 34 | 1376 |
+| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 40 | 1544 |
 | `s_gnx_sound.gml` | sounds.json, voices, sfx, ambience | 11 | 573 |
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 7 | 2357 |
 | `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 21 | 1774 |
@@ -188,11 +188,13 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_mx` | `s_gnx_util.gml` |
 | `gnx_my` | `s_gnx_util.gml` |
 | `gnx_no_capture_here` | `s_gnx_raid.gml` |
+| `gnx_nyx_has_target` | `s_gnx_raid.gml` |
 | `gnx_open_prop_row` | `s_gnx_props.gml` |
 | `gnx_origin_named` | `s_gnx_draw.gml` |
 | `gnx_pair_usable` | `s_gnx_draw.gml` |
 | `gnx_parse_no_capture` | `s_gnx_raid.gml` |
 | `gnx_parse_repeat_range` | `s_gnx_cells.gml` |
+| `gnx_parse_vanilla_stages` | `s_gnx_raid.gml` |
 | `gnx_parse_voice_by_mon` | `s_gnx_sound.gml` |
 | `gnx_party_num` | `s_gnx_travel.gml` |
 | `gnx_party_set` | `s_gnx_travel.gml` |
@@ -267,6 +269,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_build_left` | `s_gnx_harness.gml` |
 | `gnx_scn_build_on_last` | `s_gnx_harness.gml` |
 | `gnx_scn_button_count` | `s_gnx_harness.gml` |
+| `gnx_scn_button_num` | `s_gnx_harness.gml` |
 | `gnx_scn_button_num_nth` | `s_gnx_harness.gml` |
 | `gnx_scn_button_texts` | `s_gnx_harness.gml` |
 | `gnx_scn_captive_table` | `s_gnx_harness.gml` |
@@ -305,6 +308,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_mon_frame` | `s_gnx_harness.gml` |
 | `gnx_scn_mso` | `s_gnx_harness.gml` |
 | `gnx_scn_new_dots` | `s_gnx_harness.gml` |
+| `gnx_scn_nyx_picks` | `s_gnx_harness.gml` |
 | `gnx_scn_occupied_called` | `s_gnx_harness.gml` |
 | `gnx_scn_occupied_cell` | `s_gnx_harness.gml` |
 | `gnx_scn_occupied_mons` | `s_gnx_harness.gml` |
@@ -371,6 +375,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_sprref_with_origin` | `s_gnx_draw.gml` |
 | `gnx_stage_build_route` | `s_gnx_raid.gml` |
 | `gnx_stage_cart_pos` | `s_gnx_raid.gml` |
+| `gnx_stage_check_bounds` | `s_gnx_raid.gml` |
 | `gnx_stage_check_place` | `s_gnx_raid.gml` |
 | `gnx_stage_def` | `s_gnx_raid.gml` |
 | `gnx_stage_discover` | `s_gnx_raid.gml` |
@@ -414,6 +419,9 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_version_parts` | `s_gnx_util.gml` |
 | `gnx_voice_bank_for_mon` | `s_gnx_sound.gml` |
 | `gnx_voice_for_mon` | `s_gnx_sound.gml` |
+| `gnx_vstage_hidden` | `s_gnx_raid.gml` |
+| `gnx_vstage_moved` | `s_gnx_raid.gml` |
+| `gnx_vstage_ov` | `s_gnx_raid.gml` |
 | `gnx_warn_bad_draw` | `s_gnx_draw.gml` |
 | `gnx_was_captured` | `s_gnx_raid.gml` |
 | `is_sprref` | `s_gnx_draw.gml` |

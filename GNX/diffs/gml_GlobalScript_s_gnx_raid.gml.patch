@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1382 @@
+@@ -0,0 +1,1543 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -266,12 +266,16 @@
 +    var _total = 0;
 +    var _i = 0;
 +    
++    // GNX-VSTAGE: a vanilla stage whose pool this map replaces keeps only the mods' entries
++    var _gnx_ov = gnx_vstage_ov(_stage);
++    var _no_vanilla = _gnx_ov != undefined && _gnx_ov.replace_pool;
++
 +    repeat (_count)
 +    {
 +        var _e = ds_list_find_value(_pool, _i);
-+        var _eligible = true;
-+        
-+        if (variable_struct_exists(_e, "condition") && variable_struct_exists(_e, "mod_name"))
++        var _eligible = !(_no_vanilla && !variable_struct_exists(_e, "mod_name"));
++
++        if (_eligible && variable_struct_exists(_e, "condition") && variable_struct_exists(_e, "mod_name"))
 +            _eligible = scr_gnx_eval_condition(_e.condition, _e.mod_name);
 +        
 +        if (_eligible && _exclude != -1 && variable_struct_exists(_e, "max_per_encounter"))
@@ -311,9 +315,9 @@
 +    repeat (_count)
 +    {
 +        _entry = ds_list_find_value(_pool, _i);
-+        var _elig = true;
-+        
-+        if (variable_struct_exists(_entry, "condition") && variable_struct_exists(_entry, "mod_name"))
++        var _elig = !(_no_vanilla && !variable_struct_exists(_entry, "mod_name"));  // GNX-VSTAGE, as above
++
++        if (_elig && variable_struct_exists(_entry, "condition") && variable_struct_exists(_entry, "mod_name"))
 +            _elig = scr_gnx_eval_condition(_entry.condition, _entry.mod_name);
 +        
 +        if (_elig && _exclude != -1 && variable_struct_exists(_entry, "max_per_encounter"))
@@ -1044,12 +1048,9 @@
 +}
 +
 +
-+// load-time warnings for stage arg0: its button (with the level art under it) or a path point off the map panel,
-+// or a button within 12 px of a vanilla stage's or an earlier mod stage's (D1)
-+function gnx_stage_check_place(arg0, arg1)
++// stage arg0 ({x, y, path}) fits on the raid map panel: its button with the level art under it, and its path points
++function gnx_stage_check_bounds(arg0, arg1)
 +{
-+    // the button is 27 x 27 around pos (origin 13,13); the level label, xp bar and level bar under it reach 21 px
-+    // below pos (spr_stage_lvl / _num at y+16, spr_stage_lvl_bar at y+18, 4 px high, origin y 1)
 +    var _x0 = GNX_MAP_X0 + 13;
 +    var _x1 = GNX_MAP_X1 - 13;
 +    var _y0 = GNX_MAP_Y0 + 13;
@@ -1065,6 +1066,16 @@
 +        if (_p[0] < GNX_MAP_X0 || _p[0] > GNX_MAP_X1 || _p[1] < GNX_MAP_Y0 || _p[1] > GNX_MAP_Y1)
 +            gnx_report_mod_error(arg1 + ": path point " + string(_i) + " " + string(_p) + " is outside the raid map (x " + string(GNX_MAP_X0) + "-" + string(GNX_MAP_X1) + ", y " + string(GNX_MAP_Y0) + "-" + string(GNX_MAP_Y1) + ")");
 +    }
++}
++
++
++// load-time warnings for stage arg0: its button (with the level art under it) or a path point off the map panel,
++// or a button within 12 px of a vanilla stage's or an earlier mod stage's (D1)
++function gnx_stage_check_place(arg0, arg1)
++{
++    // the button is 27 x 27 around pos (origin 13,13); the level label, xp bar and level bar under it reach 21 px
++    // below pos (spr_stage_lvl / _num at y+16, spr_stage_lvl_bar at y+18, 4 px high, origin y 1)
++    gnx_stage_check_bounds(arg0, arg1);
 +
 +    var _others = [[240, 92, "the Village"], [188, 108, "the Mountain"], [266, 50, "the Forest"], [272, 103, "the Castle"], [294, 80, "the Tower"]];
 +
@@ -1201,6 +1212,131 @@
 +}
 +
 +
++// GNX-VSTAGE: map_info.vanilla_stages of a map mod (its own map only): { "VILLAGE" | "MOUNTAIN" | "FOREST" | "CASTLE" |
++// "TOWER": { "hidden", "pos", "path", "curve", "replace_pool", "reward" } } -> an array of 5 (undefined = untouched)
++function gnx_parse_vanilla_stages(arg0, arg1)
++{
++    var _out = [undefined, undefined, undefined, undefined, undefined];
++
++    if (!variable_struct_exists(arg0, "vanilla_stages"))
++        return _out;
++
++    var _vs = arg0.vanilla_stages;
++
++    if (!is_struct(_vs))
++    {
++        gnx_report_mod_error("Mod '" + arg1 + "': map_info.vanilla_stages must be an object keyed by VILLAGE, MOUNTAIN, FOREST, CASTLE, TOWER; ignored");
++        return _out;
++    }
++
++    var _names = ["VILLAGE", "MOUNTAIN", "FOREST", "CASTLE", "TOWER"];
++    var _keys = variable_struct_get_names(_vs);
++
++    for (var _k = 0; _k < array_length(_keys); _k++)
++    {
++        var _n = string_upper(string_replace(_keys[_k], "vanilla.", ""));
++        var _i = -1;
++
++        for (var _j = 0; _j < 5; _j++)
++        {
++            if (_names[_j] == _n)
++                _i = _j;
++        }
++
++        var _who = "Mod '" + arg1 + "': map_info.vanilla_stages." + _keys[_k];
++        var _e = variable_struct_get(_vs, _keys[_k]);
++
++        if (_i == -1 || !is_struct(_e))
++        {
++            gnx_report_mod_error(_who + ": not a vanilla stage name (VILLAGE, MOUNTAIN, FOREST, CASTLE, TOWER) with an object; ignored");
++            continue;
++        }
++
++        var _pos = gnx_stage_field(_e, "pos", undefined);
++        var _ov =
++        {
++            key: "vanilla." + _names[_i],
++            hidden: gnx_json_num(gnx_stage_field(_e, "hidden", false), 0) != 0,
++            moved: is_array(_pos) && array_length(_pos) == 2,
++            x: is_array(_pos) ? gnx_json_num(_pos[0], 0) : 0,
++            y: is_array(_pos) ? gnx_json_num(_pos[1], 0) : 0,
++            path: gnx_stage_points(gnx_stage_field(_e, "path", []), _who),
++            curve: gnx_json_num(gnx_stage_field(_e, "curve", false), 0) != 0,
++            replace_pool: gnx_json_num(gnx_stage_field(_e, "replace_pool", false), 0) != 0,
++            reward: undefined,
++            route: undefined
++        };
++
++        if (!_ov.moved && array_length(_ov.path) > 0)
++            gnx_report_mod_error(_who + ": a path needs a pos (the stage keeps its vanilla cart otherwise); path ignored");
++
++        if (_ov.moved)
++            gnx_stage_check_bounds(_ov, _who);
++
++        // reward: {gold, food} for every level, or a list of them per level (the last one repeats)
++        var _rw = gnx_stage_field(_e, "reward", undefined);
++        var _list = is_array(_rw) ? _rw : (is_struct(_rw) ? [_rw] : []);
++
++        if (array_length(_list) > 0)
++        {
++            _ov.reward = [];
++
++            for (var _r = 0; _r < array_length(_list); _r++)
++                array_push(_ov.reward, [max(0, floor(gnx_json_num(gnx_stage_field(_list[_r], "gold", 0), 0))), max(0, floor(gnx_json_num(gnx_stage_field(_list[_r], "food", 0), 0)))]);
++        }
++
++        _out[_i] = _ov;
++    }
++
++    return _out;
++}
++
++
++// the vanilla_stages entry of vanilla stage arg0 on the map the player is on, or undefined
++function gnx_vstage_ov(arg0)
++{
++    if (!is_real(arg0) || arg0 < 0 || arg0 > 4 || !variable_global_exists("gnx_travel_locations") || !is_array(global.gnx_travel_locations))
++        return undefined;
++
++    for (var _i = 0; _i < array_length(global.gnx_travel_locations); _i++)
++    {
++        var _tl = global.gnx_travel_locations[_i];
++
++        if (_tl.target == global.gnx_active_map && variable_struct_exists(_tl, "vanilla_stages"))
++            return _tl.vanilla_stages[arg0];
++    }
++
++    return undefined;
++}
++
++
++function gnx_vstage_hidden(arg0)
++{
++    var _ov = gnx_vstage_ov(arg0);
++    return _ov != undefined && _ov.hidden;
++}
++
++
++function gnx_vstage_moved(arg0)
++{
++    var _ov = gnx_vstage_ov(arg0);
++    return _ov != undefined && _ov.moved;
++}
++
++
++// D5: Nyx can only join a discovered vanilla stage this map shows; without one there is no robbery
++function gnx_nyx_has_target()
++{
++    for (var _i = 0; _i < min(5, array_length(global.val.stage_info)); _i++)
++    {
++        if (global.val.stage_info[_i] != -1 && !gnx_vstage_hidden(_i))
++            return true;
++    }
++
++    return false;
++}
++
++
 +// where the raid cart is on the world map while a raid is out to a mod stage ([x, y]), else -1. Mod stages have no
 +// cart sequence: the cart goes in a straight line from the nest to the stage and back, timed by the raid clock.
 +function gnx_stage_cart_pos()
@@ -1210,6 +1346,10 @@
 +
 +    var _rd = obj_np.obj_raid.raid_data;
 +    var _def = gnx_stage_def(_rd.stage);
++
++    // a vanilla stage a map mod moved (vanilla_stages pos) has a GNX route too
++    if (_def == undefined && gnx_vstage_moved(_rd.stage))
++        _def = gnx_vstage_ov(_rd.stage);
 +
 +    if (_def == undefined || (_rd.raid_state != 1 && _rd.raid_state != 2) || _rd.max_time <= 0)
 +        return -1;
@@ -1338,6 +1478,27 @@
 +    }
 +    
 +    _v.gnx_stage_keys = _keys;
++
++    // GNX-VSTAGE: this map's vanilla_stages: routes from its nest, and the rewards that replace vanilla's
++    for (var _vs = 0; _vs < 5; _vs++)
++    {
++        var _ov = gnx_vstage_ov(_vs);
++
++        if (_ov == undefined)
++            continue;
++
++        if (_ov.moved)
++            _ov.route = gnx_stage_build_route(_ov);
++
++        if (is_array(_ov.reward))
++        {
++            for (var _lv = 0; _lv < array_length(global.reward[_vs]); _lv++)
++            {
++                var _r = _ov.reward[min(_lv, array_length(_ov.reward) - 1)];
++                global.reward[_vs][_lv] = [scr_set_item_data(UnknownEnum.Value_0, _r[0], -1), scr_set_item_data(UnknownEnum.Value_1, _r[1], -1)];
++            }
++        }
++    }
 +    
 +    // A4: a stage without an unlock is simply there from the start, without a popup
 +    for (var _q = 0; _q < array_length(_quiet); _q++)

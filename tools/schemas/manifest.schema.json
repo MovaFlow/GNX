@@ -241,6 +241,31 @@
           "minItems": 2,
           "maxItems": 2,
           "description": "[x, y] on this map's map_sprite where raid carts to mod stages leave from (default 200, 59, the vanilla nest)."
+        },
+        "vanilla_stages": {
+          "type": "object",
+          "description": "Vanilla raid stages changed on this map (map owner only).",
+          "properties": {
+            "VILLAGE": {
+              "$ref": "#/definitions/vanilla_stage"
+            },
+            "MOUNTAIN": {
+              "$ref": "#/definitions/vanilla_stage"
+            },
+            "FOREST": {
+              "$ref": "#/definitions/vanilla_stage"
+            },
+            "CASTLE": {
+              "$ref": "#/definitions/vanilla_stage"
+            },
+            "TOWER": {
+              "$ref": "#/definitions/vanilla_stage"
+            }
+          },
+          "patternProperties": {
+            "^_": {}
+          },
+          "additionalProperties": false
         }
       },
       "patternProperties": {
@@ -378,6 +403,92 @@
           "items": {
             "$ref": "#/definitions/ref_or_id"
           }
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "vanilla_stage": {
+      "type": "object",
+      "description": "Changes to this vanilla raid stage on this map only.",
+      "properties": {
+        "hidden": {
+          "type": "boolean",
+          "description": "No button on this map, and never Nyx's target. Its progress is kept (vanilla quests still read it)."
+        },
+        "pos": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Moves the stage button (x 186-293, y 52-109); the raid then uses the GNX cart instead of the vanilla route."
+        },
+        "path": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "description": "Cart route points between the nest and the moved stage (needs pos)."
+        },
+        "curve": {
+          "type": "boolean",
+          "description": "A smooth curve through the path points."
+        },
+        "replace_pool": {
+          "type": "boolean",
+          "description": "The stage's vanilla enemies leave its encounter pools on this map; mods' raid_spawns stay (give some, or the pool falls back to level-0 peasants). The Village's first level and the Tower are hard-coded and unaffected."
+        },
+        "reward": {
+          "description": "Win reward: {gold, food} for every level, or a list per level (the last repeats).",
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "gold": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "food": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "patternProperties": {
+                "^_": {}
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "gold": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "food": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "patternProperties": {
+                  "^_": {}
+                },
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          ]
         }
       },
       "patternProperties": {

@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_raid_map_button.gml	2026-09-02 08:45:16.543618000 +0200
-+++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-29 11:36:58.790961100 +0100
++++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-29 15:40:56.575469200 +0100
 @@ -14,6 +14,17 @@
          switch_type = false;
          act_resize = true;
@@ -18,7 +18,29 @@
          
          switch (button_num)
          {
-@@ -74,7 +85,8 @@
+@@ -43,6 +54,21 @@
+                 break;
+         }
+         
++        // GNX-VSTAGE: a vanilla stage this map hides or moves (map_info.vanilla_stages)
++        var _gnx_ov = gnx_vstage_ov(button_num);
++
++        if (_gnx_ov != undefined && _gnx_ov.hidden)
++        {
++            instance_destroy();
++            exit;
++        }
++
++        if (_gnx_ov != undefined && _gnx_ov.moved)
++        {
++            x = _gnx_ov.x;
++            y = _gnx_ov.y;
++        }
++
+         if (source_id.raid_data.stage == button_num)
+             scr_create_button_layout(-13, 14, depth - 5, 2, 2, 27, 0, 0, spr_button_arrow, UnknownEnum.Value_30, id, false, scr_create_stage_sel_arrow, -1, scr_draw_hover_button);
+     }
+@@ -74,7 +100,8 @@
      hover = false;
      gui = true;
      act_resize = true;
@@ -28,7 +50,7 @@
      
      if (button_num == 1)
          image_xscale = -1;
-@@ -82,24 +94,56 @@
+@@ -82,24 +109,56 @@
  
  function scr_draw_stage_button()
  {
