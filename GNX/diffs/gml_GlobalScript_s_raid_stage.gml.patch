@@ -1,0 +1,30 @@
+--- gml_138/gml_GlobalScript_s_raid_stage.gml	2026-09-02 08:45:16.544618500 +0200
++++ gml/gml_GlobalScript_s_raid_stage.gml	2026-10-29 10:52:39.419206900 +0100
+@@ -21,7 +21,7 @@
+         
+         for (var i = 0; i < (_data.max_lvl + 1); i++)
+         {
+-            if ((_raid_data.raid_state != UnknownEnum.Value_1 && _raid_data.raid_state != UnknownEnum.Value_2) || ((arg0 == _raid_data.stage && i != min(2, global.val.stage_lvl_sel[_raid_data.stage])) || arg0 != _raid_data.stage))
++            if ((_raid_data.raid_state != UnknownEnum.Value_1 && _raid_data.raid_state != UnknownEnum.Value_2) || ((arg0 == _raid_data.stage && i != min(gnx_stage_max_lvl(_raid_data.stage), global.val.stage_lvl_sel[_raid_data.stage])) || arg0 != _raid_data.stage))
+                 _data.info[i] = scr_stage_encounter_data(arg0, i, arg2);
+         }
+     }
+@@ -35,7 +35,8 @@
+ 
+ function scr_add_stage_exp(arg0, arg1)
+ {
+-    if (raid_data.stage < UnknownEnum.Value_4)
++    // GNX-STAGE: mod stages (5+) gain levels like the vanilla stages 0-3, not like the Tower (4)
++    if (raid_data.stage < UnknownEnum.Value_4 || gnx_stage_def(arg0) != undefined)
+     {
+         if (global.val.stage_lvl_sel[arg0] == global.val.stage_info[arg0].max_lvl)
+         {
+@@ -47,7 +48,7 @@
+             {
+                 global.val.stage_info[arg0].expe = 0;
+                 global.val.stage_info[arg0].max_lvl++;
+-                global.val.stage_lvl_sel[arg0] = min(global.val.stage_lvl_sel[arg0] + 1, 2);
++                global.val.stage_lvl_sel[arg0] = min(global.val.stage_lvl_sel[arg0] + 1, gnx_stage_max_lvl(arg0));
+                 scr_add_new_stage();
+                 scr_set_stage_data(arg0, global.val.stage_info[arg0].max_lvl, false);
+                 scr_check_quest_raid();

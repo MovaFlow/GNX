@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_raid_function.gml	2026-09-02 08:45:16.402592000 +0200
-+++ gml/gml_GlobalScript_s_raid_function.gml	2026-09-24 15:31:46.000000000 +0200
++++ gml/gml_GlobalScript_s_raid_function.gml	2026-10-29 10:52:54.071713100 +0100
 @@ -7,7 +7,7 @@
          sprite_index = spr_pixel;
          image_xscale = 480;
@@ -132,7 +132,12 @@
                      visible = false;
              }
              
-@@ -193,23 +194,23 @@
+@@ -189,27 +190,27 @@
+     {
+         raid_data.ff = false;
+         var _pos = raid_data.raid_pos;
+-        var _seq;
++        var _seq = -1;  // GNX-STAGE: mod stages (5+) have no cart sequence (GNX draws the cart)
          
          switch (raid_data.stage)
          {
@@ -190,7 +195,7 @@
 +        layer_sequence_speedscale(seq_id, _spd);
 +    
      raid_data.time_left -= global.w_spd;
-+    var _finished = (seq_id != -1) ? layer_sequence_is_finished(seq_id) : (raid_data.time_left <= 0);
++    var _finished = (seq_id != -1) ? layer_sequence_is_finished(seq_id) : (raid_data.time_left <= (raid_data.max_time * 0.5));
      
 -    if (layer_sequence_is_finished(seq_id))
 +    if (_finished)
@@ -204,7 +209,12 @@
      }
  }
  
-@@ -249,23 +260,23 @@
+@@ -245,27 +256,27 @@
+     {
+         raid_data.ff = false;
+         var _pos = raid_data.raid_pos;
+-        var _seq;
++        var _seq = -1;  // GNX-STAGE: mod stages (5+) have no cart sequence (GNX draws the cart)
          
          switch (raid_data.stage)
          {
@@ -233,7 +243,7 @@
                  _seq = seq_stage_5;
                  break;
          }
-@@ -273,36 +284,46 @@
+@@ -273,36 +284,51 @@
          if (raid_layer == -1)
          {
              raid_layer = layer_create(-9998, "seq");
@@ -256,7 +266,13 @@
 +        raid_data.haste = 1 + scr_check_skill_data(6);
          raid_data.spd = (60 / global.base_raid_time[raid_data.stage]) * raid_data.haste;
          raid_data.max_time = round((global.base_raid_time[raid_data.stage] * 2) / (global.val.cart_spd * raid_data.haste));
-         raid_data.time_left = raid_data.max_time * 0.5;
+-        raid_data.time_left = raid_data.max_time * 0.5;
++        
++        // GNX-STAGE: without a sequence the clock is the cart's position: a reload (ff again) keeps it
++        if (seq_id != -1 || !variable_struct_exists(raid_data, "gnx_back"))
++            raid_data.time_left = raid_data.max_time * 0.5;
++        
++        raid_data.gnx_back = true;
      }
      
 -    var _spd_mul = 1 + scr_check_skill_data(UnknownEnum.Value_6);
@@ -291,7 +307,7 @@
                  _data.en_ap[0] -= _ap[0];
                  _data.en_ap[1] -= _ap[1];
              }
-@@ -312,54 +333,56 @@
+@@ -312,54 +338,56 @@
          
          if (!raid_data.lost)
          {
@@ -370,7 +386,7 @@
                          array_push(_array, i);
                  }
                  
-@@ -381,23 +404,40 @@
+@@ -381,23 +409,43 @@
                      array_delete(_units, array_length(_units) - 1, 1);
                  }
                  
@@ -397,6 +413,9 @@
          raid_data.lost = false;
 -        layer_sequence_destroy(seq_id);
 +        
++        if (variable_struct_exists(raid_data, "gnx_back"))
++            variable_struct_remove(raid_data, "gnx_back");
++        
 +        if (seq_id != -1)
 +            layer_sequence_destroy(seq_id);
 +        
@@ -415,7 +434,7 @@
          
          if (instance_exists(obj_carriage))
          {
-@@ -413,7 +453,7 @@
+@@ -413,7 +461,7 @@
      
      with (obj_button)
      {
@@ -424,7 +443,7 @@
              instance_destroy();
      }
      
-@@ -425,49 +465,11 @@
+@@ -425,49 +473,11 @@
      with (_raid_id)
      {
          var _num = ds_list_size(global.front_row);

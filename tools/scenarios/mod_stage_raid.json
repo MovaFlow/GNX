@@ -1,0 +1,182 @@
+{
+  "about": "A full raid to a mod stage through the raid window's own code: pick the stage, a formation, Go; the fight, return and rewards are the game's. Mod stages have no cart sequence: GNX moves the cart on the raid clock (to the stage in the first half, back in the second), the harness only fast-forwards that clock. The win gives stage XP like vanilla stages 0-3 (not the Tower path). A save/reload on the way back keeps the cart's place on the clock.",
+  "fixture": "mid",
+  "seed": 3,
+  "timeout": 120,
+  "check_boot_suite": false,
+  "mods": [
+    "tools/scenarios/mods/harness_cells",
+    "tools/scenarios/mods/harness_items",
+    "tools/scenarios/mods/harness_raid_full",
+    "tools/scenarios/mods/harness_raid_spawner"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_index",
+      "args": [
+        "harness_raid_full.DEN"
+      ],
+      "is": 5,
+      "why": ""
+    },
+    {
+      "call": "gnx_scn_stage_open",
+      "args": [
+        "harness_raid_full.DEN",
+        0
+      ]
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "raid_stage": 5
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "raid",
+      "state": 0,
+      "stage": 5
+    },
+    {
+      "raid_clear_formation": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "raid_formation": {
+        "front": [
+          [
+            0,
+            40
+          ]
+        ],
+        "back": [
+          [
+            1,
+            20
+          ]
+        ]
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "raid",
+      "troops": 60
+    },
+    {
+      "raid_go": true
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 1,
+      "why": "Go is no longer refused for a mod stage"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "screenshot": "outbound"
+    },
+    {
+      "raid_finish": 1200,
+      "until_state": 2
+    },
+    {
+      "wait": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cart_pos",
+      "args": [],
+      "is": "213 63",
+      "why": "the cart reached DEN (215,58), stopping where vanilla carts stop"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_raid_back",
+      "args": [],
+      "is": "at stage",
+      "why": "the return clock starts full"
+    },
+    {
+      "wait": 300
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_raid_back",
+      "args": [],
+      "is": "moving",
+      "why": "and runs"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 2
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_raid_back",
+      "args": [],
+      "is": "moving",
+      "why": "the reload kept the return clock (it used to restart at the stage)"
+    },
+    {
+      "raid_finish": 1200
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "raid",
+      "state": 0,
+      "cage_min": 1,
+      "why": "60 goblins beat 3 GHOULs: captives in the cage"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_full.DEN"
+      ],
+      "is": "0 1",
+      "why": "a win at the top open level gives stage XP, like vanilla stages 0-3"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cart_pos",
+      "args": [],
+      "is": "none",
+      "why": "no cart once home"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "screenshot": "home"
+    }
+  ]
+}

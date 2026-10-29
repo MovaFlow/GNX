@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4672 @@
+@@ -0,0 +1,4704 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1675,6 +1675,38 @@
 +    }
 +
 +    return string(_hp) + " " + string(_ap);
++}
++
++
++// for {"assert": "fn"}: "x y" of the raid cart on the world map (the vanilla sequence's obj_carriage, or the cart
++// GNX draws for a mod stage), "none" when there is none
++function gnx_scn_cart_pos()
++{
++    if (instance_exists(obj_carriage))
++        return string(round(obj_carriage.x)) + " " + string(round(obj_carriage.y));
++
++    var _p = gnx_stage_cart_pos();
++    return is_array(_p) ? string(round(_p[0])) + " " + string(round(_p[1])) : "none";
++}
++
++
++// for {"assert": "fn"}: "<max_lvl> <expe>" of mod stage arg0 ("-1" when undiscovered)
++function gnx_scn_stage_exp(arg0)
++{
++    var _s = global.val.stage_info[gnx_stage_index(arg0)];
++    return (_s == -1) ? "-1" : string(_s.max_lvl) + " " + string(_s.expe);
++}
++
++
++// for {"assert": "fn"}: on the way back from a raid, "at stage" while the return clock is full, "moving" once it runs
++function gnx_scn_raid_back()
++{
++    var _rd = obj_np.obj_raid.raid_data;
++
++    if (_rd.raid_state != 2)
++        return "state " + string(_rd.raid_state);
++
++    return (_rd.time_left >= (_rd.max_time * 0.5) - 30) ? "at stage" : "moving";  // 30 frames of slack for the steps in between
 +}
 +
 +

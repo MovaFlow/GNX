@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,968 @@
+@@ -0,0 +1,991 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -426,6 +426,7 @@
 +{
 +    global.gnx_stage_registry = [];
 +    global.gnx_stage_spawn_refs = [];  // raid_spawns naming a mod stage, waiting for that stage to load
++    global.gnx_stage_cart_origin = [200, 59];  // where the vanilla raid cart leaves from on the world map (the nest)
 +}
 +
 +
@@ -838,6 +839,28 @@
 +}
 +
 +
++// where the raid cart is on the world map while a raid is out to a mod stage ([x, y]), else -1. Mod stages have no
++// cart sequence: the cart goes in a straight line from the nest to the stage and back, timed by the raid clock.
++function gnx_stage_cart_pos()
++{
++    if (!instance_exists(obj_np) || !instance_exists(obj_np.obj_raid))
++        return -1;
++
++    var _rd = obj_np.obj_raid.raid_data;
++    var _def = gnx_stage_def(_rd.stage);
++
++    if (_def == undefined || (_rd.raid_state != 1 && _rd.raid_state != 2) || _rd.max_time <= 0)
++        return -1;
++
++    var _half = _rd.max_time * 0.5;
++    // outbound: the clock runs from max_time down to half; back: from half down to 0
++    var _p = (_rd.raid_state == 1) ? clamp((_rd.max_time - _rd.time_left) / _half, 0, 1) : clamp(_rd.time_left / _half, 0, 1);
++    var _o = global.gnx_stage_cart_origin;
++    // the vanilla carts stop 2 px left of and 5 px below the stage button (Village: button 240,92, cart 238,97)
++    return [lerp(_o[0], _def.x - 2, _p), lerp(_o[1], _def.y + 5, _p)];
++}
++
++
 +// Puts this map's mod stages at 5, 6, ... of the stage arrays, taking each stage's state by name from where the
 +// save had it (global.val.gnx_stage_keys) or from the orphans; a stage new to this save starts undiscovered. Saved
 +// stages whose mod is not loaded become orphans. Also re-maps the selected raid stage. Run after every boot (fresh
@@ -940,8 +963,8 @@
 +            if (_now == -1 && _rd.raid_state != UnknownEnum.Value_0)
 +                gnx_log_write(_log, "[GNX-STAGE] WARN raid out to " + _was + ", which is not loaded: the raid is called off\n");
 +
-+            // ponytail: the troops of a raid called off this way are lost; refund them once mod stages can be
-+            // raided (P4), until then no raid can be out to a mod stage
++            // nothing is lost: the troops stay in the formation, and the fight (losses, cage, loot) is settled when
++            // the cart reaches the stage; only the return's stage XP and events are skipped
 +            if (_now == -1)
 +                _rd.raid_state = UnknownEnum.Value_0;
 +
