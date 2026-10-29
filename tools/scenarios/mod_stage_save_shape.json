@@ -1,0 +1,82 @@
+{
+  "about": "A1: saves keep the vanilla shape (5 stages in the arrays, mod stages by name in gnx_stage_saved), so a GNX or game without mod stages reads them like any save. Also reads a save made by the P1-P5 builds (mod stages at positions 5+ named by gnx_stage_keys): fixture mod_stage_legacy_p5 (kept locally; missing = SKIP).",
+  "fixture": "mod_stage_legacy_p5",
+  "mods": [
+    "tools/scenarios/mods/harness_raid_a",
+    "tools/scenarios/mods/harness_raid_b"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_sel",
+      "args": [
+        "harness_raid_a.CRYPT"
+      ],
+      "is": 1,
+      "why": "P1-P5 save read: CRYPT's marker"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_sel",
+      "args": [
+        "harness_raid_b.BOG"
+      ],
+      "is": 2,
+      "why": "BOG's marker"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_lens",
+      "args": [],
+      "is": "7 7 7 7 7 2 0",
+      "why": "live arrays hold both mod stages"
+    },
+    {
+      "save": 9
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_save_stage_shape",
+      "args": [],
+      "is": "5 5 5 0 harness_raid_a.CRYPT,harness_raid_b.BOG -1",
+      "why": "the file has the vanilla shape, the mod stages by name"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_lens",
+      "args": [],
+      "is": "7 7 7 7 7 2 0",
+      "why": "the live game got its mod stages back after saving"
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_sel",
+      "args": [
+        "harness_raid_a.CRYPT"
+      ],
+      "is": 1,
+      "why": "read back from the new shape"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_sel",
+      "args": [
+        "harness_raid_b.BOG"
+      ],
+      "is": 2,
+      "why": "read back from the new shape"
+    }
+  ]
+}

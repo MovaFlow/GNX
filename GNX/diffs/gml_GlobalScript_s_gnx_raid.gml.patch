@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1101 @@
+@@ -0,0 +1,1155 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -597,6 +597,7 @@
 +                class_id: _bc,
 +                lvl: clamp(floor(gnx_json_num(gnx_stage_field(_b, "lvl", 5), 5)), 0, 7),
 +                chance: clamp(gnx_json_num(gnx_stage_field(_b, "chance", 100), 100), 0, 100),
++                until_captured: gnx_json_num(gnx_stage_field(_b, "until_captured", true), 1) != 0,
 +                condition: _bcond
 +            };
 +        }
@@ -802,6 +803,27 @@
 +}
 +
 +
++// A3: every mod class (id 14+) ever captured in a raid, in global.unlock.gnx_captured (saved, merged across maps
++// like the other unlocks). Recorded at the capture roll (scr_raid_cal_stat).
++function gnx_mark_captured(arg0)
++{
++    if (!is_real(arg0) || arg0 < 14)
++        exit;
++    
++    if (!variable_struct_exists(global.unlock, "gnx_captured"))
++        global.unlock.gnx_captured = [];
++    
++    if (!array_contains(global.unlock.gnx_captured, arg0))
++        array_push(global.unlock.gnx_captured, arg0);
++}
++
++
++function gnx_was_captured(arg0)
++{
++    return variable_struct_exists(global.unlock, "gnx_captured") && array_contains(global.unlock.gnx_captured, arg0);
++}
++
++
 +// discovers mod stage number arg0 (its first level opens and its encounter is rolled), says so, and fires its
 +// on_discover quest event
 +function gnx_stage_discover(arg0)
@@ -815,7 +837,7 @@
 +    var _log = gnx_log_open();
 +    gnx_log_write(_log, "[GNX-STAGE] " + _def.key + " discovered\n");
 +    gnx_log_close(_log);
-+    scr_gnx_pop_up_create("New raid location: " + _def.label);
++    scr_gnx_pop_up_create("New raid location: " + gnx_tr(_def.label));  // A2: the label through the mod's lang files
 +
 +    if (_def.on_discover != "")
 +        scr_gnx_fire_event(_def.on_discover);
@@ -823,6 +845,7 @@
 +    // a raid window open on the map: the new button appears at once
 +    if (instance_exists(obj_np) && instance_exists(obj_np.obj_raid) && obj_np.obj_raid.activate && obj_np.obj_raid.raid_data.raid_state == 0)
 +    {
++        // the selected stage's arrows go with their button (checked: no doubles)
 +        with (obj_button)
 +        {
 +            if (interact_type == 43)
@@ -887,7 +910,8 @@
 +    var _unit_list = [];
 +    var _en_ap = [0, 0];
 +    var _picked = [];
-+    var _boss = _L.boss != undefined && irandom_range(1, 100) <= _L.boss.chance && (_L.boss.condition == undefined || scr_gnx_eval_condition(_L.boss.condition, arg1.mod_name));
++    // A3: like the vanilla bosses, a boss stops coming once captured (until_captured, default on)
++    var _boss = _L.boss != undefined && !(_L.boss.until_captured && gnx_was_captured(_L.boss.class_id)) && irandom_range(1, 100) <= _L.boss.chance && (_L.boss.condition == undefined || scr_gnx_eval_condition(_L.boss.condition, arg1.mod_name));
 +    // an encounter holds 5 units at most, the boss included
 +    var _num = min(irandom_range(_L.count[0], _L.count[1]), _boss ? 4 : 5);
 +    _en_ap[0] += irandom_range(_L.hp[0], _L.hp[1]) + _num;
@@ -971,119 +995,149 @@
 +}
 +
 +
-+// Puts this map's mod stages at 5, 6, ... of the stage arrays, taking each stage's state by name from where the
-+// save had it (global.val.gnx_stage_keys) or from the orphans; a stage new to this save starts undiscovered. Saved
-+// stages whose mod is not loaded become orphans. Also re-maps the selected raid stage. Run after every boot (fresh
-+// global.val) and after every load / travel arrival (global.val from the save or the map snapshot).
-+function scr_gnx_stage_apply()
++// Saves keep the vanilla shape (A1): the stage arrays hold the 5 vanilla stages only, and the mod stages' state
++// sits by name in global.val.gnx_stage_saved ({ "folder.ID": {info, sel, item} }), with the stages of mods that are
++// not loaded. A GNX or a game without mod stages then reads the save like any other. gnx_stage_pack turns a live
++// val (+ its raid_data) into that shape; scr_gnx_stage_apply turns it back (and reads the P1-P5 layout:
++// gnx_stage_keys + positions + gnx_stage_orphans).
++function gnx_stage_pack(arg0, arg1)
 +{
-+    var _v = global.val;
-+    var _old_keys = (variable_struct_exists(_v, "gnx_stage_keys") && is_array(_v.gnx_stage_keys)) ? _v.gnx_stage_keys : [];
-+    var _orph = (variable_struct_exists(_v, "gnx_stage_orphans") && is_struct(_v.gnx_stage_orphans)) ? _v.gnx_stage_orphans : {};
-+    var _old = {};
-+
-+    for (var _i = 0; _i < array_length(_old_keys); _i++)
++    var _v = arg0;
++    
++    if (!is_struct(_v) || !variable_struct_exists(_v, "stage_info"))
++        exit;
++    
++    var _saved = (variable_struct_exists(_v, "gnx_stage_saved") && is_struct(_v.gnx_stage_saved)) ? _v.gnx_stage_saved : {};
++    var _keys = (variable_struct_exists(_v, "gnx_stage_keys") && is_array(_v.gnx_stage_keys)) ? _v.gnx_stage_keys : [];
++    
++    if (variable_struct_exists(_v, "gnx_stage_orphans") && is_struct(_v.gnx_stage_orphans))
++    {
++        var _on = variable_struct_get_names(_v.gnx_stage_orphans);
++        
++        for (var _i = 0; _i < array_length(_on); _i++)
++        {
++            if (!variable_struct_exists(_saved, _on[_i]))
++                variable_struct_set(_saved, _on[_i], variable_struct_get(_v.gnx_stage_orphans, _on[_i]));
++        }
++        
++        variable_struct_remove(_v, "gnx_stage_orphans");
++    }
++    
++    for (var _i = 0; _i < array_length(_keys); _i++)
 +    {
 +        var _at = 5 + _i;
-+        variable_struct_set(_old, _old_keys[_i],
++        variable_struct_set(_saved, _keys[_i], 
 +        {
 +            info: (_at < array_length(_v.stage_info)) ? _v.stage_info[_at] : -1,
 +            sel: (_at < array_length(_v.stage_lvl_sel)) ? _v.stage_lvl_sel[_at] : 0,
 +            item: (_at < array_length(_v.stage_item)) ? _v.stage_item[_at] : []
 +        });
 +    }
++    
++    // the raid screen's stage by name; a save read without the mod sees no stage selected, or (a raid out there)
++    // the Village, so it never reads a stage it does not have
++    if (is_struct(arg1) && variable_struct_exists(arg1, "stage") && arg1.stage >= 5 && (arg1.stage - 5) < array_length(_keys))
++    {
++        arg1.gnx_stage_key = _keys[arg1.stage - 5];
++        arg1.stage = (arg1.raid_state == UnknownEnum.Value_0) ? -1 : 0;
++    }
++    
++    array_resize(_v.stage_info, min(5, array_length(_v.stage_info)));
++    array_resize(_v.stage_lvl_sel, min(5, array_length(_v.stage_lvl_sel)));
++    array_resize(_v.stage_item, min(5, array_length(_v.stage_item)));
++    
++    if (variable_struct_exists(_v, "gnx_stage_keys"))
++        variable_struct_remove(_v, "gnx_stage_keys");
++    
++    _v.gnx_stage_saved = _saved;
++}
 +
-+    array_resize(_v.stage_info, 5);
-+    array_resize(_v.stage_lvl_sel, 5);
-+    array_resize(_v.stage_item, 5);
++
++// Puts this map's mod stages at 5, 6, ... of the stage arrays, taking each stage's state by name from
++// gnx_stage_saved (or from a P1-P5 save's positions); a stage new to this save starts undiscovered, or
++// discovered at once, silently, when it has no unlock (A4). Stages whose mod is not loaded stay in gnx_stage_saved.
++// Also puts the raid screen's stage back. Run after every boot (fresh global.val), every load / travel arrival
++// (global.val from the save or the map snapshot) and after every save (which packed it).
++function scr_gnx_stage_apply()
++{
++    var _v = global.val;
++    var _rd = (instance_exists(obj_np) && variable_instance_exists(obj_np, "obj_raid") && instance_exists(obj_np.obj_raid)) ? obj_np.obj_raid.raid_data : undefined;
++    // whatever layout global.val is in (live, packed, P1-P5), packing first gives the one to read
++    gnx_stage_pack(_v, _rd);
++    var _saved = _v.gnx_stage_saved;
 +    array_resize(global.base_raid_time, 5);
 +    array_resize(global.reward, 5);
 +    var _keys = [];
++    var _quiet = [];
 +    var _log = gnx_log_open();
-+
++    
 +    for (var _i = 0; _i < array_length(global.gnx_stage_registry); _i++)
 +    {
 +        var _def = global.gnx_stage_registry[_i];
-+        var _st = variable_struct_get(_old, _def.key);
-+        var _from = "saved";
-+
++        var _st = variable_struct_get(_saved, _def.key);
++        
 +        if (_st != undefined)
 +        {
-+            variable_struct_remove(_old, _def.key);
++            variable_struct_remove(_saved, _def.key);
++            gnx_log_write(_log, "[GNX-STAGE] " + _def.key + " -> stage " + string(5 + _i) + "\n");
 +        }
 +        else
 +        {
-+            _st = variable_struct_get(_orph, _def.key);
-+            _from = "orphan";
-+
-+            if (_st != undefined)
-+            {
-+                variable_struct_remove(_orph, _def.key);
-+            }
-+            else
-+            {
-+                _st = { info: -1, sel: 0, item: [] };
-+                _from = "new";
-+            }
++            _st = { info: -1, sel: 0, item: [] };
++            
++            if (_def.unlock == undefined)
++                array_push(_quiet, 5 + _i);
 +        }
-+
++        
 +        var _n = array_length(_def.levels);
 +        var _item = is_array(_st.item) ? _st.item : [];
-+
++        
 +        // one loot list per level (a mod update may have added levels)
 +        while (array_length(_item) < _n)
 +            array_push(_item, []);
-+
++        
 +        // the fixed win reward of each level (vanilla global.reward[stage][level] = [gold, food])
 +        var _rw = [];
-+
++        
 +        for (var _lv = 0; _lv < _n; _lv++)
 +            array_push(_rw, [scr_set_item_data(UnknownEnum.Value_0, _def.levels[_lv].reward_gold, -1), scr_set_item_data(UnknownEnum.Value_1, _def.levels[_lv].reward_food, -1)]);
-+
++        
 +        array_push(_v.stage_info, _st.info);
 +        array_push(_v.stage_lvl_sel, clamp(gnx_json_num(_st.sel, 0), 0, _n - 1));
 +        array_push(_v.stage_item, _item);
 +        array_push(global.base_raid_time, _def.raid_time);
 +        array_push(global.reward, _rw);
 +        array_push(_keys, _def.key);
-+
-+        if (_from != "new")
-+            gnx_log_write(_log, "[GNX-STAGE] " + _def.key + " -> stage " + string(5 + _i) + " (" + _from + ")\n");
 +    }
-+
-+    // saved stages of mods that are not loaded here wait in the save for their mod
-+    var _gone = variable_struct_get_names(_old);
-+
-+    for (var _i = 0; _i < array_length(_gone); _i++)
-+    {
-+        variable_struct_set(_orph, _gone[_i], variable_struct_get(_old, _gone[_i]));
-+        gnx_log_write(_log, "[GNX-STAGE] " + _gone[_i] + " kept aside (its mod is not loaded)\n");
-+    }
-+
-+    // the raid screen's selected stage is a position too
-+    if (instance_exists(obj_np) && variable_instance_exists(obj_np, "obj_raid") && instance_exists(obj_np.obj_raid))
-+    {
-+        var _rd = obj_np.obj_raid.raid_data;
-+
-+        if (is_struct(_rd) && _rd.stage >= 5)
-+        {
-+            var _was = (_rd.stage - 5 < array_length(_old_keys)) ? _old_keys[_rd.stage - 5] : "";
-+            var _now = gnx_stage_index(_was);
-+
-+            if (_now == -1 && _rd.raid_state != UnknownEnum.Value_0)
-+                gnx_log_write(_log, "[GNX-STAGE] WARN raid out to " + _was + ", which is not loaded: the raid is called off\n");
-+
-+            // nothing is lost: the troops stay in the formation, and the fight (losses, cage, loot) is settled when
-+            // the cart reaches the stage; only the return's stage XP and events are skipped
-+            if (_now == -1)
-+                _rd.raid_state = UnknownEnum.Value_0;
-+
-+            _rd.stage = _now;
-+        }
-+    }
-+
++    
 +    _v.gnx_stage_keys = _keys;
-+    _v.gnx_stage_orphans = _orph;
++    
++    // A4: a stage without an unlock is simply there from the start, without a popup
++    for (var _q = 0; _q < array_length(_quiet); _q++)
++        scr_set_stage_data(_quiet[_q], 0, false);
++    
++    var _gone = variable_struct_get_names(_saved);
++    
++    if (array_length(_gone) > 0)
++        gnx_log_write(_log, "[GNX-STAGE] kept aside (mod not loaded here): " + string(_gone) + "\n");
++    
++    // the raid screen's stage, saved by name
++    if (is_struct(_rd) && variable_struct_exists(_rd, "gnx_stage_key"))
++    {
++        var _now = gnx_stage_index(_rd.gnx_stage_key);
++        
++        // nothing is lost: the troops stay in the formation, and the fight (losses, cage, loot) is settled when
++        // the cart reaches the stage; only the return's stage XP and events are skipped
++        if (_now == -1 && _rd.raid_state != UnknownEnum.Value_0)
++        {
++            gnx_log_write(_log, "[GNX-STAGE] WARN raid out to " + _rd.gnx_stage_key + ", which is not loaded: the raid is called off\n");
++            _rd.raid_state = UnknownEnum.Value_0;
++        }
++        
++        _rd.stage = _now;
++        variable_struct_remove(_rd, "gnx_stage_key");
++    }
++    
 +    gnx_log_close(_log);
 +}
 +

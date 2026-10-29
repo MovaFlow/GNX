@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4728 @@
+@@ -0,0 +1,4777 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1714,6 +1714,21 @@
 +}
 +
 +
++// for {"assert": "fn"}: how many toasts (obj_pop_up) on screen contain text arg0
++function gnx_scn_popup_count(arg0)
++{
++    var _n = 0;
++
++    with (obj_pop_up)
++    {
++        if (is_string(pop_up_data.text_type) && string_pos(arg0, pop_up_data.text_type) > 0)
++            _n++;
++    }
++
++    return _n;
++}
++
++
 +// for {"assert": "fn"}: "<max_lvl> <expe>" of mod stage arg0 ("-1" when undiscovered)
 +function gnx_scn_stage_exp(arg0)
 +{
@@ -1747,7 +1762,41 @@
 +function gnx_scn_stage_lens()
 +{
 +    var _v = global.val;
-+    return string(array_length(_v.stage_info)) + " " + string(array_length(_v.stage_lvl_sel)) + " " + string(array_length(_v.stage_item)) + " " + string(array_length(global.base_raid_time)) + " " + string(array_length(global.reward)) + " " + string(array_length(_v.gnx_stage_keys)) + " " + string(array_length(variable_struct_get_names(_v.gnx_stage_orphans)));
++    return string(array_length(_v.stage_info)) + " " + string(array_length(_v.stage_lvl_sel)) + " " + string(array_length(_v.stage_item)) + " " + string(array_length(global.base_raid_time)) + " " + string(array_length(global.reward)) + " " + string(array_length(_v.gnx_stage_keys)) + " " + string(array_length(variable_struct_get_names(_v.gnx_stage_saved)));
++}
++
++
++// for {"assert": "fn"}: how the slot-9 save file stores raid stages (A1): "<stage_info> <stage_lvl_sel> <stage_item>
++// lengths, the longest stage_info of its stored maps, the names in gnx_stage_saved, raid stage>", e.g. "5 5 5 5 a.X,b.Y -1"
++function gnx_scn_save_stage_shape()
++{
++    var _b = buffer_load("gnx_harness_save.json");
++    var _d = json_parse(buffer_read(_b, buffer_text));
++    buffer_delete(_b);
++    var _v = _d.global_list.val;
++    var _maps = 0;
++    
++    if (variable_struct_exists(_d, "gnx_maps") && is_struct(_d.gnx_maps))
++    {
++        var _mk = variable_struct_get_names(_d.gnx_maps);
++        
++        for (var _i = 0; _i < array_length(_mk); _i++)
++        {
++            var _m = variable_struct_get(_d.gnx_maps, _mk[_i]);
++            
++            if (is_struct(_m) && variable_struct_exists(_m, "global_list"))
++                _maps = max(_maps, array_length(_m.global_list.val.stage_info));
++        }
++    }
++    
++    var _names = variable_struct_exists(_v, "gnx_stage_saved") ? variable_struct_get_names(_v.gnx_stage_saved) : [];
++    array_sort(_names, true);
++    var _s = "";
++    
++    for (var _i = 0; _i < array_length(_names); _i++)
++        _s += ((_i > 0) ? "," : "") + _names[_i];
++    
++    return string(array_length(_v.stage_info)) + " " + string(array_length(_v.stage_lvl_sel)) + " " + string(array_length(_v.stage_item)) + " " + string(_maps) + " " + ((_s == "") ? "-" : _s) + " " + string(_d.raid_data.stage);
 +}
 +
 +

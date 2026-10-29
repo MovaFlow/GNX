@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-28 18:35:36.273556600 +0100
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-29 11:35:33.811064300 +0100
 @@ -48,6 +48,14 @@
                          _data.slot_data.prop[iii].yscale = image_yscale;
                          _data.slot_data.prop[iii].iindex = image_index;
@@ -59,7 +59,7 @@
      _save_data.global_list = _global;
      var _save_type;
      
-@@ -216,6 +237,56 @@
+@@ -216,15 +237,84 @@
              _save_type = "save_file_3.json";
              scr_pop_up_create(UnknownEnum.Value_23);
              break;
@@ -116,15 +116,35 @@
      }
      
      if (file_exists(_save_type))
-@@ -225,6 +296,7 @@
+         file_delete(_save_type);
+     
++    // GNX-STAGE (A1): the save keeps the vanilla shape (mod stages by name), this map's and every stored map's;
++    // the live game gets its mod stages back right after
++    gnx_stage_pack(_save_data.global_list.val, _save_data.raid_data);
++    
++    if (variable_struct_exists(_save_data, "gnx_maps") && is_struct(_save_data.gnx_maps))
++    {
++        var _gnx_mk = variable_struct_get_names(_save_data.gnx_maps);
++        
++        for (var _gnx_mi = 0; _gnx_mi < array_length(_gnx_mk); _gnx_mi++)
++        {
++            var _gnx_ms = variable_struct_get(_save_data.gnx_maps, _gnx_mk[_gnx_mi]);
++            
++            if (is_struct(_gnx_ms) && variable_struct_exists(_gnx_ms, "global_list"))
++                gnx_stage_pack(_gnx_ms.global_list.val, variable_struct_exists(_gnx_ms, "raid_data") ? _gnx_ms.raid_data : undefined);
++        }
++    }
++    
+     var _buff = buffer_create(1, buffer_grow, 1);
      buffer_write(_buff, buffer_text, json_stringify(_save_data));
      buffer_save(_buff, _save_type);
      buffer_delete(_buff);
++    scr_gnx_stage_apply();
 +    gnx_save_cache_clear();  // the menus re-read this save
  }
  
  function scr_save_lang()
-@@ -246,44 +318,157 @@
+@@ -246,44 +336,157 @@
  
  function scr_load_slot()
  {
@@ -308,7 +328,7 @@
          var _slot_list = _load_data.slot_list;
          var _start_x = -1;
          
-@@ -302,9 +487,12 @@
+@@ -302,9 +505,12 @@
              
              with (_slot_id)
              {
@@ -321,7 +341,7 @@
                      
                      if (_data.unit_data != -1)
                      {
-@@ -365,6 +553,29 @@
+@@ -365,6 +571,29 @@
                      spr_base = _spr;
                  }
                  
@@ -351,7 +371,7 @@
                  if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
                      spr_base = spr_tent_back_full;
                  
-@@ -408,30 +619,121 @@
+@@ -408,30 +637,121 @@
                      global.slot_x[slot_data.slot_floor] += _diff;
                  }
                  
@@ -484,7 +504,7 @@
              }
          }
          
-@@ -482,22 +784,14 @@
+@@ -482,22 +802,14 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -509,7 +529,7 @@
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +848,11 @@
+@@ -554,6 +866,11 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -521,7 +541,7 @@
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +866,52 @@
+@@ -567,7 +884,52 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -574,7 +594,7 @@
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +950,21 @@
+@@ -606,11 +968,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -597,7 +617,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +988,12 @@
+@@ -634,7 +1006,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -610,7 +630,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1013,395 @@
+@@ -654,8 +1031,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -1006,7 +1026,7 @@
      }
      
      return _load;
-@@ -663,6 +1409,7 @@
+@@ -663,6 +1427,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1014,7 +1034,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1429,25 @@
+@@ -682,33 +1447,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1059,7 +1079,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1472,119 @@
+@@ -733,3 +1490,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
