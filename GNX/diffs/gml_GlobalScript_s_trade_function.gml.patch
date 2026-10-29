@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_trade_function.gml	2026-09-02 08:45:16.443594600 +0200
-+++ gml/gml_GlobalScript_s_trade_function.gml	2026-09-24 15:31:46.000000000 +0200
++++ gml/gml_GlobalScript_s_trade_function.gml	2026-10-29 11:08:38.579877000 +0100
 @@ -2,14 +2,14 @@
  {
      var _empty = true;
@@ -102,7 +102,7 @@
  }
  
  function scr_choose_trade_item()
-@@ -175,6 +175,18 @@
+@@ -175,10 +175,38 @@
                  }
              }
              
@@ -121,7 +121,27 @@
              _trade_num++;
          }
      }
-@@ -191,43 +203,22 @@
+     
++    // GNX-STAGE (D4): classes whose trade_stage names a stage are offered once it is discovered (3 times, as above)
++    for (var _gt = 0; _gt < array_length(global.gnx_stage_trade_refs); _gt++)
++    {
++        var _gtr = global.gnx_stage_trade_refs[_gt];
++        var _gts = gnx_stage_ref(_gtr.stage, _gtr.mod_name);
++        
++        if (_gts >= 0 && _stage[_gts] != -1)
++        {
++            repeat (3)
++            {
++                _pool_list[_num] = _gtr.class_id;
++                _num++;
++            }
++        }
++    }
++    
+     _trade_num = min(3, _trade_num);
+     raid_data.trade_unit = [];
+     raid_data.trade_price = [];
+@@ -191,43 +219,22 @@
          raid_data.trade_price[i] = 100 * (i + 1);
      }
      

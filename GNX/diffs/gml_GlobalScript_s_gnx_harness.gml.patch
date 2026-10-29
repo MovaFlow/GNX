@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4704 @@
+@@ -0,0 +1,4728 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1687,6 +1687,30 @@
 +
 +    var _p = gnx_stage_cart_pos();
 +    return is_array(_p) ? string(round(_p[0])) + " " + string(round(_p[1])) : "none";
++}
++
++
++// for {"assert": "fn"}: 1 when arg1 rolls of the raid trader (scr_choose_trade_item) offered class arg0 at least
++// once, else 0 (a class in the pool shows up within 20 rolls with near certainty)
++function gnx_scn_trade_seen(arg0, arg1)
++{
++    var _seen = 0;
++
++    with (obj_np.obj_raid)
++    {
++        repeat (arg1)
++        {
++            scr_choose_trade_item();
++
++            for (var _i = 0; _i < array_length(raid_data.trade_unit); _i++)
++            {
++                if (raid_data.trade_unit[_i].class == arg0)
++                    _seen = 1;
++            }
++        }
++    }
++
++    return _seen;
 +}
 +
 +

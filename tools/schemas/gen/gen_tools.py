@@ -43,7 +43,7 @@ action = typed({
     "create_unit": ({"class_id": REF, "level": N}, ["class_id"], "Puts a new captive in the first free prison slot."),
     "create_unit_cage": ({"class_id": REF, "level": N}, ["class_id"], "Adds a new cage slot holding a new captive."),
     "unlock_boss": ({"index": {"type": "integer", "minimum": 0, "maximum": 4}}, ["index"], "Starts the intro of a locked boss: 0 cow, 1 Nyx, 2 goddess, 3 Morrigan, 4 Lilith."),
-    "unlock_stage_next": ({"stage": {"type": "integer", "minimum": 0, "maximum": 3}}, ["stage"], "Discovers a raid stage, or raises its highest level by one."),
+    "unlock_stage_next": ({"stage": {"description": "A raid stage: 0-4, \"vanilla.VILLAGE\" / MOUNTAIN / FOREST / CASTLE / TOWER, a mod stage \"folder.ID\", or a bare ID of your own mod (raids.json).", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "string", "minLength": 1}]}}, ["stage"], "Discovers a raid stage (vanilla 0-3 or a mod stage), or raises its highest level by one."),
     "unlock_breeds": ({}, [], "Unlocks all breeding tips."),
     "unlock_cell": ({"h_type": REF}, ["h_type"], "Adds the cell to its build menu tab."),
     "unlock_prop": ({"prop_id": {"type": ["string", "integer"]}}, ["prop_id"], "Same as give_prop."),
@@ -73,7 +73,7 @@ action = typed({
 guard = typed({
     "boss_locked": ({"index": {"type": "integer", "minimum": 0, "maximum": 4}}, ["index"], "That boss is still locked."),
     "boss_unlocked": ({"index": {"type": "integer", "minimum": 0, "maximum": 4}}, ["index"], "That boss is unlocked."),
-    "stage_undiscovered": ({"stage": {"type": "integer", "minimum": 0, "maximum": 4}}, ["stage"], "That raid stage is not discovered yet."),
+    "stage_undiscovered": ({"stage": {"description": "A raid stage: 0-4, \"vanilla.VILLAGE\" / MOUNTAIN / FOREST / CASTLE / TOWER, a mod stage \"folder.ID\", or a bare ID of your own mod (raids.json).", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "string", "minLength": 1}]}}, ["stage"], "That raid stage is not discovered yet."),
     "has_unit_slot": ({}, [], "The prison has a free slot."),
     "on_screen": ({"screen": {"description": "Ignored."}}, [], "The raid screen is open."),
 }, "One condition checked before a button runs (guide 17.7).")

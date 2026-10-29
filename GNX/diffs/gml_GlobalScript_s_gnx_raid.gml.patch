@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,991 @@
+@@ -0,0 +1,1101 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -426,6 +426,7 @@
 +{
 +    global.gnx_stage_registry = [];
 +    global.gnx_stage_spawn_refs = [];  // raid_spawns naming a mod stage, waiting for that stage to load
++    global.gnx_stage_trade_refs = [];  // trade_stage naming a stage ({stage, class_id, mod_name})
 +    global.gnx_stage_cart_origin = [200, 59];  // where the vanilla raid cart leaves from on the world map (the nest)
 +}
 +
@@ -550,6 +551,7 @@
 +        reward_gold: max(0, floor(gnx_json_num(gnx_stage_field(gnx_stage_field(_l, "reward", {}), "gold", 0), 0))),
 +        reward_food: max(0, floor(gnx_json_num(gnx_stage_field(gnx_stage_field(_l, "reward", {}), "food", 0), 0))),
 +        no_capture: gnx_json_num(gnx_stage_field(_l, "no_capture", false), 0) != 0,
++        xp: max(0, floor(gnx_json_num(gnx_stage_field(_l, "xp", 0), 0))),  // wins to open the next level; 0 = vanilla rule
 +        boss: undefined
 +    };
 +    var _pool = gnx_stage_field(_units, "pool", []);
@@ -701,12 +703,22 @@
 +            y: gnx_json_num(_pos[1], 0),
 +            icon: gnx_stage_load_icon(arg0, gnx_stage_field(_s, "icon", "")),
 +            raid_time: max(60, floor(gnx_json_num(variable_struct_exists(_s, "raid_time") ? _s.raid_time : 3600, 3600))),
-+            unlock: (variable_struct_exists(_s, "unlock") && is_struct(_s.unlock)) ? _s.unlock : undefined,
++            unlock: (variable_struct_exists(_s, "unlock") && (is_struct(_s.unlock) || is_array(_s.unlock))) ? _s.unlock : undefined,
++            on_discover: is_string(gnx_stage_field(_s, "on_discover", "")) ? gnx_stage_field(_s, "on_discover", "") : "",
 +            levels: []
 +        };
 +
-+        if (_def.unlock != undefined)
++        if (is_struct(_def.unlock))
 +            scr_gnx_resolve_condition_refs(_def.unlock, arg0);
++        else if (is_array(_def.unlock))
++        {
++            for (var _u = 0; _u < array_length(_def.unlock); _u++)
++                scr_gnx_resolve_condition_refs(_def.unlock[_u], arg0);
++        }
++
++        // an event of this mod by its own id, like next_event
++        if (_def.on_discover != "" && string_pos(".", _def.on_discover) == 0)
++            _def.on_discover = arg0 + "." + _def.on_discover;
 +
 +        var _idx = 5 + array_length(global.gnx_stage_registry);
 +
@@ -747,6 +759,104 @@
 +    }
 +
 +    return -1;
++}
++
++
++// a stage named in mod arg1's JSON (arg0) as its number on this map, or -1: a number 0-4 (or any loaded stage),
++// "vanilla.VILLAGE" / MOUNTAIN / FOREST / CASTLE / TOWER, "folder.ID" for a mod stage, or a bare "ID" of mod arg1
++function gnx_stage_ref(arg0, arg1)
++{
++    if (is_numeric(arg0))
++        return (arg0 >= 0 && arg0 < array_length(global.val.stage_info)) ? floor(arg0) : -1;
++
++    if (!is_string(arg0))
++        return -1;
++
++    var _key = (string_pos(".", arg0) == 0) ? (string(arg1) + "." + arg0) : arg0;
++    var _v = ["vanilla.VILLAGE", "vanilla.MOUNTAIN", "vanilla.FOREST", "vanilla.CASTLE", "vanilla.TOWER"];
++
++    for (var _i = 0; _i < 5; _i++)
++    {
++        if (string_upper(_key) == string_upper(_v[_i]))
++            return _i;
++    }
++
++    return gnx_stage_index(_key);
++}
++
++
++// wins needed at level arg1 of stage arg0 to open the next level: the level's own "xp", else vanilla's rule
++function gnx_stage_xp_need(arg0, arg1)
++{
++    var _def = gnx_stage_def(arg0);
++
++    if (_def != undefined)
++    {
++        var _l = _def.levels[clamp(arg1, 0, array_length(_def.levels) - 1)];
++
++        if (_l.xp > 0)
++            return _l.xp;
++    }
++
++    return floor(((arg1 * 0.4) + 1) * 9);
++}
++
++
++// discovers mod stage number arg0 (its first level opens and its encounter is rolled), says so, and fires its
++// on_discover quest event
++function gnx_stage_discover(arg0)
++{
++    var _def = gnx_stage_def(arg0);
++
++    if (_def == undefined || global.val.stage_info[arg0] != -1)
++        exit;
++
++    scr_set_stage_data(arg0, 0, false);
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-STAGE] " + _def.key + " discovered\n");
++    gnx_log_close(_log);
++    scr_gnx_pop_up_create("New raid location: " + _def.label);
++
++    if (_def.on_discover != "")
++        scr_gnx_fire_event(_def.on_discover);
++
++    // a raid window open on the map: the new button appears at once
++    if (instance_exists(obj_np) && instance_exists(obj_np.obj_raid) && obj_np.obj_raid.activate && obj_np.obj_raid.raid_data.raid_state == 0)
++    {
++        with (obj_button)
++        {
++            if (interact_type == 43)
++                instance_destroy();
++        }
++
++        with (obj_np.obj_raid)
++            scr_create_button_layout(0, 0, depth - 5, 5 + array_length(global.gnx_stage_registry), 1, 10, 0, 0, spr_button_stage, 43, id, false, scr_create_stage_button, -1, scr_draw_stage_button);
++    }
++}
++
++
++// discovers the mod stages of this map whose unlock now holds (no unlock: at once). Every 60 frames (obj_control).
++function scr_gnx_check_stage_unlocks()
++{
++    for (var _i = 0; _i < array_length(global.gnx_stage_registry); _i++)
++    {
++        var _idx = 5 + _i;
++
++        if (_idx >= array_length(global.val.stage_info) || global.val.stage_info[_idx] != -1)
++            continue;
++
++        var _def = global.gnx_stage_registry[_i];
++        var _ok = true;
++
++        // one condition, or a list that must all hold
++        var _conds = is_array(_def.unlock) ? _def.unlock : ((_def.unlock == undefined) ? [] : [_def.unlock]);
++
++        for (var _c = 0; _c < array_length(_conds) && _ok; _c++)
++            _ok = scr_gnx_eval_condition(_conds[_c], _def.mod_name);
++
++        if (_ok)
++            gnx_stage_discover(_idx);
++    }
 +}
 +
 +

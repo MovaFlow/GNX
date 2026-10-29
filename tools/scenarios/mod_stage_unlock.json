@@ -1,0 +1,249 @@
+{
+  "about": "Mod raid stage progression: a stage's unlock discovers it (one condition, or a list that must all hold; checked every 60 frames), with a popup and its on_discover event; conditions and tools name stages as 0-4, vanilla.NAME, folder.ID or the mod's bare ID; per-level xp; the tool unlock_stage_next opens a mod stage's levels; a class whose trade_stage names a stage is sold once that stage is found. Survives save/reload.",
+  "mods": [
+    "tools/scenarios/mods/harness_raid_gated"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "money",
+        "value": 0
+      }
+    },
+    {
+      "wait": 70
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_gated.GATE1"
+      ],
+      "is": "-1",
+      "why": "gold_gte 500 not met: GATE1 stays undiscovered"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_trade_seen",
+      "args": [
+        {
+          "class": "harness_raid_gated.GHOST"
+        },
+        20
+      ],
+      "is": 0,
+      "why": "its trade_stage stage is not found: GHOST is not sold"
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "money",
+        "value": 600
+      }
+    },
+    {
+      "wait": 70
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_gated.GATE1"
+      ],
+      "is": "0 0",
+      "why": "GATE1 discovered once the unlock holds"
+    },
+    {
+      "assert": "popup_shown",
+      "contains": "New raid location: Gate One"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_state",
+      "args": [
+        "harness_raid_gated",
+        "found"
+      ],
+      "is": 1,
+      "why": "its on_discover event ran"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_trade_seen",
+      "args": [
+        {
+          "class": "harness_raid_gated.GHOST"
+        },
+        20
+      ],
+      "is": 1,
+      "why": "GHOST is now in the trader's pool"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_gated.GATE2"
+      ],
+      "is": "-1",
+      "why": "GATE2 needs GATE1 cleared to level 1"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_xp_need",
+      "args": [
+        5,
+        0
+      ],
+      "is": 2,
+      "why": "GATE1 level 0 has its own xp"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_xp_need",
+      "args": [
+        5,
+        2
+      ],
+      "is": 16,
+      "why": "level 2 has none: vanilla rule (2 x 0.4 + 1) x 9"
+    },
+    {
+      "do": {
+        "type": "unlock_stage_next",
+        "stage": "harness_raid_gated.GATE1"
+      }
+    },
+    {
+      "wait": 70
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_gated.GATE1"
+      ],
+      "is": "1 0",
+      "why": "unlock_stage_next opened GATE1's next level"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_gated.GATE2"
+      ],
+      "is": "0 0",
+      "why": "GATE2's two conditions (bare GATE1 + vanilla.VILLAGE) now hold"
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "day_start"
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_state",
+      "args": [
+        "harness_raid_gated",
+        "g2"
+      ],
+      "is": 1,
+      "why": "stage_discovered with a folder.ID stage"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_state",
+      "args": [
+        "harness_raid_gated",
+        "g3"
+      ],
+      "is": 0,
+      "why": "stage_cleared GATE1 min_level 3 not met"
+    },
+    {
+      "do": {
+        "type": "unlock_stage_next",
+        "stage": "harness_raid_gated.GATE1"
+      }
+    },
+    {
+      "do": {
+        "type": "unlock_stage_next",
+        "stage": "harness_raid_gated.GATE1"
+      }
+    },
+    {
+      "do": {
+        "type": "unlock_stage_next",
+        "stage": "harness_raid_gated.GATE1"
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_gated.GATE1"
+      ],
+      "is": "3 0",
+      "why": "max_lvl stops at the level count (3 = top level cleared)"
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "day_start"
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_state",
+      "args": [
+        "harness_raid_gated",
+        "g3"
+      ],
+      "is": 1,
+      "why": "now it is"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_gated.GATE1"
+      ],
+      "is": "3 0",
+      "why": "after reload"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_exp",
+      "args": [
+        "harness_raid_gated.GATE2"
+      ],
+      "is": "0 0",
+      "why": "after reload"
+    }
+  ]
+}

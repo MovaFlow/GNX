@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1751 @@
+@@ -0,0 +1,1769 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -794,7 +794,24 @@
 +            break;
 +        
 +        case "unlock_stage_next":
-+            var _stage = arg0.stage;
++            var _stage = gnx_stage_ref(arg0.stage, arg1);
++            
++            // GNX-STAGE: a mod stage: discover it, or open its next level
++            if (gnx_stage_def(_stage) != undefined)
++            {
++                if (global.val.stage_info[_stage] == -1)
++                {
++                    gnx_stage_discover(_stage);
++                }
++                else if (global.val.stage_info[_stage].max_lvl < array_length(gnx_stage_def(_stage).levels))
++                {
++                    global.val.stage_info[_stage].max_lvl++;
++                    global.val.stage_lvl_sel[_stage] = min(global.val.stage_lvl_sel[_stage] + 1, gnx_stage_max_lvl(_stage));
++                    scr_set_stage_data(_stage, global.val.stage_info[_stage].max_lvl, false);
++                }
++                
++                break;
++            }
 +            
 +            if (_stage < 0 || _stage > 3)
 +                break;
@@ -1340,7 +1357,8 @@
 +            return global.unlock.boss[arg0.index] != -1;
 +        
 +        case "stage_undiscovered":
-+            return global.val.stage_info[arg0.stage] == -1;
++            var _sg = gnx_stage_ref(arg0.stage, arg1);
++            return _sg >= 0 && global.val.stage_info[_sg] == -1;
 +        
 +        case "has_unit_slot":
 +            for (var _i = 0; _i < ds_list_size(global.unit_list); _i++)

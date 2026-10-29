@@ -113,7 +113,7 @@ cls = obj({
         # a vanilla stage (a number) has the levels 0-2
         **{"if": {"properties": {"stage": {"type": "integer"}}, "required": ["stage"]},
            "then": {"properties": {"level": {"maximum": 2}}}})},
-    "trade_stage": {"type": "integer", "minimum": 0, "maximum": 4, "description": "The trader sells the class from that raid stage on (guide 13.5)."},
+    "trade_stage": {"description": "The trader sells the class from that raid stage on (guide 13.5): 0-4, or a stage name (a mod stage adds no trader slot).", "oneOf": [{"type": "integer", "minimum": 0, "maximum": 4}, {"type": "string", "minLength": 1}]},
     "birth_class": obj({k: {"type": "integer", "minimum": 0, "maximum": 3} for k in ("goblin", "hobgoblin", "tentacle", "ogre")},
                        "Troop type (0-3) of children of each species (guide 14.2)."),
     "birth_classes": {"type": "array", "items": {"type": "integer"}, "description": "Old format of birth_class: [goblin, hobgoblin, tentacle, ogre] (guide 14.3)."},

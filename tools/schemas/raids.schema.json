@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/raids.schema.json",
   "title": "GNX raids.json",
-  "description": "The mod's own raid stages. In progress: stages are registered, saved, shown and raidable once discovered; discovery (unlock) comes next.",
+  "description": "The mod's own raid stages: where they are, how they unlock, and their levels.",
   "type": "object",
   "required": [
     "stages"
@@ -65,8 +65,18 @@
           ]
         },
         "unlock": {
-          "$ref": "common.schema.json#/definitions/condition",
-          "description": "Quest condition that discovers the stage."
+          "description": "Discovers the stage once it holds (checked every second): one quest condition, or a list that must all hold. No unlock: discovered at once.",
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/definitions/condition"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/definitions/condition"
+              }
+            }
+          ]
         },
         "raid_time": {
           "type": "number",
@@ -80,6 +90,10 @@
             "$ref": "#/definitions/level"
           },
           "description": "One entry per level the player can pick."
+        },
+        "on_discover": {
+          "type": "string",
+          "description": "A quest event of this mod (its id) fired when the stage is discovered."
         }
       },
       "patternProperties": {
@@ -273,6 +287,11 @@
         "no_capture": {
           "type": "boolean",
           "description": "A win captures nobody (loot and progress only)."
+        },
+        "xp": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Wins at this level (while it is the highest open one) to open the next; default: vanilla's (level x 0.4 + 1) x 9."
         }
       },
       "patternProperties": {

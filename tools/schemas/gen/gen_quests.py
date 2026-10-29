@@ -26,7 +26,7 @@ N = {"type": "number"}
 S = {"type": "string"}
 REF = {"$ref": "#/definitions/ref"}
 ANY = {"type": ["number", "string", "boolean"]}
-STAGE = {"type": "integer", "minimum": 0, "maximum": 4}
+STAGE = {"description": "A raid stage: 0-4, \"vanilla.VILLAGE\" / MOUNTAIN / FOREST / CASTLE / TOWER, a mod stage \"folder.ID\", or a bare ID of your own mod (raids.json).", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "string", "minLength": 1}]}
 
 common = json.load(open('common.schema.json', encoding='utf-8'))
 d = common['definitions']

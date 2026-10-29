@@ -9,18 +9,18 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | File | What it holds | Functions | Lines |
 |---|---|---|---|
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 43 | 1568 |
-| `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 57 | 3921 |
+| `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 57 | 3924 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 30 | 1006 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 103 | 4705 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 104 | 4729 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 298 |
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 52 | 2582 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 26 | 601 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2341 |
-| `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 15 | 975 |
-| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 20 | 992 |
+| `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 15 | 976 |
+| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 24 | 1102 |
 | `s_gnx_sound.gml` | sounds.json, voices, sfx, ambience | 11 | 573 |
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 7 | 2357 |
-| `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 21 | 1752 |
+| `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 21 | 1770 |
 | `s_gnx_travel.gml` | multi-map travel: maps, selector, carry, troops | 61 | 2301 |
 | `s_gnx_util.gml` | logging and small shared helpers | 26 | 581 |
 | `s_initials.gml` | the game's start-up: vanilla `scr_create_initials` plus GNX's boot steps (registries, mod loading, tests) | 1 | 3460 |
@@ -344,6 +344,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_sure_yes` | `s_gnx_harness.gml` |
 | `gnx_scn_tamper_item` | `s_gnx_harness.gml` |
 | `gnx_scn_trace_tick` | `s_gnx_harness.gml` |
+| `gnx_scn_trade_seen` | `s_gnx_harness.gml` |
 | `gnx_scrollbar_blocks_click` | `s_gnx_util.gml` |
 | `gnx_sel_button` | `s_gnx_travel.gml` |
 | `gnx_sel_section` | `s_gnx_travel.gml` |
@@ -362,6 +363,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_sprref_with_origin` | `s_gnx_draw.gml` |
 | `gnx_stage_cart_pos` | `s_gnx_raid.gml` |
 | `gnx_stage_def` | `s_gnx_raid.gml` |
+| `gnx_stage_discover` | `s_gnx_raid.gml` |
 | `gnx_stage_encounter_data` | `s_gnx_raid.gml` |
 | `gnx_stage_field` | `s_gnx_raid.gml` |
 | `gnx_stage_index` | `s_gnx_raid.gml` |
@@ -370,6 +372,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_stage_parse_level` | `s_gnx_raid.gml` |
 | `gnx_stage_pool_add` | `s_gnx_raid.gml` |
 | `gnx_stage_range` | `s_gnx_raid.gml` |
+| `gnx_stage_ref` | `s_gnx_raid.gml` |
+| `gnx_stage_xp_need` | `s_gnx_raid.gml` |
 | `gnx_struct_copy` | `s_gnx_util.gml` |
 | `gnx_time_log` | `s_gnx_util.gml` |
 | `gnx_tool_resolve_cell` | `s_gnx_tools.gml` |
@@ -413,6 +417,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `scr_gnx_check_map_unlocks` | `s_gnx_travel.gml` |
 | `scr_gnx_check_post_raid_escape` | `s_gnx_raid.gml` |
 | `scr_gnx_check_quest_completion` | `s_gnx_quests.gml` |
+| `scr_gnx_check_stage_unlocks` | `s_gnx_raid.gml` |
 | `scr_gnx_check_triggers` | `s_gnx_quests.gml` |
 | `scr_gnx_check_voice` | `s_gnx_sound.gml` |
 | `scr_gnx_cleanup_sprites` | `s_gnx_mods.gml` |
