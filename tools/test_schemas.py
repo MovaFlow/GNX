@@ -113,6 +113,7 @@ TYPOS = [
     ("sounds", "tools/scenarios/mods/harness_music/sounds.json", ["music"], "tracks"),
     ("props", "tools/scenarios/mods/harness_props/props.json", ["props", 0], "position"),
     ("items", "tools/scenarios/mods/harness_items/items.json", ["loot", 0], "stage"),
+    ("raids", "tools/scenarios/mods/harness_raid_a/raids.json", ["stages", 0], "raid_time"),
     ("quests", "tools/scenarios/mods/harness_quests/quests.json", ["events", "q_gold"], "completion_hook"),
     ("tools", "GNX/example_mod/tools.json", ["categories", 0], "label"),
     ("classes", "GNX/example_mod/classes.json", [0], "has_hair"),
@@ -192,6 +193,8 @@ SYNC = [
 # (topic, var, schema, pointer, function): when the variable name is generic (arg0), only that function's code is read
 SYNC += [
     ("s_gnx_tools", "_data", "tools", [], "scr_gnx_load_tools"),
+    ("s_gnx_raid", "_json", "raids", [], "scr_gnx_load_raids"),
+    ("s_gnx_raid", "_s", "raids", ["definitions", "stage"], "scr_gnx_load_raids"),
     ("s_gnx_tools", "_kb", "tools", ["definitions", "keybind"], "scr_gnx_load_tools"),
     ("s_gnx_tools", "arg0", "tools", ["definitions", "button"], "scr_gnx_parse_tool_button"),
     ("s_gnx_tools", "arg0", "tools", ["definitions", "category"], "scr_gnx_parse_tool_category"),

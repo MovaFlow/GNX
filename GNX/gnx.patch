@@ -10928,7 +10928,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4579 @@
+@@ -0,0 +1,4606 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -12527,6 +12527,33 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        _mod += array_contains(global.gnx_music, _pool[_i]);
 +
 +    return "vanilla " + string(array_length(_pool) - _mod) + " mod " + string(_mod);
++}
++
++
++// for {"assert": "fn"}: the selected level of mod stage arg0 ("folder.ID"), -1 when it is not on this map
++function gnx_scn_stage_sel(arg0)
++{
++    var _i = gnx_stage_index(arg0);
++    return (_i == -1) ? -1 : global.val.stage_lvl_sel[_i];
++}
++
++
++// {"call": "gnx_scn_set_stage_sel", "args": ["folder.ID", n]}: a marker that must follow the stage by name
++function gnx_scn_set_stage_sel(arg0, arg1)
++{
++    var _i = gnx_stage_index(arg0);
++
++    if (_i != -1)
++        global.val.stage_lvl_sel[_i] = arg1;
++}
++
++
++// for {"assert": "fn"}: "<stage_info> <stage_lvl_sel> <stage_item> <base_raid_time> <reward> <keys> <orphans>"
++// lengths, which must agree (5 + this map's mod stages)
++function gnx_scn_stage_lens()
++{
++    var _v = global.val;
++    return string(array_length(_v.stage_info)) + " " + string(array_length(_v.stage_lvl_sel)) + " " + string(array_length(_v.stage_item)) + " " + string(array_length(global.base_raid_time)) + " " + string(array_length(global.reward)) + " " + string(array_length(_v.gnx_stage_keys)) + " " + string(array_length(variable_struct_get_names(_v.gnx_stage_orphans)));
 +}
 +
 +
@@ -15809,7 +15836,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2577 @@
+@@ -0,0 +1,2581 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18130,7 +18157,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    }
 +    if (variable_struct_exists(_manifest, "quests"))
 +        scr_gnx_load_quests(arg0, _manifest.quests);
-+    
++
++    // GNX-STAGE: after quests, so stage unlock conditions resolve names like quest conditions do
++    if (variable_struct_exists(_manifest, "raids"))
++        scr_gnx_load_raids(arg0, _manifest.raids);
++
 +    _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " quests = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
 +    gnx_log_close(_tmp_lg);
@@ -22316,7 +22347,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,424 @@
+@@ -0,0 +1,678 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -22723,6 +22754,260 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +    gnx_pool_add(4, 1, 7, 12, 3, 4);
 +    var _log = gnx_log_open();
 +    gnx_log_write(_log, "[GNX] encounter pools initialized\n");
++    gnx_log_close(_log);
++}
++
++
++// GNX-STAGE: mod raid stages (raids.json). Vanilla stages are 0-4; the stages of the mods loaded on this map
++// follow from 5, in load order (global.gnx_stage_registry[i] = stage 5 + i). The stage arrays in global.val
++// (stage_info, stage_lvl_sel, stage_item) are saved by position, so global.val.gnx_stage_keys names what sits
++// at 5, 6, ...; scr_gnx_stage_apply re-maps them by name after every boot and load, and keeps the stages of
++// mods that are gone in global.val.gnx_stage_orphans until they come back.
++function scr_gnx_init_stages()
++{
++    global.gnx_stage_registry = [];
++}
++
++
++// raids.json of mod arg0 (file arg1): { "stages": [ { "id", "label", "pos": [x, y], "icon", "unlock",
++// "raid_time", "levels": [ {...}, ... ] } ] }. Level contents are read by the encounter code (P2).
++function scr_gnx_load_raids(arg0, arg1)
++{
++    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
++
++    if (!file_exists(_path))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': raids file '" + arg1 + "' not found");
++        exit;
++    }
++
++    var _buf = buffer_load(_path);
++    var _raw = buffer_read(_buf, buffer_text);
++    buffer_delete(_buf);
++    var _json;
++
++    try
++    {
++        _json = json_parse(_raw);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': " + arg1 + " invalid (" + string(_e.message) + ")");
++        exit;
++    }
++
++    var _stages = (is_struct(_json) && variable_struct_exists(_json, "stages")) ? _json.stages : -1;
++
++    if (!is_array(_stages))
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': " + arg1 + " needs \"stages\": [ ... ]");
++        exit;
++    }
++
++    var _log = gnx_log_open();
++
++    for (var _i = 0; _i < array_length(_stages); _i++)
++    {
++        var _s = _stages[_i];
++        var _who = "Mod '" + arg0 + "': stage " + string(_i);
++
++        if (!is_struct(_s) || !variable_struct_exists(_s, "id") || !is_string(_s.id) || _s.id == "")
++        {
++            gnx_report_mod_error(_who + " needs a text \"id\"; skipped");
++            continue;
++        }
++
++        var _key = arg0 + "." + _s.id;
++        _who = "Mod '" + arg0 + "': stage '" + _s.id + "'";
++
++        if (gnx_stage_index(_key) != -1)
++        {
++            gnx_report_mod_error(_who + " is declared twice; the second one is skipped");
++            continue;
++        }
++
++        if (!variable_struct_exists(_s, "levels") || !is_array(_s.levels) || array_length(_s.levels) == 0)
++        {
++            gnx_report_mod_error(_who + " needs \"levels\": a list with at least one level; skipped");
++            continue;
++        }
++
++        var _pos = (variable_struct_exists(_s, "pos") && is_array(_s.pos) && array_length(_s.pos) == 2) ? _s.pos : -1;
++
++        if (_pos == -1)
++        {
++            gnx_report_mod_error(_who + " needs \"pos\": [x, y] on the raid map; skipped");
++            continue;
++        }
++
++        var _def =
++        {
++            key: _key,
++            id: _s.id,
++            mod_name: arg0,
++            label: (variable_struct_exists(_s, "label") && is_string(_s.label)) ? _s.label : _s.id,
++            x: gnx_json_num(_pos[0], 0),
++            y: gnx_json_num(_pos[1], 0),
++            icon: (variable_struct_exists(_s, "icon") && is_string(_s.icon)) ? _s.icon : "",
++            raid_time: max(60, floor(gnx_json_num(variable_struct_exists(_s, "raid_time") ? _s.raid_time : 3600, 3600))),
++            unlock: (variable_struct_exists(_s, "unlock") && is_struct(_s.unlock)) ? _s.unlock : undefined,
++            levels: _s.levels
++        };
++
++        if (_def.unlock != undefined)
++            scr_gnx_resolve_condition_refs(_def.unlock, arg0);
++
++        array_push(global.gnx_stage_registry, _def);
++        gnx_log_write(_log, "[GNX-STAGE] " + _key + " registered: " + string(array_length(_def.levels)) + " level(s) at (" + string(_def.x) + "," + string(_def.y) + ")\n");
++    }
++
++    gnx_log_close(_log);
++}
++
++
++// the stage number of mod stage arg0 ("folder.ID") on this map, or -1
++function gnx_stage_index(arg0)
++{
++    for (var _i = 0; _i < array_length(global.gnx_stage_registry); _i++)
++    {
++        if (global.gnx_stage_registry[_i].key == arg0)
++            return 5 + _i;
++    }
++
++    return -1;
++}
++
++
++// the definition of stage number arg0 when it is a mod stage, else undefined (vanilla 0-4, nothing selected)
++function gnx_stage_def(arg0)
++{
++    if (!is_real(arg0) || arg0 < 5 || arg0 - 5 >= array_length(global.gnx_stage_registry))
++        return undefined;
++
++    return global.gnx_stage_registry[arg0 - 5];
++}
++
++
++// the highest selectable level of stage arg0: 2 for vanilla (3 levels), the mod stage's level count - 1
++function gnx_stage_max_lvl(arg0)
++{
++    var _def = gnx_stage_def(arg0);
++    return (_def == undefined) ? 2 : array_length(_def.levels) - 1;
++}
++
++
++// Puts this map's mod stages at 5, 6, ... of the stage arrays, taking each stage's state by name from where the
++// save had it (global.val.gnx_stage_keys) or from the orphans; a stage new to this save starts undiscovered. Saved
++// stages whose mod is not loaded become orphans. Also re-maps the selected raid stage. Run after every boot (fresh
++// global.val) and after every load / travel arrival (global.val from the save or the map snapshot).
++function scr_gnx_stage_apply()
++{
++    var _v = global.val;
++    var _old_keys = (variable_struct_exists(_v, "gnx_stage_keys") && is_array(_v.gnx_stage_keys)) ? _v.gnx_stage_keys : [];
++    var _orph = (variable_struct_exists(_v, "gnx_stage_orphans") && is_struct(_v.gnx_stage_orphans)) ? _v.gnx_stage_orphans : {};
++    var _old = {};
++
++    for (var _i = 0; _i < array_length(_old_keys); _i++)
++    {
++        var _at = 5 + _i;
++        variable_struct_set(_old, _old_keys[_i],
++        {
++            info: (_at < array_length(_v.stage_info)) ? _v.stage_info[_at] : -1,
++            sel: (_at < array_length(_v.stage_lvl_sel)) ? _v.stage_lvl_sel[_at] : 0,
++            item: (_at < array_length(_v.stage_item)) ? _v.stage_item[_at] : []
++        });
++    }
++
++    array_resize(_v.stage_info, 5);
++    array_resize(_v.stage_lvl_sel, 5);
++    array_resize(_v.stage_item, 5);
++    array_resize(global.base_raid_time, 5);
++    array_resize(global.reward, 5);
++    var _keys = [];
++    var _log = gnx_log_open();
++
++    for (var _i = 0; _i < array_length(global.gnx_stage_registry); _i++)
++    {
++        var _def = global.gnx_stage_registry[_i];
++        var _st = variable_struct_get(_old, _def.key);
++        var _from = "saved";
++
++        if (_st != undefined)
++        {
++            variable_struct_remove(_old, _def.key);
++        }
++        else
++        {
++            _st = variable_struct_get(_orph, _def.key);
++            _from = "orphan";
++
++            if (_st != undefined)
++            {
++                variable_struct_remove(_orph, _def.key);
++            }
++            else
++            {
++                _st = { info: -1, sel: 0, item: [] };
++                _from = "new";
++            }
++        }
++
++        var _n = array_length(_def.levels);
++        var _item = is_array(_st.item) ? _st.item : [];
++
++        // one loot list per level (a mod update may have added levels)
++        while (array_length(_item) < _n)
++            array_push(_item, []);
++
++        var _rw = [];
++
++        repeat (_n)
++            array_push(_rw, []);
++
++        array_push(_v.stage_info, _st.info);
++        array_push(_v.stage_lvl_sel, clamp(gnx_json_num(_st.sel, 0), 0, _n - 1));
++        array_push(_v.stage_item, _item);
++        array_push(global.base_raid_time, _def.raid_time);
++        array_push(global.reward, _rw);  // gold / food per level: filled from the levels with the encounters (P2)
++        array_push(_keys, _def.key);
++
++        if (_from != "new")
++            gnx_log_write(_log, "[GNX-STAGE] " + _def.key + " -> stage " + string(5 + _i) + " (" + _from + ")\n");
++    }
++
++    // saved stages of mods that are not loaded here wait in the save for their mod
++    var _gone = variable_struct_get_names(_old);
++
++    for (var _i = 0; _i < array_length(_gone); _i++)
++    {
++        variable_struct_set(_orph, _gone[_i], variable_struct_get(_old, _gone[_i]));
++        gnx_log_write(_log, "[GNX-STAGE] " + _gone[_i] + " kept aside (its mod is not loaded)\n");
++    }
++
++    // the raid screen's selected stage is a position too
++    if (instance_exists(obj_np) && variable_instance_exists(obj_np, "obj_raid") && instance_exists(obj_np.obj_raid))
++    {
++        var _rd = obj_np.obj_raid.raid_data;
++
++        if (is_struct(_rd) && _rd.stage >= 5)
++        {
++            var _was = (_rd.stage - 5 < array_length(_old_keys)) ? _old_keys[_rd.stage - 5] : "";
++            var _now = gnx_stage_index(_was);
++
++            if (_now == -1 && _rd.raid_state != UnknownEnum.Value_0)
++                gnx_log_write(_log, "[GNX-STAGE] WARN raid out to " + _was + ", which is not loaded: the raid is called off\n");
++
++            // ponytail: the troops of a raid called off this way are lost; refund them once mod stages can be
++            // raided (P4), until then no raid can be out to a mod stage
++            if (_now == -1)
++                _rd.raid_state = UnknownEnum.Value_0;
++
++            _rd.stage = _now;
++        }
++    }
++
++    _v.gnx_stage_keys = _keys;
++    _v.gnx_stage_orphans = _orph;
 +    gnx_log_close(_log);
 +}
 +
@@ -30321,7 +30606,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +}
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-28 14:24:20.301718100 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-28 18:35:35.888864100 +0100
 @@ -1,8 +1,18 @@
 +// GNX: this file holds the game's start-up only (scr_create_initials: vanilla plus GNX's boot steps).
 +// GNX's own functions live in one file per topic: s_gnx_content, s_gnx_cells, s_gnx_props, s_gnx_mods,
@@ -30431,7 +30716,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +191,3254 @@
+@@ -167,12 +191,3256 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -33627,7 +33912,9 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    global.gnx_staged_load = false;
 +    global.gnx_staged_manifests = {};
 +    scr_gnx_init_encounter_pools();
++    scr_gnx_init_stages();
 +    scr_gnx_load_mods();
++    scr_gnx_stage_apply();  // GNX-STAGE: this map's mod stages after the vanilla 5 (a load re-maps them again)
 +    var _gnx_ak = ds_map_find_first(global.cell_registry);
 +    
 +    while (_gnx_ak != undefined)
@@ -33688,7 +33975,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +3449,9 @@
+@@ -183,42 +3451,9 @@
      Value_3,
      Value_4,
      Value_5,
@@ -42150,7 +42437,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
 -}
 diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_load.gml
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-26 11:01:43.147712000 +0100
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-28 18:35:36.273556600 +0100
 @@ -48,6 +48,14 @@
                          _data.slot_data.prop[iii].yscale = image_yscale;
                          _data.slot_data.prop[iii].iindex = image_index;
@@ -42761,7 +43048,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1013,392 @@
+@@ -654,8 +1013,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -42771,7 +43058,10 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +        gnx_time_log("sanitize post-pass", _gnx_pt0);
 +        _gnx_pt0 = get_timer();
          scr_demo_to_full();
-+        
++        // GNX-STAGE: the save's mod stages back to this map's numbering (after the demo upgrade, which resets
++        // stage_item to the vanilla 5)
++        scr_gnx_stage_apply();
++
 +        if (variable_struct_exists(global.val, "gnx_mod_data"))
 +        {
 +            global.gnx_mod_state = {};
@@ -43154,7 +43444,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1406,7 @@
+@@ -663,6 +1409,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -43162,7 +43452,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1426,25 @@
+@@ -682,33 +1429,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -43207,7 +43497,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1469,119 @@
+@@ -733,3 +1472,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

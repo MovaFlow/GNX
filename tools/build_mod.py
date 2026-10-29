@@ -216,7 +216,7 @@ def main():
     print("--- Pack verification ---")
     leftovers = []
     json_files = {}
-    for role in ("classes", "cells", "quests", "tools", "sounds", "props", "items"):
+    for role in ("classes", "cells", "quests", "tools", "sounds", "props", "items", "raids"):
         rel = manifest.get(role)
         if not rel:
             continue

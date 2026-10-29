@@ -1,0 +1,100 @@
+{
+  "about": "A raid stage owned by a map mod (\"map\": \"harness_map\") exists only on that map. Its state is saved on the map, comes back when the save is reloaded there (map mods load deferred, after the save is read), and waits in the map snapshot while the player is in the village.",
+  "mods": [
+    "tools/scenarios/mods/harness_map",
+    "tools/scenarios/mods/harness_raid_map"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_index",
+      "args": [
+        "harness_raid_map.TIDE"
+      ],
+      "is": -1,
+      "why": "not in the village"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_index",
+      "args": [
+        "harness_raid_map.TIDE"
+      ],
+      "is": 5,
+      "why": "on its map"
+    },
+    {
+      "call": "gnx_scn_set_stage_sel",
+      "args": [
+        "harness_raid_map.TIDE",
+        1
+      ]
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_sel",
+      "args": [
+        "harness_raid_map.TIDE"
+      ],
+      "is": 1,
+      "why": "reloaded on the map with its state"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_lens",
+      "args": [],
+      "is": "6 6 6 6 6 1 0",
+      "why": "arrays agree after the deferred load"
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_lens",
+      "args": [],
+      "is": "5 5 5 5 5 0 0",
+      "why": "the village has only vanilla stages"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_sel",
+      "args": [
+        "harness_raid_map.TIDE"
+      ],
+      "is": 1,
+      "why": "the map's state came back from its snapshot"
+    }
+  ]
+}

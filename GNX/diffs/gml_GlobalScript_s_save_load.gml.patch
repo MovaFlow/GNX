@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-26 11:01:43.147712000 +0100
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-28 18:35:36.273556600 +0100
 @@ -48,6 +48,14 @@
                          _data.slot_data.prop[iii].yscale = image_yscale;
                          _data.slot_data.prop[iii].iindex = image_index;
@@ -610,7 +610,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1013,392 @@
+@@ -654,8 +1013,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -620,7 +620,10 @@
 +        gnx_time_log("sanitize post-pass", _gnx_pt0);
 +        _gnx_pt0 = get_timer();
          scr_demo_to_full();
-+        
++        // GNX-STAGE: the save's mod stages back to this map's numbering (after the demo upgrade, which resets
++        // stage_item to the vanilla 5)
++        scr_gnx_stage_apply();
++
 +        if (variable_struct_exists(global.val, "gnx_mod_data"))
 +        {
 +            global.gnx_mod_state = {};
@@ -1003,7 +1006,7 @@
      }
      
      return _load;
-@@ -663,6 +1406,7 @@
+@@ -663,6 +1409,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1011,7 +1014,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1426,25 @@
+@@ -682,33 +1429,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1056,7 +1059,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1469,119 @@
+@@ -733,3 +1472,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

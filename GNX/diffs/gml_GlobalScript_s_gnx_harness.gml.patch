@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4579 @@
+@@ -0,0 +1,4606 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1599,6 +1599,33 @@
 +        _mod += array_contains(global.gnx_music, _pool[_i]);
 +
 +    return "vanilla " + string(array_length(_pool) - _mod) + " mod " + string(_mod);
++}
++
++
++// for {"assert": "fn"}: the selected level of mod stage arg0 ("folder.ID"), -1 when it is not on this map
++function gnx_scn_stage_sel(arg0)
++{
++    var _i = gnx_stage_index(arg0);
++    return (_i == -1) ? -1 : global.val.stage_lvl_sel[_i];
++}
++
++
++// {"call": "gnx_scn_set_stage_sel", "args": ["folder.ID", n]}: a marker that must follow the stage by name
++function gnx_scn_set_stage_sel(arg0, arg1)
++{
++    var _i = gnx_stage_index(arg0);
++
++    if (_i != -1)
++        global.val.stage_lvl_sel[_i] = arg1;
++}
++
++
++// for {"assert": "fn"}: "<stage_info> <stage_lvl_sel> <stage_item> <base_raid_time> <reward> <keys> <orphans>"
++// lengths, which must agree (5 + this map's mod stages)
++function gnx_scn_stage_lens()
++{
++    var _v = global.val;
++    return string(array_length(_v.stage_info)) + " " + string(array_length(_v.stage_lvl_sel)) + " " + string(array_length(_v.stage_item)) + " " + string(array_length(global.base_raid_time)) + " " + string(array_length(global.reward)) + " " + string(array_length(_v.gnx_stage_keys)) + " " + string(array_length(variable_struct_get_names(_v.gnx_stage_orphans)));
 +}
 +
 +

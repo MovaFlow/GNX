@@ -24,7 +24,7 @@ from pathlib import Path
 SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
 
 # manifest key -> schema name
-DATA_KEYS = ["classes", "cells", "quests", "tools", "sounds", "props", "items"]
+DATA_KEYS = ["classes", "cells", "quests", "tools", "sounds", "props", "items", "raids"]
 
 
 def load_json(path: Path):

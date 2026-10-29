@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/raids.schema.json",
+  "title": "GNX raids.json",
+  "description": "The mod's own raid stages. In progress: stages are registered and saved with the game, not yet shown on the raid map or playable.",
+  "type": "object",
+  "required": [
+    "stages"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/stage"
+      }
+    }
+  },
+  "patternProperties": {
+    "^_": {}
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "stage": {
+      "type": "object",
+      "description": "One raid location.",
+      "required": [
+        "id",
+        "pos",
+        "levels"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Name of the stage inside the mod; other mods and saves refer to it as \"<mod folder>.<id>\"."
+        },
+        "label": {
+          "type": "string",
+          "description": "Name shown to the player (default: id)."
+        },
+        "pos": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "[x, y] of the stage button on the raid map."
+        },
+        "icon": {
+          "type": "string",
+          "description": "PNG in sprites/ for the stage button."
+        },
+        "unlock": {
+          "$ref": "common.schema.json#/definitions/condition",
+          "description": "Quest condition that discovers the stage."
+        },
+        "raid_time": {
+          "type": "number",
+          "minimum": 60,
+          "description": "Frames from the nest to the stage (vanilla 2760-5100; default 3600)."
+        },
+        "levels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/level"
+          },
+          "description": "One entry per level the player can pick."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "level": {
+      "type": "object",
+      "description": "One level of a stage. Its keys (units, enemy_ap, boss, gold, food, loot, no_capture, xp) come with the encounter support.",
+      "patternProperties": {
+        "^_": {}
+      }
+    }
+  }
+}
