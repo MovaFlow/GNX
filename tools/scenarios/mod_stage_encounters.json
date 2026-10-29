@@ -1,0 +1,264 @@
+{
+  "about": "Mod raid stage encounters (raids.json levels): level 0's units come only from another mod's raid_spawns naming the stage (loaded before the stage), with the level's enemy_ap base; level 1 has its own pool plus a boss, and no_capture. Win rewards come from each level's reward, the level's loot reaches the stage loot list. Encounters survive a new day's reroll and a save/reload.",
+  "mods": [
+    "tools/scenarios/mods/harness_cells",
+    "tools/scenarios/mods/harness_items",
+    "tools/scenarios/mods/harness_raid_full",
+    "tools/scenarios/mods/harness_raid_spawner"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "call": "gnx_scn_stage_open",
+      "args": [
+        "harness_raid_full.DEN",
+        1
+      ]
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_count",
+      "args": [
+        "harness_raid_full.DEN",
+        0,
+        -1
+      ],
+      "is": 3,
+      "why": "level 0: units.count 3"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_count",
+      "args": [
+        "harness_raid_full.DEN",
+        0,
+        {
+          "class": "harness_raid_spawner.GHOUL"
+        },
+        2
+      ],
+      "is": 3,
+      "why": "all three are the spawner's GHOUL at its min_lvl/max_lvl 2"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_base",
+      "args": [
+        "harness_raid_full.DEN",
+        0
+      ],
+      "is": "13 23",
+      "why": "enemy_ap hp 10 / ap 20, plus the unit count (3)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_count",
+      "args": [
+        "harness_raid_full.DEN",
+        1,
+        -1
+      ],
+      "is": 3,
+      "why": "level 1: 2 units + the boss"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_count",
+      "args": [
+        "harness_raid_full.DEN",
+        1,
+        4,
+        3
+      ],
+      "is": 2,
+      "why": "two Warriors at level 3"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_count",
+      "args": [
+        "harness_raid_full.DEN",
+        1,
+        2,
+        4
+      ],
+      "is": 1,
+      "why": "the boss: class 2 at level 4"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_base",
+      "args": [
+        "harness_raid_full.DEN",
+        1
+      ],
+      "is": "7 8",
+      "why": "enemy_ap 5 / 6 plus 2 units (the boss is not counted, as vanilla)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_reward",
+      "args": [
+        "harness_raid_full.DEN",
+        0
+      ],
+      "is": "111 22",
+      "why": "level 0 win reward"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_reward",
+      "args": [
+        "harness_raid_full.DEN",
+        1
+      ],
+      "is": "300 50",
+      "why": "level 1 win reward"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_no_capture_here",
+      "args": [
+        5,
+        1
+      ],
+      "is": 1,
+      "why": "level 1 captures nobody"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_no_capture_here",
+      "args": [
+        5,
+        0
+      ],
+      "is": 0,
+      "why": "level 0 captures"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_stage_max_lvl",
+      "args": [
+        5
+      ],
+      "is": 1,
+      "why": "two levels"
+    },
+    {
+      "wait": 70
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_loot_count",
+      "args": [
+        5,
+        0,
+        "harness_items.MOON SHARD"
+      ],
+      "is": 1,
+      "why": "level 0 loot synced into the stage's loot list"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_loot_count",
+      "args": [
+        5,
+        1,
+        "harness_items.MOON SHARD"
+      ],
+      "is": 0,
+      "why": "not into level 1"
+    },
+    {
+      "call": "gnx_scn_start_time"
+    },
+    {
+      "call": "gnx_scn_end_day"
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_day",
+      "args": [],
+      "is": 2,
+      "why": "a new day rerolled every discovered stage"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_count",
+      "args": [
+        "harness_raid_full.DEN",
+        0,
+        {
+          "class": "harness_raid_spawner.GHOUL"
+        },
+        2
+      ],
+      "is": 3,
+      "why": "the reroll used the mod stage's own builder"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_count",
+      "args": [
+        "harness_raid_full.DEN",
+        1,
+        2,
+        4
+      ],
+      "is": 1,
+      "why": "boss again after the reroll"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 20
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_enc_count",
+      "args": [
+        "harness_raid_full.DEN",
+        1,
+        4,
+        3
+      ],
+      "is": 2,
+      "why": "the encounter survives save/reload"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_loot_count",
+      "args": [
+        5,
+        0,
+        "harness_items.MOON SHARD"
+      ],
+      "is": 1,
+      "why": "loot is not added twice after reload"
+    },
+    {
+      "wait": 70
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_loot_count",
+      "args": [
+        5,
+        0,
+        "harness_items.MOON SHARD"
+      ],
+      "is": 1,
+      "why": "nor by the next sync"
+    }
+  ]
+}

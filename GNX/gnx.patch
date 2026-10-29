@@ -931,7 +931,7 @@ diff -uN gml_138/gml_GlobalScript_PropertyHolder.gml gml/gml_GlobalScript_Proper
 +}
 diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_button_activate.gml
 --- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-28 09:49:27.048115300 +0100
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-29 10:22:19.452499400 +0100
 @@ -29,6 +29,15 @@
              trigger = false;
              global.click_lock = false;
@@ -1815,6 +1815,15 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
+@@ -1824,7 +2135,7 @@
+                 
+                 case UnknownEnum.Value_30:
+                     var _stage = source_id.button_num;
+-                    var _max = min(2, global.val.stage_info[_stage].max_lvl);
++                    var _max = min(gnx_stage_max_lvl(_stage), global.val.stage_info[_stage].max_lvl);
+                     var _val;
+                     
+                     if (button_num == 0)
 @@ -1853,6 +2164,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
@@ -6002,7 +6011,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3913 @@
+@@ -0,0 +1,3920 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -9181,7 +9190,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            var _rs_e = _rs_arr[_ri++];
 +            var _rs_stage = _rs_e.stage;
 +            var _rs_level = _rs_e.level;
-+            
++
++            // GNX-STAGE: a mod stage ("folder.ID"): its raids.json loads later (phase 3), so the entry waits there
++            if (is_string(_rs_stage))
++            {
++                array_push(global.gnx_stage_spawn_refs, { stage: _rs_stage, level: floor(gnx_json_num(_rs_level, -1)), entry: _rs_e, class_id: _class_id, mod_name: arg1 });
++                continue;
++            }
++
 +            if (_rs_level != 0 || _rs_stage == 4)
 +            {
 +                var _rs_w = variable_struct_exists(_rs_e, "weight") ? _rs_e.weight : 10;
@@ -10928,7 +10944,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4606 @@
+@@ -0,0 +1,4672 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -11042,7 +11058,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    if (ds_list_size(global.front_row) == 0 && ds_list_size(global.back_row) == 0)
 +        return 1;
 +    
-+    var _stage_lvl = min(global.val.stage_lvl_sel[_raid.raid_data.stage], 2);
++    var _stage_lvl = min(global.val.stage_lvl_sel[_raid.raid_data.stage], gnx_stage_max_lvl(_raid.raid_data.stage));
 +    var _data = global.val.stage_info[_raid.raid_data.stage].info[_stage_lvl];
 +    var _md = scr_calculate_mood_rate();
 +    
@@ -12548,6 +12564,72 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
++// {"call": "gnx_scn_stage_open", "args": ["folder.ID", n]}: discovers mod stage arg0 with levels 0..arg1 open and
++// rolls their encounters (what the unlock does in a later phase)
++function gnx_scn_stage_open(arg0, arg1)
++{
++    var _i = gnx_stage_index(arg0);
++
++    if (_i == -1)
++        exit;
++
++    for (var _l = 0; _l <= arg1; _l++)
++        scr_set_stage_data(_i, _l, false);
++
++    global.val.stage_info[_i].max_lvl = arg1;
++}
++
++
++// for {"assert": "fn"}: how many units of class arg2 (any class: -1) the rolled encounter of mod stage arg0, level
++// arg1 holds; with arg3 also of that unit level
++function gnx_scn_enc_count(arg0, arg1, arg2, arg3 = -1)
++{
++    var _i = gnx_stage_index(arg0);
++
++    if (_i == -1 || global.val.stage_info[_i] == -1)
++        return -1;
++
++    var _u = global.val.stage_info[_i].info[arg1].unit_list;
++    var _n = 0;
++
++    for (var _k = 0; _k < array_length(_u); _k++)
++    {
++        if ((arg2 == -1 || _u[_k].class == arg2) && (arg3 == -1 || _u[_k].lvl == arg3))
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: "<hp> <ap>" of the encounter of mod stage arg0, level arg1 without its units' own share
++// (the level's enemy_ap roll + the unit count, as vanilla)
++function gnx_scn_enc_base(arg0, arg1)
++{
++    var _i = gnx_stage_index(arg0);
++    var _e = global.val.stage_info[_i].info[arg1];
++    var _hp = _e.en_ap[0];
++    var _ap = _e.en_ap[1];
++
++    for (var _k = 0; _k < array_length(_e.unit_list); _k++)
++    {
++        var _a = scr_set_unit_ap(_e.unit_list[_k].class, _e.unit_list[_k].lvl);
++        _hp -= _a[0];
++        _ap -= _a[1];
++    }
++
++    return string(_hp) + " " + string(_ap);
++}
++
++
++// for {"assert": "fn"}: "<gold> <food>" the win of mod stage arg0, level arg1 pays (global.reward)
++function gnx_scn_stage_reward(arg0, arg1)
++{
++    var _r = global.reward[gnx_stage_index(arg0)][arg1];
++    return string(_r[0].num) + " " + string(_r[1].num);
++}
++
++
 +// for {"assert": "fn"}: "<stage_info> <stage_lvl_sel> <stage_item> <base_raid_time> <reward> <keys> <orphans>"
 +// lengths, which must agree (5 + this map's mod stages)
 +function gnx_scn_stage_lens()
@@ -13336,7 +13418,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +function gnx_scn_encounter_unit(arg0, arg1, arg2)
 +{
 +    var _si = global.val.stage_info[arg0];
-+    var _lv = min(global.val.stage_lvl_sel[arg0], 2);
++    var _lv = min(global.val.stage_lvl_sel[arg0], gnx_stage_max_lvl(arg0));
 +
 +    if (_si == -1 || !is_array(_si.info[_lv].unit_list) || array_length(_si.info[_lv].unit_list) == 0)
 +        return 0;
@@ -15538,7 +15620,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_items.gml
 --- gml_138/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,294 @@
+@@ -0,0 +1,297 @@
 +// GNX: mod items (items.json): registry, raid loot, inventory counts for quests
 +// (the functions are global, callable from any script)
 +
@@ -15751,7 +15833,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 +            continue;
 +        }
 +        
-+        var _stage = floor(gnx_json_num(_l.stage, -1));
++        // GNX-STAGE: a mod stage stays a "folder.ID" key, numbered per map by gnx_loot_sync
++        var _stage = is_string(_l.stage) && string_pos(".", _l.stage) > 0 ? _l.stage : floor(gnx_json_num(_l.stage, -1));
 +        var _level = floor(gnx_json_num(_l.level, -1));
 +        var _entry = undefined;
 +        var _what = "";
@@ -15815,12 +15898,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 +        if (variable_struct_exists(global.val.gnx_loot_given, _l.key))
 +            continue;
 +
-+        if (_l.stage < 0 || _l.stage >= array_length(global.val.stage_item) || _l.level < 0 || _l.level >= array_length(global.val.stage_item[_l.stage]))
++        var _s = is_string(_l.stage) ? gnx_stage_index(_l.stage) : _l.stage;
++
++        if (_s < 0 || _s >= array_length(global.val.stage_item) || _l.level < 0 || _l.level >= array_length(global.val.stage_item[_s]))
 +            continue;
 +
-+        var _list = global.val.stage_item[_l.stage][_l.level];
++        var _list = global.val.stage_item[_s][_l.level];
 +        array_push(_list, [_l.entry[0], _l.entry[1], _l.entry[2]]);
-+        global.val.stage_item[_l.stage][_l.level] = _list;
++        global.val.stage_item[_s][_l.level] = _list;
 +        variable_struct_set(global.val.gnx_loot_given, _l.key, true);
 +        var _log = gnx_log_open();
 +        gnx_log_write(_log, "[GNX] loot " + _l.key + " added to stage " + string(_l.stage) + " level " + string(_l.level) + "\n");
@@ -22347,7 +22432,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,678 @@
+@@ -0,0 +1,910 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -22405,6 +22490,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +// GNX-NOCAP: the raid encounter (stage arg0, encounter level arg1) of the map the player is on captures nobody
 +function gnx_no_capture_here(arg0, arg1)
 +{
++    // GNX-STAGE: a mod stage's level says it itself
++    var _sdef = gnx_stage_def(arg0);
++
++    if (_sdef != undefined)
++        return _sdef.levels[clamp(arg1, 0, array_length(_sdef.levels) - 1)].no_capture;
++
 +    if (!variable_global_exists("gnx_travel_locations") || !is_array(global.gnx_travel_locations))
 +        return false;
 +
@@ -22766,11 +22857,144 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +function scr_gnx_init_stages()
 +{
 +    global.gnx_stage_registry = [];
++    global.gnx_stage_spawn_refs = [];  // raid_spawns naming a mod stage, waiting for that stage to load
++}
++
++
++// a [min, max] range from a number or a two-number list (mod JSON), else arg1 (the default range)
++function gnx_stage_range(arg0, arg1)
++{
++    if (is_array(arg0) && array_length(arg0) == 2)
++    {
++        var _a = gnx_json_num(arg0[0], arg1[0]);
++        var _b = gnx_json_num(arg0[1], arg1[1]);
++        return [min(_a, _b), max(_a, _b)];
++    }
++
++    if (is_numeric(arg0) || is_string(arg0))
++    {
++        var _n = gnx_json_num(arg0, arg1[0]);
++        return [_n, _n];
++    }
++
++    return arg1;
++}
++
++
++// field arg1 of struct arg0, or arg2 when missing
++function gnx_stage_field(arg0, arg1, arg2)
++{
++    return (is_struct(arg0) && variable_struct_exists(arg0, arg1)) ? variable_struct_get(arg0, arg1) : arg2;
++}
++
++
++// adds raid_spawns-style entry arg2 (class already resolved to arg3) of mod arg4 to the pool of stage arg0, level arg1
++function gnx_stage_pool_add(arg0, arg1, arg2, arg3, arg4)
++{
++    var _cond = gnx_stage_field(arg2, "condition", undefined);
++
++    if (_cond != undefined)
++        scr_gnx_resolve_condition_refs(_cond, arg4);
++
++    var _apo = gnx_stage_field(arg2, "ap_override", undefined);
++
++    if (!is_array(_apo) || array_length(_apo) != 2)
++        _apo = undefined;
++
++    gnx_pool_add(arg0, arg1, arg3, gnx_json_num(gnx_stage_field(arg2, "weight", 10), 10), clamp(floor(gnx_json_num(gnx_stage_field(arg2, "min_lvl", 0), 0)), 0, 7), clamp(floor(gnx_json_num(gnx_stage_field(arg2, "max_lvl", 1), 1)), 0, 7), _cond, arg4, gnx_stage_field(arg2, "max_per_encounter", undefined), _apo);
++}
++
++
++// level arg0 (raids.json) of mod arg1's stage number arg2 (key arg4, "folder.ID"), level number arg3, normalised for
++// the encounter code; its enemy pool goes into the encounter pools (key stage * 100 + level), its loot to the mod loot
++function gnx_stage_parse_level(arg0, arg1, arg2, arg3, arg4)
++{
++    var _who = "Stage '" + arg4 + "' level " + string(arg3);
++    var _l = is_struct(arg0) ? arg0 : {};
++    var _units = gnx_stage_field(_l, "units", {});
++    var _count = gnx_stage_range(gnx_stage_field(_units, "count", [1, 2]), [1, 2]);
++    var _out =
++    {
++        count: [clamp(floor(_count[0]), 0, 5), clamp(floor(_count[1]), 0, 5)],
++        hp: gnx_stage_range(gnx_stage_field(gnx_stage_field(_l, "enemy_ap", {}), "hp", 0), [0, 0]),
++        ap: gnx_stage_range(gnx_stage_field(gnx_stage_field(_l, "enemy_ap", {}), "ap", 0), [0, 0]),
++        drop_gold: gnx_stage_range(gnx_stage_field(gnx_stage_field(_l, "drops", {}), "gold", 0), [0, 0]),
++        drop_food: gnx_stage_range(gnx_stage_field(gnx_stage_field(_l, "drops", {}), "food", 0), [0, 0]),
++        reward_gold: max(0, floor(gnx_json_num(gnx_stage_field(gnx_stage_field(_l, "reward", {}), "gold", 0), 0))),
++        reward_food: max(0, floor(gnx_json_num(gnx_stage_field(gnx_stage_field(_l, "reward", {}), "food", 0), 0))),
++        no_capture: gnx_json_num(gnx_stage_field(_l, "no_capture", false), 0) != 0,
++        boss: undefined
++    };
++    var _pool = gnx_stage_field(_units, "pool", []);
++
++    if (!is_array(_pool))
++    {
++        gnx_report_mod_error(_who + ": units.pool must be a list; ignored");
++        _pool = [];
++    }
++
++    for (var _p = 0; _p < array_length(_pool); _p++)
++    {
++        var _cls = gnx_tool_resolve_class(gnx_stage_field(_pool[_p], "class", -1), arg1);
++
++        if (!is_real(_cls) || _cls < 0)
++        {
++            gnx_report_mod_error(_who + ": units.pool[" + string(_p) + "] names no loaded class; skipped");
++            continue;
++        }
++
++        gnx_stage_pool_add(arg2, arg3, _pool[_p], _cls, arg1);
++    }
++
++    var _b = gnx_stage_field(_l, "boss", undefined);
++
++    if (is_struct(_b))
++    {
++        var _bc = gnx_tool_resolve_class(gnx_stage_field(_b, "class", -1), arg1);
++
++        if (!is_real(_bc) || _bc < 0)
++        {
++            gnx_report_mod_error(_who + ": boss names no loaded class; ignored");
++        }
++        else
++        {
++            var _bcond = gnx_stage_field(_b, "condition", undefined);
++
++            if (_bcond != undefined)
++                scr_gnx_resolve_condition_refs(_bcond, arg1);
++
++            _out.boss =
++            {
++                class_id: _bc,
++                lvl: clamp(floor(gnx_json_num(gnx_stage_field(_b, "lvl", 5), 5)), 0, 7),
++                chance: clamp(gnx_json_num(gnx_stage_field(_b, "chance", 100), 100), 0, 100),
++                condition: _bcond
++            };
++        }
++    }
++
++    var _loot = gnx_stage_field(_l, "loot", []);
++
++    for (var _k = 0; is_array(_loot) && _k < array_length(_loot); _k++)
++    {
++        // the same entries as items.json loot, minus stage and level (resolved with them by gnx_loot_resolve)
++        var _e = _loot[_k];
++
++        if (is_struct(_e))
++        {
++            _e.stage = arg4;
++            _e.level = arg3;
++        }
++
++        array_push(global.gnx_loot_raw, { mod_name: arg1, index: "raids " + arg4 + " " + string(arg3) + " " + string(_k), entry: _e });
++    }
++
++    return _out;
 +}
 +
 +
 +// raids.json of mod arg0 (file arg1): { "stages": [ { "id", "label", "pos": [x, y], "icon", "unlock",
-+// "raid_time", "levels": [ {...}, ... ] } ] }. Level contents are read by the encounter code (P2).
++// "raid_time", "levels": [ { "units", "enemy_ap", "boss", "drops", "reward", "loot", "no_capture" }, ... ] } ] }
 +function scr_gnx_load_raids(arg0, arg1)
 +{
 +    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
@@ -22851,11 +23075,32 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +            icon: (variable_struct_exists(_s, "icon") && is_string(_s.icon)) ? _s.icon : "",
 +            raid_time: max(60, floor(gnx_json_num(variable_struct_exists(_s, "raid_time") ? _s.raid_time : 3600, 3600))),
 +            unlock: (variable_struct_exists(_s, "unlock") && is_struct(_s.unlock)) ? _s.unlock : undefined,
-+            levels: _s.levels
++            levels: []
 +        };
 +
 +        if (_def.unlock != undefined)
 +            scr_gnx_resolve_condition_refs(_def.unlock, arg0);
++
++        var _idx = 5 + array_length(global.gnx_stage_registry);
++
++        for (var _lv = 0; _lv < array_length(_s.levels); _lv++)
++            array_push(_def.levels, gnx_stage_parse_level(_s.levels[_lv], arg0, _idx, _lv, _key));
++
++        // raid_spawns of mods loaded before that name this stage
++        for (var _r = array_length(global.gnx_stage_spawn_refs) - 1; _r >= 0; _r--)
++        {
++            var _ref = global.gnx_stage_spawn_refs[_r];
++
++            if (_ref.stage == _key)
++            {
++                if (_ref.level >= 0 && _ref.level < array_length(_def.levels))
++                    gnx_stage_pool_add(_idx, _ref.level, _ref.entry, _ref.class_id, _ref.mod_name);
++                else
++                    gnx_report_mod_error("Mod '" + _ref.mod_name + "': raid_spawns level " + string(_ref.level) + " is not a level of stage '" + _key + "'; skipped");
++
++                array_delete(global.gnx_stage_spawn_refs, _r, 1);
++            }
++        }
 +
 +        array_push(global.gnx_stage_registry, _def);
 +        gnx_log_write(_log, "[GNX-STAGE] " + _key + " registered: " + string(array_length(_def.levels)) + " level(s) at (" + string(_def.x) + "," + string(_def.y) + ")\n");
@@ -22893,6 +23138,77 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +{
 +    var _def = gnx_stage_def(arg0);
 +    return (_def == undefined) ? 2 : array_length(_def.levels) - 1;
++}
++
++
++// scr_stage_encounter_data for mod stage arg0 (definition arg1), level arg2: the same {unit_list, en_ap, item}
++// the vanilla stages build, from the level's units (encounter pool stage * 100 + level), enemy_ap, boss and drops
++function gnx_stage_encounter_data(arg0, arg1, arg2)
++{
++    var _lvl = clamp(arg2, 0, array_length(arg1.levels) - 1);
++    var _L = arg1.levels[_lvl];
++    var _unit_list = [];
++    var _en_ap = [0, 0];
++    var _picked = [];
++    var _boss = _L.boss != undefined && irandom_range(1, 100) <= _L.boss.chance && (_L.boss.condition == undefined || scr_gnx_eval_condition(_L.boss.condition, arg1.mod_name));
++    // an encounter holds 5 units at most, the boss included
++    var _num = min(irandom_range(_L.count[0], _L.count[1]), _boss ? 4 : 5);
++    _en_ap[0] += irandom_range(_L.hp[0], _L.hp[1]) + _num;
++    _en_ap[1] += irandom_range(_L.ap[0], _L.ap[1]) + _num;
++
++    for (var i = 0; i < _num; i++)
++    {
++        var _pick = gnx_pool_pick(arg0, _lvl, _picked);
++        var _ap;
++
++        if (variable_struct_exists(_pick, "ap_override"))
++            _ap = _pick.ap_override;
++        else
++            _ap = scr_set_unit_ap(_pick.class_id, _pick.lvl);
++
++        _en_ap[0] += _ap[0];
++        _en_ap[1] += _ap[1];
++        array_push(_unit_list, scr_create_unit_base(_pick.class_id, _pick.lvl));
++        array_push(_picked, _pick.class_id);
++    }
++
++    if (_boss)
++    {
++        var _bap = scr_set_unit_ap(_L.boss.class_id, _L.boss.lvl);
++        _en_ap[0] += _bap[0];
++        _en_ap[1] += _bap[1];
++        array_push(_unit_list, scr_create_unit_base(_L.boss.class_id, _L.boss.lvl));
++    }
++
++    // what the raid can bring home, as vanilla: gold and food drops, then the stage's loot; up to 3 + level picks
++    var _item_pool = [];
++    var _coin = irandom_range(_L.drop_gold[0], _L.drop_gold[1]);
++    var _food = irandom_range(_L.drop_food[0], _L.drop_food[1]);
++
++    if (_coin > 0)
++        array_push(_item_pool, scr_set_item_data(UnknownEnum.Value_0, _coin, -1));
++
++    if (_food > 0)
++        array_push(_item_pool, scr_set_item_data(UnknownEnum.Value_1, _food, -1));
++
++    var _loot = global.val.stage_item[arg0][_lvl];
++
++    for (var i = 0; i < array_length(_loot); i++)
++        array_push(_item_pool, scr_set_item_data(_loot[i][0], _loot[i][1], _loot[i][2]));
++
++    var _item = [];
++
++    repeat (min(array_length(_item_pool), 3 + min(_lvl, 2)))
++    {
++        if (irandom_range(1, 100) <= 75)
++        {
++            var _a = irandom_range(0, array_length(_item_pool) - 1);
++            array_push(_item, _item_pool[_a]);
++            array_delete(_item_pool, _a, 1);
++        }
++    }
++
++    return { unit_list: _unit_list, en_ap: _en_ap, item: _item };
 +}
 +
 +
@@ -22959,16 +23275,17 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +        while (array_length(_item) < _n)
 +            array_push(_item, []);
 +
++        // the fixed win reward of each level (vanilla global.reward[stage][level] = [gold, food])
 +        var _rw = [];
 +
-+        repeat (_n)
-+            array_push(_rw, []);
++        for (var _lv = 0; _lv < _n; _lv++)
++            array_push(_rw, [scr_set_item_data(UnknownEnum.Value_0, _def.levels[_lv].reward_gold, -1), scr_set_item_data(UnknownEnum.Value_1, _def.levels[_lv].reward_food, -1)]);
 +
 +        array_push(_v.stage_info, _st.info);
 +        array_push(_v.stage_lvl_sel, clamp(gnx_json_num(_st.sel, 0), 0, _n - 1));
 +        array_push(_v.stage_item, _item);
 +        array_push(global.base_raid_time, _def.raid_time);
-+        array_push(global.reward, _rw);  // gold / food per level: filled from the levels with the encounters (P2)
++        array_push(global.reward, _rw);
 +        array_push(_keys, _def.key);
 +
 +        if (_from != "new")
@@ -27720,7 +28037,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_travel.gml
 --- gml_138/gml_GlobalScript_s_gnx_travel.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_travel.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2299 @@
+@@ -0,0 +1,2300 @@
 +// GNX: multi-map travel: maps, selector, carry, troops
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -29772,6 +30089,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_tr
 +        scr_gnx_apply_unlocks();
 +        scr_gnx_apply_prop_unlocks();
 +        scr_gnx_register_goblin_sprites();
++        gnx_loot_resolve();  // the map mods' raid loot (items.json, raids.json) is resolved like the boot mods'
 +    }
 +    
 +    // Mav (1.4.7.5): the name maps stay for later trips
@@ -34038,7 +34356,7 @@ diff -uN gml_138/gml_GlobalScript_s_invetory_function.gml gml/gml_GlobalScript_s
          bar_c = global.bar_c;
 diff -uN gml_138/gml_GlobalScript_s_item_draw.gml gml/gml_GlobalScript_s_item_draw.gml
 --- gml_138/gml_GlobalScript_s_item_draw.gml	2026-09-02 08:45:16.542617600 +0200
-+++ gml/gml_GlobalScript_s_item_draw.gml	2026-10-27 11:26:46.695052900 +0100
++++ gml/gml_GlobalScript_s_item_draw.gml	2026-10-29 10:22:19.438987800 +0100
 @@ -5,37 +5,36 @@
      var _index = arg2.index;
      var _num = arg2.num_draw;
@@ -34093,7 +34411,7 @@ diff -uN gml_138/gml_GlobalScript_s_item_draw.gml gml/gml_GlobalScript_s_item_dr
      if (_mouse_x >= 14 && _mouse_x <= 162 && _mouse_y >= 167 && _mouse_y <= 218)
      {
          var _inv = obj_np.obj_raid;
-@@ -57,45 +55,37 @@
+@@ -57,101 +55,84 @@
          var _inv_pos_y = floor((_mouse_y - 167 - _inv.slider_y) / _inv.row_h);
          var _pos = _inv_pos_x + (_inv_pos_y * 7);
          var _item_data = ds_list_find_value(global.inv_list, _pos);
@@ -34140,8 +34458,9 @@ diff -uN gml_138/gml_GlobalScript_s_item_draw.gml gml/gml_GlobalScript_s_item_dr
 -    
      if (_stage != -1 && (obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_0 || obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_1 || obj_np.obj_raid.raid_data.raid_state == UnknownEnum.Value_2))
      {
-         var _stage_lvl = min(2, global.val.stage_lvl_sel[_stage]);
-@@ -103,55 +93,46 @@
+-        var _stage_lvl = min(2, global.val.stage_lvl_sel[_stage]);
++        var _stage_lvl = min(gnx_stage_max_lvl(_stage), global.val.stage_lvl_sel[_stage]);
+         var _reward_list = global.val.stage_info[_stage].info[_stage_lvl].item;
          var _max = array_length(_reward_list);
          _x = 173;
          _y = 199;
@@ -39579,7 +39898,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_state.gml gml/gml_GlobalScript_s_mon_sta
          mon_data.ff = false;
 diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mouse_action.gml
 --- gml_138/gml_GlobalScript_s_mouse_action.gml	2026-09-02 08:45:16.155545700 +0200
-+++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-26 14:18:17.626060000 +0100
++++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-29 10:22:19.439985000 +0100
 @@ -1,6 +1,7 @@
  function scr_mouse_control()
  {
@@ -39608,6 +39927,15 @@ diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mous
          {
              var _last_x, _last_y;
              
+@@ -458,7 +460,7 @@
+                                                     _scr_fail_pop = UnknownEnum.Value_1;
+                                                 }
+                                                 
+-                                                var _stage_lvl = min(global.val.stage_lvl_sel[obj_np.obj_raid.raid_data.stage], 2);
++                                                var _stage_lvl = min(global.val.stage_lvl_sel[obj_np.obj_raid.raid_data.stage], gnx_stage_max_lvl(obj_np.obj_raid.raid_data.stage));
+                                                 var _data = global.val.stage_info[obj_np.obj_raid.raid_data.stage].info[_stage_lvl];
+                                                 var _md = scr_calculate_mood_rate();
+                                                 
 @@ -876,7 +878,7 @@
                                      case UnknownEnum.Value_0:
                                          if (slot_data.anim_struct == -1)
@@ -40675,7 +41003,16 @@ diff -uN gml_138/gml_GlobalScript_s_raid_button.gml gml/gml_GlobalScript_s_raid_
  function scr_reset_mon_cat_head(arg0, arg1, arg2)
 diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_raid_cal_stat.gml
 --- gml_138/gml_GlobalScript_s_raid_cal_stat.gml	2026-09-02 08:45:16.522590500 +0200
-+++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-26 15:56:42.204153900 +0100
++++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-29 10:22:19.440988300 +0100
+@@ -119,7 +119,7 @@
+ 
+ function scr_calculate_fight_outcome()
+ {
+-    var _stage_lvl = min(global.val.stage_lvl_sel[raid_data.stage], 2);
++    var _stage_lvl = min(global.val.stage_lvl_sel[raid_data.stage], gnx_stage_max_lvl(raid_data.stage));
+     var _data = global.val.stage_info[raid_data.stage].info[_stage_lvl];
+     var _md = scr_calculate_mood_rate();
+     var _player_hp = floor(obj_np.obj_raid.raid_data.ap[0]);
 @@ -255,7 +255,10 @@
          scr_check_steam_achievement(UnknownEnum.Value_7);
          var _selene_grace = false;
@@ -40748,7 +41085,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
              scr_pop_up_create(UnknownEnum.Value_28);
 diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_draw.gml
 --- gml_138/gml_GlobalScript_s_raid_draw.gml	2026-09-02 08:45:16.419590000 +0200
-+++ gml/gml_GlobalScript_s_raid_draw.gml	2026-09-24 15:31:46.000000000 +0200
++++ gml/gml_GlobalScript_s_raid_draw.gml	2026-10-29 10:22:19.451497400 +0100
 @@ -10,7 +10,7 @@
          
          switch (global.val.language)
@@ -41045,7 +41382,12 @@ diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_dr
              draw_text(181 + _lang_pos[0], 134 + _lang_pos[1], "FRENTE");
              draw_text(181 + _lang_pos[0], 145 + _lang_pos[1], "DEFESA");
              draw_text(181 + _lang_pos[0], 156 + _lang_pos[1], "CAPTURAR");
-@@ -333,7 +338,7 @@
+@@ -329,11 +334,11 @@
+     
+     if (raid_data.stage != -1)
+     {
+-        var _stage_lvl = min(2, global.val.stage_lvl_sel[raid_data.stage]);
++        var _stage_lvl = min(gnx_stage_max_lvl(raid_data.stage), global.val.stage_lvl_sel[raid_data.stage]);
          var _data = global.val.stage_info[raid_data.stage].info[_stage_lvl];
          var _player_hp, _player_ap;
          
@@ -41054,6 +41396,15 @@ diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_dr
          {
              var _md = scr_calculate_mood_rate();
              _player_hp = floor(obj_np.obj_raid.raid_data.ap[0] * _md.md_rate);
+@@ -392,7 +397,7 @@
+             scr_draw_item(_x, 188, _item_data, true);
+         }
+         
+-        _stage_lvl = min(global.val.stage_lvl_sel[raid_data.stage], 2);
++        _stage_lvl = min(global.val.stage_lvl_sel[raid_data.stage], gnx_stage_max_lvl(raid_data.stage));
+         _num = 0;
+         var _dnum = 0;
+         var _a = 0;
 @@ -402,8 +407,8 @@
          
          if (_player_hp >= _enemy_hp && _player_ap >= _enemy_ap)
@@ -41137,10 +41488,17 @@ diff -uN gml_138/gml_GlobalScript_s_raid_draw.gml gml/gml_GlobalScript_s_raid_dr
 -}
 diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_raid_encounter.gml
 --- gml_138/gml_GlobalScript_s_raid_encounter.gml	2026-09-02 08:45:16.461589300 +0200
-+++ gml/gml_GlobalScript_s_raid_encounter.gml	2026-09-24 15:31:46.000000000 +0200
-@@ -8,15 +8,16 @@
++++ gml/gml_GlobalScript_s_raid_encounter.gml	2026-10-29 10:25:40.609900700 +0100
+@@ -7,16 +7,23 @@
+     var _pool_num = 0;
      var _data = {};
      var _spawn_boss = false;
++    // GNX-STAGE: mod stages (5+) build their encounters from raids.json
++    var _gnx_sdef = gnx_stage_def(arg0);
++
++    if (_gnx_sdef != undefined)
++        return gnx_stage_encounter_data(arg0, _gnx_sdef, arg1);
++
      arg1 = min(arg1, 2);
 +    var _gnx_picked = [];
      var _coin_num, _food_num, i;
@@ -41157,7 +41515,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      _en_ap[0] += 1;
                      _en_ap[1] += 1;
                      _coin_num = choose(10, 15, 20);
-@@ -24,13 +25,13 @@
+@@ -24,13 +31,13 @@
                      break;
                  
                  case 1:
@@ -41173,7 +41531,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                          _en_ap[0] += _boss_ap[0];
                          _en_ap[1] += _boss_ap[1];
                      }
-@@ -44,31 +45,28 @@
+@@ -44,31 +51,28 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41216,7 +41574,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      
                      _coin_num = choose(15, 20, 25);
                      _food_num = choose(22, 24, 26, 28);
-@@ -81,41 +79,24 @@
+@@ -81,41 +85,24 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41268,7 +41626,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      _coin_num = choose(30, 37, 44, 41);
-@@ -125,7 +106,7 @@
+@@ -125,7 +112,7 @@
              
              break;
          
@@ -41277,7 +41635,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
              switch (arg1)
              {
                  case 0:
-@@ -135,31 +116,24 @@
+@@ -135,31 +122,24 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41319,7 +41677,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      _coin_num = choose(15, 20, 25, 30);
-@@ -173,27 +147,24 @@
+@@ -173,27 +153,24 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41357,7 +41715,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      _coin_num = choose(30, 36, 42, 48);
-@@ -207,41 +178,24 @@
+@@ -207,41 +184,24 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41368,7 +41726,8 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
 +                        var _lvl = _pick.lvl;
                          
 -                        if (_chnc <= 30)
--                        {
++                        if (variable_struct_exists(_pick, "ap_override"))
+                         {
 -                            _class = UnknownEnum.Value_6;
 -                            
 -                            if (irandom_range(1, 100) <= 60)
@@ -41377,8 +41736,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
 -                                _lvl = 3;
 -                        }
 -                        else if (_chnc <= 60)
-+                        if (variable_struct_exists(_pick, "ap_override"))
-                         {
+-                        {
 -                            _class = UnknownEnum.Value_2;
 -                            
 -                            if (irandom_range(1, 100) <= 50)
@@ -41409,7 +41767,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      _coin_num = choose(65, 75, 85, 95);
-@@ -251,7 +205,7 @@
+@@ -251,7 +211,7 @@
              
              break;
          
@@ -41418,7 +41776,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
              switch (arg1)
              {
                  case 0:
-@@ -261,31 +215,24 @@
+@@ -261,31 +221,24 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41460,7 +41818,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      _coin_num = choose(20, 26, 32, 38);
-@@ -299,31 +246,24 @@
+@@ -299,31 +252,24 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41502,7 +41860,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      _coin_num = choose(30, 40, 50, 60);
-@@ -331,13 +271,13 @@
+@@ -331,13 +277,13 @@
                      break;
                  
                  case 2:
@@ -41518,7 +41876,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                          _en_ap[0] += _boss_ap[0];
                          _en_ap[1] += _boss_ap[1];
                      }
-@@ -351,45 +291,28 @@
+@@ -351,45 +297,28 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41575,7 +41933,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      
                      _coin_num = choose(42, 55, 68, 81);
                      _food_num = choose(30, 32, 34, 36, 38);
-@@ -398,7 +321,7 @@
+@@ -398,7 +327,7 @@
              
              break;
          
@@ -41584,7 +41942,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
              switch (arg1)
              {
                  case 0:
-@@ -408,12 +331,24 @@
+@@ -408,12 +337,24 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41614,7 +41972,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      _coin_num = choose(50, 60, 70);
-@@ -427,10 +362,24 @@
+@@ -427,10 +368,24 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41642,7 +42000,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      _coin_num = choose(95, 105, 115);
-@@ -438,13 +387,13 @@
+@@ -438,13 +393,13 @@
                      break;
                  
                  case 2:
@@ -41658,7 +42016,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                          _en_ap[0] += _boss_ap[0];
                          _en_ap[1] += _boss_ap[1];
                      }
-@@ -458,14 +407,28 @@
+@@ -458,14 +413,28 @@
                      
                      for (i = 0; i < _num; i++)
                      {
@@ -41691,7 +42049,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      
                      _coin_num = choose(110, 120, 130, 140, 150);
                      _food_num = choose(60, 75, 90, 105);
-@@ -474,15 +437,15 @@
+@@ -474,15 +443,15 @@
              
              break;
          
@@ -41710,7 +42068,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      else
                      {
-@@ -493,7 +456,7 @@
+@@ -493,7 +462,7 @@
                          var _spe_chnc = 5;
                          
                          if (arg2)
@@ -41719,7 +42077,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                          
                          var _spe_class = [];
                          
-@@ -503,33 +466,48 @@
+@@ -503,33 +472,48 @@
                              {
                                  switch (i)
                                  {
@@ -41780,7 +42138,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                          for (i = 0; i < _num; i++)
                          {
                              var _class, _lvl;
-@@ -541,11 +519,13 @@
+@@ -541,11 +525,13 @@
                              }
                              else
                              {
@@ -41796,7 +42154,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                          }
                      }
                      
-@@ -560,7 +540,7 @@
+@@ -560,7 +546,7 @@
                      var _spe_chnc = 5;
                      
                      if (arg2)
@@ -41805,7 +42163,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      
                      var _spe_class = [];
                      
-@@ -570,33 +550,48 @@
+@@ -570,33 +556,48 @@
                          {
                              switch (i)
                              {
@@ -41866,7 +42224,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      for (i = 0; i < _num; i++)
                      {
                          var _class, _lvl;
-@@ -608,11 +603,13 @@
+@@ -608,11 +609,13 @@
                          }
                          else
                          {
@@ -41882,7 +42240,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
                      }
                      
                      break;
-@@ -625,13 +622,13 @@
+@@ -625,13 +628,13 @@
      
      if (_coin_num > 0)
      {
@@ -41898,7 +42256,17 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
          array_push(_item_pool, _item_data);
      }
      
-@@ -692,55 +689,10 @@
+@@ -669,7 +672,8 @@
+ {
+     var _stage = [];
+     
+-    for (var i = 0; i < array_length(global.val.stage_info); i++)
++    // GNX-STAGE (D5): Nyx only joins vanilla stages (0-4), never a mod stage
++    for (var i = 0; i < min(5, array_length(global.val.stage_info)); i++)
+     {
+         if (global.val.stage_info[i] != -1)
+             _stage[i] = min(2, global.val.stage_info[i].max_lvl);
+@@ -692,55 +696,10 @@
  
  function scr_stage_raid_reward()
  {

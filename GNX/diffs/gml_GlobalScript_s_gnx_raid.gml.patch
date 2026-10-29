@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,678 @@
+@@ -0,0 +1,910 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -58,6 +58,12 @@
 +// GNX-NOCAP: the raid encounter (stage arg0, encounter level arg1) of the map the player is on captures nobody
 +function gnx_no_capture_here(arg0, arg1)
 +{
++    // GNX-STAGE: a mod stage's level says it itself
++    var _sdef = gnx_stage_def(arg0);
++
++    if (_sdef != undefined)
++        return _sdef.levels[clamp(arg1, 0, array_length(_sdef.levels) - 1)].no_capture;
++
 +    if (!variable_global_exists("gnx_travel_locations") || !is_array(global.gnx_travel_locations))
 +        return false;
 +
@@ -419,11 +425,144 @@
 +function scr_gnx_init_stages()
 +{
 +    global.gnx_stage_registry = [];
++    global.gnx_stage_spawn_refs = [];  // raid_spawns naming a mod stage, waiting for that stage to load
++}
++
++
++// a [min, max] range from a number or a two-number list (mod JSON), else arg1 (the default range)
++function gnx_stage_range(arg0, arg1)
++{
++    if (is_array(arg0) && array_length(arg0) == 2)
++    {
++        var _a = gnx_json_num(arg0[0], arg1[0]);
++        var _b = gnx_json_num(arg0[1], arg1[1]);
++        return [min(_a, _b), max(_a, _b)];
++    }
++
++    if (is_numeric(arg0) || is_string(arg0))
++    {
++        var _n = gnx_json_num(arg0, arg1[0]);
++        return [_n, _n];
++    }
++
++    return arg1;
++}
++
++
++// field arg1 of struct arg0, or arg2 when missing
++function gnx_stage_field(arg0, arg1, arg2)
++{
++    return (is_struct(arg0) && variable_struct_exists(arg0, arg1)) ? variable_struct_get(arg0, arg1) : arg2;
++}
++
++
++// adds raid_spawns-style entry arg2 (class already resolved to arg3) of mod arg4 to the pool of stage arg0, level arg1
++function gnx_stage_pool_add(arg0, arg1, arg2, arg3, arg4)
++{
++    var _cond = gnx_stage_field(arg2, "condition", undefined);
++
++    if (_cond != undefined)
++        scr_gnx_resolve_condition_refs(_cond, arg4);
++
++    var _apo = gnx_stage_field(arg2, "ap_override", undefined);
++
++    if (!is_array(_apo) || array_length(_apo) != 2)
++        _apo = undefined;
++
++    gnx_pool_add(arg0, arg1, arg3, gnx_json_num(gnx_stage_field(arg2, "weight", 10), 10), clamp(floor(gnx_json_num(gnx_stage_field(arg2, "min_lvl", 0), 0)), 0, 7), clamp(floor(gnx_json_num(gnx_stage_field(arg2, "max_lvl", 1), 1)), 0, 7), _cond, arg4, gnx_stage_field(arg2, "max_per_encounter", undefined), _apo);
++}
++
++
++// level arg0 (raids.json) of mod arg1's stage number arg2 (key arg4, "folder.ID"), level number arg3, normalised for
++// the encounter code; its enemy pool goes into the encounter pools (key stage * 100 + level), its loot to the mod loot
++function gnx_stage_parse_level(arg0, arg1, arg2, arg3, arg4)
++{
++    var _who = "Stage '" + arg4 + "' level " + string(arg3);
++    var _l = is_struct(arg0) ? arg0 : {};
++    var _units = gnx_stage_field(_l, "units", {});
++    var _count = gnx_stage_range(gnx_stage_field(_units, "count", [1, 2]), [1, 2]);
++    var _out =
++    {
++        count: [clamp(floor(_count[0]), 0, 5), clamp(floor(_count[1]), 0, 5)],
++        hp: gnx_stage_range(gnx_stage_field(gnx_stage_field(_l, "enemy_ap", {}), "hp", 0), [0, 0]),
++        ap: gnx_stage_range(gnx_stage_field(gnx_stage_field(_l, "enemy_ap", {}), "ap", 0), [0, 0]),
++        drop_gold: gnx_stage_range(gnx_stage_field(gnx_stage_field(_l, "drops", {}), "gold", 0), [0, 0]),
++        drop_food: gnx_stage_range(gnx_stage_field(gnx_stage_field(_l, "drops", {}), "food", 0), [0, 0]),
++        reward_gold: max(0, floor(gnx_json_num(gnx_stage_field(gnx_stage_field(_l, "reward", {}), "gold", 0), 0))),
++        reward_food: max(0, floor(gnx_json_num(gnx_stage_field(gnx_stage_field(_l, "reward", {}), "food", 0), 0))),
++        no_capture: gnx_json_num(gnx_stage_field(_l, "no_capture", false), 0) != 0,
++        boss: undefined
++    };
++    var _pool = gnx_stage_field(_units, "pool", []);
++
++    if (!is_array(_pool))
++    {
++        gnx_report_mod_error(_who + ": units.pool must be a list; ignored");
++        _pool = [];
++    }
++
++    for (var _p = 0; _p < array_length(_pool); _p++)
++    {
++        var _cls = gnx_tool_resolve_class(gnx_stage_field(_pool[_p], "class", -1), arg1);
++
++        if (!is_real(_cls) || _cls < 0)
++        {
++            gnx_report_mod_error(_who + ": units.pool[" + string(_p) + "] names no loaded class; skipped");
++            continue;
++        }
++
++        gnx_stage_pool_add(arg2, arg3, _pool[_p], _cls, arg1);
++    }
++
++    var _b = gnx_stage_field(_l, "boss", undefined);
++
++    if (is_struct(_b))
++    {
++        var _bc = gnx_tool_resolve_class(gnx_stage_field(_b, "class", -1), arg1);
++
++        if (!is_real(_bc) || _bc < 0)
++        {
++            gnx_report_mod_error(_who + ": boss names no loaded class; ignored");
++        }
++        else
++        {
++            var _bcond = gnx_stage_field(_b, "condition", undefined);
++
++            if (_bcond != undefined)
++                scr_gnx_resolve_condition_refs(_bcond, arg1);
++
++            _out.boss =
++            {
++                class_id: _bc,
++                lvl: clamp(floor(gnx_json_num(gnx_stage_field(_b, "lvl", 5), 5)), 0, 7),
++                chance: clamp(gnx_json_num(gnx_stage_field(_b, "chance", 100), 100), 0, 100),
++                condition: _bcond
++            };
++        }
++    }
++
++    var _loot = gnx_stage_field(_l, "loot", []);
++
++    for (var _k = 0; is_array(_loot) && _k < array_length(_loot); _k++)
++    {
++        // the same entries as items.json loot, minus stage and level (resolved with them by gnx_loot_resolve)
++        var _e = _loot[_k];
++
++        if (is_struct(_e))
++        {
++            _e.stage = arg4;
++            _e.level = arg3;
++        }
++
++        array_push(global.gnx_loot_raw, { mod_name: arg1, index: "raids " + arg4 + " " + string(arg3) + " " + string(_k), entry: _e });
++    }
++
++    return _out;
 +}
 +
 +
 +// raids.json of mod arg0 (file arg1): { "stages": [ { "id", "label", "pos": [x, y], "icon", "unlock",
-+// "raid_time", "levels": [ {...}, ... ] } ] }. Level contents are read by the encounter code (P2).
++// "raid_time", "levels": [ { "units", "enemy_ap", "boss", "drops", "reward", "loot", "no_capture" }, ... ] } ] }
 +function scr_gnx_load_raids(arg0, arg1)
 +{
 +    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
@@ -504,11 +643,32 @@
 +            icon: (variable_struct_exists(_s, "icon") && is_string(_s.icon)) ? _s.icon : "",
 +            raid_time: max(60, floor(gnx_json_num(variable_struct_exists(_s, "raid_time") ? _s.raid_time : 3600, 3600))),
 +            unlock: (variable_struct_exists(_s, "unlock") && is_struct(_s.unlock)) ? _s.unlock : undefined,
-+            levels: _s.levels
++            levels: []
 +        };
 +
 +        if (_def.unlock != undefined)
 +            scr_gnx_resolve_condition_refs(_def.unlock, arg0);
++
++        var _idx = 5 + array_length(global.gnx_stage_registry);
++
++        for (var _lv = 0; _lv < array_length(_s.levels); _lv++)
++            array_push(_def.levels, gnx_stage_parse_level(_s.levels[_lv], arg0, _idx, _lv, _key));
++
++        // raid_spawns of mods loaded before that name this stage
++        for (var _r = array_length(global.gnx_stage_spawn_refs) - 1; _r >= 0; _r--)
++        {
++            var _ref = global.gnx_stage_spawn_refs[_r];
++
++            if (_ref.stage == _key)
++            {
++                if (_ref.level >= 0 && _ref.level < array_length(_def.levels))
++                    gnx_stage_pool_add(_idx, _ref.level, _ref.entry, _ref.class_id, _ref.mod_name);
++                else
++                    gnx_report_mod_error("Mod '" + _ref.mod_name + "': raid_spawns level " + string(_ref.level) + " is not a level of stage '" + _key + "'; skipped");
++
++                array_delete(global.gnx_stage_spawn_refs, _r, 1);
++            }
++        }
 +
 +        array_push(global.gnx_stage_registry, _def);
 +        gnx_log_write(_log, "[GNX-STAGE] " + _key + " registered: " + string(array_length(_def.levels)) + " level(s) at (" + string(_def.x) + "," + string(_def.y) + ")\n");
@@ -546,6 +706,77 @@
 +{
 +    var _def = gnx_stage_def(arg0);
 +    return (_def == undefined) ? 2 : array_length(_def.levels) - 1;
++}
++
++
++// scr_stage_encounter_data for mod stage arg0 (definition arg1), level arg2: the same {unit_list, en_ap, item}
++// the vanilla stages build, from the level's units (encounter pool stage * 100 + level), enemy_ap, boss and drops
++function gnx_stage_encounter_data(arg0, arg1, arg2)
++{
++    var _lvl = clamp(arg2, 0, array_length(arg1.levels) - 1);
++    var _L = arg1.levels[_lvl];
++    var _unit_list = [];
++    var _en_ap = [0, 0];
++    var _picked = [];
++    var _boss = _L.boss != undefined && irandom_range(1, 100) <= _L.boss.chance && (_L.boss.condition == undefined || scr_gnx_eval_condition(_L.boss.condition, arg1.mod_name));
++    // an encounter holds 5 units at most, the boss included
++    var _num = min(irandom_range(_L.count[0], _L.count[1]), _boss ? 4 : 5);
++    _en_ap[0] += irandom_range(_L.hp[0], _L.hp[1]) + _num;
++    _en_ap[1] += irandom_range(_L.ap[0], _L.ap[1]) + _num;
++
++    for (var i = 0; i < _num; i++)
++    {
++        var _pick = gnx_pool_pick(arg0, _lvl, _picked);
++        var _ap;
++
++        if (variable_struct_exists(_pick, "ap_override"))
++            _ap = _pick.ap_override;
++        else
++            _ap = scr_set_unit_ap(_pick.class_id, _pick.lvl);
++
++        _en_ap[0] += _ap[0];
++        _en_ap[1] += _ap[1];
++        array_push(_unit_list, scr_create_unit_base(_pick.class_id, _pick.lvl));
++        array_push(_picked, _pick.class_id);
++    }
++
++    if (_boss)
++    {
++        var _bap = scr_set_unit_ap(_L.boss.class_id, _L.boss.lvl);
++        _en_ap[0] += _bap[0];
++        _en_ap[1] += _bap[1];
++        array_push(_unit_list, scr_create_unit_base(_L.boss.class_id, _L.boss.lvl));
++    }
++
++    // what the raid can bring home, as vanilla: gold and food drops, then the stage's loot; up to 3 + level picks
++    var _item_pool = [];
++    var _coin = irandom_range(_L.drop_gold[0], _L.drop_gold[1]);
++    var _food = irandom_range(_L.drop_food[0], _L.drop_food[1]);
++
++    if (_coin > 0)
++        array_push(_item_pool, scr_set_item_data(UnknownEnum.Value_0, _coin, -1));
++
++    if (_food > 0)
++        array_push(_item_pool, scr_set_item_data(UnknownEnum.Value_1, _food, -1));
++
++    var _loot = global.val.stage_item[arg0][_lvl];
++
++    for (var i = 0; i < array_length(_loot); i++)
++        array_push(_item_pool, scr_set_item_data(_loot[i][0], _loot[i][1], _loot[i][2]));
++
++    var _item = [];
++
++    repeat (min(array_length(_item_pool), 3 + min(_lvl, 2)))
++    {
++        if (irandom_range(1, 100) <= 75)
++        {
++            var _a = irandom_range(0, array_length(_item_pool) - 1);
++            array_push(_item, _item_pool[_a]);
++            array_delete(_item_pool, _a, 1);
++        }
++    }
++
++    return { unit_list: _unit_list, en_ap: _en_ap, item: _item };
 +}
 +
 +
@@ -612,16 +843,17 @@
 +        while (array_length(_item) < _n)
 +            array_push(_item, []);
 +
++        // the fixed win reward of each level (vanilla global.reward[stage][level] = [gold, food])
 +        var _rw = [];
 +
-+        repeat (_n)
-+            array_push(_rw, []);
++        for (var _lv = 0; _lv < _n; _lv++)
++            array_push(_rw, [scr_set_item_data(UnknownEnum.Value_0, _def.levels[_lv].reward_gold, -1), scr_set_item_data(UnknownEnum.Value_1, _def.levels[_lv].reward_food, -1)]);
 +
 +        array_push(_v.stage_info, _st.info);
 +        array_push(_v.stage_lvl_sel, clamp(gnx_json_num(_st.sel, 0), 0, _n - 1));
 +        array_push(_v.stage_item, _item);
 +        array_push(global.base_raid_time, _def.raid_time);
-+        array_push(global.reward, _rw);  // gold / food per level: filled from the levels with the encounters (P2)
++        array_push(global.reward, _rw);
 +        array_push(_keys, _def.key);
 +
 +        if (_from != "new")

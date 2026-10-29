@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3913 @@
+@@ -0,0 +1,3920 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -3179,7 +3179,14 @@
 +            var _rs_e = _rs_arr[_ri++];
 +            var _rs_stage = _rs_e.stage;
 +            var _rs_level = _rs_e.level;
-+            
++
++            // GNX-STAGE: a mod stage ("folder.ID"): its raids.json loads later (phase 3), so the entry waits there
++            if (is_string(_rs_stage))
++            {
++                array_push(global.gnx_stage_spawn_refs, { stage: _rs_stage, level: floor(gnx_json_num(_rs_level, -1)), entry: _rs_e, class_id: _class_id, mod_name: arg1 });
++                continue;
++            }
++
 +            if (_rs_level != 0 || _rs_stage == 4)
 +            {
 +                var _rs_w = variable_struct_exists(_rs_e, "weight") ? _rs_e.weight : 10;

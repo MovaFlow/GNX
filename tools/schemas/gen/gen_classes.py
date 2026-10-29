@@ -3,6 +3,7 @@ import json, os
 os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 U = 'https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/'
 C = 'common.schema.json#/definitions/'
+STAGE_REF = {"description": "A vanilla raid stage 0-4, or a mod stage \"folder.ID\" (raids.json).", "oneOf": [{"type": "integer", "minimum": 0, "maximum": 4}, {"type": "string", "pattern": r"^[^.]+\.[^.]+$"}]}
 
 SPR = {"$ref": "#/definitions/spr"}
 U_ = {"patternProperties": {"^_": {}}, "additionalProperties": False}
@@ -99,16 +100,19 @@ cls = obj({
     "naked_tent": naked_tent,
     "carry_base_spr": {"description": "Ogre carry body: one sprite, or one per leg pose leg_0 / leg_1 / leg_2 (guide 6.5).",
                        "if": {"type": ["string", "integer"]}, "then": {}, "else": obj({"leg_0": SPR, "leg_1": SPR, "leg_2": SPR})},
-    "raid_spawns": {"type": "array", "items": obj({
-        "stage": {"type": "integer", "minimum": 0, "maximum": 4},
-        "level": {"type": "integer", "minimum": 0, "maximum": 2},
+    "raid_spawns": {"type": "array", "items": dict(obj({
+        "stage": STAGE_REF,
+        "level": {"type": "integer", "minimum": 0, "description": "Encounter level: 0-2 on a vanilla stage, any level of a mod stage."},
         "weight": {"type": "number", "minimum": 0},
         "min_lvl": {"type": "integer", "minimum": 0, "maximum": 7},
         "max_lvl": {"type": "integer", "minimum": 0, "maximum": 7},
         "condition": {"$ref": C + "condition"},
         "max_per_encounter": {"type": "integer", "minimum": 0},
         "ap_override": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}, "description": "[HP, AP] the unit adds instead of fap_mul / bap_mul. Ignored in the Tower."},
-    }, "Adds the class to one raid pool (guide 13.2).", ["stage", "level"])},
+    }, "Adds the class to one raid pool (guide 13.2).", ["stage", "level"]),
+        # a vanilla stage (a number) has the levels 0-2
+        **{"if": {"properties": {"stage": {"type": "integer"}}, "required": ["stage"]},
+           "then": {"properties": {"level": {"maximum": 2}}}})},
     "trade_stage": {"type": "integer", "minimum": 0, "maximum": 4, "description": "The trader sells the class from that raid stage on (guide 13.5)."},
     "birth_class": obj({k: {"type": "integer", "minimum": 0, "maximum": 3} for k in ("goblin", "hobgoblin", "tentacle", "ogre")},
                        "Troop type (0-3) of children of each species (guide 14.2)."),

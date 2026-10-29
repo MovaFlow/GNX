@@ -79,10 +79,290 @@
     },
     "level": {
       "type": "object",
-      "description": "One level of a stage. Its keys (units, enemy_ap, boss, gold, food, loot, no_capture, xp) come with the encounter support.",
+      "description": "One level of a stage.",
+      "properties": {
+        "units": {
+          "type": "object",
+          "description": "The enemies.",
+          "properties": {
+            "count": {
+              "description": "How many units (0-5, a boss included). A number, or [min, max] (rolled for each encounter).",
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              ]
+            },
+            "pool": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/pool_entry"
+              }
+            }
+          },
+          "patternProperties": {
+            "^_": {}
+          },
+          "additionalProperties": false
+        },
+        "enemy_ap": {
+          "type": "object",
+          "description": "Base enemy strength added to the units' own (vanilla adds the unit count on top).",
+          "properties": {
+            "hp": {
+              "description": "Enemy HP. A number, or [min, max] (rolled for each encounter).",
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              ]
+            },
+            "ap": {
+              "description": "Enemy AP. A number, or [min, max] (rolled for each encounter).",
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              ]
+            }
+          },
+          "patternProperties": {
+            "^_": {}
+          },
+          "additionalProperties": false
+        },
+        "boss": {
+          "type": "object",
+          "description": "A unit added on top of the count.",
+          "required": [
+            "class"
+          ],
+          "properties": {
+            "class": {
+              "$ref": "common.schema.json#/definitions/ref"
+            },
+            "lvl": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7
+            },
+            "chance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "condition": {
+              "$ref": "common.schema.json#/definitions/condition"
+            }
+          },
+          "patternProperties": {
+            "^_": {}
+          },
+          "additionalProperties": false
+        },
+        "drops": {
+          "type": "object",
+          "description": "Gold and food the raid may bring back, picked like vanilla finds.",
+          "properties": {
+            "gold": {
+              "description": "Gold. A number, or [min, max] (rolled for each encounter).",
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              ]
+            },
+            "food": {
+              "description": "Food. A number, or [min, max] (rolled for each encounter).",
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              ]
+            }
+          },
+          "patternProperties": {
+            "^_": {}
+          },
+          "additionalProperties": false
+        },
+        "reward": {
+          "type": "object",
+          "description": "Fixed gold and food paid for a win.",
+          "properties": {
+            "gold": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "food": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "patternProperties": {
+            "^_": {}
+          },
+          "additionalProperties": false
+        },
+        "loot": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/level_loot"
+          }
+        },
+        "no_capture": {
+          "type": "boolean",
+          "description": "A win captures nobody (loot and progress only)."
+        }
+      },
       "patternProperties": {
         "^_": {}
-      }
+      },
+      "additionalProperties": false
+    },
+    "pool_entry": {
+      "type": "object",
+      "description": "One class of the level's enemy pool: the same keys as a raid_spawns entry, without stage and level.",
+      "required": [
+        "class"
+      ],
+      "properties": {
+        "class": {
+          "$ref": "common.schema.json#/definitions/ref"
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "min_lvl": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "max_lvl": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "condition": {
+          "$ref": "common.schema.json#/definitions/condition"
+        },
+        "max_per_encounter": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ap_override": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number"
+          },
+          "description": "[HP, AP] the unit adds instead of its class values."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "level_loot": {
+      "type": "object",
+      "description": "A one-time find of this level: the same keys as an items.json loot entry, without stage and level.",
+      "properties": {
+        "item": {
+          "type": "string",
+          "description": "One of your items, or another mod's (\"mod.NAME\")."
+        },
+        "num": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many of the item (default 1)."
+        },
+        "blueprint": {
+          "type": "string",
+          "description": "A cell (\"ALTAR\", \"other_mod.CELL\")."
+        },
+        "piece": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Which blueprint piece, 0-2 (three different pieces combine)."
+        },
+        "complete": {
+          "type": [
+            "boolean",
+            "integer"
+          ],
+          "description": "true: the whole blueprint, which unlocks the cell when picked up."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "item"
+          ]
+        },
+        {
+          "required": [
+            "blueprint"
+          ]
+        }
+      ]
     }
   }
 }

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,294 @@
+@@ -0,0 +1,297 @@
 +// GNX: mod items (items.json): registry, raid loot, inventory counts for quests
 +// (the functions are global, callable from any script)
 +
@@ -213,7 +213,8 @@
 +            continue;
 +        }
 +        
-+        var _stage = floor(gnx_json_num(_l.stage, -1));
++        // GNX-STAGE: a mod stage stays a "folder.ID" key, numbered per map by gnx_loot_sync
++        var _stage = is_string(_l.stage) && string_pos(".", _l.stage) > 0 ? _l.stage : floor(gnx_json_num(_l.stage, -1));
 +        var _level = floor(gnx_json_num(_l.level, -1));
 +        var _entry = undefined;
 +        var _what = "";
@@ -277,12 +278,14 @@
 +        if (variable_struct_exists(global.val.gnx_loot_given, _l.key))
 +            continue;
 +
-+        if (_l.stage < 0 || _l.stage >= array_length(global.val.stage_item) || _l.level < 0 || _l.level >= array_length(global.val.stage_item[_l.stage]))
++        var _s = is_string(_l.stage) ? gnx_stage_index(_l.stage) : _l.stage;
++
++        if (_s < 0 || _s >= array_length(global.val.stage_item) || _l.level < 0 || _l.level >= array_length(global.val.stage_item[_s]))
 +            continue;
 +
-+        var _list = global.val.stage_item[_l.stage][_l.level];
++        var _list = global.val.stage_item[_s][_l.level];
 +        array_push(_list, [_l.entry[0], _l.entry[1], _l.entry[2]]);
-+        global.val.stage_item[_l.stage][_l.level] = _list;
++        global.val.stage_item[_s][_l.level] = _list;
 +        variable_struct_set(global.val.gnx_loot_given, _l.key, true);
 +        var _log = gnx_log_open();
 +        gnx_log_write(_log, "[GNX] loot " + _l.key + " added to stage " + string(_l.stage) + " level " + string(_l.level) + "\n");

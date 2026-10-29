@@ -596,14 +596,23 @@
             "type": "object",
             "properties": {
               "stage": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 4
+                "description": "A vanilla raid stage 0-4, or a mod stage \"folder.ID\" (raids.json).",
+                "oneOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[^.]+\\.[^.]+$"
+                  }
+                ]
               },
               "level": {
                 "type": "integer",
                 "minimum": 0,
-                "maximum": 2
+                "description": "Encounter level: 0-2 on a vanilla stage, any level of a mod stage."
               },
               "weight": {
                 "type": "number",
@@ -644,7 +653,24 @@
             "required": [
               "stage",
               "level"
-            ]
+            ],
+            "if": {
+              "properties": {
+                "stage": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "stage"
+              ]
+            },
+            "then": {
+              "properties": {
+                "level": {
+                  "maximum": 2
+                }
+              }
+            }
           }
         },
         "trade_stage": {

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4606 @@
+@@ -0,0 +1,4672 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -114,7 +114,7 @@
 +    if (ds_list_size(global.front_row) == 0 && ds_list_size(global.back_row) == 0)
 +        return 1;
 +    
-+    var _stage_lvl = min(global.val.stage_lvl_sel[_raid.raid_data.stage], 2);
++    var _stage_lvl = min(global.val.stage_lvl_sel[_raid.raid_data.stage], gnx_stage_max_lvl(_raid.raid_data.stage));
 +    var _data = global.val.stage_info[_raid.raid_data.stage].info[_stage_lvl];
 +    var _md = scr_calculate_mood_rate();
 +    
@@ -1620,6 +1620,72 @@
 +}
 +
 +
++// {"call": "gnx_scn_stage_open", "args": ["folder.ID", n]}: discovers mod stage arg0 with levels 0..arg1 open and
++// rolls their encounters (what the unlock does in a later phase)
++function gnx_scn_stage_open(arg0, arg1)
++{
++    var _i = gnx_stage_index(arg0);
++
++    if (_i == -1)
++        exit;
++
++    for (var _l = 0; _l <= arg1; _l++)
++        scr_set_stage_data(_i, _l, false);
++
++    global.val.stage_info[_i].max_lvl = arg1;
++}
++
++
++// for {"assert": "fn"}: how many units of class arg2 (any class: -1) the rolled encounter of mod stage arg0, level
++// arg1 holds; with arg3 also of that unit level
++function gnx_scn_enc_count(arg0, arg1, arg2, arg3 = -1)
++{
++    var _i = gnx_stage_index(arg0);
++
++    if (_i == -1 || global.val.stage_info[_i] == -1)
++        return -1;
++
++    var _u = global.val.stage_info[_i].info[arg1].unit_list;
++    var _n = 0;
++
++    for (var _k = 0; _k < array_length(_u); _k++)
++    {
++        if ((arg2 == -1 || _u[_k].class == arg2) && (arg3 == -1 || _u[_k].lvl == arg3))
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: "<hp> <ap>" of the encounter of mod stage arg0, level arg1 without its units' own share
++// (the level's enemy_ap roll + the unit count, as vanilla)
++function gnx_scn_enc_base(arg0, arg1)
++{
++    var _i = gnx_stage_index(arg0);
++    var _e = global.val.stage_info[_i].info[arg1];
++    var _hp = _e.en_ap[0];
++    var _ap = _e.en_ap[1];
++
++    for (var _k = 0; _k < array_length(_e.unit_list); _k++)
++    {
++        var _a = scr_set_unit_ap(_e.unit_list[_k].class, _e.unit_list[_k].lvl);
++        _hp -= _a[0];
++        _ap -= _a[1];
++    }
++
++    return string(_hp) + " " + string(_ap);
++}
++
++
++// for {"assert": "fn"}: "<gold> <food>" the win of mod stage arg0, level arg1 pays (global.reward)
++function gnx_scn_stage_reward(arg0, arg1)
++{
++    var _r = global.reward[gnx_stage_index(arg0)][arg1];
++    return string(_r[0].num) + " " + string(_r[1].num);
++}
++
++
 +// for {"assert": "fn"}: "<stage_info> <stage_lvl_sel> <stage_item> <base_raid_time> <reward> <keys> <orphans>"
 +// lengths, which must agree (5 + this map's mod stages)
 +function gnx_scn_stage_lens()
@@ -2408,7 +2474,7 @@
 +function gnx_scn_encounter_unit(arg0, arg1, arg2)
 +{
 +    var _si = global.val.stage_info[arg0];
-+    var _lv = min(global.val.stage_lvl_sel[arg0], 2);
++    var _lv = min(global.val.stage_lvl_sel[arg0], gnx_stage_max_lvl(arg0));
 +
 +    if (_si == -1 || !is_array(_si.info[_lv].unit_list) || array_length(_si.info[_lv].unit_list) == 0)
 +        return 0;
