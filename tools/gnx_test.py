@@ -262,10 +262,14 @@ class Progress:
         self.state = Path(tempfile.gettempdir()) / f"gnx_harness_progress_{os.getpid()}.json"
         if window:
             pyw = Path(sys.executable).with_name("pythonw.exe")
+            lock_foreground()
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = 4  # SW_SHOWNOACTIVATE: Tk's first ShowWindow(SW_SHOWNORMAL) takes this, so no focus
             try:
                 subprocess.Popen([str(pyw if pyw.is_file() else sys.executable),
                                   str(Path(__file__).with_name("gnx_progress_window.py")),
-                                  str(self.state), str(os.getpid())])
+                                  str(self.state), str(os.getpid())], startupinfo=si)
             except OSError:
                 self.window = False
 
@@ -440,10 +444,47 @@ def verdict(r):
         return EXIT_FAIL
     if scn is not None and (scn["fails"] or scn["pass"] != scn["total"]):
         return EXIT_FAIL
+    if scn is not None and scn["total"] == 0:
+        scn["fails"].append("FAIL  no check ran (a scenario must assert something)")
+        return EXIT_FAIL
     return EXIT_PASS
 
 
 # ---------------------------------------------------------------- steps
+
+def pid_alive(pid):
+    out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"], capture_output=True, text=True).stdout
+    return f'"{pid}"' in out
+
+
+def take_lock(game_dir, wait=900):
+    """One harness run at a time: a second run (e.g. another session) would share the worker folders, data.win and
+    fixtures, and fail at random. Waits for the other run (up to `wait` s); a lock whose process is gone is taken."""
+    lock = game_dir / "harness.lock"
+    t0 = time.time()
+    while True:
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return lock
+        except FileExistsError:
+            try:
+                other = int(lock.read_text().strip() or 0)
+            except (OSError, ValueError):
+                other = 0
+            if not other or not pid_alive(other):
+                try:
+                    lock.unlink()
+                except OSError:
+                    pass
+                continue
+            if time.time() - t0 > wait:
+                raise HarnessError(EXIT_PREFLIGHT, f"another harness run (pid {other}) is still going after {wait} s")
+            if PROGRESS:
+                PROGRESS.note(f"waiting for another harness run (pid {other})")
+            time.sleep(5)
+
 
 def game_running():
     out = subprocess.run(["tasklist", "/FI", f"IMAGENAME eq {EXE}", "/NH", "/FO", "CSV"],
@@ -544,6 +585,38 @@ def deploy_mods(game_dir, mods, accepted, allow_incompatible=False):
         shutil.copytree(mod, dest / mod.name)
 
 
+def lock_foreground():
+    """LSFW_LOCK: no process may take the foreground (until the user's next input unlocks it). Called before each
+    window the harness opens (progress window, games), which would otherwise take the focus from the user's window."""
+    try:
+        import ctypes
+        ctypes.windll.user32.LockSetForegroundWindow(1)
+    except Exception:
+        pass
+
+
+def keep_minimized(pid):
+    """Minimize the game window of pid when it shows. The GameMaker runner shows and activates its window at boot
+    whatever wShowWindow says, so each harness game took the foreground for a moment; SW_MINIMIZE hands it back
+    to the window below (the one the user was in)."""
+    import ctypes
+    import ctypes.wintypes as W
+    u = ctypes.windll.user32
+    cb_t = ctypes.WINFUNCTYPE(W.BOOL, W.HWND, W.LPARAM)
+
+    def top(h, _):
+        owner = W.DWORD()
+        u.GetWindowThreadProcessId(h, ctypes.byref(owner))
+        if owner.value == pid and u.IsWindowVisible(h) and not u.IsIconic(h):
+            buf = ctypes.create_unicode_buffer(32)
+            u.GetClassNameW(h, buf, 32)
+            if buf.value != "#32770":  # dialogs stay as they are (game_dialog reads and dismisses them)
+                u.ShowWindow(h, 6)  # SW_MINIMIZE
+        return True
+
+    u.EnumWindows(cb_t(top), 0)
+
+
 def game_dialog(pid):
     """(title, text) of a modal dialog owned by pid, else None. Any such dialog blocks
     the game: GameMaker's 'Code Error' for a GML runtime error, or a message box
@@ -602,6 +675,8 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
         args += ["-gnx-scenario", scenario]
     elif not keep_open:
         args += ["-gnx-autotest"]
+    if not keep_open:
+        lock_foreground()
     proc = subprocess.Popen(args, cwd=box.run_dir, startupinfo=si)
     t0 = time.time()
     ram_probe = None
@@ -616,7 +691,12 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
     dismissed, seen_dialogs = [], set()
     try:
         while time.time() - t0 < timeout:
-            time.sleep(0.25)
+            if not keep_open:
+                for _ in range(5):  # the first frames are when the runner shows its window
+                    keep_minimized(proc.pid)
+                    time.sleep(0.05)
+            else:
+                time.sleep(0.25)
             log_text = box.log.read_text(encoding="utf-8", errors="replace") if box.log.is_file() else ""
             if log_text:
                 r = parse_log(log_text)
@@ -919,6 +999,7 @@ def main(argv=None):
                     help="with --capture-fixture: remove GNX/mod state from the copy")
     a = ap.parse_args(argv)
     game_dir = a.game_dir.resolve()
+    lock = None
     try:
         if a.init:
             init_game_dir(game_dir, a.init)
@@ -938,6 +1019,7 @@ def main(argv=None):
         global PROGRESS
         PROGRESS = Progress(line=sys.stderr.isatty() and not a.json and not a.no_progress,
                             window=not a.json and not a.no_progress and not a.no_window)
+        lock = take_lock(game_dir)
         PROGRESS.note("checking / patching data.win")
         if not a.no_patch:
             if not a.utmt.is_file():
@@ -1132,6 +1214,12 @@ def main(argv=None):
     except HarnessError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return e.code
+    finally:
+        if lock is not None:
+            try:
+                lock.unlink()
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":

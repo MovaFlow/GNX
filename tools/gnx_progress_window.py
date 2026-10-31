@@ -34,9 +34,15 @@ def harness_alive():
 
 
 root = tk.Tk()
+# WS_EX_NOACTIVATE on the toplevel before Tk shows it: showing it, keeping it on top (-topmost) or clicking it never
+# takes the focus from the window the user is in (the harness also starts this with SW_SHOWNOACTIVATE)
+import ctypes
+_u = ctypes.windll.user32
+_h = int(root.wm_frame(), 16)
+_u.SetWindowLongW(_h, -20, _u.GetWindowLongW(_h, -20) | 0x08000000)  # GWL_EXSTYLE |= WS_EX_NOACTIVATE
+root.attributes("-topmost", True)
 root.title("GNX test harness")
 root.configure(bg=BG)
-root.attributes("-topmost", True)
 root.resizable(False, False)
 w, h = 520, 400
 root.geometry(f"{w}x{h}+{root.winfo_screenwidth() - w - 24}+40")

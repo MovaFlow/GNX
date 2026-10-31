@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-29 11:35:33.811064300 +0100
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-31 18:12:35.337674800 +0100
 @@ -48,6 +48,14 @@
                          _data.slot_data.prop[iii].yscale = image_yscale;
                          _data.slot_data.prop[iii].iindex = image_index;
@@ -541,7 +541,7 @@
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +884,52 @@
+@@ -567,7 +884,56 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -587,14 +587,18 @@
 +            global.val.language = 0;
 +        
 +        if (variable_struct_exists(global.val, "fullscreen"))
-+            window_set_fullscreen(global.val.fullscreen);
++        {
++            // GNX: harness games stay minimized (a fixture made from a fullscreen save took the foreground)
++            if (!global.gnx_harness_run)
++                window_set_fullscreen(global.val.fullscreen);
++        }
 +        else
 +            global.val.fullscreen = false;
 +        
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +968,21 @@
+@@ -606,11 +972,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -617,7 +621,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1006,12 @@
+@@ -634,7 +1010,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -630,7 +634,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1031,395 @@
+@@ -654,8 +1035,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -1026,7 +1030,7 @@
      }
      
      return _load;
-@@ -663,6 +1427,7 @@
+@@ -663,6 +1431,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1034,7 +1038,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1447,25 @@
+@@ -682,33 +1451,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1079,7 +1083,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1490,119 @@
+@@ -733,3 +1494,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

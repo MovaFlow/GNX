@@ -12067,7 +12067,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4921 @@
+@@ -0,0 +1,4924 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -13072,7 +13072,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +                    case 0: _fn_r = script_execute(_fn_i); break;
 +                    case 1: _fn_r = script_execute(_fn_i, _fn_a[0]); break;
 +                    case 2: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1]); break;
-+                    default: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2]); break;
++                    case 3: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2]); break;
++                    case 4: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3]); break;
++                    case 5: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3], _fn_a[4]); break;
++                    default: _fn_i = -1; break;  // more than 5 args: the assert fails instead of dropping some
 +                }
 +            }
 +
@@ -45714,7 +45717,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_stage.gml gml/gml_GlobalScript_s_raid_s
                  scr_check_quest_raid();
 diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_load.gml
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-29 11:35:33.811064300 +0100
++++ gml/gml_GlobalScript_s_save_load.gml	2026-10-31 18:12:35.337674800 +0100
 @@ -48,6 +48,14 @@
                          _data.slot_data.prop[iii].yscale = image_yscale;
                          _data.slot_data.prop[iii].iindex = image_index;
@@ -46256,7 +46259,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +884,52 @@
+@@ -567,7 +884,56 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -46302,14 +46305,18 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +            global.val.language = 0;
 +        
 +        if (variable_struct_exists(global.val, "fullscreen"))
-+            window_set_fullscreen(global.val.fullscreen);
++        {
++            // GNX: harness games stay minimized (a fixture made from a fullscreen save took the foreground)
++            if (!global.gnx_harness_run)
++                window_set_fullscreen(global.val.fullscreen);
++        }
 +        else
 +            global.val.fullscreen = false;
 +        
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +968,21 @@
+@@ -606,11 +972,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -46332,7 +46339,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1006,12 @@
+@@ -634,7 +1010,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -46345,7 +46352,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1031,395 @@
+@@ -654,8 +1035,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -46741,7 +46748,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1427,7 @@
+@@ -663,6 +1431,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -46749,7 +46756,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1447,25 @@
+@@ -682,33 +1451,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -46794,7 +46801,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1490,119 @@
+@@ -733,3 +1494,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
