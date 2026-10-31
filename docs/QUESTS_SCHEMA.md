@@ -138,8 +138,8 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `cell_count` | `h_type`, `value` (default 1) | count of built cells with that h_type >= value |
 | `cell_built` | `h_type` (string ref or int) | at least one cell with that h_type exists |
 | `cell_occupied` | `h_type` | at least one cell with that h_type has a unit |
-| `stage_discovered` | `stage` (0-4) | `stage_info[stage] != -1` |
-| `stage_cleared` | `stage`, `min_level` | `stage_info[stage].max_lvl >= min_level` |
+| `stage_discovered` | `stage`: 0-4, `"vanilla.FOREST"`, a mod stage `"mod.ID"` or your own `"ID"` (modding guide 27.3) | that stage is discovered on the map the player is on (a stage not on it: false) |
+| `stage_cleared` | `stage` (as above), `min_level` | that stage's highest open level >= min_level (`stage_info[stage].max_lvl`) |
 | `boss_captured` | `class` (string ref or int) | unit with that class exists in cage |
 | `class_unlocked` | `class` (string ref or int) | an `unlock_class` side effect has unlocked that class in this save |
 | `raid_won` | (none) | always true (only meaningful at post_raid_win hook) |

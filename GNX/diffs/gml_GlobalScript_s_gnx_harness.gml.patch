@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4856 @@
+@@ -0,0 +1,4876 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1740,6 +1740,26 @@
 +        var _half = raid_data.max_time * 0.5;
 +        raid_data.time_left = (raid_data.raid_state == 1) ? (raid_data.max_time - (arg0 * _half)) : (arg0 * _half);
 +    }
++}
++
++
++// for {"assert": "fn"}: 1 when the encounter pool of stage arg0 (a number or a stage name), level arg1 holds class
++// arg2 (an id, or {"class": "folder.NAME"} in the scenario), else 0
++function gnx_scn_pool_has(arg0, arg1, arg2)
++{
++    var _key = (gnx_stage_ref(arg0, "") * 100) + arg1;
++    var _pool = ds_map_find_value(global.gnx_encounter_pools, _key);
++
++    if (_pool == undefined)
++        return 0;
++
++    for (var _i = 0; _i < ds_list_size(_pool); _i++)
++    {
++        if (ds_list_find_value(_pool, _i).class_id == arg2)
++            return 1;
++    }
++
++    return 0;
 +}
 +
 +

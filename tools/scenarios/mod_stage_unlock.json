@@ -1,12 +1,78 @@
 {
-  "about": "Mod raid stage progression: a stage's unlock discovers it (one condition, or a list that must all hold; checked every 60 frames), with a popup and its on_discover event; conditions and tools name stages as 0-4, vanilla.NAME, folder.ID or the mod's bare ID; per-level xp; the tool unlock_stage_next opens a mod stage's levels; a class whose trade_stage names a stage is sold once that stage is found. Survives save/reload.",
+  "about": "Mod raid stage progression: a stage's unlock discovers it (one condition, or a list that must all hold; checked every 60 frames), with a popup and its on_discover event; conditions and tools name stages as 0-4, vanilla.NAME, folder.ID or the mod's bare ID; per-level xp; the tool unlock_stage_next opens a mod stage's levels; a class whose trade_stage names a stage is sold once that stage is found. Survives save/reload. Stage names in raid_spawns and items.json loot: a bare ID, vanilla.NAME and folder.ID.",
   "mods": [
+    "tools/scenarios/mods/harness_cells",
+    "tools/scenarios/mods/harness_items",
     "tools/scenarios/mods/harness_raid_gated"
   ],
   "check_boot_suite": false,
   "steps": [
     {
       "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_pool_has",
+      "args": [
+        "harness_raid_gated.GATE2",
+        0,
+        {
+          "class": "harness_raid_gated.GHOST"
+        }
+      ],
+      "is": 1,
+      "why": "raid_spawns with a bare stage ID of the same mod"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_pool_has",
+      "args": [
+        "vanilla.FOREST",
+        1,
+        {
+          "class": "harness_raid_gated.GHOST"
+        }
+      ],
+      "is": 1,
+      "why": "raid_spawns with vanilla.FOREST"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_pool_has",
+      "args": [
+        "harness_raid_gated.GATE1",
+        1,
+        {
+          "class": "harness_raid_gated.GHOST"
+        }
+      ],
+      "is": 1,
+      "why": "raid_spawns with folder.ID"
+    },
+    {
+      "wait": 70
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_loot_count",
+      "args": [
+        5,
+        0,
+        "harness_items.MOON SHARD"
+      ],
+      "is": 1,
+      "why": "items.json loot with a bare stage ID"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_loot_count",
+      "args": [
+        3,
+        1,
+        "harness_items.MOON SHARD"
+      ],
+      "is": 1,
+      "why": "items.json loot with vanilla.CASTLE"
     },
     {
       "do": {

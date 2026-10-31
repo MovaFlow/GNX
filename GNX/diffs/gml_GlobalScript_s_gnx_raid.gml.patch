@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1543 @@
+@@ -0,0 +1,1557 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -775,15 +775,16 @@
 +}
 +
 +
-+// a stage named in mod arg1's JSON (arg0) as its number on this map, or -1: a number 0-4 (or any loaded stage),
-+// "vanilla.VILLAGE" / MOUNTAIN / FOREST / CASTLE / TOWER, "folder.ID" for a mod stage, or a bare "ID" of mod arg1
-+function gnx_stage_ref(arg0, arg1)
++// a stage name written in mod arg1's files, normalised while loading: a number (0-4, or a number written as text)
++// stays a number, "vanilla.FOREST" and the other vanilla names become 0-4, a bare "ID" becomes "<mod>.ID", and
++// "folder.ID" stays as it is (a mod stage, numbered per map later)
++function gnx_stage_name_norm(arg0, arg1)
 +{
-+    if (is_numeric(arg0))
-+        return (arg0 >= 0 && arg0 < array_length(global.val.stage_info)) ? floor(arg0) : -1;
-+
 +    if (!is_string(arg0))
-+        return -1;
++        return arg0;
++
++    if (arg0 != "" && string_digits(arg0) == arg0)
++        return real(arg0);
 +
 +    var _key = (string_pos(".", arg0) == 0) ? (string(arg1) + "." + arg0) : arg0;
 +    var _v = ["vanilla.VILLAGE", "vanilla.MOUNTAIN", "vanilla.FOREST", "vanilla.CASTLE", "vanilla.TOWER"];
@@ -794,7 +795,20 @@
 +            return _i;
 +    }
 +
-+    return gnx_stage_index(_key);
++    return _key;
++}
++
++
++// a stage named in mod arg1's JSON (arg0) as its number on this map, or -1: a number 0-4 (or any loaded stage),
++// "vanilla.VILLAGE" / MOUNTAIN / FOREST / CASTLE / TOWER, "folder.ID" for a mod stage, or a bare "ID" of mod arg1
++function gnx_stage_ref(arg0, arg1)
++{
++    var _n = gnx_stage_name_norm(arg0, arg1);
++
++    if (is_numeric(_n))
++        return (_n >= 0 && _n < array_length(global.val.stage_info)) ? floor(_n) : -1;
++
++    return is_string(_n) ? gnx_stage_index(_n) : -1;
 +}
 +
 +

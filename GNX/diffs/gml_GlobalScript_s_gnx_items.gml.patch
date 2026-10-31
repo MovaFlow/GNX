@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,297 @@
+@@ -0,0 +1,301 @@
 +// GNX: mod items (items.json): registry, raid loot, inventory counts for quests
 +// (the functions are global, callable from any script)
 +
@@ -125,7 +125,8 @@
 +    }
 +
 +    var _sprites = (is_struct(_json) && variable_struct_exists(_json, "sprites")) ? _json.sprites : undefined;
-+    var _items = (is_struct(_json) && variable_struct_exists(_json, "items")) ? _json.items : _json;
++    // a file with only "loot" (no items of its own) is fine: its item list is empty
++    var _items = is_struct(_json) ? (variable_struct_exists(_json, "items") ? _json.items : []) : _json;
 +    var _base_dir = global.gnx_mods_root + arg0 + "/";
 +
 +    if (!is_array(_items))
@@ -214,7 +215,10 @@
 +        }
 +        
 +        // GNX-STAGE: a mod stage stays a "folder.ID" key, numbered per map by gnx_loot_sync
-+        var _stage = is_string(_l.stage) && string_pos(".", _l.stage) > 0 ? _l.stage : floor(gnx_json_num(_l.stage, -1));
++        var _stage = gnx_stage_name_norm(_l.stage, _r.mod_name);  // vanilla name or number -> 0-4, a bare ID -> "<mod>.ID"
++
++        if (!is_string(_stage))
++            _stage = floor(gnx_json_num(_stage, -1));
 +        var _level = floor(gnx_json_num(_l.level, -1));
 +        var _entry = undefined;
 +        var _what = "";

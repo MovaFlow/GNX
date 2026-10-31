@@ -6011,7 +6011,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3923 @@
+@@ -0,0 +1,3924 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -9191,7 +9191,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        repeat (_rs_len)
 +        {
 +            var _rs_e = _rs_arr[_ri++];
-+            var _rs_stage = _rs_e.stage;
++            // GNX-STAGE: a stage name ("vanilla.FOREST", a bare "ID" of this mod, "folder.ID") or a number
++            var _rs_stage = gnx_stage_name_norm(_rs_e.stage, arg1);
 +            var _rs_level = _rs_e.level;
 +
 +            // GNX-STAGE: a mod stage ("folder.ID"): its raids.json loads later (phase 3), so the entry waits there
@@ -10947,7 +10948,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4856 @@
+@@ -0,0 +1,4876 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -12687,6 +12688,26 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        var _half = raid_data.max_time * 0.5;
 +        raid_data.time_left = (raid_data.raid_state == 1) ? (raid_data.max_time - (arg0 * _half)) : (arg0 * _half);
 +    }
++}
++
++
++// for {"assert": "fn"}: 1 when the encounter pool of stage arg0 (a number or a stage name), level arg1 holds class
++// arg2 (an id, or {"class": "folder.NAME"} in the scenario), else 0
++function gnx_scn_pool_has(arg0, arg1, arg2)
++{
++    var _key = (gnx_stage_ref(arg0, "") * 100) + arg1;
++    var _pool = ds_map_find_value(global.gnx_encounter_pools, _key);
++
++    if (_pool == undefined)
++        return 0;
++
++    for (var _i = 0; _i < ds_list_size(_pool); _i++)
++    {
++        if (ds_list_find_value(_pool, _i).class_id == arg2)
++            return 1;
++    }
++
++    return 0;
 +}
 +
 +
@@ -15807,7 +15828,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_items.gml
 --- gml_138/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_items.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,297 @@
+@@ -0,0 +1,301 @@
 +// GNX: mod items (items.json): registry, raid loot, inventory counts for quests
 +// (the functions are global, callable from any script)
 +
@@ -15932,7 +15953,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 +    }
 +
 +    var _sprites = (is_struct(_json) && variable_struct_exists(_json, "sprites")) ? _json.sprites : undefined;
-+    var _items = (is_struct(_json) && variable_struct_exists(_json, "items")) ? _json.items : _json;
++    // a file with only "loot" (no items of its own) is fine: its item list is empty
++    var _items = is_struct(_json) ? (variable_struct_exists(_json, "items") ? _json.items : []) : _json;
 +    var _base_dir = global.gnx_mods_root + arg0 + "/";
 +
 +    if (!is_array(_items))
@@ -16021,7 +16043,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 +        }
 +        
 +        // GNX-STAGE: a mod stage stays a "folder.ID" key, numbered per map by gnx_loot_sync
-+        var _stage = is_string(_l.stage) && string_pos(".", _l.stage) > 0 ? _l.stage : floor(gnx_json_num(_l.stage, -1));
++        var _stage = gnx_stage_name_norm(_l.stage, _r.mod_name);  // vanilla name or number -> 0-4, a bare ID -> "<mod>.ID"
++
++        if (!is_string(_stage))
++            _stage = floor(gnx_json_num(_stage, -1));
 +        var _level = floor(gnx_json_num(_l.level, -1));
 +        var _entry = undefined;
 +        var _what = "";
@@ -22646,7 +22671,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1543 @@
+@@ -0,0 +1,1557 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -23421,15 +23446,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +}
 +
 +
-+// a stage named in mod arg1's JSON (arg0) as its number on this map, or -1: a number 0-4 (or any loaded stage),
-+// "vanilla.VILLAGE" / MOUNTAIN / FOREST / CASTLE / TOWER, "folder.ID" for a mod stage, or a bare "ID" of mod arg1
-+function gnx_stage_ref(arg0, arg1)
++// a stage name written in mod arg1's files, normalised while loading: a number (0-4, or a number written as text)
++// stays a number, "vanilla.FOREST" and the other vanilla names become 0-4, a bare "ID" becomes "<mod>.ID", and
++// "folder.ID" stays as it is (a mod stage, numbered per map later)
++function gnx_stage_name_norm(arg0, arg1)
 +{
-+    if (is_numeric(arg0))
-+        return (arg0 >= 0 && arg0 < array_length(global.val.stage_info)) ? floor(arg0) : -1;
-+
 +    if (!is_string(arg0))
-+        return -1;
++        return arg0;
++
++    if (arg0 != "" && string_digits(arg0) == arg0)
++        return real(arg0);
 +
 +    var _key = (string_pos(".", arg0) == 0) ? (string(arg1) + "." + arg0) : arg0;
 +    var _v = ["vanilla.VILLAGE", "vanilla.MOUNTAIN", "vanilla.FOREST", "vanilla.CASTLE", "vanilla.TOWER"];
@@ -23440,7 +23466,20 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +            return _i;
 +    }
 +
-+    return gnx_stage_index(_key);
++    return _key;
++}
++
++
++// a stage named in mod arg1's JSON (arg0) as its number on this map, or -1: a number 0-4 (or any loaded stage),
++// "vanilla.VILLAGE" / MOUNTAIN / FOREST / CASTLE / TOWER, "folder.ID" for a mod stage, or a bare "ID" of mod arg1
++function gnx_stage_ref(arg0, arg1)
++{
++    var _n = gnx_stage_name_norm(arg0, arg1);
++
++    if (is_numeric(_n))
++        return (_n >= 0 && _n < array_length(global.val.stage_info)) ? floor(_n) : -1;
++
++    return is_string(_n) ? gnx_stage_index(_n) : -1;
 +}
 +
 +
@@ -31793,7 +31832,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +}
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-29 14:59:53.372968700 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-31 17:13:34.252348700 +0100
 @@ -1,8 +1,18 @@
 +// GNX: this file holds the game's start-up only (scr_create_initials: vanilla plus GNX's boot steps).
 +// GNX's own functions live in one file per topic: s_gnx_content, s_gnx_cells, s_gnx_props, s_gnx_mods,
@@ -40768,7 +40807,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_state.gml gml/gml_GlobalScript_s_mon_sta
          mon_data.ff = false;
 diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mouse_action.gml
 --- gml_138/gml_GlobalScript_s_mouse_action.gml	2026-09-02 08:45:16.155545700 +0200
-+++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-29 10:22:19.439985000 +0100
++++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-31 17:13:34.362067900 +0100
 @@ -1,6 +1,7 @@
  function scr_mouse_control()
  {

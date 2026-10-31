@@ -30,6 +30,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 - [24. Underground cells](#24-underground-cells)
 - [25. Items and raid loot (items.json)](#25-items-and-raid-loot-itemsjson)
 - [26. Checking your mod: schemas and check_mod.py](#26-checking-your-mod-schemas-and-check_modpy)
+- [27. Raid stages (raids.json)](#27-raid-stages-raidsjson)
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
 
@@ -2333,7 +2334,7 @@ Classes are patched in `classes.json`: an entry with `"override": true` and the 
 
 ### 13.1 Stages and encounter levels
 
-Stages: `0` Village, `1` Mountain, `2` Forest, `3` Castle, `4` Tower. Each stage has the encounter levels `0`, `1` and `2`, the difficulty the player selects, which the game shows as lvl 1–3: `"stage": 2, "level": 1` is Forest lvl 2. They are **not** unit levels: `min_lvl`/`max_lvl` set the spawned unit's own level (capped at 7). Quest conditions such as `stage_cleared` use the same stage numbers.
+Stages: `0` Village, `1` Mountain, `2` Forest, `3` Castle, `4` Tower. Each stage has the encounter levels `0`, `1` and `2`, the difficulty the player selects, which the game shows as lvl 1–3: `"stage": 2, "level": 1` is Forest lvl 2. They are **not** unit levels: `min_lvl`/`max_lvl` set the spawned unit's own level (capped at 7). Quest conditions such as `stage_cleared` use the same stage numbers. Mods can add stages of their own, numbered after these; refer to them by name ([27](#27-raid-stages-raidsjson)).
 
 Encounter level `0` is special:
 
@@ -2346,8 +2347,8 @@ Encounter level `0` is special:
 
 | Key | What it means | Type | Default |
 |---|---|---|---|
-| `stage` | Raid location, 0–4 | number | required |
-| `level` | Encounter level: 1–2 for stages 0–3, 0–1 for stage 4 | number | required |
+| `stage` | Raid location: 0–4, or a name: `"vanilla.FOREST"`, a mod stage `"my_mod.CRYPT"` ([27.3](#273-naming-stages)) | number or text | required |
+| `level` | Encounter level: 1–2 for stages 0–3, 0–1 for stage 4, any level of a mod stage (0 included) | number | required |
 | `weight` | How often the class is picked compared to the rest of the pool | number | `10` |
 | `min_lvl` | Lowest unit level of a spawned unit | number | `0` |
 | `max_lvl` | Highest unit level. Keep both between 0 and 7, with `min_lvl` ≤ `max_lvl`. | number | `1` |
@@ -2406,7 +2407,7 @@ A rare, strong Witch, one per encounter, who appears only until she has been cap
 
 ### 13.5 trade_stage
 
-During raids a trader sells captured units. `trade_stage` (a raid stage, 0–4) adds your class to the offer from that stage on; other values are silently ignored. Without it the class is not sold.
+During raids a trader sells captured units. `trade_stage` (a raid stage, 0–4) adds your class to the offer from that stage on; other numbers are silently ignored. It can also name a mod stage ([27.3](#273-naming-stages)): the class is then offered once that stage is discovered, three times like the others, and the stage adds no trader slot. Without `trade_stage` the class is not sold.
 
 - The trader has one slot per unlocked stage, at most 3.
 - Each unlocked stage adds its vanilla trade classes to the pool **once** each, and every modded class with that `trade_stage` **3 times**, so it is three times as likely as a single vanilla class.
@@ -2936,6 +2937,7 @@ A button list whose buttons include one starting with `create_unit` (also in you
 | RELOAD MODS | Saves the game to the autosave slot, reads every mod's files again (JSON, sprites, sounds) and loads the autosave back, without the menu: edit a mod, press it, see the change. Refused while a raid is out or during a trip. The autosave it replaces is kept as `save_file_a.json.bak_reload`. The previous load's images and sounds stay in memory (a cell loaded back mid-scene can still show one until its next phase), so restart the game after many reloads. |
 | FREE COPY | `Floor copies are free`: COPY DOWN in a floor's FLOOR menu (on its starting pillar) costs nothing. |
 | CAPT100 | `Raid capture rate forced to 100%`: every capture roll succeeds (except in `no_capture` encounters, [21.2](#212-map_info)). |
+| RAID ROUTES | `Mod raid routes shown on the raid map`: draws every mod stage's cart route, path points and button area on the raid map ([27.4](#274-cart-routes)). |
 | TRACE | `Entity lifecycle tracing ON (gnx_debug.txt)` |
 | OVERLAY | `GameMaker debug overlay ON (FPS, memory, textures)` |
 | PERF HUD | `GNX perf HUD ON (FPS, sprites, VRAM)` |
@@ -3045,7 +3047,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **39** a
 | Type | Fields | What it does |
 |---|---|---|
 | `unlock_boss` | `index` (required, 0–4) | Starts the vanilla intro event of a still-locked boss: 0 cow, 1 Nyx, 2 goddess, 3 Morrigan, 4 Lilith. |
-| `unlock_stage_next` | `stage` (required, 0–3) | Discovers raid stage 0 Village, 1 Mountain, 2 Forest or 3 Castle (with the vanilla event for 1–3), or, if already discovered, raises its highest level by one. |
+| `unlock_stage_next` | `stage` (required: 0–3, or a stage name, [27.3](#273-naming-stages)) | Discovers raid stage 0 Village, 1 Mountain, 2 Forest or 3 Castle (with the vanilla event for 1–3), or a mod stage, or, if already discovered, raises its highest level by one. The Tower (4, `vanilla.TOWER`) is not accepted: nothing happens. |
 | `unlock_breeds` | none | Unlocks all breeding tips. |
 | `unlock_cell` | `h_type` (cell reference, required) | Adds the cell to its build menu tab and shows `<NAME> unlocked!`; a cell without a build category shows `Cell has no build category. Contact modder.` |
 | `unlock_prop` | `prop_id` (required) | Same as `give_prop`. |
@@ -3118,7 +3120,7 @@ The button runs `unlock_boss` only while boss 0 is locked; afterwards a click sh
 | Guard `type` | Fields | True when |
 |---|---|---|
 | `boss_locked`, `boss_unlocked` | `index` | That boss is still locked / is unlocked (numbers as in `unlock_boss`). |
-| `stage_undiscovered` | `stage` | That raid stage is not discovered yet. |
+| `stage_undiscovered` | `stage` | That raid stage is not discovered yet (a number or a stage name, [27.3](#273-naming-stages)). |
 | `has_unit_slot` | none | The prison has a free slot. |
 | `on_screen` | (`screen` is ignored) | The raid screen is open, whatever `screen` says. |
 | any quest condition | see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) | For example `state_equals`, `state_gte`, `gold_gte`, `floor_gte`; state keys come from your own mod. |
@@ -4074,9 +4076,11 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 |---|---|---|---|
 | `label` | The map's name in the travel menu and on the load page. | text | the `map` ID |
 | `map_sprite` | PNG in your mod's `sprites/` folder (133 × 91), drawn as the raid panel's world map while on this map. | text | none |
+| `nest` | `[x, y]` on this map's raid map where raid carts to mod stages leave from ([27.4](#274-cart-routes)). Set it with a `map_sprite` that shows the nest elsewhere. | [x, y] | `[200, 59]` |
 | `no_capture` | Raid encounters of this map that can be fought and won (loot, quest progress) but capture nobody, vanilla enemies included: a list of `{ "stage": 0-4, "level": 0-2 }` (stage and encounter level as in [13.1](#131-stages-and-encounter-levels)). Bosses (vanilla boss classes) stay capturable, since capturing one records its defeat. The player gets a note when the raid ends. Only on this mod's own map; the village's raids are never touched. A wrong entry is a mod error and left out. | list | none |
 | `return_label` | The village's name in the travel menu while on this map. | text | `"Return"` |
 | `travel` | What may be taken along to or from this map: `"simple"` (gold, food, basic goblins), `"advanced"` (also a TROOPS tab with every monster type, one section per type, amounts set with the game's number pad) or `"complex"` (also a CAPTIVES tab: prisoners are dragged into the destination's free prison places). A trip between two maps uses the higher setting. | text | `"simple"` |
+| `vanilla_stages` | Hides, moves, re-pools or re-rewards the vanilla raid stages on this map only ([27.5](#275-changing-the-vanilla-stages-on-your-map)). | object | none |
 | `travel_cost` | What a trip to or from this map costs: `{ "gold": …, "food": …, "days": … }`, each optional ([21.4](#214-how-travel-works)). A trip between two maps uses the higher value of each. | object | free |
 | `unlock` | A condition, or a list that must all hold, in quest condition format ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). Until then the map is hidden from the world map and the travel menu; the first time it holds, the map unlocks for good on every map with `New map: <label> (travel from the world map)`. `state_*` conditions read this mod's own state. | object or list | always available |
 | `x`, `y`, `return_x`, `return_y` | Not used. | number | — |
@@ -4491,7 +4495,7 @@ How a milk strip plays:
 
 ## 25. Items and raid loot (items.json)
 
-A mod can add its own inventory items, and put them, or blueprints of its cells, into the loot of raid stages. Declare the file in `manifest.json` with `"items": "items.json"`.
+A mod can add its own inventory items, and put them, or blueprints of its cells, into the loot of raid stages. Declare the file in `manifest.json` with `"items": "items.json"`. A file may hold only `loot`, for example to drop blueprints of your cells or another mod's items.
 
 ```json
 {
@@ -4529,7 +4533,7 @@ Each entry of `loot` adds **one find** to a raid stage, like the game's own find
 
 | Key | What it means | Type |
 |---|---|---|
-| `stage` | The raid stage, from 0 ([13.1](#131-stages-and-encounter-levels)). | number |
+| `stage` | The raid stage, from 0 ([13.1](#131-stages-and-encounter-levels)), or its name, a mod stage included ([27.3](#273-naming-stages)). | number or text |
 | `level` | The stage's level, from 0. | number |
 | `item` + `num` | One of your items (or another mod's, `"mod.NAME"`), `num` of them (default 1). | text, number |
 | `blueprint` | A cell (`"ALTAR"`, `"other_mod.CELL"`): a blueprint **piece**, `piece` 0, 1 or 2 (three different pieces combine into the cell, as for the game's cells), or with `"complete": true` the whole blueprint, which unlocks the cell when it is picked up. | text |
@@ -4603,6 +4607,155 @@ GNX ignores that key. It does not work in a file that is a list (`classes.json` 
 
 ---
 
+## 27. Raid stages (raids.json)
+
+**In short:** a mod adds its own raid locations to the raid map: where each sits, how the player finds it, how many levels it has, and what every level holds (enemies, boss, strength, finds, reward). A map mod can also hide, move or change the five vanilla stages on its own map ([27.5](#275-changing-the-vanilla-stages-on-your-map)). Declare the file in `manifest.json` with `"raids": "raids.json"`.
+
+```json
+{
+  "stages": [
+    {
+      "id": "CRYPT",
+      "label": "Crypt",
+      "pos": [215, 85],
+      "icon": "crypt_icon.png",
+      "unlock": { "type": "stage_cleared", "stage": "vanilla.FOREST", "min_level": 1 },
+      "on_discover": "crypt_found",
+      "raid_time": 3600,
+      "path": [[196, 72], [205, 88]],
+      "curve": true,
+      "levels": [
+        {
+          "units": { "count": [2, 3], "pool": [
+            { "class": "GHOUL", "weight": 50, "min_lvl": 1, "max_lvl": 2 },
+            { "class": 0, "weight": 20, "min_lvl": 1, "max_lvl": 1 }
+          ] },
+          "enemy_ap": { "hp": [10, 14], "ap": [9, 12] },
+          "drops": { "gold": [15, 25], "food": [20, 28] },
+          "reward": { "gold": 40, "food": 20 },
+          "xp": 6
+        },
+        {
+          "units": { "count": [3, 4], "pool": [ { "class": "GHOUL", "weight": 1, "min_lvl": 2, "max_lvl": 3 } ] },
+          "enemy_ap": { "hp": [40, 45], "ap": [35, 39] },
+          "boss": { "class": "LICH", "lvl": 5, "chance": 35 },
+          "drops": { "gold": [40, 60] },
+          "reward": { "gold": 120, "food": 40 },
+          "loot": [ { "item": "BONE KEY" } ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**What this example does:**
+
+- The Crypt sits at (215, 85) on the raid map with its own button picture. It appears once the Forest's first level is cleared; the player then sees `New raid location: Crypt` and the mod's quest event `crypt_found` fires.
+- A trip there takes 3600 frames each way at normal speed (vanilla's own values run from 2760 for the Village to 5100 for the Castle), and the cart curves through two points on its way.
+- Level 1 (shown lvl 1) holds two or three units: the mod's GHOUL or Peasants (class 0). After six wins at it, level 2 opens.
+- Level 2 adds a LICH boss in 35 % of the encounters, until one is captured, and holds a one-time find: the mod's BONE KEY item ([25](#25-items-and-raid-loot-itemsjson)).
+
+New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest, so an older GNX asks the player to update instead of loading the mod without its stages ([4.2](#42-the-version-check)).
+
+### 27.1 Stages
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `id` | The stage's name in your mod. Other mods, quests and saves refer to it as `"<mod folder>.<id>"` (`"my_mod.CRYPT"`), your own files as just `"CRYPT"`. | text | required |
+| `label` | The name the player sees: over the button when pointed at, and in the discovery popup. Translated by your `lang` files ([4.6](#46-translations-lang)). | text | the `id` |
+| `pos` | `[x, y]` of the button's centre on the raid map, in the map's pixels (the map panel is 133 × 91 at x 173, y 39). Keep x within 186–293 and y within 52–109 so the button and the level bar under it stay on the map. | [x, y] | required |
+| `icon` | The button's picture: a PNG in your `sprites/` folder, either one 27 × 27 frame or two side by side (normal, pointed at), or a number 0–4 to reuse that vanilla stage's button ([27.3](#273-naming-stages)). One frame is lightened when pointed at. | text or number | `0` (the Village's) |
+| `unlock` | A quest condition, or a list that must all hold ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). GNX checks it every second; the first time it holds, the stage is discovered. Without `unlock` the stage is there from the start, without a popup. `state_*` conditions read your mod's own state. | object or list | none |
+| `on_discover` | A quest event of your mod fired once, when the stage is discovered (an intro dialog, a side effect). | text | none |
+| `raid_time` | Frames from the nest to the stage at normal speed; the way back takes as long. Vanilla's own values run from 2760 (Village) to 5100 (Castle). The raid panel shows the trip time. | number, at least 60 | `3600` |
+| `path`, `curve`, `cart` | The cart's route on the raid map and its picture ([27.4](#274-cart-routes)). | | straight line, vanilla cart |
+| `levels` | One entry per level the player can pick ([27.2](#272-levels)). Any number, at least one. | list | required |
+
+- **Where a stage exists.** A mod without `"map"` adds its stages to the village; a map mod adds them to its own map only ([21.1](#211-map)). Each map keeps its own progress on each stage.
+- **Saves.** A save stores the stages by name. Removing the mod keeps their progress in the save (the stages are gone from the map), and reinstalling it brings them back as they were. The save keeps the game's own five-stage layout and stores mod stages apart, by name.
+- **Discovery** works like the vanilla stages: the first level opens, its encounter is rolled, and the button appears on the raid map. The tool action `unlock_stage_next` also discovers it ([27.3](#273-naming-stages)).
+
+> **When** the button does not fit on the map, a path point is outside the map, or the button lies within 12 px of another stage's button, the mod still loads and the error dialog says which stage and why (`Mod 'my_mod': stage 'CRYPT': its button at [ 180,72 ] does not fit on the raid map with its level bar: keep pos within x 186-293, y 52-109`). A stage without `id`, `pos` or `levels` is skipped. The log lists each stage it registers: `[GNX-STAGE] my_mod.CRYPT registered: 2 level(s) at (215,85)`.
+
+### 27.2 Levels
+
+Every key is optional. A level builds its encounter the way the vanilla stages do: a number of units from an enemy pool, a base enemy strength, sometimes a boss, and finds the raid can bring home.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `units.count` | How many units the encounter holds: a number or `[min, max]`. At most 5 with the boss. | number or [min, max] | `[1, 2]` |
+| `units.pool` | The classes the units are drawn from, with the keys of a `raid_spawns` entry minus `stage` and `level`: `class` (required), `weight`, `min_lvl`, `max_lvl`, `condition`, `max_per_encounter`, `ap_override` ([13.2](#132-raid_spawns-fields)). Other mods add to it with `raid_spawns` ([27.3](#273-naming-stages)). | list | empty |
+| `enemy_ap.hp`, `enemy_ap.ap` | The encounter's base strength, a number or `[min, max]` rolled each time. Like vanilla, the unit count is added, then each unit's own HP and AP: its class's values (built in for vanilla classes, `fap_mul`/`bap_mul` × level for mod classes), or `ap_override`. | number or [min, max] | `0` |
+| `boss` | A unit added on top of the count: `class` (required), `lvl` (default 5), `chance` in % (default 100), `condition`, `until_captured` (default true: it stops coming once a unit of its class was captured in a raid, on any map; this counts mod classes only). | object | none |
+| `drops.gold`, `drops.food` | Gold and food the raid may bring back, a number or `[min, max]`. Like vanilla finds, the encounter picks up to 3 + level items (5 at most) among the drops and the stage's loot, each with a 75 % chance. | number or [min, max] | none |
+| `reward` | `{ "gold": n, "food": n }` paid for every win. | object | nothing |
+| `loot` | One-time finds of this level: the keys of an `items.json` loot entry minus `stage` and `level` ([25.2](#252-raid-loot)). | list | none |
+| `no_capture` | `true`: a win captures nobody (loot and progress only). A vanilla boss (classes 8–12) is still captured, since that records its defeat. | true/false | false |
+| `xp` | Wins at this level, while it is the highest one open, before the next level opens. | number | vanilla's (level × 0.4 + 1) × 9, so 9, 12, 16, … |
+
+- The game shows the levels as lvl 1, 2, 3, …; the files count them from 0 (`"level": 0` is lvl 1). The level bar under the button has room for three marks: a stage with more levels draws the extra marks past it.
+- A win raises the stage's XP like on the vanilla Village to Castle (never like the Tower).
+
+> **When** a pool entry or a boss names a class no loaded mod has, it is left out and the error dialog says so. A level whose pool is empty and that no other mod fills holds Peasants at level 0 (and the log says `[GNX] pool_pick: no pool stage=… lvl=…`).
+
+### 27.3 Naming stages
+
+Everywhere GNX expects a raid stage, you can write it as:
+
+| Form | Example | Means |
+|---|---|---|
+| a number 0–4 | `2` | a vanilla stage ([13.1](#131-stages-and-encounter-levels)) |
+| `vanilla.<NAME>` | `"vanilla.FOREST"` | VILLAGE (0), MOUNTAIN (1), FOREST (2), CASTLE (3), TOWER (4) |
+| `<folder>.<id>` | `"my_mod.CRYPT"` | a mod stage |
+| `<id>` | `"CRYPT"` | a stage of your own mod |
+
+This works in `raid_spawns` (`"stage": "my_mod.CRYPT"`, any of its levels, level 0 included), `items.json` loot, `trade_stage` (the class is sold once that stage is discovered; a mod stage adds no trader slot of its own, [13.5](#135-trade_stage)), the quest conditions `stage_discovered` and `stage_cleared`, the tool guard `stage_undiscovered` and the tool action `unlock_stage_next` (on a mod stage: discovers it, or opens its next level).
+
+> **When** the stage named is not on the map the player is on (a stage of another map, or of a mod that is off), conditions read false and the entries wait: a `raid_spawns` or loot entry joins the stage when it loads.
+
+### 27.4 Cart routes
+
+Mod stages have no cart animation of their own: GNX draws the cart, which goes from the nest to the stage and back on the raid clock.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `path` | Points `[x, y]` the cart passes between the nest and the stage (both are added for you). The cart keeps the same speed along the whole route, and comes back the same way. | list of [x, y] | straight line |
+| `curve` | `true`: a smooth curve through the points instead of straight legs. | true/false | false |
+| `cart` | A PNG in your `sprites/` folder drawn as the cart (the vanilla one is 28 × 24, standing on a point 12 px from its left and 19 px from its top). | text | the vanilla cart |
+
+The cart leaves from the vanilla nest at (200, 59). On a map mod with its own `map_sprite`, set `map_info.nest` to where your map shows the nest ([21.2](#212-map_info)). The cart stops 2 px left of and 5 px below the stage button, where the vanilla carts stop.
+
+**Placing a route.** Turn on GNX DEBUG > RAID ROUTES ([17.3](#173-built-in-menus-spawn-and-gnx-debug)) and open the raid map: every mod stage's route is drawn in yellow, its path points in red and its button area in cyan.
+
+### 27.5 Changing the vanilla stages on your map
+
+A map mod (the owner of its map, [21](#21-multi-map-travel)) can change the five vanilla stages on its own map with `map_info.vanilla_stages`. Other maps, the village included, keep them as they are.
+
+```json
+"map_info": {
+  "label": "Outpost",
+  "nest": [190, 100],
+  "vanilla_stages": {
+    "MOUNTAIN": { "hidden": true },
+    "FOREST": { "pos": [230, 60], "path": [[215, 80]], "replace_pool": true, "reward": { "gold": 80, "food": 30 } }
+  }
+}
+```
+
+| Key | What it means | Type |
+|---|---|---|
+| `hidden` | No button and no map icon on this map, and Nyx never joins its encounters. The stage keeps its progress (vanilla quests read it), and still counts for the trader's slots. | true/false |
+| `pos`, `path`, `curve` | The stage moves; its raids then use the GNX cart on this route instead of the vanilla cart animation ([27.4](#274-cart-routes)). | as in 27.1 / 27.4 |
+| `replace_pool` | Its vanilla enemies leave its encounter pools on this map; enemies that mods add with `raid_spawns` stay, so give it some (an empty pool falls back to level-0 Peasants). What the game sets itself stays: the Village's first level, the stage's own boss (Hathor in the Village, Selene in the Forest, Morrigan in the Castle) and the Tower's first encounter (Lilith). The Tower's other units come from its pools, so they change too. | true/false |
+| `reward` | Replaces the win reward: `{ "gold", "food" }` for every level, or a list with one per level (the last one repeats). | object or list |
+
+Keys are the vanilla names: VILLAGE, MOUNTAIN, FOREST, CASTLE, TOWER.
+
+> **When** a key is not one of those names, it is a mod error and that entry is left out. A `path` without `pos` is a mod error too: the path is ignored and the stage keeps its vanilla cart.
+
+---
+
 ## Appendix A. Vanilla IDs and cell list
 
 **In short:** the ID numbers of the unmodded game's classes, monster types, raid stages and cells, for numeric IDs, vanilla patches and `character_row`.
@@ -4637,6 +4790,16 @@ GNX ignores that key. It does not work in a file that is a list (`classes.json` 
 ### A.3 Raid stages
 
 `0` Village, `1` Mountain, `2` Forest, `3` Castle, `4` Tower (the boss tower: encounter level 0 is the first tower floor, level 1 the endless tower; [§13](#13-raid-spawns-and-the-trade-shop), [§15](#15-bosses-cage-escape-and-tower)).
+
+| Stage | Name in JSON | Button on the raid map |
+|---|---|---|
+| 0 Village | `vanilla.VILLAGE` | 240, 92 |
+| 1 Mountain | `vanilla.MOUNTAIN` | 188, 108 |
+| 2 Forest | `vanilla.FOREST` | 266, 50 |
+| 3 Castle | `vanilla.CASTLE` | 272, 103 |
+| 4 Tower | `vanilla.TOWER` | 294, 80 |
+
+Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave the nest at 200, 59.
 
 ### A.4 Vanilla cells
 

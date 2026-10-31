@@ -560,6 +560,56 @@ food, goblins), and travel. Things to know:
 
 Full reference: [GNX_MODDING.md §21](GNX_MODDING.md#21-multi-map-travel).
 
+### A raid location for the Old Mine
+
+The Old Mine can have raid locations of its own. Add `"raids": "raids.json"` to the
+manifest and create `GNX_mods/my_map/raids.json`:
+```json
+{
+  "stages": [
+    {
+      "id": "DEEP SHAFT",
+      "label": "Deep Shaft",
+      "pos": [205, 84],
+      "icon": 1,
+      "path": [[196, 74]],
+      "levels": [
+        {
+          "units": {"count": [2, 3], "pool": [{"class": 0, "weight": 1, "min_lvl": 1, "max_lvl": 2}]},
+          "enemy_ap": {"hp": [10, 14], "ap": [9, 12]},
+          "drops": {"gold": [20, 30]},
+          "reward": {"gold": 50, "food": 20}
+        },
+        {
+          "units": {"count": [3, 4], "pool": [{"class": 4, "weight": 1, "min_lvl": 1, "max_lvl": 2}]},
+          "enemy_ap": {"hp": [40, 45], "ap": [35, 39]},
+          "reward": {"gold": 120, "food": 40}
+        }
+      ]
+    }
+  ]
+}
+```
+- `pos` places the button on the raid map; keep x within 186-293 and y within
+  52-109 or the log warns that it does not fit.
+- `icon: 1` reuses the Mountain's picture (a 27 x 27 PNG of your own also works).
+- Without `unlock` the stage is there from the start; with one (a quest condition)
+  it appears when the condition holds, with a "New raid location" notice.
+- Each level lists its enemies (vanilla classes by number, your classes by name),
+  their strength, the gold the raid may bring back and the win reward.
+
+Because `my_map` is a map mod, the Deep Shaft exists only on the Old Mine. To tidy
+the Old Mine's raid map, hide a vanilla stage there in `map_info`:
+```json
+"vanilla_stages": { "MOUNTAIN": { "hidden": true } }
+```
+
+In game: travel to the Old Mine, open the raid panel. The Deep Shaft is on the map;
+pick it, set a formation, and raid. GNX DEBUG > RAID ROUTES draws
+the cart's route, handy while you move the `path` points.
+
+Full reference: [GNX_MODDING.md §27](GNX_MODDING.md#27-raid-stages-raidsjson).
+
 ---
 
 ## 9. Tooling reference

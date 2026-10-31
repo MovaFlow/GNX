@@ -16,6 +16,9 @@
 - **Mod translations**: a mod can ship `lang/<code>.json` files (`fr`, `ja`, `zh`, `de`, ... ) mapping its English texts to another language. Cell, prop and class names, quest texts and dialogs, popups, tool menus, map names and the MODS menu then show in the player's language, and follow a language change at once; names used as references are not affected (modding guide 4.6).
 - **`min_gnx_version`** (manifest key): the oldest GNX a mod works with. An older GNX does not load the mod (it would silently miss the newer keys), shows it as "needs GNX x" in the MODS menu and asks the player to update GNX; mods that require it are skipped too (modding guide 4.2).
 
+- **Mod raid stages** (`raids.json`): a mod adds raid locations of its own to the raid map, each with a position, a button picture, a name, an unlock condition (with a "New raid location" notice and an optional quest event) and any number of levels. A level sets its enemies (a pool like `raid_spawns`, other mods can add to it), enemy strength, an optional boss that stops coming once captured, gold and food finds, a win reward, one-time loot, no-capture and the wins needed for the next level. Raids there work like vanilla raids; the cart can follow a route of your own (`path`, `curve`) with its own picture. Stages are named in quests, tools, `raid_spawns`, loot and `trade_stage` as `vanilla.FOREST` or `my_mod.CRYPT`. Saves keep them by name, so removing and reinstalling the mod keeps their progress. GNX DEBUG > RAID ROUTES shows the routes while placing them (modding guide 27, tutorial §8).
+- **Vanilla raid stages on a map mod's map** (`map_info.vanilla_stages`): hide, move or re-route a vanilla stage, replace its enemies or its win reward, on the mod's own map only. `map_info.nest` sets where raid carts leave from on a custom map picture (modding guide 27.5).
+
 ### Bug Fixes
 
 - A cell whose `spawn_info` was text (`"coin 2 mood 1"`) or missed a field crashed the game in the build menu or at its first payout. Text is now a mod error and left out; missing fields default to 0 / false.
@@ -30,6 +33,7 @@
 - In any language but English, the quest log showed mod quests through the game's own quest list, which only knows vanilla quests; it now shows their own text.
 - The quest side effect `unlock_class` did nothing (the docs said it added the class to the raid encounters). It now unlocks the class for good (saved, shared by every map), and the new condition `class_unlocked` reads it: put it in a `raid_spawns` entry's `condition` to keep a class out of raids until a quest unlocks it (QUESTS_SCHEMA.md, modding guide 13.2).
 - A map mod's raid loot (`items.json` `loot`) was missing after loading a save made on that map from the menu, until the next trip; it is now there right after the load.
+- An `items.json` with only `loot` (no `items` of its own) was refused with "items must be a list"; it now loads.
 
 ## v1.5.0
 

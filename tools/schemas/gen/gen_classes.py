@@ -3,7 +3,7 @@ import json, os
 os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 U = 'https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/'
 C = 'common.schema.json#/definitions/'
-STAGE_REF = {"description": "A vanilla raid stage 0-4, or a mod stage \"folder.ID\" (raids.json).", "oneOf": [{"type": "integer", "minimum": 0, "maximum": 4}, {"type": "string", "pattern": r"^[^.]+\.[^.]+$"}]}
+STAGE_REF = {"description": "A raid stage: 0-4, \"vanilla.FOREST\" (VILLAGE, MOUNTAIN, FOREST, CASTLE, TOWER), a mod stage \"folder.ID\", or a bare ID of your own mod (guide 27.3).", "oneOf": [{"type": "integer", "minimum": 0, "maximum": 4}, {"type": "string", "minLength": 1}]}
 
 SPR = {"$ref": "#/definitions/spr"}
 U_ = {"patternProperties": {"^_": {}}, "additionalProperties": False}

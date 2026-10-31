@@ -57,6 +57,14 @@ sounds.json     Sound system reference:
                 OGG Vorbis; runtime loading (audio_create_stream) rejects .wav.
                 See also classes.json WITCH "voice" and cells.json RITUAL "sfx_type".
 
+raids.json      Raid stages of the example map (modding guide 27):
+                - WITCH HUT: open from the start, two levels, Witch pool, finds,
+                  win rewards, per-level xp, a blueprint piece as loot, a cart path
+                - SIREN COVE: unlocked by stage_cleared on WITCH HUT (a bare stage
+                  name), on_discover event, curved cart route, Siren boss
+                manifest.json map_info also shows nest and vanilla_stages (the
+                Mountain hidden, the Castle's reward replaced on this map).
+
 
 CELL DISPATCH MODES
 -------------------
