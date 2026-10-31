@@ -48,6 +48,7 @@ d['condition'] = typed({
     "stage_discovered": ({"stage": STAGE}, ["stage"], "That raid stage is discovered."),
     "stage_cleared": ({"stage": STAGE, "min_level": {"type": "integer", "minimum": 0}}, ["stage", "min_level"], "That raid stage's highest cleared level >= min_level."),
     "boss_captured": ({"class": REF}, ["class"], "A unit of that class is in the cage."),
+    "last_raid": ({"stage": STAGE, "level": {"type": "integer", "minimum": 0}, "won": {"type": "boolean"}}, [], "The last raid on this map went to that stage, at that level, and was won or lost (keys left out match anything)."),
     "class_unlocked": ({"class": REF}, ["class"], "A quest side effect unlock_class has unlocked that class in this save."),
     "raid_won": ({}, [], "Always true (meaningful at the post_raid_win hook)."),
     "on_map": ({"map": S}, ["map"], "The player is on that map (\"vanilla\" = the village)."),

@@ -16,8 +16,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 55 | 2745 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 27 | 761 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2341 |
-| `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 22 | 1167 |
-| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 42 | 1574 |
+| `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 22 | 1170 |
+| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 44 | 1611 |
 | `s_gnx_sound.gml` | sounds.json, voices, sfx, ambience | 11 | 573 |
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 7 | 2357 |
 | `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 21 | 1774 |
@@ -154,6 +154,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_json_num_in` | `s_gnx_content.gml` |
 | `gnx_json_pair` | `s_gnx_content.gml` |
 | `gnx_lang_codes` | `s_gnx_mods.gml` |
+| `gnx_last_raid_is` | `s_gnx_raid.gml` |
 | `gnx_load_atlas_mod` | `s_gnx_draw.gml` |
 | `gnx_load_page_turn` | `s_gnx_nest.gml` |
 | `gnx_load_sprite_frames` | `s_gnx_cells.gml` |
@@ -205,6 +206,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_mx` | `s_gnx_util.gml` |
 | `gnx_my` | `s_gnx_util.gml` |
 | `gnx_no_capture_here` | `s_gnx_raid.gml` |
+| `gnx_note_last_raid` | `s_gnx_raid.gml` |
 | `gnx_nyx_has_target` | `s_gnx_raid.gml` |
 | `gnx_open_prop_row` | `s_gnx_props.gml` |
 | `gnx_origin_named` | `s_gnx_draw.gml` |

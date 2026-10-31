@@ -23153,7 +23153,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1166 @@
+@@ -0,0 +1,1169 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -23554,6 +23554,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            var _ml = arg0.min_level;
 +            return _s >= 0 && global.val.stage_info[_s] != -1 && global.val.stage_info[_s].max_lvl >= _ml;
 +        
++        case "last_raid":
++            return gnx_last_raid_is(arg0, arg1);
++
 +        case "class_unlocked":
 +            return gnx_class_unlocked(arg0.class);
 +
@@ -24323,7 +24326,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1573 @@
+@@ -0,0 +1,1610 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -25010,6 +25013,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +            continue;
 +        }
 +
++        if (variable_struct_exists(_s, "levels") && is_array(_s.levels) && array_length(_s.levels) > 9)
++        {
++            gnx_report_mod_error(_who + " has " + string(array_length(_s.levels)) + " levels; the raid map shows 9 at most, the rest are left out");
++            array_resize(_s.levels, 9);
++        }
++
 +        if (!variable_struct_exists(_s, "levels") || !is_array(_s.levels) || array_length(_s.levels) == 0)
 +        {
 +            gnx_report_mod_error(_who + " needs \"levels\": a list with at least one level; skipped");
@@ -25671,6 +25680,37 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +    }
 +
 +    return false;
++}
++
++
++// A8: what the last raid of this map was, for the quest condition last_raid: stage arg0 (its number), level arg1,
++// won arg2. A vanilla stage is kept as its number, a mod stage by name (numbers of mod stages change per map/boot).
++function gnx_note_last_raid(arg0, arg1, arg2)
++{
++    var _def = gnx_stage_def(arg0);
++    global.val.gnx_last_raid = { stage: (_def != undefined) ? _def.key : arg0, level: arg1, won: arg2 };
++}
++
++
++// A8: condition {"type": "last_raid", "stage"?, "level"?, "won"?} of mod arg1: the last raid on this map went there
++// (any stage name, 27.3), at that level (0 = lvl 1), and was won or lost; keys left out match anything
++function gnx_last_raid_is(arg0, arg1)
++{
++    if (!variable_struct_exists(global.val, "gnx_last_raid") || !is_struct(global.val.gnx_last_raid))
++        return false;
++
++    var _lr = global.val.gnx_last_raid;
++
++    if (variable_struct_exists(arg0, "stage") && gnx_stage_name_norm(arg0.stage, arg1) != _lr.stage)
++        return false;
++
++    if (variable_struct_exists(arg0, "level") && gnx_json_num(arg0.level, -1) != _lr.level)
++        return false;
++
++    if (variable_struct_exists(arg0, "won") && (gnx_json_num(arg0.won, 1) != 0) != _lr.won)
++        return false;
++
++    return true;
 +}
 +
 +
@@ -44982,8 +45022,8 @@ diff -uN gml_138/gml_GlobalScript_s_raid_encounter.gml gml/gml_GlobalScript_s_ra
 +    global.val.stage_item = [[[[5, 2, 0], [5, 2, 1], [5, 2, 2], [5, 3, 0], [5, 3, 1], [7, 0, 3], [7, 7, 3]], [[5, 7, 2], [5, 8, 2], [5, 10, 0], [7, 9, 3], [7, 2, 3], [7, 5, 3]], [[5, 9, 1], [5, 36, 4], [5, 11, 0], [5, 11, 1], [5, 11, 2], [5, 41, 6], [7, 8, 3], [7, 32, 3], [7, 14, 3]]], [[[5, 3, 2], [5, 7, 0], [5, 8, 1], [5, 6, 1], [5, 6, 2], [7, 12, 3], [7, 10, 3]], [[5, 36, 6], [5, 13, 0], [5, 13, 2], [5, 15, 1], [5, 9, 0], [5, 41, 4], [7, 1, 3], [7, 13, 3]], [[5, 19, 4], [5, 29, 2], [5, 27, 2], [5, 28, 0], [5, 28, 1], [5, 30, 2], [5, 39, 5], [7, 18, 3], [7, 31, 3], [6, 2, 3]]], [[[5, 32, 0], [5, 32, 1], [5, 32, 2], [5, 12, 1], [5, 12, 2], [5, 42, 4], [5, 42, 5], [6, 4, 3]], [[5, 29, 1], [5, 28, 2], [5, 27, 0], [5, 27, 1], [5, 30, 0], [5, 42, 6], [7, 24, 3], [7, 29, 3], [7, 34, 3]], [[5, 33, 0], [5, 20, 4], [5, 20, 5], [5, 21, 4], [5, 41, 5], [5, 12, 0], [7, 20, 3], [7, 25, 3], [7, 35, 3]]], [[[5, 14, 0], [5, 14, 2], [5, 18, 6], [5, 18, 5], [5, 20, 6], [5, 40, 4], [7, 21, 3], [7, 26, 3], [7, 28, 3]], [[5, 24, 6], [5, 24, 5], [5, 21, 6], [5, 40, 5], [5, 22, 4], [5, 39, 4], [7, 27, 3], [7, 23, 3], [6, 3, 3]], [[5, 22, 5], [5, 22, 6], [5, 24, 4], [5, 40, 6], [5, 38, 4], [5, 38, 5], [5, 23, 4], [5, 23, 5], [7, 16, 3], [7, 38, 3]]], [[], [], []]];
  }
 diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_raid_function.gml
---- gml_138/gml_GlobalScript_s_raid_function.gml	2026-10-31 17:46:47.427570900 +0100
-+++ gml/gml_GlobalScript_s_raid_function.gml	2026-10-31 17:48:12.009900400 +0100
+--- gml_138/gml_GlobalScript_s_raid_function.gml	2026-09-02 08:45:16.402592000 +0200
++++ gml/gml_GlobalScript_s_raid_function.gml	2026-10-31 17:26:32.085662500 +0100
 @@ -7,7 +7,7 @@
          sprite_index = spr_pixel;
          image_xscale = 480;
@@ -45196,7 +45236,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
      }
  }
  
-@@ -245,64 +259,82 @@
+@@ -245,64 +259,84 @@
      {
          raid_data.ff = false;
          var _pos = raid_data.raid_pos;
@@ -45281,6 +45321,8 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
      {
 -        scr_pop_up_create(UnknownEnum.Value_11);
 +        scr_pop_up_create(11);
++        // GNX-STAGE (A8): the last raid's stage, level and result, for the quest condition last_raid
++        gnx_note_last_raid(raid_data.stage, min(global.val.stage_lvl_sel[raid_data.stage], gnx_stage_max_lvl(raid_data.stage)), !raid_data.lost);
          
 -        if (raid_data.rob_pos != -1 && global.unlock.boss[UnknownEnum.Value_1] == 0)
 +        if (raid_data.rob_pos != -1 && global.unlock.boss[1] == 0)
@@ -45297,7 +45339,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
                  _data.en_ap[0] -= _ap[0];
                  _data.en_ap[1] -= _ap[1];
              }
-@@ -312,54 +344,57 @@
+@@ -312,54 +346,57 @@
          
          if (!raid_data.lost)
          {
@@ -45377,7 +45419,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
                          array_push(_array, i);
                  }
                  
-@@ -381,23 +416,43 @@
+@@ -381,23 +418,43 @@
                      array_delete(_units, array_length(_units) - 1, 1);
                  }
                  
@@ -45425,7 +45467,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
          
          if (instance_exists(obj_carriage))
          {
-@@ -413,7 +468,7 @@
+@@ -413,7 +470,7 @@
      
      with (obj_button)
      {
@@ -45434,7 +45476,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
              instance_destroy();
      }
      
-@@ -425,49 +480,11 @@
+@@ -425,49 +482,11 @@
      with (_raid_id)
      {
          var _num = ds_list_size(global.front_row);
@@ -45487,8 +45529,8 @@ diff -uN gml_138/gml_GlobalScript_s_raid_function.gml gml/gml_GlobalScript_s_rai
 -    Value_63
 -}
 diff -uN gml_138/gml_GlobalScript_s_raid_map_button.gml gml/gml_GlobalScript_s_raid_map_button.gml
---- gml_138/gml_GlobalScript_s_raid_map_button.gml	2026-10-31 17:46:47.702218500 +0100
-+++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-31 17:48:12.010898100 +0100
+--- gml_138/gml_GlobalScript_s_raid_map_button.gml	2026-09-02 08:45:16.543618000 +0200
++++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-31 17:20:08.990303100 +0100
 @@ -14,6 +14,17 @@
          switch_type = false;
          act_resize = true;
@@ -45539,7 +45581,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_map_button.gml gml/gml_GlobalScript_s_r
      
      if (button_num == 1)
          image_xscale = -1;
-@@ -82,24 +109,56 @@
+@@ -82,24 +109,63 @@
  
  function scr_draw_stage_button()
  {
@@ -45566,15 +45608,22 @@ diff -uN gml_138/gml_GlobalScript_s_raid_map_button.gml gml/gml_GlobalScript_s_r
 +        scr_draw_hover_sel_index_button();
 +    }
 +    
-+    // GNX-STAGE: the stage's name over a hovered mod stage (vanilla stages have none)
-+    if (_gnx_sdef != undefined && _gnx_hover)
++    // GNX-STAGE (A7): a mod stage's name while it is pointed at or selected (vanilla stages have none): above its
++    // button, or under its level bar when there is no room above (the map panel starts at y 39); shadowed to read
++    // over the map
++    if (_gnx_sdef != undefined && (_gnx_hover || source_id.raid_data.stage == button_num))
 +    {
++        var _gnx_t = gnx_tr(_gnx_sdef.label);
 +        draw_set_font(fnt_base_font_eng);
 +        draw_set_halign(fa_center);
-+        draw_set_valign(fa_bottom);
-+        draw_text_color(x, y - (sprite_get_yoffset(sprite_index) + 1), gnx_tr(_gnx_sdef.label), c_white, c_white, c_white, c_white, 1);
++        var _gnx_ty = y - 14 - string_height(_gnx_t);
++        
++        if (_gnx_ty < 39)
++            _gnx_ty = y + 23;
++        
++        draw_text_color(x + 1, _gnx_ty + 1, _gnx_t, c_black, c_black, c_black, c_black, 1);
++        draw_text_color(x, _gnx_ty, _gnx_t, c_white, c_white, c_white, c_white, 1);
 +        draw_set_halign(fa_left);
-+        draw_set_valign(fa_top);
 +    }
 +
      var _y = y + 16;
@@ -45600,6 +45649,33 @@ diff -uN gml_138/gml_GlobalScript_s_raid_map_button.gml gml/gml_GlobalScript_s_r
      
      if (button_num == UnknownEnum.Value_4)
      {
+@@ -135,10 +201,23 @@
+     }
+     
+     _y += 2;
+-    draw_sprite(spr_stage_lvl_bar, min(_max_lvl, 2), x - 9, _y);
+-    
++    // GNX-STAGE (A9): the bar art holds 3 slots; a mod stage with more levels repeats the one-slot frame, centred
++    var _gnx_bx = x - 9;
++
++    if (gnx_stage_max_lvl(button_num) > 2)
++    {
++        _gnx_bx = x - floor(((6 * (gnx_stage_max_lvl(button_num) + 1)) + 1) / 2);
++
++        for (var i = 0; i <= min(_max_lvl, gnx_stage_max_lvl(button_num)); i++)
++            draw_sprite(spr_stage_lvl_bar, 0, _gnx_bx + (i * 6), _y);
++    }
++    else
++    {
++        draw_sprite(spr_stage_lvl_bar, min(_max_lvl, 2), x - 9, _y);
++    }
++
+     for (var i = 0; i < _lvl; i++)
+-        draw_rectangle_color((x - 8) + (i * 6), _y + 1, (x - 4) + (i * 6), _y + 1, c_yellow, c_yellow, c_yellow, c_yellow, false);
++        draw_rectangle_color((_gnx_bx + 1) + (i * 6), _y + 1, (_gnx_bx + 5) + (i * 6), _y + 1, c_yellow, c_yellow, c_yellow, c_yellow, false);
+ }
+ 
+ function scr_raid_step_button()
 diff -uN gml_138/gml_GlobalScript_s_raid_stage.gml gml/gml_GlobalScript_s_raid_stage.gml
 --- gml_138/gml_GlobalScript_s_raid_stage.gml	2026-10-31 17:46:47.702960800 +0100
 +++ gml/gml_GlobalScript_s_raid_stage.gml	2026-10-31 17:48:11.980899600 +0100

@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_raid_map_button.gml	2026-09-02 08:45:16.543618000 +0200
-+++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-29 15:40:56.575469200 +0100
++++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-31 17:20:08.990303100 +0100
 @@ -14,6 +14,17 @@
          switch_type = false;
          act_resize = true;
@@ -50,7 +50,7 @@
      
      if (button_num == 1)
          image_xscale = -1;
-@@ -82,24 +109,56 @@
+@@ -82,24 +109,63 @@
  
  function scr_draw_stage_button()
  {
@@ -77,15 +77,22 @@
 +        scr_draw_hover_sel_index_button();
 +    }
 +    
-+    // GNX-STAGE: the stage's name over a hovered mod stage (vanilla stages have none)
-+    if (_gnx_sdef != undefined && _gnx_hover)
++    // GNX-STAGE (A7): a mod stage's name while it is pointed at or selected (vanilla stages have none): above its
++    // button, or under its level bar when there is no room above (the map panel starts at y 39); shadowed to read
++    // over the map
++    if (_gnx_sdef != undefined && (_gnx_hover || source_id.raid_data.stage == button_num))
 +    {
++        var _gnx_t = gnx_tr(_gnx_sdef.label);
 +        draw_set_font(fnt_base_font_eng);
 +        draw_set_halign(fa_center);
-+        draw_set_valign(fa_bottom);
-+        draw_text_color(x, y - (sprite_get_yoffset(sprite_index) + 1), gnx_tr(_gnx_sdef.label), c_white, c_white, c_white, c_white, 1);
++        var _gnx_ty = y - 14 - string_height(_gnx_t);
++        
++        if (_gnx_ty < 39)
++            _gnx_ty = y + 23;
++        
++        draw_text_color(x + 1, _gnx_ty + 1, _gnx_t, c_black, c_black, c_black, c_black, 1);
++        draw_text_color(x, _gnx_ty, _gnx_t, c_white, c_white, c_white, c_white, 1);
 +        draw_set_halign(fa_left);
-+        draw_set_valign(fa_top);
 +    }
 +
      var _y = y + 16;
@@ -111,3 +118,30 @@
      
      if (button_num == UnknownEnum.Value_4)
      {
+@@ -135,10 +201,23 @@
+     }
+     
+     _y += 2;
+-    draw_sprite(spr_stage_lvl_bar, min(_max_lvl, 2), x - 9, _y);
+-    
++    // GNX-STAGE (A9): the bar art holds 3 slots; a mod stage with more levels repeats the one-slot frame, centred
++    var _gnx_bx = x - 9;
++
++    if (gnx_stage_max_lvl(button_num) > 2)
++    {
++        _gnx_bx = x - floor(((6 * (gnx_stage_max_lvl(button_num) + 1)) + 1) / 2);
++
++        for (var i = 0; i <= min(_max_lvl, gnx_stage_max_lvl(button_num)); i++)
++            draw_sprite(spr_stage_lvl_bar, 0, _gnx_bx + (i * 6), _y);
++    }
++    else
++    {
++        draw_sprite(spr_stage_lvl_bar, min(_max_lvl, 2), x - 9, _y);
++    }
++
+     for (var i = 0; i < _lvl; i++)
+-        draw_rectangle_color((x - 8) + (i * 6), _y + 1, (x - 4) + (i * 6), _y + 1, c_yellow, c_yellow, c_yellow, c_yellow, false);
++        draw_rectangle_color((_gnx_bx + 1) + (i * 6), _y + 1, (_gnx_bx + 5) + (i * 6), _y + 1, c_yellow, c_yellow, c_yellow, c_yellow, false);
+ }
+ 
+ function scr_raid_step_button()

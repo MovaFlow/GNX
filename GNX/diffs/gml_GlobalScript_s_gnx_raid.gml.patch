@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1573 @@
+@@ -0,0 +1,1610 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -687,6 +687,12 @@
 +            continue;
 +        }
 +
++        if (variable_struct_exists(_s, "levels") && is_array(_s.levels) && array_length(_s.levels) > 9)
++        {
++            gnx_report_mod_error(_who + " has " + string(array_length(_s.levels)) + " levels; the raid map shows 9 at most, the rest are left out");
++            array_resize(_s.levels, 9);
++        }
++
 +        if (!variable_struct_exists(_s, "levels") || !is_array(_s.levels) || array_length(_s.levels) == 0)
 +        {
 +            gnx_report_mod_error(_who + " needs \"levels\": a list with at least one level; skipped");
@@ -1348,6 +1354,37 @@
 +    }
 +
 +    return false;
++}
++
++
++// A8: what the last raid of this map was, for the quest condition last_raid: stage arg0 (its number), level arg1,
++// won arg2. A vanilla stage is kept as its number, a mod stage by name (numbers of mod stages change per map/boot).
++function gnx_note_last_raid(arg0, arg1, arg2)
++{
++    var _def = gnx_stage_def(arg0);
++    global.val.gnx_last_raid = { stage: (_def != undefined) ? _def.key : arg0, level: arg1, won: arg2 };
++}
++
++
++// A8: condition {"type": "last_raid", "stage"?, "level"?, "won"?} of mod arg1: the last raid on this map went there
++// (any stage name, 27.3), at that level (0 = lvl 1), and was won or lost; keys left out match anything
++function gnx_last_raid_is(arg0, arg1)
++{
++    if (!variable_struct_exists(global.val, "gnx_last_raid") || !is_struct(global.val.gnx_last_raid))
++        return false;
++
++    var _lr = global.val.gnx_last_raid;
++
++    if (variable_struct_exists(arg0, "stage") && gnx_stage_name_norm(arg0.stage, arg1) != _lr.stage)
++        return false;
++
++    if (variable_struct_exists(arg0, "level") && gnx_json_num(arg0.level, -1) != _lr.level)
++        return false;
++
++    if (variable_struct_exists(arg0, "won") && (gnx_json_num(arg0.won, 1) != 0) != _lr.won)
++        return false;
++
++    return true;
 +}
 +
 +

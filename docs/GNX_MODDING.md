@@ -4891,14 +4891,14 @@ New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest, so an older GNX 
 | Key | What it means | Type | Default |
 |---|---|---|---|
 | `id` | The stage's name in your mod. Other mods, quests and saves refer to it as `"<mod folder>.<id>"` (`"my_mod.CRYPT"`), your own files as just `"CRYPT"`. | text | required |
-| `label` | The name the player sees: over the button when pointed at, and in the discovery popup. Translated by your `lang` files ([4.6](#46-translations-lang)). | text | the `id` |
+| `label` | The name the player sees: next to the button while it is pointed at or selected (above it, or under its level bar near the top of the map), and in the discovery popup. Translated by your `lang` files ([4.6](#46-translations-lang)). | text | the `id` |
 | `pos` | `[x, y]` of the button's centre on the raid map, in the map's pixels (the map panel is 133 × 91 at x 173, y 39). Keep x within 186–293 and y within 52–109 so the button and the level bar under it stay on the map. | [x, y] | required |
 | `icon` | The button's picture: a PNG in your `sprites/` folder, either one 27 × 27 frame or two side by side (normal, pointed at), or a number 0–4 to reuse that vanilla stage's button ([27.3](#273-naming-stages)). One frame is lightened when pointed at. | text or number | `0` (the Village's) |
 | `unlock` | A quest condition, or a list that must all hold ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). GNX checks it every second; the first time it holds, the stage is discovered. Without `unlock` the stage is there from the start, without a popup. `state_*` conditions read your mod's own state. | object or list | none |
 | `on_discover` | A quest event of your mod fired once, when the stage is discovered (an intro dialog, a side effect). | text | none |
 | `raid_time` | Frames from the nest to the stage at normal speed; the way back takes as long. Vanilla's own values run from 2760 (Village) to 5100 (Castle). The raid panel shows the trip time. | number, at least 60 | `3600` |
 | `path`, `curve`, `cart` | The cart's route on the raid map and its picture ([27.4](#274-cart-routes)). | | straight line, vanilla cart |
-| `levels` | One entry per level the player can pick ([27.2](#272-levels)). Any number, at least one. | list | required |
+| `levels` | One entry per level the player can pick ([27.2](#272-levels)): 1 to 9 (more is a mod error, and the rest are left out). | list | required |
 
 - **Where a stage exists.** A mod without `"map"` adds its stages to the village; a map mod adds them to its own map only ([21.1](#211-map)). Each map keeps its own progress on each stage.
 - **Saves.** A save stores the stages by name. Removing the mod keeps their progress in the save (the stages are gone from the map), and reinstalling it brings them back as they were. The save keeps the game's own five-stage layout and stores mod stages apart, by name.
@@ -4922,7 +4922,7 @@ Every key is optional. A level builds its encounter the way the vanilla stages d
 | `no_capture` | `true`: a win captures nobody (loot and progress only). A vanilla boss (classes 8–12) is still captured, since that records its defeat. | true/false | false |
 | `xp` | Wins at this level, while it is the highest one open, before the next level opens. | number | vanilla's (level × 0.4 + 1) × 9, so 9, 12, 16, … |
 
-- The game shows the levels as lvl 1, 2, 3, …; the files count them from 0 (`"level": 0` is lvl 1). The level bar under the button has room for three marks: a stage with more levels draws the extra marks past it.
+- The game shows the levels as lvl 1, 2, 3, …; the files count them from 0 (`"level": 0` is lvl 1). The level bar under the button shows one slot per open level: up to three fit the vanilla bar, a stage with more levels gets a longer bar, centred under its button.
 - A win raises the stage's XP like on the vanilla Village to Castle (never like the Tower).
 
 > **When** a pool entry or a boss names a class no loaded mod has, it is left out and the error dialog says so. A level whose pool is empty and that no other mod fills holds Peasants at level 0 (and the log says `[GNX] pool_pick: no pool stage=… lvl=…`).

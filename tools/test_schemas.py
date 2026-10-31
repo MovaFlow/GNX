@@ -111,6 +111,7 @@ KNOWN = {
     ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_2.leg_2'),
     ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_4.leg_1'),
     ('shiny_peasant', 'classes.json', '[0].naked_tent.phase_4.leg_2'),
+    ('harness_raid_badpos', 'raids.json', 'stages[5].levels'),  # 10 levels on purpose (the loader keeps 9)
 }
 
 # one typo per file type: (file kind, json path to an object in a known-good file, key to misspell)

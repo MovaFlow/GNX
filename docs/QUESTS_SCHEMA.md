@@ -141,6 +141,7 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `cell_occupied` | `h_type` | at least one cell with that h_type has a unit |
 | `stage_discovered` | `stage`: 0-4, `"vanilla.FOREST"`, a mod stage `"mod.ID"` or your own `"ID"` (modding guide 27.3) | that stage is discovered on the map the player is on (a stage not on it: false) |
 | `stage_cleared` | `stage` (as above), `min_level` | that stage's highest open level >= min_level (`stage_info[stage].max_lvl`) |
+| `last_raid` | `stage`, `level`, `won` (each optional) | the last raid on this map, once the cart is home: went to that stage (any stage name, as above), at that level (0 = lvl 1), and was won (`true`) or lost (`false`); keys left out match anything. Use it with the `post_raid` / `post_raid_win` hooks ("win at the Crypt") |
 | `boss_captured` | `class` (string ref or int) | unit with that class exists in cage |
 | `class_unlocked` | `class` (string ref or int) | an `unlock_class` side effect has unlocked that class in this save |
 | `raid_won` | (none) | always true (only meaningful at post_raid_win hook) |
