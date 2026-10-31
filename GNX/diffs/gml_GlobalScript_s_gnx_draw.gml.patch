@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1005 @@
+@@ -0,0 +1,1062 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -112,6 +112,63 @@
 +    draw_text(_x, _y, gnx_save_label(0));
 +    draw_text(_x, _y + _height, gnx_save_label(1));
 +    draw_text(_x, _y + (_height * 2), gnx_save_label(2));
++}
++
++
++/// GNX-UGREQ: width and height of PNG file arg0 from its header, as [w, h]; undefined when the file is
++/// missing or its start is no PNG header. Reads only the first 24 bytes (file_bin, not the whole page) and
++/// checks the full 8-byte PNG signature, the first chunk being IHDR of length 13, and a size of 1-16384 per
++/// side. Used to check atlas pages before a mod loads, without making a texture: a page whose header is
++/// right but whose image data is broken is still only found when sprite_add loads it.
++function gnx_png_size(arg0)
++{
++    if (!file_exists(arg0))
++        return undefined;
++    
++    // file_bin_open(file, 0) = open to read; below 0 = it could not be opened
++    var _f = file_bin_open(arg0, 0);
++    
++    if (_f < 0)
++        return undefined;
++    
++    // < 24: too short for a PNG header
++    if (file_bin_size(_f) < 24)
++    {
++        file_bin_close(_f);
++        return undefined;
++    }
++    
++    var _hd = array_create(24, 0);
++    
++    for (var i = 0; i < 24; i++)
++        _hd[i] = file_bin_read_byte(_f);
++    
++    file_bin_close(_f);
++    // signature 137 80 78 71 13 10 26 10, then chunk length 0 0 0 13 and type "IHDR" (73 72 68 82)
++    var _sig = [137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82];
++    
++    for (var i = 0; i < 16; i++)
++    {
++        // != : not a PNG header
++        if (_hd[i] != _sig[i])
++            return undefined;
++    }
++    
++    // width at bytes 16-19 and height at 20-23, high byte first
++    var _w = 0;
++    var _h = 0;
++    
++    for (var i = 0; i < 4; i++)
++    {
++        _w = (_w * 256) + _hd[16 + i];
++        _h = (_h * 256) + _hd[20 + i];
++    }
++    
++    // || = or: an empty or impossibly large image is no page that loads
++    if (_w < 1 || _h < 1 || _w > 16384 || _h > 16384)
++        return undefined;
++    
++    return [_w, _h];
 +}
 +
 +

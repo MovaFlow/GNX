@@ -136,6 +136,7 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `has_item` | `item`, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
 | `floor_gte` | `value` | `global.val.floor >= value` |
 | `cell_count` | `h_type`, `value` (default 1) | count of built cells with that h_type >= value |
+| `build_count` | `h_type` (optional: any type without it), `value` | cells of that type the player built (build menu, CUSTOM, COPY DOWN) >= value. In a quest's `completion` it counts from the moment the quest appeared (kept in the save) and the quest text shows the progress, e.g. `(2/4)`; elsewhere every build of the save |
 | `cell_built` | `h_type` (string ref or int) | at least one cell with that h_type exists |
 | `cell_occupied` | `h_type` | at least one cell with that h_type has a unit |
 | `stage_discovered` | `stage`: 0-4, `"vanilla.FOREST"`, a mod stage `"mod.ID"` or your own `"ID"` (modding guide 27.3) | that stage is discovered on the map the player is on (a stage not on it: false) |

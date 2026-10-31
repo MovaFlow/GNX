@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,3924 @@
+@@ -0,0 +1,4012 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -714,6 +714,20 @@
 +    // other entries next to it are left out, so only the places script runs (audit 25)
 +    _cp.gnx_places = gnx_places_check(_raw_h, _phys.max_mon_num, _cn);
 +    
++    // GNX-PLACES-INTER: physical.join_skip true = a monster that comes into a scene already running skips
++    // what the captive has already played (start, start_loop); without it a late monster plays its start
++    // and goes on to the loop without start_loop. Only cells with independent places run it.
++    _cp.gnx_join_skip = false;
++    
++    if (variable_struct_exists(_phys, "join_skip"))
++    {
++        _cp.gnx_join_skip = gnx_json_bool(_phys.join_skip, false, _cn, "physical.join_skip");
++        
++        // ! = not: a cell with one shared scene has nothing to skip
++        if (!_cp.gnx_places)
++            gnx_report_mod_error("Cell '" + string(_cn) + "': physical.join_skip works only with scr_slot_h_gnx_places (independent places); ignored");
++    }
++    
 +    if (_cp.gnx_places && _n_h != 1)
 +        _cp.scr_slot_template.h = [gnx_resolve_script("scr_slot_h_gnx_places")];
 +    
@@ -761,6 +775,11 @@
 +    
 +    if (variable_struct_exists(_phys, "ej_hold"))
 +        _cp.gnx_ej_hold = floor(gnx_json_num(_phys.ej_hold, -1));
++    
++    // GNX-EJ: the frame the ej goes back to when its strip ends (counted from 0, not after ej_hold);
++    // without it the ej goes back to ej_start, as before
++    if (variable_struct_exists(_phys, "ej_return"))
++        _cp.gnx_ej_return = floor(gnx_json_num(_phys.ej_return, -1));
 +    
 +    // GNX-EJ: how many holds the ej makes: a number from 1, or [min, max]; vanilla 5-7
 +    if (variable_struct_exists(_phys, "ej_holds"))
@@ -833,6 +852,13 @@
 +        gnx_frames_check_strips(arg0, _cn, _sprites_dict, [_ugfr.start, _ugfr.idle, _ugfr.loop, _ugfr.ej, _ugfr.birth], true, _hspr_body);
 +    }
 +    
++    // GNX-PLACES-SPEED: a cell with independent places reads physical.speed (its own frames per second);
++    // underground scenes read it above; any other cell plays the vanilla speeds, so it would do nothing there
++    if (_cp.gnx_places && variable_struct_exists(_phys, "speed"))
++        _cp.gnx_pl_speed = gnx_places_speed_parse(_phys.speed, _cn);
++    else if (!_cp.gnx_places && !_gnx_ug_scene && variable_struct_exists(_phys, "speed"))
++        gnx_report_mod_error("Cell '" + string(_cn) + "': physical.speed works only with scr_slot_h_gnx_places and underground scenes; ignored");
++    
 +    // GNX-INTER: intermissions (short phases between two main phases) for any mod cell that declares them
 +    // in physical.intermissions: idle_start, start_loop, loop_ej, ej_birth. Each { frames, speed, loops }.
 +    // Underground scenes jump to them themselves; other cells get them put into their scene list.
@@ -840,7 +866,8 @@
 +    {
 +        // the phase each intermission leads into: start, loop, ej, birth; a scene without a start script
 +        // (tentacle cells) begins with its loop, so there idle_start leads into the loop
-+        var _has_start = _gnx_ug_scene;
++        // (GNX-PLACES-INTER: || = or; a cell with independent places plays a start for every monster)
++        var _has_start = _gnx_ug_scene || _cp.gnx_places;
 +        
 +        for (var _si = 0; _si < array_length(_cp.scr_slot_template.h) && !_has_start; _si++)
 +        {
@@ -874,9 +901,32 @@
 +        
 +        _cp.gnx_inter = gnx_inter_parse(_phys.intermissions, _inx, _cn);
 +        
-+        // other cells: put the scripts into the scene list (scr_slot_template.h)
-+        if (!_gnx_ug_scene)
-+            gnx_inter_insert(_cp, _cn);
++        // GNX-PLACES-INTER: a cell with independent places plays idle_start, start_loop and loop_ej for each
++        // monster in scr_slot_h_gnx_places, plus ej_end (after the monster's ej, before it leaves, with the
++        // ej's frames = the loop's unless given); nothing goes into its scene list. It has no birth, so
++        // ej_birth is dropped. Other cells: ej_end has no place, the scripts go into the scene list.
++        _cp.gnx_inter_end = -1;
++        
++        if (_cp.gnx_places)
++        {
++            if (is_struct(_cp.gnx_inter[3]))
++            {
++                gnx_report_mod_error("Cell '" + string(_cn) + "': intermissions.ej_birth is ignored: a cell with scr_slot_h_gnx_places has no birth");
++                _cp.gnx_inter[3] = -1;
++            }
++            
++            if (variable_struct_exists(_phys.intermissions, "ej_end"))
++                _cp.gnx_inter_end = gnx_inter_parse_one(_phys.intermissions.ej_end, _inx[2], _cn, "ej_end");
++        }
++        else
++        {
++            if (is_struct(_phys.intermissions) && variable_struct_exists(_phys.intermissions, "ej_end"))
++                gnx_report_mod_error("Cell '" + string(_cn) + "': intermissions.ej_end works only with scr_slot_h_gnx_places (independent places); ignored");
++            
++            // other cells: put the scripts into the scene list (scr_slot_template.h)
++            if (!_gnx_ug_scene)
++                gnx_inter_insert(_cp, _cn);
++        }
 +        
 +        // which intermissions have their own captive table (phase_<name>) anywhere in human_spr
 +        _cell.gnx_inter_tbl = [false, false, false, false];
@@ -889,7 +939,7 @@
 +        }
 +        
 +        // the strip rule for the intermissions (captive, tentacle, monsters)
-+        gnx_frames_check_inter(arg0, _cn, _sprites_dict, _cp.gnx_inter, _inx, _gnx_ug_scene, _hspr_body, _cp.gnx_inter_next);
++        gnx_frames_check_inter(arg0, _cn, _sprites_dict, _cp.gnx_inter, _inx, _gnx_ug_scene, _hspr_body, _cp.gnx_inter_next, _cp.gnx_places);
 +    }
 +    
 +    // GNX-UG: tentacle sprite per phase (index = phase: 0 start, 1 idle, 2 loop, 3 ej, 4 birth, 5 milk),
@@ -912,127 +962,105 @@
 +    _cell.gnx_infant = variable_struct_exists(arg0, "infant_spr") ? gnx_resolve_layer_sprite(arg0.infant_spr, _sprites_dict, _base_dir) : -1;
 +    
 +    // GNX-UG: milking overlay per phase (0 start, 1 idle, 2 loop, 3 ej, 4 birth; GNX-INTER: 6-9 the
-+    // intermissions idle_start, start_loop, loop_ej, ej_birth; index 5 is not used), drawn by layer type 21
-+    _cell.gnx_milk_spr = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
-+    // phases with a milk key and the key's name in milk_spr
-+    var _mph_l = [0, 1, 2, 3, 4, 6, 7, 8, 9];
-+    var _mph_k = ["start", "idle", "loop", "ej", "birth", "idle_start", "start_loop", "loop_ej", "ej_birth"];
-+    var _mph_n = array_length(_mph_l);
-+    
-+    if (variable_struct_exists(arg0, "milk_spr") && is_struct(arg0.milk_spr))
-+    {
-+        for (var _mi = 0; _mi < _mph_n; _mi++)
-+        {
-+            if (variable_struct_exists(arg0.milk_spr, _mph_k[_mi]))
-+                _cell.gnx_milk_spr[_mph_l[_mi]] = gnx_resolve_layer_sprite(variable_struct_get(arg0.milk_spr, _mph_k[_mi]), _sprites_dict, _base_dir);
-+        }
-+    }
-+    
-+    // GNX-UG: how each phase plays its milk strip. gnx_milk_clock[k] false = in step with the captive
-+    // (frame of the phase), true = on the milk's own clock (gnx_ug_milk_f, speed.milk frames per second),
-+    // looping gnx_milk_n[k] frames, so a 5-frame milk strip also runs whole in a 2-frame phase.
-+    _cell.gnx_milk_clock = array_create(10, false);
-+    _cell.gnx_milk_n = array_create(10, 1);
++    // intermissions idle_start, start_loop, loop_ej, ej_birth; index 5 is not used), drawn by layer type 21.
++    // GNX-BYCLASS: gnx_milk_tables builds the tables (strip, own clock, frames) of one milk_spr block: the
++    // cell's own here, a class's own below
++    var _mfr = undefined;
 +    
 +    if (_gnx_ug_scene && variable_struct_exists(_cp, "gnx_frames"))
 +    {
 +        // frames of each phase (5 unused); an intermission the cell does not declare is never played
-+        var _mfr = [_cp.gnx_frames.start, _cp.gnx_frames.idle, _cp.gnx_frames.loop, _cp.gnx_frames.ej, _cp.gnx_frames.birth, 1, 1, 1, 1, 1];
++        _mfr = [_cp.gnx_frames.start, _cp.gnx_frames.idle, _cp.gnx_frames.loop, _cp.gnx_frames.ej, _cp.gnx_frames.birth, 1, 1, 1, 1, 1];
 +        
 +        for (var _ik = 0; _ik < 4; _ik++)
 +        {
 +            if (variable_struct_exists(_cp, "gnx_inter") && is_struct(_cp.gnx_inter[_ik]))
 +                _mfr[6 + _ik] = _cp.gnx_inter[_ik].frames;
 +        }
++    }
++    
++    // ? : the block when the cell has one, else undefined (no milk strips)
++    var _msp = (variable_struct_exists(arg0, "milk_spr") && is_struct(arg0.milk_spr)) ? arg0.milk_spr : undefined;
++    var _mhs = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : undefined;
++    _cell.gnx_milk_def = gnx_milk_tables(_msp, _sprites_dict, _base_dir, _mfr, _mhs);
++    _cell.gnx_milk_spr = _cell.gnx_milk_def.spr;
++    _cell.gnx_milk_clock = _cell.gnx_milk_def.clock;
++    _cell.gnx_milk_n = _cell.gnx_milk_def.n;
++    var _m_any = _cell.gnx_milk_def.any;
++    
++    // GNX-BYCLASS: in a class_map cell each entry of human_spr.classes, and the default entry, brings the
++    // class's own milk_spr and infant_spr, written as the cell's own (gnx_milk_for / gnx_infant_for pick
++    // them by the captive's class: hers, else the default entry's, else none). The cell's own milk_spr and
++    // infant_spr are not lent to any class there (a class without its own has none; gnx_ug_strips_check
++    // checks what is declared); they stay for a GNX without per-class milk, which reads only them.
++    _cell.gnx_milk_bc = {};
++    _cell.gnx_infant_bc = {};
++    // && = and: a class_map human_spr
++    _cell.gnx_milk_cmap = is_struct(_mhs) && variable_struct_exists(_mhs, "mode") && _mhs.mode == "class_map";
++    // no milk at all: the tables of an empty block
++    _cell.gnx_milk_none = gnx_milk_tables(undefined, _sprites_dict, _base_dir, _mfr, undefined);
++    
++    if (_cell.gnx_milk_cmap)
++    {
++        // the cell's own milk does not count for drawing here
++        _m_any = false;
++        // [key, entry]: every classes entry, then the default entry under the key "default"
++        var _cbl = [];
 +        
-+        // own strips: in step when the strip has the phase's frame count (or whole rows of it, one per
-+        // skin); its own clock when it is marked "loop" or its count does not fit the phase (5 in 2)
-+        for (var _mi = 0; _mi < _mph_n; _mi++)
++        if (variable_struct_exists(_mhs, "classes") && is_struct(_mhs.classes))
 +        {
-+            var _mq = _mph_l[_mi];
-+            var _ms = _cell.gnx_milk_spr[_mq];
++            var _cbk = variable_struct_get_names(_mhs.classes);
 +            
-+            if (_ms == -1)
++            for (var _cbi = 0; _cbi < array_length(_cbk); _cbi++)
++                array_push(_cbl, [_cbk[_cbi], variable_struct_get(_mhs.classes, _cbk[_cbi])]);
++        }
++        
++        // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
++        if (variable_struct_exists(_mhs, "default"))
++            array_push(_cbl, ["default", variable_struct_get(_mhs, "default")]);
++        
++        for (var _cbj = 0; _cbj < array_length(_cbl); _cbj++)
++        {
++            var _cbe = _cbl[_cbj][1];
++            
++            // ! = not: only objects ("_comment" notes etc. are skipped)
++            if (!is_struct(_cbe))
 +                continue;
 +            
-+            var _mlf = gnx_loop_frames(_ms);
-+            var _mnum = gnx_sprite_get_number(_ms);
++            var _cb_milk = variable_struct_exists(_cbe, "milk_spr") && is_struct(_cbe.milk_spr);
++            var _cb_inf = variable_struct_exists(_cbe, "infant_spr");
 +            
-+            // >= 1 = marked loop: that many frames per row
-+            if (_mlf >= 1)
-+            {
-+                _cell.gnx_milk_clock[_mq] = true;
-+                _cell.gnx_milk_n[_mq] = _mlf;
-+            }
-+            // % = remainder: 5 % 2 = 1, so 5 frames are no whole rows of a 2-frame phase
-+            else if (_mnum > 1 && (_mnum % _mfr[_mq]) != 0)
-+            {
-+                _cell.gnx_milk_clock[_mq] = true;
-+                _cell.gnx_milk_n[_mq] = _mnum;
-+            }
-+        }
-+        
-+        // a phase without its own milk strip borrows one, so the milk shows while it comes in:
-+        // a phase drawn with another phase's captive art (ej with the loop art without phase_3, start
-+        // with the idle art without phase_0, an intermission without phase_<name> with the art of the
-+        // phase it leads into) takes that phase's strip exactly as it plays there; any other phase takes
-+        // the loop milk (else the first milk strip there is) on the milk's own clock.
-+        // "spr_empty" in milk_spr hides the milk in a phase. (Main phases first, so an intermission
-+        // finds what its next phase borrowed.)
-+        var _has_hs = variable_struct_exists(arg0, "human_spr");
-+        var _art = [[3, 2, "phase_3"], [0, 1, "phase_0"], [6, 0, "phase_idle_start"], [7, 2, "phase_start_loop"], [8, 3, "phase_loop_ej"], [9, 4, "phase_ej_birth"]];
-+        
-+        for (var _ma = 0; _ma < 6; _ma++)
-+        {
-+            var _to = _art[_ma][0];
-+            var _from = _art[_ma][1];
++            // ! && !: neither of them, nothing to read for this entry
++            if (!_cb_milk && !_cb_inf)
++                continue;
 +            
-+            if (_cell.gnx_milk_spr[_to] == -1 && _has_hs && !gnx_json_has_key(arg0.human_spr, _art[_ma][2]))
++            // == : the default entry keeps its name, a class entry becomes its class number
++            var _cbid = (_cbl[_cbj][0] == "default") ? "default" : gnx_class_key_id(_cbl[_cbj][0], _cn, "human_spr.classes");
++            
++            // == undefined: the class is not loaded
++            if (_cbid == undefined)
++                continue;
++            
++            if (_cb_milk)
 +            {
-+                _cell.gnx_milk_spr[_to] = _cell.gnx_milk_spr[_from];
-+                _cell.gnx_milk_clock[_to] = _cell.gnx_milk_clock[_from];
-+                _cell.gnx_milk_n[_to] = _cell.gnx_milk_n[_from];
-+                
-+                // a strip in step with a phase of another length would run past its row: own clock instead
-+                if (_cell.gnx_milk_spr[_to] != -1 && !_cell.gnx_milk_clock[_to] && _mfr[_to] != _mfr[_from])
-+                {
-+                    _cell.gnx_milk_clock[_to] = true;
-+                    _cell.gnx_milk_n[_to] = _mfr[_from];
-+                }
++                // the entry's own phase tables (arg4 = the entry) decide which phases borrow milk
++                var _mtc = gnx_milk_tables(_cbe.milk_spr, _sprites_dict, _base_dir, _mfr, _cbe);
++                variable_struct_set(_cell.gnx_milk_bc, _cbid, _mtc);
++                // || = or: the cell draws milk when any entry has a strip
++                _m_any = _m_any || _mtc.any;
 +            }
++            
++            if (_cb_inf)
++                variable_struct_set(_cell.gnx_infant_bc, _cbid, gnx_resolve_layer_sprite(_cbe.infant_spr, _sprites_dict, _base_dir));
 +        }
-+        
-+        var _msrc = (_cell.gnx_milk_spr[2] != -1) ? 2 : -1;
-+        
-+        for (var _mi = 0; _mi < _mph_n && _msrc == -1; _mi++)
-+        {
-+            if (_cell.gnx_milk_spr[_mph_l[_mi]] != -1)
-+                _msrc = _mph_l[_mi];
-+        }
-+        
-+        // != -1: the cell has at least one milk strip to lend
-+        if (_msrc != -1)
-+        {
-+            for (var _mi = 0; _mi < _mph_n; _mi++)
-+            {
-+                var _mq = _mph_l[_mi];
-+                
-+                if (_cell.gnx_milk_spr[_mq] != -1)
-+                    continue;
-+                
-+                _cell.gnx_milk_spr[_mq] = _cell.gnx_milk_spr[_msrc];
-+                _cell.gnx_milk_clock[_mq] = true;
-+                // a strip played in step has the source phase's frame count per row
-+                _cell.gnx_milk_n[_mq] = _cell.gnx_milk_clock[_msrc] ? _cell.gnx_milk_n[_msrc] : _mfr[_msrc];
-+            }
-+        }
-+        else if (variable_struct_exists(_cp, "gnx_milk_items") && _cp.gnx_milk_items > 0)
-+        {
-+            // no milk strip at all: milk items still come in, but no milk is drawn
-+            var _mlog = gnx_log_open();
-+            gnx_log_write(_mlog, "[GNX-UG] " + string(_cn) + ": no milk_spr - milk items come in, but no milk is drawn\n");
-+            gnx_log_close(_mlog);
-+        }
++    }
++    
++    // no milk strip at all in an underground scene: milk items still come in, but no milk is drawn
++    if (_mfr != undefined && !_m_any && variable_struct_exists(_cp, "gnx_milk_items") && _cp.gnx_milk_items > 0)
++    {
++        var _mlog = gnx_log_open();
++        gnx_log_write(_mlog, "[GNX-UG] " + string(_cn) + ": no milk_spr - milk items come in, but no milk is drawn\n");
++        gnx_log_close(_mlog);
 +    }
 +
 +    // GNX-UG stage 2: px of the cell below the floor line. A floor with such a cell gets a wider band
@@ -1215,7 +1243,10 @@
 +        if (variable_struct_exists(_hspr, "phase_4"))
 +            _chspr.phase_4 = gnx_resolve_special_phase(_hspr.phase_4, _sprites_dict, _base_dir);
 +        
-+        // GNX-UG: separate ej (3) and milk (5) tables; only read for cells with physical.frames
++        // GNX-UG: separate ej (3) and milk (5) tables; only read for cells with physical.frames.
++        // phase_5 is resolved but never drawn: the captive's tables are read for phases 0-4 and the
++        // intermissions, an underground scene never sets phase 5, and the milk is drawn from milk_spr (layer
++        // type 21). Kept so a cell that has it loads as before (the same below for default and classes).
 +        if (variable_struct_exists(_hspr, "phase_3"))
 +            _chspr.phase_3 = gnx_resolve_special_phase(_hspr.phase_3, _sprites_dict, _base_dir);
 +        
@@ -1331,6 +1362,11 @@
 +    
 +    // GNX-FIX: monster species and places checked once (audit P5)
 +    gnx_cell_mon_check(_cell, _cn, arg1);
++    
++    // GNX-PLACES-INTER: ej_end's strip rule, now that the species are cleaned (a cell with independent
++    // places and an ej_end table; && = and)
++    if (variable_struct_exists(_cp, "gnx_places") && _cp.gnx_places && variable_struct_exists(_cp, "gnx_inter_end") && is_struct(_cp.gnx_inter_end))
++        gnx_frames_check_ej_end(arg0, _cn, _sprites_dict, _cp.gnx_inter_end, _cell);
 +    
 +    _cell.mod_name = arg1;
 +    ds_map_add(global.cell_registry, _h, _cell);
@@ -1589,7 +1625,8 @@
 +            if (_cp.gnx_places && _n_h != 1)
 +                _cp.scr_slot_template.h = [gnx_resolve_script("scr_slot_h_gnx_places")];
 +            
-+            if (_n_h != 5 && variable_struct_exists(_cp, "gnx_inter"))
++            // GNX-PLACES-INTER: (&& = and) a places list plays its intermissions itself, nothing is put in
++            if (_n_h != 5 && variable_struct_exists(_cp, "gnx_inter") && !_cp.gnx_places)
 +                gnx_inter_insert(_cp, variable_struct_exists(_cell, "name") ? string(_cell.name) : string(arg0));
 +        }
 +        
@@ -1851,6 +1888,13 @@
 +        else
 +            gnx_mspr_copy_prefix(_out, _ifb[k], _ipfx[k]);
 +    }
++    
++    // GNX-PLACES-INTER: ej_end (after the ej, cells with independent places) under prefix ee; without
++    // mon_spr.ej_end it takes the ej strips (or the loop ones when there is no ej block)
++    if (variable_struct_exists(arg0, "ej_end") && is_struct(arg0.ej_end))
++        gnx_resolve_mspr_phase(arg0.ej_end, arg1, arg2, _out, "ee");
++    else
++        gnx_mspr_copy_prefix(_out, (_ej != undefined) ? "ej" : "lo", "ee");
 +    
 +    return _out;
 +}
@@ -3171,6 +3215,20 @@
 +            array_push(global.gnx_trade_list[_ts], _class_id);
 +    }
 +    
++    // GNX-MILK: "milk_lvl" = the milk level this class gives: a number 0-4, or "lvl" = her own level, as
++    // the vanilla classes 0-7. Without it the vanilla rule stays: every class from 8 up gives level 1
++    // (Lilith 4), and mod classes have ids from 14 up. -2 marks "lvl" for gnx_milk_lvl.
++    if (variable_struct_exists(arg0, "milk_lvl"))
++    {
++        var _mlv = arg0.milk_lvl;
++        
++        // is_string = written as text; string_lower makes "LVL" and "Lvl" count too
++        if (is_string(_mlv) && string_lower(_mlv) == "lvl")
++            _rclass.gnx_milk_lvl = -2;
++        else
++            _rclass.gnx_milk_lvl = floor(gnx_json_num_in(_mlv, 1, 0, 4, "class " + arg1 + "." + _class_name, "milk_lvl"));
++    }
++    
 +    if (variable_struct_exists(arg0, "raid_spawns"))
 +    {
 +        var _rs_arr = arg0.raid_spawns;
@@ -3304,7 +3362,12 @@
 +            if (variable_struct_exists(arg0.sprites, "carry_hair"))
 +                _prov.carry_hair_spr = true;
 +        }
-+        
++
++        // GNX-MILK: milk_lvl given again in an override replaces the old one (kept as gnx_milk_lvl); before,
++        // the copy below put the earlier definition's level back over it
++        if (variable_struct_exists(arg0, "milk_lvl"))
++            _prov.gnx_milk_lvl = true;
++
 +        var _condk = ["clothing_standard", "clothing_big", "clothing_tent", "clothing_giant", "only_listed_cells", "naked_standard", "naked_big", "naked_tent", "carry_base_spr", "gb1_breast_d2", "mon_spr_overrides", "mon_sprite_swap", "preg_mon_type_override", "birth_classes", "birth_class", "default_leg", "birth_spr", "post_raid", "scr_unit", "tower_boss_condition"];
 +        
 +        for (var _pki = 0; _pki < array_length(_condk); _pki++)
@@ -3614,6 +3677,26 @@
 +}
 +
 +
++/// GNX-MILK: the milk level a captive gives. arg0 = her unit_data, arg1 = the level the game worked out
++/// (vanilla: her level for classes 0-7, Lilith 4, every other class from 8 up 1; the DAIRY cell always 1).
++/// A class with "milk_lvl" in classes.json gives that level instead (0-4), or her own level with "lvl".
++/// scr_add_milk_item still caps the level at 4.
++function gnx_milk_lvl(arg0, arg1)
++{
++    // ! = not, || = or: no captive, or a class without its own milk_lvl -> the game's level stays
++    if (!is_struct(arg0))
++        return arg1;
++    
++    var _rc = ds_map_find_value(global.class_registry, arg0.class);
++    
++    if (!is_struct(_rc) || !variable_struct_exists(_rc, "gnx_milk_lvl"))
++        return arg1;
++    
++    // -2 = "lvl": her own level (? : picks the first value when the test is true, else the second)
++    return (_rc.gnx_milk_lvl == -2) ? arg0.lvl : _rc.gnx_milk_lvl;
++}
++
++
 +/// GNX-FRAMES: true when a key named arg1 appears anywhere in the JSON value arg0 (structs and lists
 +/// are searched all the way down), e.g. whether any human_spr table has a phase_3.
 +function gnx_json_has_key(arg0, arg1)
@@ -3675,7 +3758,8 @@
 +
 +
 +/// GNX-FIX: who a mod error is about, from the name a reader was given (arg0): "prop MyMod.lamp" gives
-+/// Prop 'MyMod.lamp', any other name is a cell (Cell 'UNDERCELL').
++/// Prop 'MyMod.lamp', "class MyMod.Name" gives Class 'MyMod.Name' (GNX-MILK), any other name is a cell
++/// (Cell 'UNDERCELL').
 +function gnx_err_who(arg0)
 +{
 +    var _s = string(arg0);
@@ -3683,6 +3767,10 @@
 +    // string_pos == 1: the name starts with "prop "; string_delete takes those 5 characters off
 +    if (string_pos("prop ", _s) == 1)
 +        return "Prop '" + string_delete(_s, 1, 5) + "'";
++    
++    // GNX-MILK: "class MyMod.Name" gives Class 'MyMod.Name' (6 characters "class " taken off)
++    if (string_pos("class ", _s) == 1)
++        return "Class '" + string_delete(_s, 1, 6) + "'";
 +    
 +    return "Cell '" + _s + "'";
 +}

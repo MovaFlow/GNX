@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2607 @@
+@@ -0,0 +1,2744 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -351,29 +351,147 @@
 +// What a save file says about mods. {exists, rec (array or -1 for saves made before the mod menu), data}
 +function scr_gnx_read_save_mod_info(arg0)
 +{
-+    var _info = { exists: false, rec: -1, data: -1 };
++    // GNX-FIX: menu_bad = why the load page cannot show this save ("" = it can), see gnx_save_menu_problem
++    var _info = { exists: false, rec: -1, data: -1, menu_bad: "no file" };
 +
 +    if (!file_exists(arg0))
 +        return _info;
 +
++    // GNX-FIX: a file that cannot be opened gives -1, and buffer_read(-1) stopped the game
 +    var _buff = buffer_load(arg0);
++
++    if (_buff == -1)
++    {
++        _info.menu_bad = "the file cannot be opened";
++        gnx_save_menu_log(arg0, _info.menu_bad);
++        return _info;
++    }
++
 +    var _json = buffer_read(_buff, buffer_text);
 +    buffer_delete(_buff);
 +
 +    try
 +    {
 +        _info.data = json_parse(_json);
-+        _info.exists = true;
-+
-+        if (variable_struct_exists(_info.data, "gnx_mods") && is_array(_info.data.gnx_mods))
-+            _info.rec = _info.data.gnx_mods;
 +    }
 +    catch (_e)
 +    {
-+        _info.exists = false;
++        _info.data = -1;
 +    }
 +
++    // GNX-FIX: only an object is a save; text that parses as a number or a list is not
++    if (!is_struct(_info.data))
++    {
++        _info.data = -1;
++        _info.menu_bad = "it is not a readable save (broken JSON)";
++        gnx_save_menu_log(arg0, _info.menu_bad);
++        return _info;
++    }
++
++    _info.exists = true;
++
++    // GNX-FIX: the mod records are read by the mod page, the load page and the missing-mods line, which
++    // all count cells + units + maps; records without them stopped the game, so they are cleaned here once
++    if (variable_struct_exists(_info.data, "gnx_mods") && is_array(_info.data.gnx_mods))
++    {
++        _info.data.gnx_mods = gnx_save_recs_clean(_info.data.gnx_mods);
++        _info.rec = _info.data.gnx_mods;
++    }
++
++    _info.menu_bad = gnx_save_menu_problem(_info.data);
++
++    // != "": the load page will show it as an empty slot, so say why in the log
++    if (_info.menu_bad != "")
++        gnx_save_menu_log(arg0, _info.menu_bad);
++
 +    return _info;
++}
++
++
++/// GNX-FIX: the mod records of a save (arg0, its gnx_mods list) that the menus can read: objects with an
++/// "id"; name (default the id), version (default "?"), cells and units (numbers, default 0) and maps (a
++/// list, default empty) are filled in where missing or of the wrong type. Other entries are dropped.
++function gnx_save_recs_clean(arg0)
++{
++    var _out = [];
++
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        var _r = arg0[i];
++
++        // ! = not, || = or: no object, or no id
++        if (!is_struct(_r) || !variable_struct_exists(_r, "id"))
++            continue;
++
++        _r.id = string(_r.id);
++
++        if (!variable_struct_exists(_r, "name"))
++            _r.name = _r.id;
++
++        if (!variable_struct_exists(_r, "version"))
++            _r.version = "?";
++
++        // is_real: a number; anything else counts as 0
++        if (!variable_struct_exists(_r, "cells") || !is_real(_r.cells))
++            _r.cells = 0;
++
++        if (!variable_struct_exists(_r, "units") || !is_real(_r.units))
++            _r.units = 0;
++
++        if (!variable_struct_exists(_r, "maps") || !is_array(_r.maps))
++            _r.maps = [];
++
++        array_push(_out, _r);
++    }
++
++    return _out;
++}
++
++
++/// GNX-FIX: what the load page (scr_create_load_file) cannot read in save data arg0, "" = nothing: it needs
++/// global_list with mon_num and unit_num, and global_list.val with day_timer, food, money, day and version.
++/// play_time is not needed (a save without it, or with no number there, shows 0 played time).
++function gnx_save_menu_problem(arg0)
++{
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "global_list") || !is_struct(arg0.global_list))
++        return "global_list is missing";
++
++    var _g = arg0.global_list;
++
++    if (!variable_struct_exists(_g, "val") || !is_struct(_g.val))
++        return "global_list.val is missing";
++
++    var _keys = ["mon_num", "unit_num"];
++
++    for (var i = 0; i < array_length(_keys); i++)
++    {
++        if (!variable_struct_exists(_g, _keys[i]) || !is_real(variable_struct_get(_g, _keys[i])))
++            return "global_list." + _keys[i] + " is missing or not a number";
++    }
++
++    // version is only shown, so any value will do
++    if (!variable_struct_exists(_g.val, "version"))
++        return "global_list.val.version is missing";
++
++    _keys = ["day_timer", "food", "money", "day"];
++
++    for (var i = 0; i < array_length(_keys); i++)
++    {
++        if (!variable_struct_exists(_g.val, _keys[i]) || !is_real(variable_struct_get(_g.val, _keys[i])))
++            return "global_list.val." + _keys[i] + " is missing or not a number";
++    }
++
++    return "";
++}
++
++
++/// GNX-FIX: one log line for save file arg0 that the load page cannot show, with reason arg1. The file is
++/// kept (not deleted): the slot only shows as empty until it is saved over.
++function gnx_save_menu_log(arg0, arg1)
++{
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-SAVES] " + string(arg0) + " cannot be shown on the load page: " + string(arg1) + "; the slot shows as empty, the file is kept\n");
++    gnx_log_close(_l);
 +}
 +
 +
@@ -2159,7 +2277,16 @@
 +        gnx_report_mod_error("Mod '" + arg0 + "': incompatible with game version " + _game_ver + " (compatible: " + string(_versions) + ")");
 +        exit;
 +    }
-+    
++
++    // GNX-UGREQ (1.5.0.5): the milk and newborn strips an underground cell declares must load (they are
++    // optional; gnx_ug_strips_check reports each broken one). Checked before anything of the mod is
++    // registered, so a mod that fails is not loaded at all (> 0 = there are problems)
++    if (gnx_ug_strips_check(arg0, _manifest) > 0)
++    {
++        gnx_report_mod_error("Mod '" + arg0 + "': not loaded - an underground cell declares milk or newborn strips that cannot load (see the errors above)");
++        exit;
++    }
++
 +    var _log = gnx_log_open();
 +    gnx_log_write(_log, "[GNX] loading: " + string(_manifest.name) + " v" + string(_manifest.version) + "\n");
 +    gnx_log_close(_log);
@@ -2229,13 +2356,23 @@
 +            
 +            if (variable_struct_exists(_mb, "unlock"))  // condition (or array of conditions, all needed) to show the map
 +            {
-+                _tl.unlock = _mb.unlock;
-+                var _ucl = is_array(_tl.unlock) ? _tl.unlock : [_tl.unlock];
-+                
-+                for (var _uci = 0; _uci < array_length(_ucl); _uci++)
++                // GNX-FIX: unlock is a condition (an object) or a list of them. Any other value (text, number,
++                // true/false, null) was taken as "no condition", so the map was open at once. It is now a mod error
++                // and the map stays hidden: a list holding that value can never be met (scr_gnx_map_unlocked), and
++                // a list is not "no condition" (gnx_map_is_unlocked). || = or, ! = not
++                if (is_struct(_mb.unlock) || is_array(_mb.unlock))
 +                {
-+                    if (is_struct(_ucl[_uci]))
++                    _tl.unlock = _mb.unlock;
++                    var _ucl = is_array(_tl.unlock) ? _tl.unlock : [_tl.unlock];
++                    
++                    // every entry goes to the resolver, which also reports an entry that is no object or has no type
++                    for (var _uci = 0; _uci < array_length(_ucl); _uci++)
 +                        scr_gnx_resolve_condition_refs(_ucl[_uci], arg0);
++                }
++                else
++                {
++                    gnx_report_mod_error("Mod '" + arg0 + "': map_info.unlock is " + string(_mb.unlock) + ", not a condition object or a list of them; the map stays hidden");
++                    _tl.unlock = [_mb.unlock];
 +                }
 +            }
 +            

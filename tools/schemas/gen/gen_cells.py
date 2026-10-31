@@ -33,6 +33,9 @@ def d(x, desc):
 CATS = ["breed", "utility", "pleasure", "b_breed", "b_utility", "b_other", "t_breed", "t_utility", "xl_breed", "ug_breed"]
 PHASE_KEYS = r"^phase_([0-5]|idle_start|start_loop|loop_ej|ej_birth)$"
 
+# underground class_map entries: own milk / newborn strips, written as the cell's own (guide 24)
+UG_ART = {"description": "Underground cells: this class's own strips, written as the cell's own.", "type": ["object", "string", "integer"]}
+
 # per phase of a fixed / class_map human_spr: special-class style tables, optional by_class (fixed mode)
 hum_phase = obj({
     "spr_array": d(L, "The captive's body, slot by slot (guide 10.3)."),
@@ -47,9 +50,10 @@ human_spr = {
         "mode": {"enum": ["base+class", "fixed", "class_map"]},
         "base_body": {"enum": ["standard", "big", "tent"]},
         "default": {"type": "object", "description": "class_map: the phases for classes not listed.",
+                    "properties": {"milk_spr": UG_ART, "infant_spr": UG_ART},
                     "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}}, "additionalProperties": False},
         "classes": {"type": "object", "description": "class_map: class ID or reference -> phases (guide 10.5).",
-                    "additionalProperties": {"type": "object", "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}}, "additionalProperties": False}},
+                    "additionalProperties": {"type": "object", "properties": {"milk_spr": UG_ART, "infant_spr": UG_ART}, "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}}, "additionalProperties": False}},
     },
     "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}},
     "additionalProperties": False,
@@ -69,7 +73,7 @@ mon_phase = obj({"head": HEAD, "body": VARIANTS, "hand": VARIANTS, "pen": SPR, "
                 "Monster sprites of a loop / ej / intermission phase (guide 10.9).")
 mon_spr = {"type": "object", "description": "Monster sprites per phase (guide 10.8).",
            "properties": dict({"start": {"$ref": "#/definitions/mon_start"}},
-                              **{k: {"$ref": "#/definitions/mon_phase"} for k in ("loop", "ej", "idle_start", "start_loop", "loop_ej", "ej_birth")}),
+                              **{k: {"$ref": "#/definitions/mon_phase"} for k in ("loop", "ej", "idle_start", "start_loop", "loop_ej", "ej_birth", "ej_end")}),
            **OPEN}
 
 physical = obj({
@@ -95,6 +99,8 @@ physical = obj({
     "transfer": B,
     "frames": d({"type": ["object", "number", "array"]}, "Frame counts per phase (guide 22.1)."),
     "start_loops": NUM_OR_LIST, "ej_start": N, "ej_hold": N, "ej_holds": NUM_OR_LIST,
+    "ej_return": d(N, "Frame the ej goes back to for its next hold (default ej_start), counted from 0."),
+    "join_skip": d(B, "Independent places: a monster coming in later starts where the captive is."),
     "loop_scale": B,
     "intermissions": d({"type": "object"}, "One-shot sub-phases (guide 23)."),
     "underground": N, "underground_gap": N,

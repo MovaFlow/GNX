@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1557 @@
+@@ -0,0 +1,1573 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1541,6 +1541,22 @@
 +    }
 +    
 +    gnx_log_close(_log);
++}
++
++
++/// GNX-SELL: true when captive arg0 (unit_data) can be sold to the trader: her class is not special (vanilla 0-7,
++/// mod classes with "is_special": false), or from level 6 up (vanilla bosses 8-13 and mod classes with
++/// "is_special": true, as tower bosses, caught at level 6). Before, every class in the registry passed, and GNX
++/// puts the vanilla classes there too, so the level-6 rule never held.
++function gnx_can_sell(arg0)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0.class);
++    
++    // && = and; ? : = its is_special when the class is known, else the vanilla rule (class 8 and up)
++    var _special = (is_struct(_rc) && variable_struct_exists(_rc, "is_special")) ? _rc.is_special : (arg0.class >= 8);
++    
++    // ! = not, || = or: not special, or level 6 and up
++    return !_special || arg0.lvl >= 6;
 +}
 +
 +

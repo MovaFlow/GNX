@@ -1,0 +1,314 @@
+{
+  "about": "Mav's 1.5.0.5 fixes: the trader's level-6 rule for special classes, milk_lvl per class, underground class_map cells with a default entry, save files the load page cannot show (reported, not a crash), quest conditions that are not objects or have no type, cell conditions on passages and without h_type, build_count (kept in the save), and broken quest data reported as mod errors when the mod loads.",
+  "mods": [
+    "tools/scenarios/mods/harness_mav1505"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "has no completion condition",
+  "expect_mod_errors": [
+    "completion_hook must be a text",
+    "quest condition cell_count has no h_type",
+    "a condition is not an object",
+    "a condition has no \"type\"",
+    "milk_lvl must be a number (lots)"
+  ],
+  "steps": [
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_can_sell",
+      "args": [
+        1,
+        1
+      ],
+      "is": true,
+      "why": "vanilla Elf, level 1"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_can_sell",
+      "args": [
+        8,
+        1
+      ],
+      "is": false,
+      "why": "vanilla boss below level 6 (passed before: every registry class did)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_can_sell",
+      "args": [
+        8,
+        6
+      ],
+      "is": true,
+      "why": "vanilla boss at level 6"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_can_sell",
+      "args": [
+        {
+          "class": "harness_mav1505.BOSSY"
+        },
+        1
+      ],
+      "is": false,
+      "why": "mod class is_special true"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_can_sell",
+      "args": [
+        {
+          "class": "harness_mav1505.MILK THREE"
+        },
+        1
+      ],
+      "is": true,
+      "why": "mod class not special"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_milk_lvl",
+      "args": [
+        {
+          "class": "harness_mav1505.MILK THREE"
+        },
+        1
+      ],
+      "is": 3
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_milk_lvl",
+      "args": [
+        {
+          "class": "harness_mav1505.MILK OWN"
+        },
+        4
+      ],
+      "is": 4,
+      "why": "milk_lvl lvl: her own level"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_milk_lvl",
+      "args": [
+        1,
+        4
+      ],
+      "is": 1,
+      "why": "a class without milk_lvl keeps the game's level"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cell_required",
+      "args": [
+        9061
+      ],
+      "is": true,
+      "why": "underground class_map without default: listed classes only"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cell_required",
+      "args": [
+        9062
+      ],
+      "is": false,
+      "why": "with a default entry: every class"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_save_bad",
+      "args": [
+        "{broken"
+      ],
+      "is": "it is not a readable save (broken JSON)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_save_bad",
+      "args": [
+        "[1, 2]"
+      ],
+      "is": "it is not a readable save (broken JSON)",
+      "why": "a list is no save"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_save_bad",
+      "args": [
+        "{\"global_list\": {\"mon_num\": 0, \"unit_num\": 0}}"
+      ],
+      "is": "global_list.val is missing"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_save_bad",
+      "args": [
+        "{\"global_list\":{\"mon_num\":0,\"unit_num\":0,\"val\":{\"version\":1.4,\"day_timer\":0,\"food\":0,\"money\":0,\"day\":1}}}"
+      ],
+      "is": "",
+      "why": "control: a save with every field the load page reads"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        "not an object",
+        "harness_mav1505"
+      ],
+      "is": false
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "value": 1
+        },
+        "harness_mav1505"
+      ],
+      "is": false,
+      "why": "no type"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "cell_count",
+          "h_type": 1,
+          "value": 1
+        },
+        "harness_mav1505"
+      ],
+      "is": false,
+      "why": "passages and the entrance have no h_type (stopped the game)"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "cell_built",
+          "h_type": 1
+        },
+        "harness_mav1505"
+      ],
+      "is": false
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "cell_count",
+          "value": 0
+        },
+        "harness_mav1505"
+      ],
+      "is": false,
+      "why": "no h_type never matches"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "build_count",
+          "h_type": 5,
+          "value": 2
+        },
+        "harness_mav1505"
+      ],
+      "is": false,
+      "why": "nothing built yet"
+    },
+    {
+      "call": "gnx_cell_built",
+      "args": [
+        5
+      ]
+    },
+    {
+      "call": "gnx_cell_built",
+      "args": [
+        5
+      ]
+    },
+    {
+      "call": "gnx_cell_built",
+      "args": [
+        9
+      ]
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "build_count",
+          "h_type": 5,
+          "value": 2
+        },
+        "harness_mav1505"
+      ],
+      "is": true,
+      "why": "two BIRTH 1 built"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "build_count",
+          "h_type": 5,
+          "value": 3
+        },
+        "harness_mav1505"
+      ],
+      "is": false
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "build_count",
+          "value": 3
+        },
+        "harness_mav1505"
+      ],
+      "is": true,
+      "why": "any type"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "build_count",
+          "h_type": 5,
+          "value": 2
+        },
+        "harness_mav1505"
+      ],
+      "is": true,
+      "why": "the counts are saved"
+    }
+  ]
+}

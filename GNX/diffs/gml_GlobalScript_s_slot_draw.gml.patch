@@ -1,5 +1,5 @@
---- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-09-02 08:45:16.434590200 +0200
-+++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-28 10:27:33.397589500 +0100
+--- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-10-31 17:46:47.558111300 +0100
++++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-31 17:48:11.984897600 +0100
 @@ -2,27 +2,31 @@
  {
      switch (slot_data.slot_type)
@@ -3182,7 +3182,7 @@
          }
      }
      
-@@ -2613,24 +2836,402 @@
+@@ -2613,24 +2836,404 @@
      {
          var _mod_sign = _index;
          var _scale_sign = ((_mod_sign * 2) - 1) * -1;
@@ -3425,10 +3425,12 @@
 +                    // Frame = row * frames_of_phase + current frame, so it moves in step with the captive.
 +                    if (unit_data != -1 && unit_data.milk && _index != -1 && _gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_milk_spr") && variable_struct_exists(_gnx_cell.physical, "gnx_milk_items") && _gnx_cell.physical.gnx_milk_items > 0)
 +                    {
++                        // GNX-BYCLASS: the milk of the captive's class (her class_map entry), else the cell's
++                        var _mtab = gnx_milk_for(_gnx_cell, unit_data.class);
 +                        var _mph = slot_data.anim_struct.spr_type;
 +                        // && = and: a phase 0-4 that has a milk strip (its own or borrowed at registration)
-+                        var _mown = _mph >= 0 && _mph < array_length(_gnx_cell.gnx_milk_spr) && _gnx_cell.gnx_milk_spr[_mph] != -1;
-+                        var _mspr = _mown ? _gnx_cell.gnx_milk_spr[_mph] : _spr;
++                        var _mown = _mph >= 0 && _mph < array_length(_mtab.spr) && _mtab.spr[_mph] != -1;
++                        var _mspr = _mown ? _mtab.spr[_mph] : _spr;
 +                        
 +                        if (_mspr != -1)
 +                        {
@@ -3437,9 +3439,9 @@
 +                            
 +                            // GNX-UG: a strip on the milk's own clock loops its gnx_milk_n frames per row at
 +                            // speed.milk (mod = remainder, so frame 7 of a 5-frame strip is frame 2)
-+                            if (_mown && variable_struct_exists(_gnx_cell, "gnx_milk_clock") && _gnx_cell.gnx_milk_clock[_mph])
++                            if (_mown && _mtab.clock[_mph])
 +                            {
-+                                var _mn = max(1, _gnx_cell.gnx_milk_n[_mph]);
++                                var _mn = max(1, _mtab.n[_mph]);
 +                                var _mt = variable_struct_exists(slot_data, "gnx_ug_milk_f") ? floor(slot_data.gnx_ug_milk_f) : 0;
 +                                _mframe = (_mrow * _mn) + (_mt mod _mn);
 +                            }

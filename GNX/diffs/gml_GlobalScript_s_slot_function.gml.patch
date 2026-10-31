@@ -1,5 +1,5 @@
---- gml_138/gml_GlobalScript_s_slot_function.gml	2026-09-02 08:45:16.550128500 +0200
-+++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-28 09:51:07.684022800 +0100
+--- gml_138/gml_GlobalScript_s_slot_function.gml	2026-10-31 17:46:47.736751300 +0100
++++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-31 17:48:11.985990500 +0100
 @@ -3,7 +3,7 @@
      var _list = global.slot_list[arg1];
      var _x;
@@ -2113,11 +2113,14 @@
                      {
                          _door = scr_find_nearest_door(_x, _y, _floor);
                      }
-@@ -2421,14 +3010,17 @@
+@@ -2420,15 +3009,19 @@
+         
          if (unit_data.scr_wait >= 240)
          {
-             scr_add_milk_item(1, 1);
+-            scr_add_milk_item(1, 1);
 -            scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 62, 1, UnknownEnum.Value_1, false);
++            // GNX-MILK: level 1 as in vanilla, unless the class has milk_lvl in classes.json (gnx_milk_lvl)
++            scr_add_milk_item(gnx_milk_lvl(unit_data, 1), 1);
 +            // GNX-PROP: the props next to the cell can react to the milk
 +            gnx_cell_event(id, "milk");
 +            scr_icon_pop_up_create(x + (image_xscale * 0.5), y - 62, 1, 1, false);
@@ -2133,13 +2136,19 @@
  {
      arg1 += global.val.add_range;
      var _floor = arg0.slot_data.slot_floor;
-@@ -2446,8 +3038,16 @@
+@@ -2446,8 +3039,21 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
 -        if (_slot_id != undefined && (_slot_id.slot_data.slot_type == UnknownEnum.Value_0 || _slot_id.slot_data.slot_type == UnknownEnum.Value_1) && _slot_id.unit_data != -1 && !_slot_id.slot_data.carry && _slot_id.slot_data.load == 0 && _slot_id.slot_data.h_type != UnknownEnum.Value_11 && _slot_id.slot_data.h_type != UnknownEnum.Value_17 && _slot_id.slot_data.h_type != UnknownEnum.Value_24 && _slot_id.slot_data.h_type != UnknownEnum.Value_4 && _slot_id.slot_data.h_type != UnknownEnum.Value_20 && _slot_id.slot_data.h_type != UnknownEnum.Value_21 && _slot_id.slot_data.h_type != UnknownEnum.Value_22 && _slot_id.slot_data.h_type != UnknownEnum.Value_38)
-+        if (_slot_id != undefined && (_slot_id.slot_data.slot_type == 0 || _slot_id.slot_data.slot_type == 1 || _slot_id.slot_data.slot_type == 6) && _slot_id.unit_data != -1 && !_slot_id.slot_data.carry && _slot_id.slot_data.load == 0 && _slot_id.slot_data.h_type != 11 && _slot_id.slot_data.h_type != 17 && _slot_id.slot_data.h_type != 24 && _slot_id.slot_data.h_type != 4 && _slot_id.slot_data.h_type != 20 && _slot_id.slot_data.h_type != 21 && _slot_id.slot_data.h_type != 22 && _slot_id.slot_data.h_type != 38 && variable_struct_exists(_slot_id.scr_slot, "h"))
-         {
+-        {
++        // GNX-BIRTH: BIRTH 1 (h_type 5) and BIRTH 2 (12) are left out too. They have a scene list (the birth)
++        // and room for one monster, so a goblin leaving a DRINK cell was sent there: it went in, stood in the
++        // cell walking on the spot (the birth cells draw no monster and never send one out) and started a
++        // birth with no pregnancy, until the captive was taken out (then it left with a mood loss).
++        // != = is not, && = and: every part must hold
++        if (_slot_id != undefined && (_slot_id.slot_data.slot_type == 0 || _slot_id.slot_data.slot_type == 1 || _slot_id.slot_data.slot_type == 6) && _slot_id.unit_data != -1 && !_slot_id.slot_data.carry && _slot_id.slot_data.load == 0 && _slot_id.slot_data.h_type != 11 && _slot_id.slot_data.h_type != 17 && _slot_id.slot_data.h_type != 24 && _slot_id.slot_data.h_type != 4 && _slot_id.slot_data.h_type != 20 && _slot_id.slot_data.h_type != 21 && _slot_id.slot_data.h_type != 22 && _slot_id.slot_data.h_type != 38 && _slot_id.slot_data.h_type != 5 && _slot_id.slot_data.h_type != 12 && variable_struct_exists(_slot_id.scr_slot, "h"))
++        {
 +            // POPRAWKA: cela z modu z mon_placements/mon_types bez wolnego miejsca dla tego typu nie jest celem
 +            // (wczesniej np. goblin z DRINK mogl trafic na miejsce tylko dla hobgoblina)
 +            if (arg2 != -1 && gnx_cell_has_mon_rules(_slot_id) && gnx_cell_place_for_type(_slot_id, arg2) == -1)
@@ -2151,7 +2160,7 @@
              var _num = array_length(_slot_id.h_unit_list);
              
              if (abs(_pos - _c_pos) < _slot_dist)
-@@ -2456,7 +3056,7 @@
+@@ -2456,7 +3062,7 @@
                  
                  switch (_slot_id.slot_data.h_type)
                  {
@@ -2160,7 +2169,7 @@
                          _check = true;
                          
                          if (_num == 1)
-@@ -2467,10 +3067,10 @@
+@@ -2467,10 +3073,10 @@
                          
                          break;
                      
@@ -2173,7 +2182,7 @@
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2478,10 +3078,10 @@
+@@ -2478,10 +3084,10 @@
                          
                          break;
                      
@@ -2186,7 +2195,7 @@
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2509,7 +3109,7 @@
+@@ -2509,7 +3115,7 @@
  {
      var _exists = false;
      
@@ -2195,7 +2204,7 @@
          _exists = true;
      
      if (_exists)
-@@ -2527,7 +3127,7 @@
+@@ -2527,7 +3133,7 @@
      
      switch (arg0)
      {
@@ -2204,7 +2213,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2535,7 +3135,7 @@
+@@ -2535,7 +3141,7 @@
              
              break;
          
@@ -2213,7 +2222,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2543,7 +3143,7 @@
+@@ -2543,7 +3149,7 @@
              
              break;
          
@@ -2222,7 +2231,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2558,7 +3158,7 @@
+@@ -2558,7 +3164,7 @@
              
              break;
          
@@ -2231,7 +2240,7 @@
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2573,12 +3173,28 @@
+@@ -2573,12 +3179,28 @@
              
              break;
          
@@ -2261,7 +2270,7 @@
      if (!_slot && slot_data.allow_preg)
      {
          if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1)
-@@ -2602,7 +3218,7 @@
+@@ -2602,7 +3224,7 @@
              var _c_pos = _start_pos + i;
              var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
              
@@ -2270,7 +2279,7 @@
              {
                  i = _dist;
                  _frog = true;
-@@ -2623,8 +3239,8 @@
+@@ -2623,8 +3245,8 @@
                  ds_list_set(global.unit_list, _swap_pos, -1);
                  scr_insert_unit_to_list(_unit_data, _swap_pos, -1);
                  var _button = scr_reset_single_unit_window(_swap_pos);
@@ -2281,7 +2290,7 @@
                  scr_create_slot_head(true, id);
                  scr_swap_emitter(x + round(image_xscale * 0.5), y - 30, false);
                  scr_swap_emitter(_button.x, _button.y, true);
-@@ -2641,7 +3257,7 @@
+@@ -2641,7 +3263,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -2290,7 +2299,7 @@
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2662,14 +3278,14 @@
+@@ -2662,14 +3284,14 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -2307,7 +2316,7 @@
      return _swap_pos;
  }
  
-@@ -2681,18 +3297,27 @@
+@@ -2681,18 +3303,27 @@
      var _class = arg0.class;
      var _same_check = false;
      var _tent = false;
@@ -2338,7 +2347,7 @@
          {
              _swap_pos = i;
              i = _num;
-@@ -2700,13 +3325,13 @@
+@@ -2700,13 +3331,13 @@
          }
      }
      
@@ -2354,7 +2363,7 @@
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2725,7 +3350,7 @@
+@@ -2725,7 +3356,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -2363,7 +2372,7 @@
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2746,7 +3371,7 @@
+@@ -2746,7 +3377,7 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -2372,7 +2381,7 @@
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2773,23 +3398,30 @@
+@@ -2773,23 +3404,30 @@
          }
          else
          {
@@ -2409,7 +2418,7 @@
          }
      }
      
-@@ -2804,23 +3436,30 @@
+@@ -2804,23 +3442,30 @@
          }
          else
          {
@@ -2446,7 +2455,7 @@
          }
      }
  }
-@@ -2832,67 +3471,94 @@
+@@ -2832,67 +3477,94 @@
      
      switch (arg0.slot_data.slot_type)
      {
@@ -2563,7 +2572,7 @@
              break;
      }
      
-@@ -2929,35 +3595,167 @@
+@@ -2929,35 +3601,167 @@
      ds_list_destroy(_new_list_1);
      ds_list_destroy(_new_list_2);
      
@@ -2573,9 +2582,8 @@
 +    gnx_ug_swap_extra(arg0, arg1);
 +    var _ynew = gnx_ug_floor_offsets();
 +    
-     with (obj_slot)
-     {
--        if (slot_data.slot_floor == arg0)
++    with (obj_slot)
++    {
 +        var _of = clamp(slot_data.slot_floor, 0, array_length(_yold) - 1);
 +        // ? : picks the floor this slot ends up on (arg0 <-> arg1, others stay)
 +        var _nf = (_of == arg0) ? arg1 : ((_of == arg1) ? arg0 : _of);
@@ -2592,16 +2600,13 @@
 +        
 +        // only monsters standing on a floor (the index must exist in the offset arrays)
 +        if (_of >= 0 && _of < array_length(_yold))
-         {
--            slot_data.slot_floor = arg1;
--            y += (140 * (arg1 - arg0));
++        {
 +            var _nf = (_of == arg0) ? arg1 : ((_of == arg1) ? arg0 : _of);
 +            var _dy = _ynew[_nf] - _yold[_of];
 +            mon_data.mon_floor = _nf;
 +            y += _dy;
 +            mon_data.yto += _dy;
-         }
--        else if (slot_data.slot_floor == arg1)
++        }
 +    }
 +}
 +
@@ -2664,39 +2669,38 @@
 +    var _n = global.val.floor + 1;
 +    var _need = array_create(_n, 0);
 +    
-+    with (obj_slot)
-+    {
+     with (obj_slot)
+     {
+-        if (slot_data.slot_floor == arg0)
 +        var _f = slot_data.slot_floor;
 +        
 +        // && = and: GameMaker stops at the first false part, so h_type is only read where it exists
 +        if (_f >= 0 && _f < _n && variable_struct_exists(slot_data, "h_type") && slot_data.h_type != -1)
          {
--            slot_data.slot_floor = arg0;
--            y += (-140 * (arg1 - arg0));
+-            slot_data.slot_floor = arg1;
+-            y += (140 * (arg1 - arg0));
 +            var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +            
 +            if (_c != undefined && variable_struct_exists(_c.physical, "gnx_ug_extra"))
 +                _need[_f] = max(_need[_f], _c.physical.gnx_ug_extra);
          }
-     }
-     
--    with (obj_mon)
+-        else if (slot_data.slot_floor == arg1)
++    }
++    
 +    var _same = true;
 +    
 +    for (var i = 0; i < _n; i++)
-     {
--        if (mon_data.mon_floor == arg0)
++    {
 +        if (_need[i] != gnx_floor_extra(i))
          {
--            mon_data.mon_floor = arg1;
--            y += (140 * (arg1 - arg0));
--            mon_data.yto += 140 * (arg1 - arg0);
+-            slot_data.slot_floor = arg0;
+-            y += (-140 * (arg1 - arg0));
 +            _same = false;
 +            break;
          }
--        else if (mon_data.mon_floor == arg1)
-+    }
-+    
+     }
+     
+-    with (obj_mon)
 +    if (_same)
 +        exit;
 +    
@@ -2705,11 +2709,15 @@
 +    var _ynew = gnx_ug_floor_offsets();
 +    
 +    with (obj_slot)
-+    {
+     {
+-        if (mon_data.mon_floor == arg0)
 +        var _f = slot_data.slot_floor;
 +        
 +        if (_f >= 0 && _f < _n)
-+        {
+         {
+-            mon_data.mon_floor = arg1;
+-            y += (140 * (arg1 - arg0));
+-            mon_data.yto += 140 * (arg1 - arg0);
 +            var _dy = _ynew[_f] - _yold[_f];
 +            
 +            if (_dy != 0)
@@ -2717,7 +2725,8 @@
 +                y += _dy;
 +                gnx_ug_move_attached(_dy);
 +            }
-+        }
+         }
+-        else if (mon_data.mon_floor == arg1)
 +    }
 +    
 +    with (obj_mon)
@@ -2746,7 +2755,7 @@
  }
  
  function scr_slot_anim_base()
-@@ -2978,49 +3776,3 @@
+@@ -2978,49 +3782,3 @@
              bar_glow_rep = 0;
      }
  }

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4876 @@
+@@ -0,0 +1,4921 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -4860,6 +4860,51 @@
 +    }
 +
 +    scr_gnx_scn_finish();
++}
++
++
++// Mav 1.5.0.5 checks (scenarios mav_1505_fixes, drink_skips_birth)
++// the trader rule for a captive of class arg0 at level arg1
++function gnx_scn_can_sell(arg0, arg1)
++{
++    return gnx_can_sell({ class: arg0, lvl: arg1 });
++}
++
++
++// the milk level a captive of class arg0 at level arg1 gives where the game would give 1
++function gnx_scn_milk_lvl(arg0, arg1)
++{
++    return gnx_milk_lvl({ class: arg0, lvl: arg1 }, 1);
++}
++
++
++// true when cell type arg0 lets in only the classes it lists (physical.required_class was set)
++function gnx_scn_cell_required(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++    return is_struct(_c) && variable_struct_exists(_c, "physical") && variable_struct_exists(_c.physical, "required_class");
++}
++
++
++// why the load page cannot show a save file holding text arg0 ("" = it can); the file is removed again
++function gnx_scn_save_bad(arg0)
++{
++    var _f = "gnx_harness_broken.json";
++    var _h = file_text_open_write(_f);
++    file_text_write_string(_h, arg0);
++    file_text_close(_h);
++    var _i = scr_gnx_read_save_mod_info(_f);
++    file_delete(_f);
++    return _i.menu_bad;
++}
++
++
++// true when the cell range of the cell the last occupy step filled picks a BIRTH 1 / BIRTH 2 cell
++// (as for a goblin leaving a DRINK cell: scr_unit_removal asks scr_check_empty_cell_range)
++function gnx_scn_range_hits_birth()
++{
++    var _t = scr_check_empty_cell_range(global.gnx_scn_occupied, 3, 0);
++    return _t != -1 && (_t.slot_data.h_type == 5 || _t.slot_data.h_type == 12);
 +}
 +
 +

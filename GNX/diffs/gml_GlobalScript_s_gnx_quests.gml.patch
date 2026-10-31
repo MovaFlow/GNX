@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,975 @@
+@@ -0,0 +1,1166 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -174,8 +174,21 @@
 +            if (variable_struct_exists(_edef, "next_event") && is_string(_edef.next_event))
 +                _edef.next_event = arg0 + "." + _edef.next_event;
 +            
-+            if (variable_struct_exists(_edef, "completion"))
++            // GNX-FIX: only a completion that is an object goes to the resolver; any other value (text, number,
++            // list) is reported just below (&& = and)
++            if (variable_struct_exists(_edef, "completion") && is_struct(_edef.completion))
 +                scr_gnx_resolve_condition_refs(_edef.completion, arg0);
++            
++            // GNX-FIX: a quest needs a completion condition (an object), and completion_hook is a text
++            // ("frame", "cell_built", "post_raid" ...); && = and, || = or, ! = not
++            if (_edef.type == "quest" && (!variable_struct_exists(_edef, "completion") || !is_struct(_edef.completion)))
++                gnx_report_mod_error("Mod '" + arg0 + "': quest event '" + string(_full_id) + "' has no completion condition, so it never completes");
++            
++            if (variable_struct_exists(_edef, "completion_hook") && !is_string(_edef.completion_hook))
++            {
++                gnx_report_mod_error("Mod '" + arg0 + "': event '" + string(_full_id) + "': completion_hook must be a text such as \"cell_built\", not " + string(_edef.completion_hook) + "; \"frame\" is used");
++                _edef.completion_hook = "frame";
++            }
 +            
 +            if (variable_struct_exists(_edef, "side_effects"))
 +            {
@@ -236,6 +249,24 @@
 +
 +function scr_gnx_resolve_condition_refs(arg0, arg1)
 +{
++    // GNX-FIX: a condition (quests, triggers, raid spawns, cage escape, tower boss, map unlock) must be an object
++    // ({"type": ...}); a text, number or list is a mod error and never matches (scr_gnx_eval_condition). Reading
++    // keys of it could stop the game (! = not)
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error("Mod '" + string(arg1) + "': a condition is " + string(arg0) + ", not an object like {\"type\": \"state_equals\", ...}; it never matches");
++        exit;
++    }
++    
++    // GNX-FIX: an object without "type" matches nothing either (! = not)
++    if (!variable_struct_exists(arg0, "type"))
++        gnx_report_mod_error("Mod '" + string(arg1) + "': a condition has no \"type\"; it never matches");
++    
++    // GNX-FIX: cell_built, cell_occupied and cell_count need the cell's h_type; without it the condition never
++    // matches (is_struct: a condition is an object; && = and, || = or, ! = not)
++    if (is_struct(arg0) && variable_struct_exists(arg0, "type") && (arg0.type == "cell_built" || arg0.type == "cell_occupied" || arg0.type == "cell_count") && !variable_struct_exists(arg0, "h_type"))
++        gnx_report_mod_error("Mod '" + string(arg1) + "': quest condition " + string(arg0.type) + " has no h_type, so it never matches");
++    
 +    if (variable_struct_exists(arg0, "class") && is_string(arg0.class))
 +    {
 +        var _ref = arg0.class;
@@ -327,8 +358,15 @@
 +}
 +
 +
-+function scr_gnx_eval_condition(arg0, arg1)
++/// arg0 = the condition, arg1 = the mod's folder; GNX-BUILD: arg2 = the quest whose completion it is (its
++/// build_count starts when the quest appeared), undefined elsewhere (triggers, raids, tools: the whole save)
++function scr_gnx_eval_condition(arg0, arg1, arg2 = undefined)
 +{
++    // GNX-FIX: a condition that is no object, or has no type, matches nothing (reading .type of it stopped the
++    // game); the quest loader reports it (! = not, || = or)
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "type"))
++        return false;
++    
 +    var _type = arg0.type;
 +    
 +    switch (_type)
@@ -379,13 +417,20 @@
 +            return false;
 +        
 +        case "cell_built":
++            // GNX-FIX: a cell condition without h_type matches nothing (reading it stopped the game);
++            // the quest loader reports it as a mod error (scr_gnx_resolve_condition_refs)
++            if (!variable_struct_exists(arg0, "h_type"))
++                return false;
++            
 +            var _h = arg0.h_type;
 +            
 +            if (instance_exists(obj_slot))
 +            {
 +                with (obj_slot)
 +                {
-+                    if (slot_data.h_type == _h)
++                    // GNX-FIX: gnx_slot_h_type, not slot_data.h_type: passages, stairs and floor entrances
++                    // have no h_type, and the first one of them stopped the game
++                    if (gnx_slot_h_type(id) == _h)
 +                        return true;
 +                }
 +            }
@@ -393,13 +438,18 @@
 +            return false;
 +        
 +        case "cell_occupied":
++            // GNX-FIX: no h_type = no match, as in cell_built
++            if (!variable_struct_exists(arg0, "h_type"))
++                return false;
++            
 +            _h = arg0.h_type;
 +            
 +            if (instance_exists(obj_slot))
 +            {
 +                with (obj_slot)
 +                {
-+                    if (slot_data.h_type == _h && unit_data != -1)
++                    // GNX-FIX: gnx_slot_h_type (-1 for passages, stairs and floor entrances); && = and
++                    if (gnx_slot_h_type(id) == _h && unit_data != -1)
 +                        return true;
 +                }
 +            }
@@ -462,6 +512,10 @@
 +            return variable_struct_exists(arg0, "map") && gnx_map_is_unlocked(arg0.map);
 +        
 +        case "cell_count":
++            // GNX-FIX: no h_type = no match, as in cell_built
++            if (!variable_struct_exists(arg0, "h_type"))
++                return false;
++            
 +            _h = arg0.h_type;
 +            _need = variable_struct_exists(arg0, "value") ? arg0.value : 1;
 +            var _count = 0;
@@ -470,12 +524,21 @@
 +            {
 +                with (obj_slot)
 +                {
-+                    if (slot_data.h_type == _h)
++                    // GNX-FIX: gnx_slot_h_type (-1 for passages, stairs and floor entrances). cell_count
++                    // looks at every slot, so it stopped the game every time it was checked
++                    if (gnx_slot_h_type(id) == _h)
 +                        _count++;
 +                }
 +            }
 +            
 +            return _count >= _need;
++        
++        case "build_count":
++            // GNX-BUILD: how many cells of type h_type (any type without h_type) the player built: in a quest's
++            // completion since the quest appeared, elsewhere in the whole save (gnx_build_done)
++            // && = and: a value that is a number, else 1
++            _need = (variable_struct_exists(arg0, "value") && is_real(arg0.value)) ? arg0.value : 1;
++            return gnx_build_done(arg0, arg2) >= _need;
 +    }
 +    
 +    return false;
@@ -608,6 +671,8 @@
 +        _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
 +        _data.gnx_mod_name = _evt.mod_name;
 +        _data.event_after = -1;
++        // GNX-BUILD: a build_count quest counts from now on, and shows its progress (2/4) in its text
++        gnx_quest_build_start(_data, -1);
 +        ds_list_add(global.quest_list, _data);
 +        scr_pop_up_create(UnknownEnum.Value_12);
 +        
@@ -794,9 +859,15 @@
 +        if (_hook != arg0)
 +            continue;
 +        
++        // GNX-FIX: a quest without completion never completes (reading it stopped the game every frame); the
++        // quest loader reports it as a mod error
++        if (!variable_struct_exists(_evt, "completion") || !is_struct(_evt.completion))
++            continue;
++        
 +        var _comp = _evt.completion;
 +        
-+        if (scr_gnx_eval_condition(_comp, _q.gnx_mod_name))
++        // GNX-BUILD: _q = this quest, so a build_count counts from its start
++        if (scr_gnx_eval_condition(_comp, _q.gnx_mod_name, _q))
 +        {
 +            _q.quest_clear = true;
 +            global.val.quest_clear = true;
@@ -823,11 +894,17 @@
 +        
 +        if (variable_struct_exists(_q, "gnx_event_id"))
 +        {
-+            array_push(_qs.quests, 
++            var _qsave = 
 +            {
 +                event_id: _q.gnx_event_id,
 +                quest_clear: _q.quest_clear
-+            });
++            };
++            
++            // GNX-BUILD: where its build_count started
++            if (variable_struct_exists(_q, "gnx_build_base"))
++                _qsave.build_base = _q.gnx_build_base;
++            
++            array_push(_qs.quests, _qsave);
 +        }
 +    }
 +    
@@ -875,6 +952,8 @@
 +            _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
 +            _data.gnx_mod_name = _evt.mod_name;
 +            _data.event_after = -1;
++            // GNX-BUILD: the saved start of its build_count (? : a save from before 1.5.1 has none, so it counts from now)
++            gnx_quest_build_start(_data, variable_struct_exists(_saved, "build_base") ? _saved.build_base : -1);
 +            ds_list_add(global.quest_list, _data);
 +        }
 +    }
@@ -959,6 +1038,118 @@
 +        
 +        scr_text(gnx_tr(_line.speaker), _portrait, gnx_tr(_line.text));
 +    }
++}
++
++
++/// GNX-FIX: the h_type of slot arg0 (an obj_slot), or -1 when it has none. Only slots that can hold a cell
++/// have one (-1 while empty); passages, stairs and floor entrances (slot types 3, 4 and 5) have none, so
++/// reading slot_data.h_type on them stops the game. Used by the quest conditions on cells.
++function gnx_slot_h_type(arg0)
++{
++    // ! = not, || = or: no slot_data, slot_data that is no object, or no h_type in it
++    if (!variable_instance_exists(arg0, "slot_data") || !is_struct(arg0.slot_data) || !variable_struct_exists(arg0.slot_data, "h_type"))
++        return -1;
++    
++    return arg0.slot_data.h_type;
++}
++
++
++/// GNX-BUILD: the build counts of this save, { "<h_type>": n, ..., "all": n }, kept in global.val (saved with
++/// the game). A save from before 1.5.1 has none yet, so they start at 0.
++function gnx_build_counts()
++{
++    // ! = not: no counts in this save yet
++    if (!variable_struct_exists(global.val, "gnx_build_count") || !is_struct(global.val.gnx_build_count))
++        global.val.gnx_build_count = {};
++    
++    return global.val.gnx_build_count;
++}
++
++
++/// GNX-BUILD: the key a build_count condition arg0 counts under: its h_type as text, or "all" without one
++function gnx_build_key(arg0)
++{
++    // ? : the h_type as text when the condition has one, else every cell type
++    return variable_struct_exists(arg0, "h_type") ? string(arg0.h_type) : "all";
++}
++
++
++/// GNX-BUILD: how many cells the build_count condition arg0 counts were built, in quest arg1 (a quest_list
++/// entry) since it appeared, else (undefined) in the whole save
++function gnx_build_done(arg0, arg1)
++{
++    var _c = gnx_build_counts();
++    var _k = gnx_build_key(arg0);
++    // ? : the count kept for that key, else 0 (nothing built yet)
++    var _n = variable_struct_exists(_c, _k) ? variable_struct_get(_c, _k) : 0;
++    
++    // is_struct: a quest; the count it started from is taken off (max 0: never below 0)
++    if (is_struct(arg1) && variable_struct_exists(arg1, "gnx_build_base"))
++        _n = max(0, _n - arg1.gnx_build_base);
++    
++    return _n;
++}
++
++
++/// GNX-BUILD: for a quest arg0 (a quest_list entry) whose completion is a build_count: keeps the count its
++/// progress starts from (arg1, or the current count when arg1 is -1) and writes the progress into its text.
++/// Other quests stay as they are.
++function gnx_quest_build_start(arg0, arg1)
++{
++    var _e = arg0.gnx_event;
++    
++    // ! = not, || = or: a quest without a build_count completion
++    if (!variable_struct_exists(_e, "completion") || !is_struct(_e.completion) || !variable_struct_exists(_e.completion, "type") || _e.completion.type != "build_count")
++        exit;
++    
++    // != -1: a start saved with the game; else the count now (gnx_build_done with no quest = the whole save)
++    arg0.gnx_build_base = (arg1 != -1) ? arg1 : gnx_build_done(_e.completion, undefined);
++    gnx_quest_build_text(arg0);
++}
++
++
++/// GNX-BUILD: writes the progress of build_count quest arg0 after its quest_text: "Build more Titfuck
++/// cells. (2/4)". The count stops at the target (min), so a finished quest shows 4/4.
++function gnx_quest_build_text(arg0)
++{
++    // ! = not: only quests that keep a build count
++    if (!variable_struct_exists(arg0, "gnx_build_base"))
++        exit;
++    
++    var _e = arg0.gnx_event;
++    // && = and: a value that is a number, else 1 (as the condition reads it)
++    var _need = (variable_struct_exists(_e.completion, "value") && is_real(_e.completion.value)) ? _e.completion.value : 1;
++    var _done = min(gnx_build_done(_e.completion, arg0), _need);
++    arg0.quest_text = string(_e.quest_text) + " (" + string(_done) + "/" + string(_need) + ")";
++}
++
++
++/// GNX-BUILD: a cell of type arg0 was just built (build menu, CUSTOM, COPY DOWN). Counts it, refreshes the
++/// progress of build_count quests, then runs the cell_built triggers and quest checks, as these places did
++/// before.
++function gnx_cell_built(arg0)
++{
++    var _c = gnx_build_counts();
++    var _k = string(arg0);
++    // ? : one more for this type, and one more of any type ("all")
++    variable_struct_set(_c, _k, (variable_struct_exists(_c, _k) ? variable_struct_get(_c, _k) : 0) + 1);
++    variable_struct_set(_c, "all", (variable_struct_exists(_c, "all") ? variable_struct_get(_c, "all") : 0) + 1);
++    
++    // ds_exists: the quest list is there (it always is in a running game)
++    if (ds_exists(global.quest_list, ds_type_list))
++    {
++        for (var _i = 0; _i < ds_list_size(global.quest_list); _i++)
++        {
++            var _q = ds_list_find_value(global.quest_list, _i);
++            
++            // a GNX quest (vanilla quests have no gnx_event) that is not done yet
++            if (is_struct(_q) && variable_struct_exists(_q, "gnx_event") && !_q.quest_clear)
++                gnx_quest_build_text(_q);
++        }
++    }
++    
++    scr_gnx_check_triggers("cell_built");
++    scr_gnx_check_quest_completion("cell_built");
 +}
 +
 +

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,600 @@
+@@ -0,0 +1,760 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -112,13 +112,80 @@
 +    if ((global.slot_x[arg0] + _total) > room_width)
 +        return false;
 +
-+    for (var i = 0; i < array_length(_slots); i++)
-+    {
-+        gnx_set_between(_slots[i], arg1);
-+        scr_check_between_base(arg0, _slots[i]);
-+    }
++    // GNX-FIX: through gnx_between_apply: the passages that get narrower first, every result checked, and
++    // all of them back to their old style if one is still refused. Before, a passage that got wider first
++    // could be refused on the way (although the whole change fits) and the floor was left half changed
++    // while this said it was done.
++    var _types = array_create(array_length(_slots), arg1);
++    return gnx_between_apply(arg0, _slots, _types, true) == 0;
++}
 +
-+    return true;
++
++/// GNX-FIX: sets style arg2[i] on passage / entrance arg1[i] of floor arg0 (gnx_set_between). The ones that
++/// get narrower go first, then the wider ones, so the floor is never wider on the way than at the end (one
++/// that got wider first could be refused while the whole change fits). arg3 = all or none: when one is still
++/// refused, the ones changed so far get their old style back, in reverse order (each step back is a width
++/// the floor already had, so it fits). Returns how many were not set (0 = all). scr_check_between_base runs
++/// for every slot of arg1 at the end, as vanilla runs it after a style change.
++function gnx_between_apply(arg0, arg1, arg2, arg3)
++{
++    var _n = array_length(arg1);
++    var _order = [];
++    var _fail = 0;
++    
++    // pass 0: narrower or the same width, pass 1: wider; == compares, so each slot goes into one pass
++    for (var _pass = 0; _pass < 2; _pass++)
++    {
++        for (var i = 0; i < _n; i++)
++        {
++            var _w = gnx_between_width(arg2[i]);
++            
++            // an unknown style is counted once, as not set
++            if (_w == -1)
++            {
++                if (_pass == 0)
++                    _fail++;
++                
++                continue;
++            }
++            
++            var _diff = _w - (arg1[i].image_xscale + 2);
++            
++            if ((_pass == 0) == (_diff <= 0))
++                array_push(_order, i);
++        }
++    }
++    
++    // [slot, its old style] for every change made, so it can be undone
++    var _done = [];
++    
++    for (var j = 0; j < array_length(_order); j++)
++    {
++        var _s = arg1[_order[j]];
++        var _old = _s.slot_data.between_type;
++        
++        if (gnx_set_between(_s, arg2[_order[j]]))
++        {
++            array_push(_done, [_s, _old]);
++            continue;
++        }
++        
++        _fail++;
++        
++        // && = and: all or none, so undo the changes made so far (u-- = from the last one back)
++        if (arg3)
++        {
++            for (var u = array_length(_done) - 1; u >= 0; u--)
++                gnx_set_between(_done[u][0], _done[u][1]);
++            
++            break;
++        }
++    }
++    
++    for (var i = 0; i < _n; i++)
++        scr_check_between_base(arg0, arg1[i]);
++    
++    return _fail;
 +}
 +
 +
@@ -184,7 +251,9 @@
 +        array_push(_past ? _right : _left, { type: _ty, h: _h, reuse: _reuse });
 +    }
 +
-+    if (array_length(_left) + array_length(_right) == 0)
++    var _n = array_length(_left) + array_length(_right);
++
++    if (_n == 0)
 +        return "Nothing to copy: this floor has no cells.";
 +
 +    if (global.gnx_free_floor_copy)
@@ -193,15 +262,20 @@
 +    if (global.val.money < _cost)
 +        return "Not enough gold to copy this floor: " + string(_cost) + " needed.";
 +
-+    global.val.money -= _cost;
-+    global.gnx_floor_copy_charged = _cost;  // what this copy took (the harness checks it against the build price)
++    // GNX-FIX: the gold is taken at the end, only for what was really built (each slot, each cell set);
++    // before, all of it was taken first and no result was checked, so a copy that stopped half way still
++    // cost the whole floor. Every step is checked and a partial copy says what is missing.
++    var _paid = 0;
++    var _built = 0;
++    var _cells_set = 0;
++    var _cells_want = 0;
 +    var _side = global.build_side;
 +    var _list = _dst;
 +
-+    for (var i = 0; i < array_length(_left) + array_length(_right); i++)
++    for (var i = 0; i < _n; i++)
 +    {
 +        var _c = (i < array_length(_left)) ? _left[i] : _right[i - array_length(_left)];
-+        var _slot = -1;
++        var _slot = noone;
 +        var _e = 0;
 +
 +        while (ds_list_find_value(_list, _e).slot_data.slot_type != 4)
@@ -242,21 +316,43 @@
 +                    break;
 +                }
 +            }
++
++            if (_slot != noone)
++                _paid += max(0, scr_slot_type_price_data(_c.type).price);
 +        }
 +
-+        if (_c.h != -1 && _slot != -1)
++        if (_slot == noone)
++            continue;
++
++        _built++;
++
++        if (_c.h != -1)
 +        {
++            _cells_want++;
 +            scr_set_slot_h_data(_slot, _c.h);
-+            // once per cell, as building it by hand does (quests counting built cells see each one)
-+            scr_gnx_check_triggers("cell_built");
-+            scr_gnx_check_quest_completion("cell_built");
++
++            // the cell is set when the slot now has that type
++            if (variable_struct_exists(_slot.slot_data, "h_type") && _slot.slot_data.h_type == _c.h)
++            {
++                _cells_set++;
++                _paid += max(0, scr_h_slot_text_data(_c.h).price);
++                // once per cell, as building it by hand does (quests counting built cells see each one);
++                // GNX-BUILD: gnx_cell_built also counts it for build_count quests
++                gnx_cell_built(_c.h);
++            }
 +        }
 +    }
 +
 +    global.build_side = _side;
 +
-+    // passages and entrance: the same style and props, slot by slot (the layouts now line up)
++    // passages and entrance: the same style and props, slot by slot (the layouts now line up). The styles
++    // go through gnx_between_apply (narrower first, each result checked); props right after.
 +    var _m = min(ds_list_size(_src), ds_list_size(global.slot_list[_t]));
++    var _bs = [];
++    var _bt = [];
++    // decorations the source has on its passages, and how many of them were made below
++    var _props_want = 0;
++    var _props_set = 0;
 +
 +    for (var i = 0; i < _m; i++)
 +    {
@@ -266,29 +362,93 @@
 +        if (_a.slot_data.slot_type != _b.slot_data.slot_type || (_a.slot_data.slot_type != 4 && _a.slot_data.slot_type != 5))
 +            continue;
 +
-+        if (_b.slot_data.between_type != _a.slot_data.between_type)
-+            gnx_set_between(_b, _a.slot_data.between_type);
++        array_push(_bs, _b);
++        array_push(_bt, _a.slot_data.between_type);
 +
-+        scr_check_between_base(_t, _b);
-+        scr_clear_prop_pos(_b, 7);
-+        scr_clear_prop_pos(_b, 8);
-+        scr_clear_prop_pos(_b, 9);
-+
-+        for (var p = 0; p < array_length(_a.slot_data.prop); p++)
++        // GNX-FIX: decoration places 7-9, each on its own: only a place the source fills is changed (a prop
++        // already on the floor below stays where the source has none), and every prop made is checked
++        // (scr_create_prop gives -1 when it makes none, e.g. a prop of a mod that is off). The new prop is made
++        // first and the old one goes only when it was made, so a failed copy leaves the old one in place; one
++        // of the same type is kept as it is (with its frame and counter). Before, all three places were
++        // cleared first and the results were not looked at.
++        for (var _pos = 7; _pos <= 9; _pos++)
 +        {
-+            var _pd = _a.slot_data.prop[p];
++            // the source's prop type at this place (-1 = none)
++            var _ptype = -1;
 +
-+            if (_pd.prop_pos >= 7 && _pd.prop_pos <= 9)
-+                scr_create_prop(_b, _pd.prop_type, _pd.prop_pos, -1);
++            for (var p = 0; p < array_length(_a.slot_data.prop); p++)
++            {
++                if (_a.slot_data.prop[p].prop_pos == _pos)
++                {
++                    _ptype = _a.slot_data.prop[p].prop_type;
++                    break;
++                }
++            }
++
++            // == -1: the source has nothing here, so the floor below keeps what it has
++            if (_ptype == -1)
++                continue;
++
++            _props_want++;
++            // the floor below's own prop type at this place (-1 = none)
++            var _otype = -1;
++
++            for (var p = 0; p < array_length(_b.slot_data.prop); p++)
++            {
++                if (_b.slot_data.prop[p].prop_pos == _pos)
++                {
++                    _otype = _b.slot_data.prop[p].prop_type;
++                    break;
++                }
++            }
++
++            // == : the same prop is already there, nothing to change
++            if (_otype == _ptype)
++            {
++                _props_set++;
++                continue;
++            }
++
++            // != -1: the new prop was made; then the old one goes (scr_clear_prop_pos takes the first prop at
++            // this place, which is the old one: the new one was added at the end of the list)
++            if (scr_create_prop(_b, _ptype, _pos, -1) != -1)
++            {
++                _props_set++;
++
++                if (_otype != -1)
++                    scr_clear_prop_pos(_b, _pos);
++            }
 +        }
 +    }
 +
-+    scr_gnx_pop_up_create("Floor copied below"+ ((_cost > 0) ? (" for " + string(_cost) + " gold.") : "."));
++    var _style_fail = gnx_between_apply(_t, _bs, _bt, false);
++
++    // FREE COPY: nothing is taken
++    if (global.gnx_free_floor_copy)
++        _paid = 0;
++
++    global.val.money -= _paid;
++    global.gnx_floor_copy_charged = _paid;  // what this copy took (the harness checks it against the build price)
++
++    // || = or: something is missing, so say what (the caller shows it in a popup)
++    if (_built < _n || _cells_set < _cells_want || _style_fail > 0 || _props_set < _props_want)
++    {
++        var _why = "Floor copied only partly: " + string(_built) + " of " + string(_n) + " slots, " + string(_cells_set) + " of " + string(_cells_want) + " cells";
++
++        if (_style_fail > 0)
++            _why += ", " + string(_style_fail) + " passage style(s) not set";
++
++        // < : some decorations could not be made
++        if (_props_set < _props_want)
++            _why += ", " + string(_props_set) + " of " + string(_props_want) + " decorations";
++
++        return _why + ((_paid > 0) ? ("; " + string(_paid) + " gold taken for what was built.") : ".");
++    }
++
++    scr_gnx_pop_up_create("Floor copied below"+ ((_paid > 0) ? (" for " + string(_paid) + " gold.") : "."));
 +    return "";
 +}
 +
-+
-+// GNX-FLOOR: the edit menu runs for the whole floor of entrance arg0
 +function gnx_floor_edit_on(arg0)
 +{
 +    return global.gnx_floor_edit != -1 && global.gnx_floor_edit == arg0 && instance_exists(arg0);

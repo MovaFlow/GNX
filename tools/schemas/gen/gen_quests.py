@@ -42,6 +42,7 @@ d['condition'] = typed({
     "has_item": ({"item": S, "value": N}, ["item"], "The inventory holds at least value (default 1) of that mod item."),
     "floor_gte": ({"value": N}, ["value"], "Floors >= value."),
     "cell_count": ({"h_type": REF, "value": N}, ["h_type"], "Built cells of that type >= value (default 1)."),
+    "build_count": ({"h_type": REF, "value": N}, [], "Cells of that type (any type without h_type) the player built >= value; in a quest's completion counted from when the quest appeared."),
     "cell_built": ({"h_type": REF}, ["h_type"], "At least one cell of that type is built."),
     "cell_occupied": ({"h_type": REF}, ["h_type"], "At least one cell of that type has a captive."),
     "stage_discovered": ({"stage": STAGE}, ["stage"], "That raid stage is discovered."),

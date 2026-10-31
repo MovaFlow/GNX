@@ -35,6 +35,24 @@
 - A map mod's raid loot (`items.json` `loot`) was missing after loading a save made on that map from the menu, until the next trip; it is now there right after the load.
 - An `items.json` with only `loot` (no `items` of its own) was refused with "items must be a list"; it now loads.
 
+### Contributed by Mav (1.5.0.5)
+
+- **ej return frame** (`physical.ej_return`): the frame the ej goes back to for its next hold (default `ej_start`). Works with the vanilla scene scripts using `frames`, underground cells and cells with independent places.
+- **Intermissions in cells with independent places**: each monster plays its own `idle_start`, `start_loop`, `loop_ej` and the new `ej_end`, on its own clock and with its own strips (`mon_spr.<name>`). A monster coming in later skips `start_loop`; `"join_skip": true` starts it where the captive is. The captive now plays the ej of a monster alone in the cell (her `phase_3` table, else her loop).
+- **Speeds in cells with independent places** (`physical.speed`: `idle`, `start`, `loop`, `loop_fast`, `ej`, frames per second, 0.1-60). Left-out keys keep the old speeds.
+- **Milk and newborn per class in underground cells**: in `class_map` mode each `classes` entry and `default` can bring its own `milk_spr` and `infant_spr`.
+- **Quest condition `build_count`** (`h_type`, `value`): cells of a type built by the player (build menu, CUSTOM, COPY DOWN), counted from when the quest appeared when used in its completion. The quest shows its progress, e.g. `Build more Titfuck cells. (2/4)`.
+- **Milk level per class** (`milk_lvl`: 0-4 or `"lvl"`), used wherever milk is made. Without it, mod classes give level 1 as before.
+- Crash fixes: a save that cannot be read (broken JSON, missing fields) on the load page and in the save window now shows as an empty slot and is kept; broken mod records in a save; `cell_built` / `cell_occupied` / `cell_count` on passages, stairs and floor entrances, and without `h_type`; a quest event without `completion`; a condition that is not an object or has no `type`.
+- Monsters still on their way to a multi-monster cell were given sprites at every phase start: they stood in the cell unseen and walked out at the end, so more monsters left than were seen (ogres among them). Only monsters inside get sprites now.
+- Goblins leaving a DRINK cell could be sent to a BIRTH 1 / BIRTH 2 cell with a captive, where they walked on the spot until the captive was taken out. Birth cells are no longer picked.
+- Special captives (vanilla bosses, mod classes with `"is_special": true`) sell to the trader from level 6 as in vanilla; the rule never held before. Other classes sell at any level.
+- An ej hold on the strip's last frame was never reached, and fast game speed could step over a held frame.
+- An underground `class_map` cell with a `default` entry now lets every class in, as the guide says.
+- FLOOR style for the whole floor changes the narrower passages first, checks the result and undoes everything on a failure. COPY DOWN charges only for what it built, says what is missing on a partial copy, and changes only the decoration places the source fills.
+- A `map_info.unlock` that is not a condition object or list made the map open from the start; it is now a mod error and the map stays hidden.
+- New mod errors and warnings: ej key frames outside the ej strip (moved in, with 0- and 1-based frame numbers), `physical.speed` where it cannot apply, birth/milk keys in cells with independent places, `ej_end` strips checked per place and species, underground milk and newborn strips checked before the mod loads, `cell_*` conditions without `h_type`, quest events without `completion`, non-text `completion_hook`. A save the load page cannot show logs why (`[GNX-SAVES]`).
+
 ## v1.5.0
 
 **Game version:** 1.40

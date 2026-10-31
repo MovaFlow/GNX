@@ -84,6 +84,8 @@ cls = obj({
     "default_leg": {"type": "integer", "minimum": 0, "maximum": 2, "description": "Fixed leg pose: 1 or 2, or 0 (kneeling)."},
     "scr_unit": {"type": "integer", "description": "Passive effect in a cell: 0 = milk refills like Hathor, 1 = pregnancies refill (guide 6.6)."},
     "only_listed_cells": {"type": ["boolean", "integer"], "description": "true = enters only cells whose required_class lists it."},
+    "milk_lvl": {"description": "Milk level this class gives (0-4), or \"lvl\" for the captive's own level. Without it mod classes give level 1.",
+                 "anyOf": [{"type": "number", "minimum": 0, "maximum": 4}, {"type": "string", "pattern": "^[lL][vV][lL]$"}]},
     "voice": obj({"bank": {"type": "string"}, "pitch": {"type": "number"}, "by_mon_type": {"$ref": "sounds.schema.json#/definitions/by_mon_type"}},
                  "Fixed moan voice with a bank of your own sounds.json (guide 18.3)."),
     "fap_mul": {"type": "number", "description": "Enemy HP the class adds to a raid encounter: fap_mul x unit level."},

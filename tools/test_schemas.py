@@ -31,6 +31,12 @@ EXPECTED = {
     ("harness_props_bad", "props.json", "props[0].category"),
     ("harness_bad_spr", "cells.json", "[0].human_spr.phase_1.spr_array"),
     ("harness_spawn_bad", "cells.json", "[0].spawn_info"),
+    ("harness_mav1505", "classes.json", "[2].milk_lvl"),
+    ("harness_mav1505", "quests.json", "events.count_no_h.completion"),
+    ("harness_mav1505", "quests.json", "events.hook_object.completion_hook"),
+    ("harness_mav1505", "quests.json", "events.text_cond.completion"),
+    ("harness_mav1505", "quests.json", "triggers[0].conditions[0]"),
+    ("harness_mav1505", "quests.json", "triggers[0].conditions[1]"),
     ("moan_mod", "manifest.json", "(top)"),  # community mod: "display_name", which GNX never reads
 }
 # real problems found in community mods, reported and waiting for their authors: exact paths, so a new

@@ -1,16 +1,12 @@
---- gml_138/gml_GlobalScript_scr_create_menu_button.gml	2026-09-02 08:45:16.120550900 +0200
-+++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-10-26 10:54:34.086717300 +0100
-@@ -19,116 +19,52 @@
+--- gml_138/gml_GlobalScript_scr_create_menu_button.gml	2026-10-31 17:46:48.123806100 +0100
++++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-10-31 17:48:11.949898400 +0100
+@@ -19,116 +19,61 @@
  function scr_create_load_file(arg0)
  {
      var _data = -1;
 -    
 -    switch (arg0)
-+    // GNX-SAVES: one code path for the autosave (0) and every save slot
-+    var _file = gnx_save_file(arg0);
-+
-+    if (_file != -1 && file_exists(_file))
-     {
+-    {
 -        case 0:
 -            if (file_exists("save_file_a.json"))
 -            {
@@ -85,7 +81,34 @@
 -            }
 -            
 -            break;
--        
++    // GNX-SAVES: one code path for the autosave (0) and every save slot
++    var _file = gnx_save_file(arg0);
++
++    // GNX-FIX: a save the page cannot read (broken JSON, missing fields) stopped the game here; it now
++    // shows as an empty slot (the file is kept, gnx_save_menu_log says why). && = and
++    var _info = (_file != -1 && file_exists(_file)) ? gnx_save_info_cached(_file) : undefined;  // parsed once per change, shared with the mod page
++    
++    if (_info != undefined && _info.exists && _info.menu_bad == "")
++    {
++        var _load_data = _info.data;
++        var _time = time_convert(_load_data.global_list.val.day_timer);
++        _data =
++        {
++            title: (arg0 == 0) ? "AUTO SAVE" : ("SAVE " + string(arg0)),
++            mon_num: _load_data.global_list.mon_num,
++            unit_num: _load_data.global_list.unit_num,
++            food: _load_data.global_list.val.food,
++            coin: _load_data.global_list.val.money,
++            day: _load_data.global_list.val.day,
++            h_timer: _time[0],
++            m_timer: _time[1],
++            ver: _load_data.global_list.val.version
++        };
++        
++        // GNX-FIX: play_time 0 when the save lacks it or it is no number (shown as 0, the file is kept; reading
++        // it, or doing sums with text, stopped the game). && = and, is_real = a number
++        _data.play_time = (variable_struct_exists(_load_data.global_list.val, "play_time") && is_real(_load_data.global_list.val.play_time)) ? _load_data.global_list.val.play_time : 0;
+         
 -        case 3:
 -            if (file_exists("save_file_3.json"))
 -            {
@@ -110,22 +133,8 @@
 -            }
 -            
 -            break;
-+        var _load_data = gnx_save_info_cached(_file).data;  // parsed once per change, shared with the mod page
-+        var _time = time_convert(_load_data.global_list.val.day_timer);
-+        _data =
-+        {
-+            title: (arg0 == 0) ? "AUTO SAVE" : ("SAVE " + string(arg0)),
-+            mon_num: _load_data.global_list.mon_num,
-+            unit_num: _load_data.global_list.unit_num,
-+            food: _load_data.global_list.val.food,
-+            coin: _load_data.global_list.val.money,
-+            day: _load_data.global_list.val.day,
-+            play_time: _load_data.global_list.val.play_time,
-+            h_timer: _time[0],
-+            m_timer: _time[1],
-+            ver: _load_data.global_list.val.version
-+        };
-+        _data.gnx_map = variable_struct_exists(_load_data, "gnx_active_map") ? _load_data.gnx_active_map : "";
++        // the map's id as text (a broken value counts as the village)
++        _data.gnx_map = (variable_struct_exists(_load_data, "gnx_active_map") && is_string(_load_data.gnx_active_map)) ? _load_data.gnx_active_map : "";
      }
 -    
 +
@@ -155,7 +164,7 @@
      load_data = _data;
      button_num = arg0;
      text_save = make_color_rgb(173, 99, 56);
-@@ -465,24 +401,8 @@
+@@ -465,24 +410,8 @@
      draw_sprite_ext(sprite_index, image_index, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
      var _title;
      
@@ -182,7 +191,7 @@
      
      if (load_data != -1)
      {
-@@ -492,6 +412,29 @@
+@@ -492,6 +421,29 @@
          draw_text(x - 46, y - 17, _title);
          draw_set_color(text_save);
          draw_text(x - 45, y - 18, _title);
@@ -212,7 +221,7 @@
          draw_set_color(c_white);
          draw_set_halign(fa_center);
          var _lang_pos = scr_change_lang();
-@@ -659,65 +602,25 @@
+@@ -659,65 +611,30 @@
  
  function scr_set_save_date(arg0)
  {
@@ -277,17 +286,22 @@
 -            }
 -            
 -            break;
-+        var _buff = buffer_load(_file);
-+        var _json = buffer_read(_buff, buffer_text);
-+        var _load_data = json_parse(_json);
-+        var _time = time_convert(_load_data.global_list.val.day_timer);
-+        _data =
++        // GNX-FIX: read as the load page reads it (scr_gnx_read_save_mod_info, not cached: the cache is
++        // cleared in game on purpose). A broken save stopped the game here (json_parse throws, buffer_load
++        // can fail); it now shows as an empty slot and the file is kept. && = and
++        var _info = scr_gnx_read_save_mod_info(_file);
++
++        if (_info.exists && _info.menu_bad == "")
 +        {
-+            day: _load_data.global_list.val.day,
-+            h_timer: _time[0],
-+            m_timer: _time[1]
-+        };
-+        buffer_delete(_buff);
++            var _load_data = _info.data;
++            var _time = time_convert(_load_data.global_list.val.day_timer);
++            _data =
++            {
++                day: _load_data.global_list.val.day,
++                h_timer: _time[0],
++                m_timer: _time[1]
++            };
++        }
      }
 -    
 +

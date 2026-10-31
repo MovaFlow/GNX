@@ -1,6 +1,6 @@
---- gml_138/gml_GlobalScript_s_trade_function.gml	2026-09-02 08:45:16.443594600 +0200
-+++ gml/gml_GlobalScript_s_trade_function.gml	2026-10-29 11:08:38.579877000 +0100
-@@ -2,14 +2,14 @@
+--- gml_138/gml_GlobalScript_s_trade_function.gml	2026-10-31 17:46:47.581109100 +0100
++++ gml/gml_GlobalScript_s_trade_function.gml	2026-10-31 17:48:11.990898700 +0100
+@@ -2,14 +2,15 @@
  {
      var _empty = true;
      
@@ -14,11 +14,12 @@
 -            case UnknownEnum.Value_20:
 -                if (arg0.unit_data.class < UnknownEnum.Value_8 || (arg0.unit_data.class >= UnknownEnum.Value_8 && arg0.unit_data.lvl >= 6))
 +            case 20:
-+                if (arg0.unit_data.class < 8 || (arg0.unit_data.class >= 8 && arg0.unit_data.lvl >= 6) || ds_map_exists(global.class_registry, arg0.unit_data.class))
++                // GNX-SELL: special classes sell from level 6 only (gnx_can_sell)
++                if (gnx_can_sell(arg0.unit_data))
                  {
                      var _num;
                      
-@@ -17,7 +17,7 @@
+@@ -17,7 +18,7 @@
                      {
                          _num = (min(5, unit_data.lvl) + 1) * 10;
                          
@@ -27,7 +28,7 @@
                              global.val.cage[button_num] = -1;
                          else
                              ds_list_set(global.unit_list, button_num, -1);
-@@ -26,19 +26,19 @@
+@@ -26,19 +27,19 @@
                      }
                      
                      global.val.money += _num;
@@ -52,7 +53,7 @@
                  var _inst = obj_np.obj_raid;
                  var _info = {};
                  var _mon_val = scr_mon_type_construct(arg0.unit_data.mon_type);
-@@ -55,10 +55,10 @@
+@@ -55,10 +56,10 @@
                  
                  break;
              
@@ -65,7 +66,7 @@
                          var _inst = obj_np.obj_raid;
                          var _item_lvl = arg0.image_index;
                          var _info = {};
-@@ -69,7 +69,7 @@
+@@ -69,7 +70,7 @@
                          {
                              var _item_data = ds_list_find_value(global.inv_list, i);
                              
@@ -74,7 +75,7 @@
                              {
                                  _max_num = _item_data.num;
                                  i = _size;
-@@ -95,13 +95,13 @@
+@@ -95,13 +96,13 @@
  {
      if (raid_data.ff)
      {
@@ -93,7 +94,7 @@
          
          raid_data.ff = false;
      }
-@@ -140,7 +140,7 @@
+@@ -140,7 +141,7 @@
  
  function scr_set_trade_list()
  {
@@ -102,7 +103,7 @@
  }
  
  function scr_choose_trade_item()
-@@ -175,10 +175,38 @@
+@@ -175,10 +176,38 @@
                  }
              }
              
@@ -141,7 +142,7 @@
      _trade_num = min(3, _trade_num);
      raid_data.trade_unit = [];
      raid_data.trade_price = [];
-@@ -191,43 +219,22 @@
+@@ -191,43 +220,22 @@
          raid_data.trade_price[i] = 100 * (i + 1);
      }
      

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_cells.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1567 @@
+@@ -0,0 +1,2541 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -267,6 +267,27 @@
 +    }
 +    
 +    return -1;
++}
++
++
++/// GNX-CALL: runs in a cell: gives the monsters that arrived during the scene the sprites of phase arg0.
++/// Arrived = inside (mon_state 1) with no sprites yet (spr_data.spr_type -1, as scr_mon_contact leaves it).
++/// For the scene steps whose start sets no monster sprites (scr_slot_h_base_floop); the other steps set them
++/// for every monster inside. In a vanilla cell the one monster has its sprites already, so nothing changes.
++function gnx_mon_spr_arrived(arg0)
++{
++    if (!is_array(h_unit_list))
++        exit;
++    
++    for (var i = 0; i < array_length(h_unit_list); i++)
++    {
++        with (h_unit_list[i])
++        {
++            // && = and: a monster, inside, whose spr_data still has spr_type -1 (no sprites set)
++            if (variable_instance_exists(id, "mon_data") && is_struct(mon_data) && mon_data.mon_state == 1 && is_struct(mon_data.spr_data) && variable_struct_exists(mon_data.spr_data, "spr_type") && mon_data.spr_data.spr_type == -1)
++                scr_set_mon_spr_data(mon_data.slot_id, arg0);
++        }
++    }
 +}
 +
 +
@@ -906,6 +927,94 @@
 +    return undefined;
 +}
 +
++/// GNX-EJ: ej key frames for a strip of arg1 frames, from the physical block arg0 (undefined = no cell):
++/// [first frame, held frame, frame after the hold, frame count, return frame], all counted from 0.
++/// physical.ej_start / ej_hold / ej_return set them; otherwise the first and held frames move in
++/// proportion from vanilla 2 and 3 of 5, and the return frame is the first one (vanilla: back to 2).
++/// When the held frame is the last of the strip there is no frame after it, so the ej goes straight to
++/// the return frame (the frame after the hold would be outside the strip for one game frame).
++/// arg2 = the cell's name for the log.
++function gnx_ej_keys_make(arg0, arg1, arg2)
++{
++    var _n = max(1, arg1);
++    // ? : the cell's own key frame when it sets one, else -1 (= not set)
++    var _es = (arg0 != undefined && variable_struct_exists(arg0, "gnx_ej_start")) ? arg0.gnx_ej_start : -1;
++    var _eh = (arg0 != undefined && variable_struct_exists(arg0, "gnx_ej_hold")) ? arg0.gnx_ej_hold : -1;
++    var _er = (arg0 != undefined && variable_struct_exists(arg0, "gnx_ej_return")) ? arg0.gnx_ej_return : -1;
++    var _s = (_es >= 0) ? _es : round((2 * _n) / 5);
++    var _h = (_eh >= 0) ? _eh : round((3 * _n) / 5);
++    // clamp(value, min, max): the first frame inside the strip, the held frame not before the first
++    _s = clamp(_s, 0, _n - 1);
++    _h = clamp(_h, _s, _n - 1);
++    // the return frame is not after the held one: from there the ej must reach the held frame again
++    var _r = (_er >= 0) ? clamp(_er, 0, _h) : _s;
++    // < : there is a frame after the held one; otherwise straight to the return frame
++    var _a = ((_h + 1) < _n) ? (_h + 1) : _r;
++    
++    // a key frame set in the JSON did not fit and was moved: tell the modder once per cell (! = not,
++    // != = differs: the key was set and the frame used is another one)
++    if (arg0 != undefined && !variable_struct_exists(arg0, "gnx_ej_warned"))
++    {
++        var _moved = "";
++        
++        if (_es >= 0 && _es != _s)
++            _moved += " ej_start " + string(_es) + " -> " + string(_s) + ";";
++        
++        if (_eh >= 0 && _eh != _h)
++            _moved += " ej_hold " + string(_eh) + " -> " + string(_h) + ";";
++        
++        if (_er >= 0 && _er != _r)
++            _moved += " ej_return " + string(_er) + " -> " + string(_r) + " (not after ej_hold);";
++        
++        if (_moved != "")
++        {
++            arg0.gnx_ej_warned = true;
++            var _l = gnx_log_open();
++            gnx_log_write(_l, "[GNX-WARN] cell '" + string(arg2) + "': its ej has " + string(_n) + " frames, numbered 0-" + string(_n - 1) + " (Aseprite 1-" + string(_n) + "), so these key frames were moved:" + _moved + "\n");
++            gnx_log_close(_l);
++        }
++    }
++    
++    return [_s, _h, _a, _n, _r];
++}
++
++/// GNX-EJ: one step of an ej with key frames arg0 (from gnx_ej_keys) for scr_slot_h_base_ej,
++/// scr_slot_h_base_ej_2 and scr_slot_h_gnx_ug_ej. Moves the frame and returns true while the ej is on
++/// its held frame (the caller then counts the hold down). Reaching the held frame is checked before the
++/// end of the strip: the frame was below the one after the held frame (<) and is now on it or past it
++/// (>=), so a fast game speed that steps over it, even past the end of the strip, still holds. Past
++/// the last frame scr_animation_end wraps the frame to 0, then the ej goes to its return frame.
++function gnx_ej_frame_step(arg0)
++{
++    var _prev = slot_data.anim_struct.index;
++    slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
++    
++    // && = and: both parts must hold
++    if (_prev < (arg0[1] + 1) && slot_data.anim_struct.index >= arg0[1])
++    {
++        slot_data.anim_struct.index = arg0[1];
++        return true;
++    }
++    
++    // >= : past the last frame of the strip
++    var _wrap = slot_data.anim_struct.index >= arg0[3];
++    scr_animation_end(false, arg0[3]);
++    
++    if (_wrap)
++        slot_data.anim_struct.index = arg0[4];
++    
++    return false;
++}
++
++/// GNX-EJ: the ej key frames of this cell, made again when a save has an ej without them (older builds)
++/// or with only four of them (no return frame yet). || = or: one of the parts is enough.
++function gnx_ej_keys_check()
++{
++    if (!variable_struct_exists(slot_data, "gnx_ej") || !is_array(slot_data.gnx_ej) || array_length(slot_data.gnx_ej) < 5)
++        slot_data.gnx_ej = gnx_ej_keys();
++    
++    return slot_data.gnx_ej;
++}
 +
 +/// GNX-INTER: the four intermissions in scene order: 0 idle_start (idle -> start), 1 start_loop (start ->
 +/// loop), 2 loop_ej (loop -> ej), 3 ej_birth (ej -> birth). Intermission k is phase 6 + k (spr_type).
@@ -950,11 +1059,12 @@
 +    var _names = gnx_inter_names();
 +    var _keys = variable_struct_get_names(arg0);
 +    
-+    // a key that is none of the four names is a typo: say so
++    // a key that is none of the four names is a typo: say so (GNX-PLACES-INTER: ej_end is read by
++    // scr_gnx_register_cell itself, for cells with independent places)
 +    for (var i = 0; i < array_length(_keys); i++)
 +    {
-+        if (!array_contains(_names, _keys[i]))
-+            gnx_report_mod_error("Cell '" + string(arg2) + "': unknown intermission '" + string(_keys[i]) + "' (known: idle_start, start_loop, loop_ej, ej_birth); ignored");
++        if (!array_contains(_names, _keys[i]) && _keys[i] != "ej_end")
++            gnx_report_mod_error("Cell '" + string(arg2) + "': unknown intermission '" + string(_keys[i]) + "' (known: idle_start, start_loop, loop_ej, ej_birth, ej_end); ignored");
 +    }
 +    
 +    for (var k = 0; k < 4; k++)
@@ -989,6 +1099,80 @@
 +            speed: variable_struct_exists(_ib, "speed") ? gnx_json_num_in(_ib.speed, 8, 0.1, 60, arg2, "intermissions." + _names[k] + ".speed") : 8,
 +            loops: _lp
 +        };
++    }
++    
++    return _out;
++}
++
++
++/// GNX-PLACES-INTER: reads one intermission block arg0 ({ frames, speed, loops }, as in gnx_inter_parse)
++/// into { frames, speed, loops: [min, max] }, or -1 after a mod error. arg1 = default frames, arg2 = cell
++/// name and arg3 = key name for the mod errors. Used for intermissions.ej_end.
++function gnx_inter_parse_one(arg0, arg1, arg2, arg3)
++{
++    // ! = not: {} is fine (every value has a default), anything that is no object is not
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error("Cell '" + string(arg2) + "': intermissions." + string(arg3) + " must be an object ({ \"frames\": n, \"speed\": n, \"loops\": n }); ignored");
++        return -1;
++    }
++    
++    var _lp = [1, 1];
++    
++    if (variable_struct_exists(arg0, "loops"))
++    {
++        var _ilr = gnx_parse_repeat_range(arg0.loops, arg2, "intermissions." + string(arg3) + ".loops");
++        
++        // is_array: the range was fine (else the mod error is written and 1 play stays)
++        if (is_array(_ilr))
++            _lp = _ilr;
++    }
++    
++    // frames 1-64, speed 0.1-60 frames per second (? : the value from the JSON, else the default)
++    return 
++    {
++        frames: variable_struct_exists(arg0, "frames") ? floor(gnx_json_num_in(arg0.frames, arg1, 1, 64, arg2, "intermissions." + string(arg3) + ".frames")) : arg1,
++        speed: variable_struct_exists(arg0, "speed") ? gnx_json_num_in(arg0.speed, 8, 0.1, 60, arg2, "intermissions." + string(arg3) + ".speed") : 8,
++        loops: _lp
++    };
++}
++
++
++/// GNX-PLACES-SPEED: reads physical.speed (arg0) of a cell with independent places into { idle, start,
++/// loop, loop_fast, ej } in frames per second, 0.1-60 each (numbers as text are read too). Left out keys keep
++/// the speeds these cells always had: idle 1 (twice as fast while the captive is tired, as vanilla), start
++/// 2, loop 9, loop_fast 11, ej 9. Such a cell has no birth and no milking, so birth and milk are a mod
++/// error, as is any other key. arg1 = cell name for the mod errors.
++function gnx_places_speed_parse(arg0, arg1)
++{
++    var _keys = ["idle", "start", "loop", "loop_fast", "ej"];
++    var _def = [1, 2, 9, 11, 9];
++    var _out = { idle: 1, start: 2, loop: 9, loop_fast: 11, ej: 9 };
++    
++    // ! = not: speed must be an object like { "loop": 10 }
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error("Cell '" + string(arg1) + "': physical.speed must be an object like { \"loop\": 10 }; ignored");
++        return _out;
++    }
++    
++    var _names = variable_struct_get_names(arg0);
++    
++    for (var i = 0; i < array_length(_names); i++)
++    {
++        var _k = _names[i];
++        
++        // array_contains: one of the five keys; || = or
++        if (_k == "birth" || _k == "milk")
++            gnx_report_mod_error("Cell '" + string(arg1) + "': speed." + _k + " is ignored: a cell with scr_slot_h_gnx_places has no " + _k);
++        else if (!array_contains(_keys, _k))
++            gnx_report_mod_error("Cell '" + string(arg1) + "': unknown speed '" + _k + "' (known: idle, start, loop, loop_fast, ej); ignored");
++    }
++    
++    for (var i = 0; i < 5; i++)
++    {
++        if (variable_struct_exists(arg0, _keys[i]))
++            variable_struct_set(_out, _keys[i], gnx_json_num_in(variable_struct_get(arg0, _keys[i]), _def[i], 0.1, 60, arg1, "speed." + _keys[i]));
 +    }
 +    
 +    return _out;
@@ -1118,7 +1302,9 @@
 +/// - tentacle (tent_spr.<name>) and monsters (mon_spr.<name>, every set and placement) have exactly them;
 +///   a monster set without its own <name> strips is drawn with the strips of the phase the intermission
 +///   leads into, so then the counts must match too. milk_spr fits any count.
-+function gnx_frames_check_inter(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
++// GNX-PLACES-INTER: arg8 = true for a cell with independent places: its captive never plays loop_ej (she
++// stays in the loop), so that table is not checked for her
++function gnx_frames_check_inter(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 = false)
 +{
 +    var _bad = 0;
 +    var _names = gnx_inter_names();
@@ -1140,11 +1326,14 @@
 +        var _f = arg3[k].frames;
 +        var _tn = "phase_" + _names[k];
 +        
-+        if (_hs != undefined && gnx_json_has_key(_hs, _tn))
++        // (&& = and) places: no captive check for loop_ej (k 2)
++        var _cap = !(arg8 && k == 2);
++        
++        if (_cap && _hs != undefined && gnx_json_has_key(_hs, _tn))
 +        {
 +            _bad += gnx_frames_check_named_tables(_hs, _tn, _f, arg1, arg2);
 +        }
-+        else if (_hs != undefined && _f != arg4[k] && !gnx_frames_tables_loop(_hs, _nt[k], arg2))
++        else if (_cap && _hs != undefined && _f != arg4[k] && !gnx_frames_tables_loop(_hs, _nt[k], arg2))
 +        {
 +            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + _names[k] + " has " + string(_f) + " frames but no " + _tn + " table, so the captive is drawn with the " + _nt[k] + " art (" + string(arg4[k]) + " frames); add " + _tn + ", give both the same count, or mark those strips \"loop\": true");
 +            _bad++;
@@ -1191,6 +1380,83 @@
 +        {
 +            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + _names[k] + " has " + string(_f) + " frames but the cell has no mon_spr, so its monsters use the vanilla " + _mk[k] + " sheets (" + string((arg7[k] == 0) ? 2 : 5) + " frames)");
 +            _bad++;
++        }
++    }
++
++    gnx_frames_report_bad(arg1, _bad);
++}
++
++
++/// GNX-PLACES-INTER: the strip rule for ej_end of a cell with independent places: arg0 = the cell's JSON (its
++/// mon_spr sets), arg1 = its name, arg2 = its "sprites" block, arg3 = the parsed ej_end table (frames), arg4 = the
++/// registered cell. Called after gnx_cell_mon_check, so the species come from the cleaned mon_types and
++/// physical.mon_placements of arg4, the ones the game uses (GNX-FIX: checked before the clean-up, a species it
++/// then left out could be checked instead of the one that comes). For every place and every species it takes,
++/// the set the game draws them with (as scr_set_mon_spr_data picks it): the species' set (mon_spr /
++/// mon_spr_hob / mon_spr_ogr), its _p<place> variant when there is one, else the goblin set mon_spr, else the
++/// vanilla sheets. Within the set ej_end plays its ej_end strips, else the ej ones, else the loop ones
++/// (gnx_resolve_mon_spr); a set with none of them, or no set, plays the vanilla ej sheets (5 frames). The
++/// captive stays in her loop through it, so only monsters count.
++function gnx_frames_check_ej_end(arg0, arg1, arg2, arg3, arg4)
++{
++    var _bad = 0;
++    var _ef = arg3.frames;
++    var _ep = arg4.physical;
++    var _emax = variable_struct_exists(_ep, "max_mon_num") ? max(0, floor(gnx_json_num(_ep.max_mon_num, 0))) : 0;
++    // the species of each place: mon_placements[place], else mon_types, else any species (a cell without
++    // mon_types takes them all)
++    var _epl = (variable_struct_exists(_ep, "mon_placements") && is_array(_ep.mon_placements)) ? _ep.mon_placements : undefined;
++    var _emt = (variable_struct_exists(arg4, "mon_types") && is_array(arg4.mon_types)) ? arg4.mon_types : [0, 1, 2, 3];
++    var _enames = ["goblin", "hobgoblin", "tentacle", "ogre"];
++    // set + block already checked, so one problem is reported once
++    var _eseen = {};
++    
++    for (var n = 0; n < _emax; n++)
++    {
++        // && = and: this place has its own non-empty species list
++        var _esp = (_epl != undefined && n < array_length(_epl) && is_array(_epl[n]) && array_length(_epl[n]) > 0) ? _epl[n] : _emt;
++        
++        for (var q = 0; q < array_length(_esp); q++)
++        {
++            var _s = _esp[q];
++            
++            // ! = not: species are the numbers 0-3
++            if (!is_real(_s) || _s < 0 || _s > 3)
++                continue;
++            
++            var _key = (_s == 1) ? "mon_spr_hob" : ((_s == 3) ? "mon_spr_ogr" : "mon_spr");
++            
++            if (variable_struct_exists(arg0, _key + "_p" + string(n)) && is_struct(variable_struct_get(arg0, _key + "_p" + string(n))))
++                _key = _key + "_p" + string(n);
++            
++            var _set = variable_struct_exists(arg0, _key) ? variable_struct_get(arg0, _key) : undefined;
++            
++            // no set of its own: the goblin set, as the game falls back
++            if (!is_struct(_set) && _key != "mon_spr")
++            {
++                _key = "mon_spr";
++                _set = variable_struct_exists(arg0, "mon_spr") ? arg0.mon_spr : undefined;
++            }
++            
++            // ? : the block ej_end plays from this set ("" = none, the vanilla sheets)
++            var _blk = !is_struct(_set) ? "" : (variable_struct_exists(_set, "ej_end") ? "ej_end" : (variable_struct_exists(_set, "ej") ? "ej" : (variable_struct_exists(_set, "loop") ? "loop" : "")));
++            var _eid = (is_struct(_set) ? _key : "vanilla") + "." + _blk;
++            
++            if (variable_struct_exists(_eseen, _eid))
++                continue;
++            
++            variable_struct_set(_eseen, _eid, true);
++            
++            // != "": strips of the cell to check; else the vanilla ej sheets, 5 frames
++            if (_blk != "")
++            {
++                _bad += gnx_frames_check_refs(variable_struct_get(_set, _blk), _ef, arg1, _key + "." + _blk + ((_blk == "ej_end") ? "" : " (played for ej_end)"), arg2, false);
++            }
++            else if (_ef != 5)
++            {
++                gnx_report_mod_error("Cell '" + string(arg1) + "': intermission ej_end has " + string(_ef) + " frames, but the " + _enames[_s] + "s of place " + string(n) + " have no ej_end, ej or loop strips (" + (is_struct(_set) ? (_key + " has none of them") : "no mon_spr set") + "), so they use the vanilla ej sheets (5 frames)");
++                _bad++;
++            }
 +        }
 +    }
 +    
@@ -1437,6 +1703,140 @@
 +}
 +
 +
++/// GNX-PLACES-INTER: the intermissions a cell with independent places plays for each monster:
++/// [idle_start, start_loop, loop_ej, ej_end], each { frames, speed, loops } or -1 when the cell does not
++/// declare it (physical.intermissions). arg0 = the cell's registry entry (undefined = none).
++function gnx_places_inters(arg0)
++{
++    var _out = [-1, -1, -1, -1];
++    
++    // == undefined: no such cell, so no intermissions
++    if (arg0 == undefined)
++        return _out;
++    
++    // && = and: the cell read physical.intermissions at registration
++    if (variable_struct_exists(arg0.physical, "gnx_inter") && is_array(arg0.physical.gnx_inter))
++    {
++        _out[0] = arg0.physical.gnx_inter[0];
++        _out[1] = arg0.physical.gnx_inter[1];
++        _out[2] = arg0.physical.gnx_inter[2];
++    }
++    
++    if (variable_struct_exists(arg0.physical, "gnx_inter_end"))
++        _out[3] = arg0.physical.gnx_inter_end;
++    
++    return _out;
++}
++
++/// GNX-PLACES-SPEED: frames per second arg1 (idle, start, loop, loop_fast, ej) of the cell with registry
++/// entry arg0 from its physical.speed, else arg2 (the speed the scene always had)
++function gnx_places_spd(arg0, arg1, arg2)
++{
++    // ! = not, || = or: no cell, or a cell without its own speeds
++    if (arg0 == undefined || !variable_struct_exists(arg0.physical, "gnx_pl_speed"))
++        return arg2;
++    
++    return variable_struct_get(arg0.physical.gnx_pl_speed, arg1);
++}
++
++/// GNX-PLACES-SPEED: the idle speed of this slot's cell (scr_slot_h_state_idle): physical.speed.idle of a
++/// cell with independent places, else 1 as vanilla
++function gnx_places_idle_spd()
++{
++    return gnx_places_spd(ds_map_find_value(global.cell_registry, slot_data.h_type), "idle", 1);
++}
++
++/// GNX-PLACES-INTER: the monster's picture phase for place state arg0, as scr_set_mon_spr_data takes it
++/// (0 start, 2 loop, 3 ej, 6 idle_start, 7 start_loop, 8 loop_ej, 10 ej_end)
++function gnx_places_ph(arg0)
++{
++    // index = state: 0 empty, 1 start, 2 slow loop, 3 fast loop, 4 ej, 5 idle_start, 6 start_loop,
++    // 7 loop_ej, 8 ej_end (clamp keeps an odd saved value inside the list)
++    var _ph = [2, 0, 2, 2, 3, 6, 7, 8, 10];
++    return _ph[clamp(arg0, 0, 8)];
++}
++
++/// GNX-PLACES-INTER: how many frames the strip of place state arg0 has. arg1 = start frames, arg2 = loop
++/// frames (the ej plays the loop strip), arg3 = gnx_places_inters.
++function gnx_places_cnt(arg0, arg1, arg2, arg3)
++{
++    switch (arg0)
++    {
++        case 1:
++            return arg1;
++        
++        // the intermissions: their own frames (is_struct = declared; ? : else the phase they lead into)
++        case 5:
++            return is_struct(arg3[0]) ? arg3[0].frames : arg1;
++        
++        case 6:
++            return is_struct(arg3[1]) ? arg3[1].frames : arg2;
++        
++        case 7:
++            return is_struct(arg3[2]) ? arg3[2].frames : arg2;
++        
++        case 8:
++            return is_struct(arg3[3]) ? arg3[3].frames : arg2;
++    }
++    
++    return arg2;
++}
++
++/// GNX-PLACES-INTER: puts the monster arg0 of place arg1 (its gnx_pl entry) into state arg2 with that
++/// state's clock and pictures. arg3 = start frames, arg4 = loop frames, arg5 = gnx_places_inters (states
++/// 5-8 are only asked for when the cell declares that intermission), arg6 = the cell's registry entry (its
++/// physical.speed, GNX-PLACES-SPEED). Returns true when the monster begins its ej, so the cell plays the ej
++/// sound and squirt.
++function gnx_places_go(arg0, arg1, arg2, arg3, arg4, arg5, arg6 = undefined)
++{
++    var _pl = arg1;
++    _pl.st = arg2;
++    _pl.i = 0;
++    _pl.hold = false;
++    
++    switch (arg2)
++    {
++        case 1:
++            // start: 3-5 plays (or physical.start_loops), 2 frames per second as the vanilla start of a rested
++            // captive (or physical.speed.start)
++            _pl.n = gnx_start_loops(choose(2, 3, 4));
++            _pl.s = gnx_places_spd(arg6, "start", 2) * random_range(0.9, 1.1);
++            break;
++        
++        case 2:
++            // slow loop, 9 fps (or physical.speed.loop), 6-7 s (longer with physical.loop_scale)
++            _pl.s = gnx_places_spd(arg6, "loop", 9) * random_range(0.9, 1.1);
++            _pl.t = gnx_loop_time(irandom_range(360, 420));
++            break;
++        
++        case 4:
++            // ej: its key frames for the loop strip, 5-7 holds (or physical.ej_holds)
++            _pl.ek = gnx_places_ej_keys(arg4);
++            _pl.i = _pl.ek[0];
++            _pl.n = gnx_ej_holds(irandom_range(5, 7));
++            _pl.t = irandom_range(30, 60);
++            _pl.s = gnx_places_spd(arg6, "ej", 9);
++            break;
++        
++        case 5:
++        case 6:
++        case 7:
++        case 8:
++            // an intermission (5 idle_start, 6 start_loop, 7 loop_ej, 8 ej_end = entries 0-3 of arg5): its own
++            // frames per second; n = plays left after this one (loops - 1, irandom_range = a random whole number)
++            var _ib = arg5[arg2 - 5];
++            _pl.s = _ib.speed;
++            _pl.n = irandom_range(_ib.loops[0], _ib.loops[1]) - 1;
++            break;
++    }
++    
++    gnx_places_mon_spr(arg0, gnx_places_ph(arg2), gnx_places_cnt(arg2, arg3, arg4, arg5));
++    
++    // == : true only for the ej
++    return arg2 == 4;
++}
++
++
 +/// GNX-UG: fills what an underground cell (category "ug_breed") leaves out with GNX's own values:
 +/// scene scripts, layers with the GNX tentacle and floor, default frames, a 75 px underground part and
 +/// no squirt or drip effects. arg0 = the cell's JSON, arg1 = mod folder. Keys the mod wrote stay as written.
@@ -1534,6 +1934,580 @@
 +            gnx_log_close(_l);
 +        }
 +    }
++}
++
++
++/// GNX-BYCLASS: a class key (arg0) of human_spr.classes (class_map) as the class number in text, as
++/// string(class) gives it: "Mod.Class" is looked up among the loaded classes, a number ("8") is kept.
++/// A key starting with "_" (a note) gives undefined; so does a name no loaded mod has, with a log line
++/// naming cell arg1 and block arg2 (the mod of that class may simply be off).
++function gnx_class_key_id(arg0, arg1, arg2)
++{
++    var _k = string(arg0);
++
++    // string_char_at(_k, 1): the first character; "_comment" and such are notes
++    if (string_char_at(_k, 1) == "_")
++        return undefined;
++
++    // string_pos(".", _k) > 0: the key has a dot, so it is a class name
++    if (string_pos(".", _k) > 0)
++    {
++        var _id = ds_map_find_value(global.gnx_class_name_to_id, _k);
++
++        // != undefined: the class is loaded; string(real()) gives "1999" as string(class) does
++        if (_id != undefined)
++            return string(real(_id));
++
++        var _l = gnx_log_open();
++        gnx_log_write(_l, "[GNX-WARN] cell '" + string(arg1) + "': " + string(arg2) + " '" + _k + "' not found. Check: folder name + class name must match exactly (case-sensitive).\n");
++        gnx_log_close(_l);
++        return undefined;
++    }
++
++    return _k;
++}
++
++
++/// GNX-BYCLASS: the milk tables of one milk_spr block arg0 (keys start, idle, loop, ej, birth and the
++/// intermission names; undefined = no milk strips), with sprites from the cell's "sprites" block arg1 and
++/// mod folder arg2. arg3 = frames of each phase 0-9 in an underground scene (undefined elsewhere: then only
++/// the strips are read), arg4 = the cell's human_spr (undefined = none). Returns { spr, clock, n, any }:
++/// spr[k] = milk strip of phase k (-1 none), clock[k] true = on the milk's own clock looping n[k] frames,
++/// false = in step with the captive, any = there is at least one strip. Moved here from the cell
++/// registration, unchanged, so a class's own milk_spr (class_map entry) gets the same rules as the cell's.
++function gnx_milk_tables(arg0, arg1, arg2, arg3, arg4)
++{
++    var _spr = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
++    // phases with a milk key and the key's name in milk_spr
++    var _mph_l = [0, 1, 2, 3, 4, 6, 7, 8, 9];
++    var _mph_k = ["start", "idle", "loop", "ej", "birth", "idle_start", "start_loop", "loop_ej", "ej_birth"];
++    var _mph_n = array_length(_mph_l);
++
++    if (is_struct(arg0))
++    {
++        for (var _mi = 0; _mi < _mph_n; _mi++)
++        {
++            if (variable_struct_exists(arg0, _mph_k[_mi]))
++                _spr[_mph_l[_mi]] = gnx_resolve_layer_sprite(variable_struct_get(arg0, _mph_k[_mi]), arg1, arg2);
++        }
++    }
++
++    // GNX-UG: how each phase plays its milk strip. clock[k] false = in step with the captive (frame of the
++    // phase), true = on the milk's own clock (gnx_ug_milk_f, speed.milk frames per second), looping n[k]
++    // frames, so a 5-frame milk strip also runs whole in a 2-frame phase.
++    var _clock = array_create(10, false);
++    var _cnt = array_create(10, 1);
++
++    // == undefined: not an underground scene, only the strips count
++    if (arg3 == undefined)
++    {
++        var _any = false;
++
++        for (var _mi = 0; _mi < _mph_n; _mi++)
++        {
++            if (_spr[_mph_l[_mi]] != -1)
++                _any = true;
++        }
++
++        return { spr: _spr, clock: _clock, n: _cnt, any: _any };
++    }
++
++    var _mfr = arg3;
++
++    // own strips: in step when the strip has the phase's frame count (or whole rows of it, one per
++    // skin); its own clock when it is marked "loop" or its count does not fit the phase (5 in 2)
++    for (var _mi = 0; _mi < _mph_n; _mi++)
++    {
++        var _mq = _mph_l[_mi];
++        var _ms = _spr[_mq];
++
++        if (_ms == -1)
++            continue;
++
++        var _mlf = gnx_loop_frames(_ms);
++        var _mnum = gnx_sprite_get_number(_ms);
++
++        // >= 1 = marked loop: that many frames per row
++        if (_mlf >= 1)
++        {
++            _clock[_mq] = true;
++            _cnt[_mq] = _mlf;
++        }
++        // % = remainder: 5 % 2 = 1, so 5 frames are no whole rows of a 2-frame phase
++        else if (_mnum > 1 && (_mnum % _mfr[_mq]) != 0)
++        {
++            _clock[_mq] = true;
++            _cnt[_mq] = _mnum;
++        }
++    }
++
++    // a phase without its own milk strip borrows one, so the milk shows while it comes in:
++    // a phase drawn with another phase's captive art (ej with the loop art without phase_3, start
++    // with the idle art without phase_0, an intermission without phase_<name> with the art of the
++    // phase it leads into) takes that phase's strip exactly as it plays there; any other phase takes
++    // the loop milk (else the first milk strip there is) on the milk's own clock.
++    // "spr_empty" in milk_spr hides the milk in a phase. (Main phases first, so an intermission
++    // finds what its next phase borrowed.)
++    var _has_hs = arg4 != undefined;
++    var _art = [[3, 2, "phase_3"], [0, 1, "phase_0"], [6, 0, "phase_idle_start"], [7, 2, "phase_start_loop"], [8, 3, "phase_loop_ej"], [9, 4, "phase_ej_birth"]];
++
++    for (var _ma = 0; _ma < 6; _ma++)
++    {
++        var _to = _art[_ma][0];
++        var _from = _art[_ma][1];
++
++        if (_spr[_to] == -1 && _has_hs && !gnx_json_has_key(arg4, _art[_ma][2]))
++        {
++            _spr[_to] = _spr[_from];
++            _clock[_to] = _clock[_from];
++            _cnt[_to] = _cnt[_from];
++
++            // a strip in step with a phase of another length would run past its row: own clock instead
++            if (_spr[_to] != -1 && !_clock[_to] && _mfr[_to] != _mfr[_from])
++            {
++                _clock[_to] = true;
++                _cnt[_to] = _mfr[_from];
++            }
++        }
++    }
++
++    var _msrc = (_spr[2] != -1) ? 2 : -1;
++
++    for (var _mi = 0; _mi < _mph_n && _msrc == -1; _mi++)
++    {
++        if (_spr[_mph_l[_mi]] != -1)
++            _msrc = _mph_l[_mi];
++    }
++
++    // != -1: the block has at least one milk strip to lend
++    if (_msrc != -1)
++    {
++        for (var _mi = 0; _mi < _mph_n; _mi++)
++        {
++            var _mq = _mph_l[_mi];
++
++            if (_spr[_mq] != -1)
++                continue;
++
++            _spr[_mq] = _spr[_msrc];
++            _clock[_mq] = true;
++            // a strip played in step has the source phase's frame count per row
++            _cnt[_mq] = _clock[_msrc] ? _cnt[_msrc] : _mfr[_msrc];
++        }
++    }
++
++    return { spr: _spr, clock: _clock, n: _cnt, any: _msrc != -1 };
++}
++
++
++/// GNX-BYCLASS: the milk tables to draw for a captive of class arg1 in cell arg0 (a cell_registry
++/// entry). A class_map cell: her class's own (milk_spr in her human_spr.classes entry), else the default
++/// entry's, else no milk; the cell's own milk_spr is never lent to a class there (it is only read by a
++/// GNX without per-class milk). Any other cell: the cell's own. Returns { spr, clock, n }.
++function gnx_milk_for(arg0, arg1)
++{
++    // && = and: a class_map cell (set at registration)
++    if (variable_struct_exists(arg0, "gnx_milk_cmap") && arg0.gnx_milk_cmap)
++    {
++        // variable_struct_get gives undefined when there is no such entry
++        var _e = variable_struct_get(arg0.gnx_milk_bc, string(arg1));
++
++        if (_e == undefined)
++            _e = variable_struct_get(arg0.gnx_milk_bc, "default");
++
++        return (_e != undefined) ? _e : arg0.gnx_milk_none;
++    }
++
++    if (variable_struct_exists(arg0, "gnx_milk_def"))
++        return arg0.gnx_milk_def;
++
++    return { spr: arg0.gnx_milk_spr, clock: arg0.gnx_milk_clock, n: arg0.gnx_milk_n };
++}
++
++
++/// GNX-BYCLASS: the newborn sprite for a mother of class arg1 in cell arg0 (a cell_registry entry). A
++/// class_map cell: her class's own (infant_spr in her human_spr.classes entry), else the default entry's,
++/// else none; never the cell's own infant_spr. Any other cell: the cell's. -1 = none (invisible newborn,
++/// the birth still completes).
++function gnx_infant_for(arg0, arg1)
++{
++    if (variable_struct_exists(arg0, "gnx_milk_cmap") && arg0.gnx_milk_cmap)
++    {
++        var _s = variable_struct_get(arg0.gnx_infant_bc, string(arg1));
++
++        // == undefined: the class has no entry of its own, so the default entry's (if any)
++        if (_s == undefined)
++            _s = variable_struct_get(arg0.gnx_infant_bc, "default");
++
++        return (_s != undefined) ? _s : -1;
++    }
++
++    return variable_struct_exists(arg0, "gnx_infant") ? arg0.gnx_infant : -1;
++}
++
++
++/// GNX-UGREQ: what is wrong with one strip reference arg0 (a milk_spr phase value or an infant_spr) of a
++/// cell whose "sprites" block is arg1, in mod folder arg2 (with "/" at the end); arg3 = the names of the
++/// mod's atlas entries ({ name: true }, also in lower case; gnx_ug_atlas_names), undefined without an atlas.
++/// It looks where gnx_resolve_sprite_raw loads from, in the same order: the atlas (the file name without
++/// extension), then strip, a frames list, path, folder, from_game, or a plain file name. Returns "" when
++/// the reference can load, else the problem as text. Read from the JSON before the mod loads.
++function gnx_ug_ref_problem(arg0, arg1, arg2, arg3)
++{
++    // is_real: a sprite written as a number, as gnx_resolve_layer_sprite takes it; -1 = none on purpose
++    if (is_real(arg0))
++        return (arg0 == -1 || sprite_exists(arg0)) ? "" : ("is " + string(arg0) + ", no sprite of the game");
++    
++    // ! = not: anything else must be text, "gnx:<key>" for the cell's own sprite or a game sprite's name
++    if (!is_string(arg0))
++        return "is " + string(arg0) + ", not a sprite name";
++    
++    // string_copy(text, 1, 4): its first 4 characters
++    if (string_copy(arg0, 1, 4) != "gnx:")
++    {
++        // asset_get_index: the game's own sprite of that name (-1 = none)
++        var _a = asset_get_index(arg0);
++        return (_a >= 0 && sprite_exists(_a)) ? "" : ("'" + arg0 + "' is no game sprite");
++    }
++    
++    // string_delete(text, 1, 4): the text without "gnx:"
++    var _k = string_delete(arg0, 1, 4);
++    
++    // || = or: no sprites block, or no such entry in it
++    if (!is_struct(arg1) || !variable_struct_exists(arg1, _k))
++        return "'" + arg0 + "' is not in the cell's sprites block";
++    
++    var _d = variable_struct_get(arg1, _k);
++    
++    // the atlas first, by the file name without extension, as gnx_atlas_resolve_ref finds it
++    if (arg3 != undefined)
++    {
++        var _stem = "";
++        
++        if (!is_struct(_d))
++            _stem = string(_d);
++        else if (variable_struct_exists(_d, "strip"))
++            _stem = string(_d.strip);
++        else if (variable_struct_exists(_d, "path"))
++            _stem = string(_d.path);
++        else if (variable_struct_exists(_d, "frames") && is_array(_d.frames) && array_length(_d.frames) > 0)
++            _stem = string(_d.frames[0]);
++        else if (variable_struct_exists(_d, "folder"))
++            _stem = string(_d.folder);
++        
++        if (_stem != "")
++        {
++            // filename_name: the name without folders; filename_change_ext(.., ""): without ".png"
++            _stem = filename_change_ext(filename_name(_stem), "");
++            
++            if (variable_struct_exists(arg3, _stem) || variable_struct_exists(arg3, string_lower(_stem)))
++                return "";
++        }
++    }
++    
++    // not in the atlas: the file on disk, in the loader's order
++    if (!is_struct(_d))
++        return file_exists(arg2 + string(_d)) ? "" : ("sprites." + _k + ": file '" + string(_d) + "' not found");
++    
++    if (variable_struct_exists(_d, "strip"))
++        return file_exists(arg2 + string(_d.strip)) ? "" : ("sprites." + _k + ": strip '" + string(_d.strip) + "' not found");
++    
++    // "frames": [files] = one PNG per frame
++    if (variable_struct_exists(_d, "frames") && is_array(_d.frames))
++    {
++        if (array_length(_d.frames) == 0)
++            return "sprites." + _k + ": the frames list is empty";
++        
++        for (var i = 0; i < array_length(_d.frames); i++)
++        {
++            if (!file_exists(arg2 + string(_d.frames[i])))
++                return "sprites." + _k + ": frame file '" + string(_d.frames[i]) + "' not found";
++        }
++        
++        return "";
++    }
++    
++    if (variable_struct_exists(_d, "path"))
++        return file_exists(arg2 + string(_d.path)) ? "" : ("sprites." + _k + ": path '" + string(_d.path) + "' not found");
++    
++    // "folder": numbered PNGs in that folder of the mod, else in strips/<folder>, as the loader looks
++    if (variable_struct_exists(_d, "folder"))
++    {
++        var _fdir = arg2 + string(_d.folder) + "/";
++        
++        if (!directory_exists(_fdir) && directory_exists(arg2 + "strips/" + string(_d.folder)))
++            _fdir = arg2 + "strips/" + string(_d.folder) + "/";
++        
++        // file_find_first gives the first .png there, "" = none
++        var _png = file_find_first(_fdir + "*.png", 0);
++        file_find_close();
++        return (_png != "") ? "" : ("sprites." + _k + ": folder '" + string(_d.folder) + "' has no .png frames");
++    }
++    
++    // "from_game" (+ "index"): a frame of a game sprite
++    if (variable_struct_exists(_d, "from_game"))
++    {
++        var _g = asset_get_index(string(_d.from_game));
++        return (_g >= 0 && sprite_exists(_g)) ? "" : ("sprites." + _k + ": from_game '" + string(_d.from_game) + "' is no game sprite");
++    }
++    
++    return "sprites." + _k + " has no strip, frames, path, folder or from_game";
++}
++
++
++/// GNX-UGREQ: the names of the atlas entries of the mod in folder arg0 (with "/" at the end) that the atlas
++/// loader would register, read from atlas/uv.json: { name: true }, each name also in lower case (file names on
++/// Windows ignore case). An entry counts only when it passes the loader's frame check (gnx_atlas_frames_bad):
++/// a non-empty frames list, every frame an object with numbers atlas, x, y, w, h (missing ones are the
++/// loader's defaults), and every frame that is not empty (w and h above 0) on an existing page: a whole page
++/// number, a page file that is a PNG, the rectangle inside it (page size from the PNG header, gnx_png_size).
++/// undefined = no usable atlas (no uv.json, not JSON, or without atlas_files / entries).
++function gnx_ug_atlas_names(arg0)
++{
++    var _p = arg0 + "atlas/uv.json";
++    
++    if (!file_exists(_p))
++        return undefined;
++    
++    // buffer_load + buffer_read: the whole file as text, as the atlas loader reads it
++    var _b = buffer_load(_p);
++    
++    if (_b == -1)
++        return undefined;
++    
++    var _txt = buffer_read(_b, buffer_text);
++    buffer_delete(_b);
++    var _uv = undefined;
++    
++    try
++    {
++        _uv = json_parse(_txt);
++    }
++    catch (_e)
++    {
++        return undefined;
++    }
++    
++    // the loader skips an atlas without a non-empty atlas_files list or an entries object
++    if (!is_struct(_uv) || !variable_struct_exists(_uv, "atlas_files") || !is_array(_uv.atlas_files) || array_length(_uv.atlas_files) == 0 || !variable_struct_exists(_uv, "entries") || !is_struct(_uv.entries))
++        return undefined;
++    
++    // size of each page, [w, h], or undefined when its file is missing or no PNG (the loader cannot load it)
++    var _pages = [];
++    
++    for (var i = 0; i < array_length(_uv.atlas_files); i++)
++        array_push(_pages, gnx_png_size(arg0 + "atlas/" + string(_uv.atlas_files[i])));
++    
++    var _out = {};
++    var _keys = variable_struct_get_names(_uv.entries);
++    
++    for (var i = 0; i < array_length(_keys); i++)
++    {
++        var _en = variable_struct_get(_uv.entries, _keys[i]);
++        var _fr = (is_struct(_en) && variable_struct_exists(_en, "frames") && is_array(_en.frames)) ? _en.frames : [];
++        // == 0: no frames, the loader does not register it
++        var _ok = array_length(_fr) > 0;
++        
++        for (var f = 0; f < array_length(_fr) && _ok; f++)
++        {
++            var _f = _fr[f];
++            
++            if (!is_struct(_f))
++            {
++                _ok = false;
++                break;
++            }
++            
++            // ? : the value, else the loader's default
++            var _pg = variable_struct_exists(_f, "atlas") ? _f.atlas : -1;
++            var _x = variable_struct_exists(_f, "x") ? _f.x : -1;
++            var _y = variable_struct_exists(_f, "y") ? _f.y : -1;
++            var _w = variable_struct_exists(_f, "w") ? _f.w : 0;
++            var _h = variable_struct_exists(_f, "h") ? _f.h : 0;
++            
++            if (!is_real(_pg) || !is_real(_x) || !is_real(_y) || !is_real(_w) || !is_real(_h))
++            {
++                _ok = false;
++                break;
++            }
++            
++            // || = or: an empty frame draws nothing and needs no page, as in the loader
++            if (_w <= 0 || _h <= 0)
++                continue;
++            
++            // a whole page number of a page that loads
++            if (_pg != floor(_pg) || _pg < 0 || _pg >= array_length(_pages) || _pages[_pg] == undefined)
++            {
++                _ok = false;
++                break;
++            }
++            
++            // the rectangle inside the page
++            if (_x < 0 || _y < 0 || (_x + _w) > _pages[_pg][0] || (_y + _h) > _pages[_pg][1])
++            {
++                _ok = false;
++                break;
++            }
++        }
++        
++        if (_ok)
++        {
++            variable_struct_set(_out, _keys[i], true);
++            variable_struct_set(_out, string_lower(_keys[i]), true);
++        }
++    }
++    
++    return _out;
++}
++
++
++/// GNX-UGREQ (1.5.0.5): checks before mod arg0 (folder) with manifest arg1 loads that the milk and newborn
++/// strips its underground cells (category "ug_breed") declare can load. Both are optional: a captive art set
++/// without milk_spr has no milk drawn, one without infant_spr an invisible newborn (nobody else's is lent).
++/// What is declared must be right: milk_spr an object with at least one phase key, every reference loadable
++/// (gnx_ug_ref_problem). Checked: in a class_map cell every human_spr.classes entry, the default entry and
++/// the cell's own keys; in any other cell the cell's own keys. Each problem is one mod error; returns how
++/// many there are (0 = the mod may load). A missing or broken cells.json is left to the cells loader.
++function gnx_ug_strips_check(arg0, arg1)
++{
++    if (!is_struct(arg1) || !variable_struct_exists(arg1, "cells"))
++        return 0;
++    
++    var _dir = global.gnx_mods_root + arg0 + "/";
++    var _path = _dir + string(arg1.cells);
++    
++    if (!file_exists(_path))
++        return 0;
++    
++    var _f = file_text_open_read(_path);
++    var _raw = "";
++    
++    while (!file_text_eof(_f))
++        _raw += file_text_readln(_f);
++    
++    file_text_close(_f);
++    var _cells = undefined;
++    
++    try
++    {
++        _cells = json_parse(_raw);
++    }
++    catch (_e)
++    {
++        return 0;
++    }
++    
++    if (!is_array(_cells))
++        return 0;
++    
++    // the names in the mod's atlas (undefined = none): a strip found there needs no PNG of its own. Read
++    // once, at the first underground cell, since its pages are opened to measure them
++    var _atlas = undefined;
++    var _atlas_read = false;
++    var _bad = 0;
++    // milk phase keys, as gnx_milk_tables reads them
++    var _mk = ["start", "idle", "loop", "ej", "birth", "idle_start", "start_loop", "loop_ej", "ej_birth"];
++    
++    for (var c = 0; c < array_length(_cells); c++)
++    {
++        var _cell = _cells[c];
++        
++        // only underground cells; != = differs
++        if (!is_struct(_cell) || !variable_struct_exists(_cell, "category") || string(_cell.category) != "ug_breed")
++            continue;
++        
++        // ! = not: the first underground cell of the mod reads the atlas
++        if (!_atlas_read)
++        {
++            _atlas = gnx_ug_atlas_names(_dir);
++            _atlas_read = true;
++        }
++        
++        var _cn = variable_struct_exists(_cell, "name") ? string(_cell.name) : ("#" + string(c));
++        var _spr = variable_struct_exists(_cell, "sprites") ? _cell.sprites : undefined;
++        
++        // the places that may declare milk_spr / infant_spr: [label, object]; the cell itself always
++        var _sets = [["cell", _cell]];
++        var _hs = variable_struct_exists(_cell, "human_spr") ? _cell.human_spr : undefined;
++        
++        if (is_struct(_hs) && variable_struct_exists(_hs, "mode") && _hs.mode == "class_map")
++        {
++            if (variable_struct_exists(_hs, "classes") && is_struct(_hs.classes))
++            {
++                var _ck = variable_struct_get_names(_hs.classes);
++                
++                for (var k = 0; k < array_length(_ck); k++)
++                {
++                    var _ce = variable_struct_get(_hs.classes, _ck[k]);
++                    
++                    // objects only ("_comment" notes etc. are skipped)
++                    if (is_struct(_ce))
++                        array_push(_sets, ["class '" + _ck[k] + "'", _ce]);
++                }
++            }
++            
++            // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
++            if (variable_struct_exists(_hs, "default") && is_struct(variable_struct_get(_hs, "default")))
++                array_push(_sets, ["default", variable_struct_get(_hs, "default")]);
++        }
++        
++        for (var s = 0; s < array_length(_sets); s++)
++        {
++            var _who = "Mod '" + arg0 + "': underground cell '" + _cn + "', " + _sets[s][0] + ": ";
++            var _o = _sets[s][1];
++            
++            // optional: only a declared milk_spr is checked
++            if (variable_struct_exists(_o, "milk_spr"))
++            {
++                // ! = not: it must be an object of phase keys
++                if (!is_struct(_o.milk_spr))
++                {
++                    gnx_report_mod_error(_who + "milk_spr must be an object of phase keys (start, idle, loop, ej, birth or an intermission), not " + string(_o.milk_spr));
++                    _bad++;
++                }
++                else
++                {
++                    var _any = false;
++                    
++                    for (var m = 0; m < array_length(_mk); m++)
++                    {
++                        if (!variable_struct_exists(_o.milk_spr, _mk[m]))
++                            continue;
++                        
++                        _any = true;
++                        var _mp = gnx_ug_ref_problem(variable_struct_get(_o.milk_spr, _mk[m]), _spr, _dir, _atlas);
++                        
++                        // != "": there is a problem
++                        if (_mp != "")
++                        {
++                            gnx_report_mod_error(_who + "milk_spr." + _mk[m] + " " + _mp);
++                            _bad++;
++                        }
++                    }
++                    
++                    if (!_any)
++                    {
++                        gnx_report_mod_error(_who + "milk_spr is declared but has no phase key (start, idle, loop, ej, birth or an intermission); leave it out for no milk");
++                        _bad++;
++                    }
++                }
++            }
++            
++            // optional: only a declared infant_spr is checked
++            if (variable_struct_exists(_o, "infant_spr"))
++            {
++                var _ip = gnx_ug_ref_problem(_o.infant_spr, _spr, _dir, _atlas);
++                
++                if (_ip != "")
++                {
++                    gnx_report_mod_error(_who + "infant_spr " + _ip);
++                    _bad++;
++                }
++            }
++        }
++    }
++    
++    return _bad;
 +}
 +
 +

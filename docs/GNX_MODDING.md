@@ -4,6 +4,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 
 ## Contents
 
+- [New stuff (GNX 1.5.1)](#new-stuff-gnx-151)
 - [1. How to read this guide](#1-how-to-read-this-guide)
 - [2. Glossary](#2-glossary)
 - [3. Mod folder and loading](#3-mod-folder-and-loading)
@@ -34,6 +35,206 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
 
+## New stuff (GNX 1.5.1)
+
+**In short:** what GNX 1.5.1 adds or changes for mods, in one place. Each part links to the section it extends and says what GNX 1.5.0 does with the same JSON, so one mod can work on both. The main menu shows `GNX 1.5.1`.
+
+| What | Details | GNX 1.5.0 with the same JSON |
+|---|---|---|
+| `physical.ej_return`: the frame the ejaculation goes back to for its next hold | [ej_return](#ej_return-and-the-ejaculation-key-frames) | ignored: back to `ej_start` |
+| Intermissions with independent places, the new `ej_end`, `physical.join_skip` | [Independent places](#independent-places-intermissions-ej_end-join_skip-and-speed) | intermissions there are a mod error and ignored; `join_skip` ignored |
+| `physical.speed` with independent places | [Independent places](#independent-places-intermissions-ej_end-join_skip-and-speed) | ignored |
+| With independent places, the captive plays the ejaculation of a monster that is alone in the cell | [Independent places](#independent-places-intermissions-ej_end-join_skip-and-speed) | she stays in her loop |
+| `milk_spr` and `infant_spr` per class in an underground `class_map` cell | [Underground cells](#underground-cells-milk-and-newborn-per-class) | ignored: the cell's own for every class |
+| Milk and newborn strips of underground cells checked before the mod loads | [Underground cells](#underground-cells-milk-and-newborn-per-class) | not checked: a broken strip draws nothing |
+| A `class_map` underground cell with `default` lets every class in | [Underground cells](#underground-cells-milk-and-newborn-per-class) | only the listed classes |
+| Class key `milk_lvl` | [Classes](#classes-milk_lvl-and-selling) | ignored: the vanilla rule |
+| Special classes sell to the raid trader from level 6 only | [Classes](#classes-milk_lvl-and-selling) | every class sells at any level |
+| Quest condition `build_count`: cells the player builds, with the progress in the quest text | [Quests](#quests-build_count) | never true: the quest never completes |
+| Fixes: monsters on their way into a multi-monster cell, DRINK → BIRTH, FLOOR style and COPY DOWN, broken saves, quest conditions on cells, quests without completion | [Other fixes](#other-fixes) | the old behaviour (the quest conditions on cells and quests without completion stop the game) |
+
+### ej_return and the ejaculation key frames
+
+```json
+{
+  "physical": {
+    "frames": { "loop": 8 },
+    "ej_start": 2,
+    "ej_hold": 6,
+    "ej_return": 4
+  }
+}
+```
+
+**What this example does:** the ejaculation starts on frame 2 of the 8 loop frames and holds on frame 6; for each next hold it goes back to frame 4 instead of frame 2, so it plays 4, 5, 6 between two holds.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `ej_return` | The frame the ejaculation goes back to for its next hold, counted from 0. With `scr_slot_h_base_ej`, in underground cells and in independent places it goes there when the strip ends; with `scr_slot_h_base_ej_2` right after the hold. It cannot come after `ej_hold`, because from there the ejaculation must reach the held frame again. | number | `ej_start` |
+
+- It works where `ej_start` and `ej_hold` work ([22.3](#223-the-ejaculation-ej_holds-ej_start-ej_hold)): in cells with `frames`, in underground cells and in independent places.
+- A key frame that does not fit the strip (`ej_start`, `ej_hold` or `ej_return`) is moved into it, and the log says so once per cell, with the frames counted from 0 and as Aseprite counts them (from 1): `[GNX-WARN] cell 'BIG ALTAR': its ej has 8 frames, numbered 0-7 (Aseprite 1-8), so these key frames were moved: ej_hold 9 -> 7;`
+- **Fixed:** a hold on the last frame of the strip works, and a high game speed no longer steps over the held frame.
+
+### Independent places: intermissions, ej_end, join_skip and speed
+
+```json
+{
+  "physical": {
+    "intermissions": {
+      "start_loop": { "speed": 6 },
+      "loop_ej": { "speed": 8, "loops": 2 },
+      "ej_end": { "speed": 6 }
+    },
+    "join_skip": true,
+    "speed": { "start": 3, "loop": 10, "loop_fast": 12 }
+  },
+  "mon_spr": {
+    "ej_end": {
+      "body": {
+        "leg_any": { "alpha": "gnx:gob_bar_ee", "line": "gnx:gob_bar_ee_line" }
+      }
+    }
+  }
+}
+```
+
+These keys are added to a cell with independent places ([11.5](#115-independent-places)), next to its own `physical` keys, `mon_spr` and `sprites`.
+
+**What this example does**
+
+- Each monster plays its intermissions on its own clock: `start_loop` between its start and its loop, `loop_ej` twice between its loop and its ejaculation, and the new `ej_end` after its ejaculation, before it leaves. Without `frames` each has the frame count of the phase it leads into (`ej_end`: the loop's), so the monsters without strips of their own can borrow the next phase's strips.
+- The goblins drawn with `mon_spr` play `ej_end` with their own strips `mon_spr.ej_end`, which need the loop's frame count.
+- `join_skip`: a monster that comes in while the scene runs begins where the captive is.
+- `speed`: the start plays at 3 frames per second, the slow loop at 10 and the fast loop at 12.
+
+How the intermissions play in these cells:
+
+- `idle_start`, `start_loop` and `loop_ej` work as in [§23](#23-intermissions), but per monster. `ej_end` is new and exists only here. `ej_birth` is a mod error here (these cells have no birth), and so are `ej_end` and `join_skip` in any other cell.
+- **Pictures:** `mon_spr.<name>`, and the same in `mon_spr_hob`, `mon_spr_ogr` and the placement keys ([11.2](#112-per-placement-sprite-keys)). Without `mon_spr.ej_end` a monster plays `ej_end` with its `ej` strips, or its `loop` strips when its set has no `ej` block.
+- **The first monster** of a scene plays every intermission the cell declares. **A monster that comes later** plays its start and goes straight to its loop, without `start_loop`; with `"join_skip": true` it begins where the captive is instead: in the loop (also while she plays another monster's ejaculation), in `start_loop` or in the start. `loop_ej` and `ej_end` every monster plays.
+- **The captive** follows the monster that is furthest on through `idle_start`, the start and `start_loop` (with the `phase_idle_start` and `phase_start_loop` tables when the cell has them), until one monster reaches its loop. From then on she stays in her loop until the cell is empty: `loop_ej`, the ejaculation and `ej_end` belong to the monsters.
+- **Alone with one monster:** while a monster is the only one in the cell and plays its ejaculation, the captive plays it with that monster, frame by frame and through every hold, with her `phase_3` table, else her loop pictures. She finishes that ejaculation with it even when another monster comes in meanwhile, keeps the frame it ended on while the monster plays `ej_end`, and goes back to her loop, or to idle when the cell is empty, once it has left. Her slap sounds and drips pause meanwhile; the ejaculation brings its own sound and squirt. When the other monsters leave during a monster's ejaculation, she joins it at the frame it has reached.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `physical.join_skip` | A monster that comes into a running scene begins where the captive is (loop, `start_loop` or start), instead of playing its start. | true/false | false |
+| `physical.speed.idle`, `.start`, `.loop`, `.loop_fast`, `.ej` | Frames per second of each part, 0.1–60. | number | 1, 2, 9, 11, 9 (the timing these cells always had) |
+
+- The start and the loops still vary by up to 10 % per cycle, and the idle still runs twice as fast while the captive is tired.
+- `speed.birth`, `speed.milk` and unknown speed keys are mod errors here. `physical.speed` in a cell that is neither underground nor independent places is a mod error too (GNX 1.5.0 ignored it without a word).
+- **The frame rule for `ej_end`** ([22.5](#225-the-frame-rule-for-every-mod-cell)) is checked for every place and every species it takes, with the set the game draws them with: the species' set for that place (`mon_spr_ogr_p2`), else the species' set (`mon_spr_ogr`), else the goblin set `mon_spr`, else the vanilla ejaculation sheets (5 frames). For example: `[GNX] ERROR: Cell 'MILK BAR': intermission ej_end has 8 frames, but the ogres of place 2 have no ej_end, ej or loop strips (no mon_spr set), so they use the vanilla ej sheets (5 frames)`.
+
+### Underground cells: milk and newborn per class
+
+In an underground cell in `class_map` mode ([10.5](#105-class_map)), each `classes` entry, and the `default` entry, can bring its own `milk_spr` and `infant_spr`, written exactly as the cell's own ([24.5](#245-milking-milk_spr), [24.6](#246-birth-and-the-newborn-infant_spr)). Each captive is then milked and gives birth with her own strips.
+
+```json
+{
+  "human_spr": {
+    "mode": "class_map",
+    "classes": {
+      "my_mod.Witch": {
+        "milk_spr": { "loop": "gnx:pit_witch_milk" },
+        "infant_spr": "gnx:pit_witch_egg"
+      },
+      "8": {
+        "milk_spr": { "loop": "gnx:pit_lilith_milk" },
+        "infant_spr": "gnx:pit_lilith_egg"
+      }
+    }
+  },
+  "milk_spr": { "loop": "gnx:pit_witch_milk" },
+  "infant_spr": "gnx:pit_witch_egg"
+}
+```
+
+Each `classes` entry also holds its phase tables (`phase_1`, `phase_2`, `phase_4` …) as in [§24](#24-underground-cells); they are left out here.
+
+**What this example does:** the Witch and Lilith (class 8) can enter the cell; each is milked with her own milk strip and lays her own egg. The cell's own `milk_spr` and `infant_spr` are there for GNX 1.5.0, which reads only those and gives them to every class.
+
+- **Which strips a captive gets:** her class's entry, else the `default` entry, else none: no milk is drawn, and the birth works as without `infant_spr` ([24.6](#246-birth-and-the-newborn-infant_spr)). In a `class_map` cell the cell's own `milk_spr` and `infant_spr` are never lent to a class.
+- **Both are optional; what is declared is checked before the mod loads.** GNX looks at every underground cell: its own `milk_spr` and `infant_spr`, and in `class_map` mode those of every `classes` entry and of `default`.
+  - A `gnx:` key must be in the cell's `sprites`, and its image must be found: the file of `strip` or `path`, every file of `frames`, at least one PNG in `folder`, or a plain file name ([5.2](#52-where-gnx-takes-the-image-from)); a game sprite for `from_game`; or an entry of the mod's atlas ([§20](#20-atlas-packing)) whose page exists and is a PNG, with every frame inside the page.
+  - A game sprite name must exist (`"spr_empty"` hides the milk in a phase on purpose); `-1` means none.
+  - `milk_spr` must be an object with at least one phase key.
+
+  Each problem is a mod error, and **the whole mod is not loaded**, as after a failed version check ([4.2](#42-the-version-check)); the lines also show in the error box at the end of loading:
+
+  ```
+  [GNX] ERROR: Mod 'my_mod': underground cell 'WITCH PIT', class '8': infant_spr 'gnx:pit_lilith_egg' is not in the cell's sprites block
+  [GNX] ERROR: Mod 'my_mod': not loaded - an underground cell declares milk or newborn strips that cannot load (see the errors above)
+  ```
+
+  For `strip`, `path`, `frames`, `folder` and plain file names the check only looks for the files. For an atlas page it also reads the PNG header, to check the frames against the page size. It never reads the picture data: a PNG with a good header but broken picture data passes the check and the mod loads; that sprite fails only when GNX loads it, with the usual log line ([B.2](#b2-log-messages)), for example `[GNX] <key>: strip frames=<N> idx=-1`.
+
+- **Who can enter** works as [24.1](#241-what-gnx-fills-in) says: a `class_map` underground cell lets in the classes listed in `classes`, and every class when it has a `default` entry. GNX 1.5.0 let only the listed classes in, even with a `default`.
+
+### Classes: milk_lvl and selling
+
+```json
+{
+  "name": "Witch",
+  "milk_lvl": 3
+}
+```
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `milk_lvl` | The level (0–4) of the milk this class gives, or `"lvl"` for the captive's own level. Used wherever milk is made: MILK 1, MILK 2, DAIRY, underground milking and the raid cages. | number or text | the vanilla rule: her level for classes 0–7, Lilith 4, every other class 1, so every mod class gives level 1 (DAIRY always 1) |
+
+- An `override` with `milk_lvl` replaces the earlier value ([6.2](#62-override-changing-an-existing-class)); without it the earlier value stays.
+- A value that is not `"lvl"`, not a number or outside 0–4 is a mod error, for example `[GNX] ERROR: Class 'my_mod.Witch': milk_lvl must be 0-4 (7); 4 is used`.
+- **Selling captives to the raid trader** ([13.5](#135-trade_stage)): special classes (the vanilla bosses 8–13 and mod classes with `"is_special": true`, [16.1](#161-what-is_special-changes)) sell only from level 6, as the vanilla bosses always did; other classes sell at any level. GNX 1.5.0 let every class through. The price stays (level + 1) × 10 gold, at most 60.
+
+### Quests: build_count
+
+```json
+{
+  "events": {
+    "titfuck_quest": {
+      "type": "quest",
+      "quest_text": "Build more Titfuck cells.",
+      "reward": { "type": "gold", "amount": 1000 },
+      "completion": { "type": "build_count", "h_type": 3, "value": 4 },
+      "completion_hook": "cell_built",
+      "next_event": "titfuck_done"
+    }
+  }
+}
+```
+
+This is one event of a mod's `quests.json` (`QUESTS_SCHEMA.md` describes the file); its other events and the triggers are left out.
+
+**What this example does:** from the moment the quest appears, GNX counts the TITFUCK cells (h_type 3) the player builds. The quest log shows `Build more Titfuck cells. (0/4)`, then `(1/4)` and so on; after the fourth cell the quest is done, its 1000 gold wait in the log, and `titfuck_done` follows.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `type` | `"build_count"`. | text | — |
+| `h_type` | The cell type to count: a number ([A.4](#a4-vanilla-cells)) or `"<folder>.<cell name>"` for a mod cell. Left out: every cell type counts. | number or text | every type |
+| `value` | How many builds are needed. | number | 1 |
+
+- **What counts:** every cell the player builds from the build menu (CUSTOM included), and every cell COPY DOWN builds. Removing a cell takes nothing off. Cells a map starts with, or a tool or quest unlocks, are not built, so they do not count.
+- **From when:** in a quest's `completion`, from the moment the quest appeared, also across saving and loading (the save keeps where each quest started). Elsewhere (trigger conditions, raid conditions, tool guards) it counts every build of the save. GNX 1.5.1 starts counting with this version: an older save starts at 0, and a quest already in its log counts from the first load in 1.5.1.
+- **Progress:** GNX writes `(done/value)` after the quest's `quest_text` and updates it with every build; it stops at the target, so a finished quest shows `(4/4)`. The quest log wraps its text in a narrow column: keep `quest_text` short.
+- **`completion_hook`:** `"cell_built"` checks the quest at every build, which is all `build_count` needs; `"frame"` works too.
+- **`cell_count` is different:** it counts the cells that stand now, built before the quest or not; `build_count` counts builds.
+
+### Other fixes
+
+- **Multi-monster cells on the vanilla scene scripts:** a monster still on its way into the cell no longer gets the scene's pictures before it arrives. Such monsters stood in the cell unseen, never arrived and walked out at the end of the scene, so more monsters left the cell than had been seen in it ([11.4](#114-how-a-scene-runs-with-several-monsters)).
+- **DRINK:** a goblin leaving a DRINK cell is no longer sent into BIRTH 1 or BIRTH 2, where it walked on the spot and started a birth without a pregnancy.
+- **FLOOR → style for the whole floor:** all passages change or none. The narrower ones change first, so the floor never gets too wide on the way; before, one passage could be left unchanged while the menu said it was done.
+- **FLOOR → COPY DOWN:** costs only what was really built. A partial copy says what is missing (slots, cells, passage styles, decorations). A decoration already on the floor below stays where the source has none, and stays when the new one cannot be made.
+- **Quest conditions on cells** (`cell_built`, `cell_occupied`, `cell_count`, see `QUESTS_SCHEMA.md`) no longer stop the game. They looked at every slot of the nest, and passages, stairs and floor entrances have no `h_type`: `cell_count` stopped the game every time it was checked, the other two whenever such a slot came before a matching cell. A condition of these types without `h_type` never matches, and the quest loader reports it: `[GNX] ERROR: Mod 'my_mod': quest condition cell_count has no h_type, so it never matches`. GNX 1.5.0 can use none of these conditions safely.
+- **A quest without `completion`**, or with a `completion` that is not an object, no longer stops the game in every frame from the moment it appears: it never completes, and the quest loader reports it: `[GNX] ERROR: Mod 'my_mod': quest event 'my_mod.my_quest' has no completion condition, so it never completes`.
+- **A condition that is not an object** (a text, number or list), or an object without `"type"`, never matches instead of stopping the game. This holds for every condition GNX reads: quests, triggers, raid spawns, cage escape, tower boss and map unlock. The loader reports it, for example `[GNX] ERROR: Mod 'my_mod': a condition is build_count, not an object like {"type": "state_equals", ...}; it never matches`.
+- **`map_info.unlock` that is no condition** ([21.2](#212-map_info)), such as `"unlock": "build_count"` or `"unlock": 17`, was taken as "no condition", so the map was open from the start. It is now a mod error and the map stays hidden: `[GNX] ERROR: Mod 'my_mod': map_info.unlock is build_count, not a condition object or a list of them; the map stays hidden`. A list entry that is no object is reported too.
+- **`completion_hook` written as an object** (`{"type": "cell_built"}`) is a mod error, and the quest is checked every frame (`"frame"`) instead.
+- **Saves:** a broken save no longer stops the game on the load page or in the in-game save window. It shows as an empty slot, the file is kept, and the log says why: `[GNX-SAVES] save_file_2.json cannot be shown on the load page: global_list.val is missing; the slot shows as empty, the file is kept`. A missing `play_time`, or one that is not a number, shows as 0.
+
+---
+
 ## 1. How to read this guide
 
 **In short:** how to build a Goblin Nest mod with GNX (Goblin Nest Extender), the layer that loads JSON files into the game. Written for beginners: every key and term is explained where it first appears, and every feature has a small example to copy.
@@ -48,6 +249,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 
 - **GNX 1.5** on **Goblin Nest 1.40**. Mods marked for game versions 1.38 and 1.39 are accepted too ([4.2](#42-the-version-check)).
 - Features new in 1.5 say so where they are described. A mod that uses them needs GNX 1.5; `CHANGELOG.md` lists every change.
+- **GNX 1.5.1** adds what [New stuff](#new-stuff-gnx-151) lists. Each item there says what GNX 1.5.0 does with the same JSON.
 - The statements in this guide were checked against the GNX source code.
 
 ### 1.3 JSON in two minutes
@@ -334,7 +536,8 @@ What this example does:
 |---|---|---|---|
 | `name` | Display name in the MODS menu and the log. | text | required |
 | `version` | Your mod version, for example `"1.0.0"`, shown in the MODS menu and the log. | text | required |
-| `author`, `description` | Shown with the mod in the MODS menu. | text | — |
+| `author` | Your name. The MODS menu shows `<name> by <author>` when the player points at the mod. | text | — |
+| `description` | One short line about the mod, shown under it in the MODS menu when the player points at the mod. A mod that is off or could not load shows the reason there instead. | text | — |
 | `compatible_game_versions` | Must contain `"1.38"`, `"1.39"` or `"1.40"` ([4.2](#42-the-version-check)). | list | required |
 | `classes`, `cells`, `quests`, `tools`, `sounds`, `props`, `items` | Paths of the data files, relative to the mod folder ([4.4](#44-data-file-keys)); see [§6](#6-classes-classesjson), [§8](#8-cells-cellsjson), [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md), [§17](#17-tools-toolsjson), [§18](#18-sounds-soundsjson), [§19](#19-props-propsjson), [§25](#25-items-and-raid-loot-itemsjson). | text | — |
 | `save_state` | Saved variables ([4.3](#43-save_state)). | object | — |
@@ -1542,16 +1745,26 @@ The loader keeps only the first five positions.
 **Player options in the MOD window.** A cell can let the player choose a hand pose, a leg pose and clothing on or off, in the MOD window a click on the built cell opens:
 
 ```json
-"physical": {
-  "layers": [
-    [2, "gnx:hand_pose", true, -1],
-    [3, "gnx:leg_pose", true, -1],
-    [8, -1, false, -1, false], [9, -1, false, -1, false],
-    [6, -1, false, -1, false], [7, -1, false, -1, false], [10, -1, false, -1, false]
-  ],
-  "hand_x": [10, 12], "hand_y": [-40, -42], "hand_xscale": [1, 1], "hand_angle": [0, 0]
+{
+  "physical": {
+    "layers": [
+      [2, "gnx:hand_pose", true, -1],
+      [3, "gnx:leg_pose", true, -1],
+      [8, -1, false, -1, false],
+      [9, -1, false, -1, false],
+      [6, -1, false, -1, false],
+      [7, -1, false, -1, false],
+      [10, -1, false, -1, false]
+    ],
+    "hand_x": [10, 12],
+    "hand_y": [-40, -42],
+    "hand_xscale": [1, 1],
+    "hand_angle": [0, 0]
+  }
 }
 ```
+
+These keys go into the cell's `physical` block, next to its other keys.
 
 - **Hand pose / leg pose:** a type 2 or 3 layer with `true` at `[2]` gets a row with arrows; each frame of its sprite is one pose, and the first choice turns on the hands (type 7) or the leg part (type 9). Give `hand_x` / `hand_y` / `hand_xscale` / `hand_angle` one entry per hand pose.
 - **Clothing on/off:** the breast (6), hands (7) and legs (8) get a switch when the captive's sprite table has a clothing overlay for that layer: in `fixed` and `class_map` tables the matching `spr_c_array` entry (index 2 breast, 3 hands, 4 legs), in `base+class` cells the class's clothing. No overlay, no switch.
@@ -2188,11 +2401,11 @@ Each place varies its speed by up to 10 % every cycle, so monsters that arrived 
 - **Payout:** every monster that leaves is a scene of its own, so it pays `spawn_info` and adds dirt as a whole vanilla scene does. Three busy places pay about three times as often as one shared scene; lower `spawn_info` if that is too much.
 - **Pregnancy:** with `allow_preg`, the monster that is leaving is the father, not the first monster in the cell.
 
-- **The captive** shows her idle pictures while nobody is inside, her start pictures while every monster inside is still starting (`phase_0` with `base_body` `"big"`, else her idle pictures), and her loop pictures as soon as one monster is past its start. Slap sounds, squirts and drips follow her loop.
+- **The captive** shows her idle pictures while nobody is inside, her start pictures while every monster inside is still starting (`phase_0` with `base_body` `"big"`, else her idle pictures), and her loop pictures as soon as one monster is past its start. Slap sounds, squirts and drips follow her loop. With one monster alone in the cell she also plays its ejaculation with it (new in 1.5.1, [Independent places](#independent-places-intermissions-ej_end-join_skip-and-speed)).
 - **Calling:** about every 4–6 s one empty placement is filled, picked among those for which a monster is free right now ([11.1](#111-mon_placements)). A placement whose type has no free monster stays empty without holding up the others.
 - **Strips:** the monsters' start strips need the start count and their loop and `ej` strips the loop count ([22.5](#225-the-frame-rule-for-every-mod-cell)); `frames` works as in [22.1](#221-physicalframes). `touch` and `enter` overlays follow the captive's frame, not a monster's.
 - **Saves** keep each place's phase and frame.
-- Intermissions ([§23](#23-intermissions)) do not work with independent places (mod error).
+- Intermissions ([§23](#23-intermissions)) play per monster, with `ej_end` after the ejaculation; `physical.join_skip` and `physical.speed` work here too. New in 1.5.1, see [Independent places](#independent-places-intermissions-ej_end-join_skip-and-speed); in GNX 1.5.0 intermissions here are a mod error.
 
 > **When** `scr_h` holds other entries next to `scr_slot_h_gnx_places`, they are left out with a mod error, and the cell runs independent places with the places script alone. With `max_mon_num` below 1 it is a mod error, and the cell gets no monsters.
 
@@ -4048,8 +4261,18 @@ Useful log lines:
 **Raids with nothing to capture.** For a dungeon fought for its loot or for quest progress, list its encounters in `no_capture`:
 
 ```json
-"map_info": { "label": "Outpost", "no_capture": [{ "stage": 2, "level": 1 }, { "stage": 2, "level": 2 }] }
+{
+  "map_info": {
+    "label": "Outpost",
+    "no_capture": [
+      { "stage": 2, "level": 1 },
+      { "stage": 2, "level": 2 }
+    ]
+  }
+}
 ```
+
+`no_capture` goes into the `map_info` of the manifest above, next to its other keys (left out here).
 
 Winning Forest lvl 2 or lvl 3 on the Outpost then brings loot, and counts for quests and unlocks, but the cage stays empty; the player sees "Nothing to capture here". A vanilla boss among the enemies can still be captured, so boss progress on your map is never blocked. Pair it with `raid_spawns` for the enemies you want there ([§13](#13-raid-spawns-and-the-trade-shop)).
 
@@ -4082,7 +4305,7 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 | `travel` | What may be taken along to or from this map: `"simple"` (gold, food, basic goblins), `"advanced"` (also a TROOPS tab with every monster type, one section per type, amounts set with the game's number pad) or `"complex"` (also a CAPTIVES tab: prisoners are dragged into the destination's free prison places). A trip between two maps uses the higher setting. | text | `"simple"` |
 | `vanilla_stages` | Hides, moves, re-pools or re-rewards the vanilla raid stages on this map only ([27.5](#275-changing-the-vanilla-stages-on-your-map)). | object | none |
 | `travel_cost` | What a trip to or from this map costs: `{ "gold": …, "food": …, "days": … }`, each optional ([21.4](#214-how-travel-works)). A trip between two maps uses the higher value of each. | object | free |
-| `unlock` | A condition, or a list that must all hold, in quest condition format ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). Until then the map is hidden from the world map and the travel menu; the first time it holds, the map unlocks for good on every map with `New map: <label> (travel from the world map)`. `state_*` conditions read this mod's own state. | object or list | always available |
+| `unlock` | A condition, or a list that must all hold, in quest condition format ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). Until then the map is hidden from the world map and the travel menu; the first time it holds, the map unlocks for good on every map with `New map: <label> (travel from the world map)`. `state_*` conditions read this mod's own state. Any other value (text, number, true/false, `null`) is a mod error and keeps the map hidden (new in 1.5.1; GNX 1.5.0 opened the map at once), and so does a list entry that is no object. An empty list `[]` means the same as no `unlock`: the map is available from the start. | object or list | always available |
 | `x`, `y`, `return_x`, `return_y` | Not used. | number | — |
 
 **Travel cost.** The cost is paid from the map the player leaves, on departure. The selector shows it in its title (`Trip: 50 gold, 10 food, 1 day`), and the gold and food it needs cannot be taken along. While the trip cannot be paid, the selector's red warning line says `! Not enough for the trip (…)` and TRAVEL does nothing. `days` pass on arrival.
@@ -4293,11 +4516,12 @@ Intermissions work with:
 
 - the base scene scripts (`scr_slot_h_big_start` or `scr_slot_h_base_start`, `scr_slot_h_base_wait`, `scr_slot_h_base_sloop`, `scr_slot_h_base_floop`, `scr_slot_h_base_ej`, `scr_slot_h_base_ej_2`): GNX puts each declared intermission into the cell's `scr_h`, right before the script it leads into, so you do not list it;
 - the tentacle scene scripts (`scr_slot_h_tent_idle`, `scr_slot_h_tent_sloop` … `scr_slot_h_tent_birth_ej`);
-- underground cells ([§24](#24-underground-cells)).
+- underground cells ([§24](#24-underground-cells));
+- independent places ([11.5](#115-independent-places)), per monster and with `ej_end`, new in 1.5.1 ([Independent places](#independent-places-intermissions-ej_end-join_skip-and-speed)).
 
 These are mod errors, and the intermission is ignored:
 
-- other scene scripts (gang, chain, milk, cow, giant birth …, and independent places, [11.5](#115-independent-places)): `[GNX] ERROR: Cell '<name>': physical.intermissions works with the base and tentacle scene scripts and underground cells, not <scripts>; ignored`;
+- other scene scripts (gang, chain, milk, cow, giant birth …): `[GNX] ERROR: Cell '<name>': physical.intermissions works with the base and tentacle scene scripts and underground cells, not <scripts>; ignored`;
 - `ej_birth` with the base scripts: the captive gives birth in a BIRTH cell, not in this one;
 - `start_loop` in a scene without a start;
 - an unknown name.
@@ -4470,6 +4694,8 @@ How a milk strip plays:
 - A phase without its own strip borrows one, so the milk shows whenever it comes. Without any `milk_spr` the items still come in but nothing is drawn: `[GNX-UG] WITCH PIT: no milk_spr - milk items come in, but no milk is drawn`.
 - Keep the type 21 layer GNX writes, `[21, "spr_empty", false, -1]`: a layer whose sprite is `-1` is never drawn.
 
+> **When** a declared `milk_spr` names a strip GNX cannot find, or has no phase key, the whole mod is not loaded (new in 1.5.1, [Underground cells](#underground-cells-milk-and-newborn-per-class)). That part also shows how a `class_map` cell gives each class its own `milk_spr`.
+
 ### 24.6 Birth and the newborn (infant_spr)
 
 `infant_spr` is the newborn, for example an egg: one block of frames without skin blocks. First come the labour frames, spread over each loop of the birth frames; then the frames of the newborn coming out. The child joins the nest on the last frame.
@@ -4482,6 +4708,8 @@ How a milk strip plays:
 
 - Without `infant_spr` nothing is drawn and the birth ends after 0.5 s.
 - The child's species is the class's `preg_mon_type_override`, otherwise tentacle ([14.1](#141-pregnancy-preg_c_override-and-preg_mon_type_override)); its troop type comes from `birth_class` ([14.2](#142-birth_class-which-troop-the-child-joins)). The child is given exactly once, even when the newborn picture is gone before its last frame.
+
+> **When** a declared `infant_spr` names a strip GNX cannot find, the whole mod is not loaded (new in 1.5.1, [Underground cells](#underground-cells-milk-and-newborn-per-class)). That part also shows how a `class_map` cell gives each class its own `infant_spr`.
 
 ### 24.7 Effects, transfer and the frog shrine
 
@@ -4887,7 +5115,7 @@ Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave 
 | `[GNX-WARN] <key>: origin_from '<name>' is not a game sprite - using xorig/yorig` | The `origin_from` sprite does not exist; the sprite loads with `xorig` / `yorig`. | Fix the name or remove `origin_from`. |
 | `[GNX] ERROR: Cell '<name>': the <phase> has <N> frames but <monsters> have no <phase> strips in mon_spr (the vanilla ones have <M>)` | The cell has its own frame counts ([22.5](#225-the-frame-rule-for-every-mod-cell)) and a monster type that can enter has no strips made for them. | Add that monster's `mon_spr` strips with the right count, or limit `mon_types` to the monsters you drew. |
 | `[GNX-FRAMES] <name>: <N> strip(s) do not match the frame counts, see the mod errors` | Summary of the line above for one cell. | Fix each strip the errors name. |
-| `[GNX] ERROR: Cell '<name>': unknown intermission '<key>' (known: idle_start, start_loop, loop_ej, ej_birth); ignored` | A misspelled intermission name ([23](#23-intermissions)). | Use one of the four names. |
+| `[GNX] ERROR: Cell '<name>': unknown intermission '<key>' (known: idle_start, start_loop, loop_ej, ej_birth, ej_end); ignored` | A misspelled intermission name ([23](#23-intermissions)). | Use one of the four names, or `ej_end` with independent places. |
 | `[GNX-ATLAS] INVALID: mod=<mod> entry=<name>: frame <N> is on page <P>, which did not load; not used` | An atlas entry points into a page PNG that is missing or failed to load; the class falls back to the vanilla sprite there. | Check that every `atlas_<N>.png` listed in `uv.json` is in the mod ([§20](#20-atlas-packing)). |
 | `[GNX] WARNING: script not found: <name>` | A cell script name (`scr_h`, `scr_idle` …) does not exist. No fallback: the cell can crash the game when used. | Copy the name exactly ([§9](#9-the-physical-block-how-a-cell-behaves)). |
 | `[GNX] class_id <N> override (merge)` | Information: your override was merged into class `<N>`; without `(merge)`, a new class was created at that ID. | Nothing, if intended ([§12](#12-patching-vanilla-cells-and-classes)). |
@@ -4934,6 +5162,17 @@ Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave 
 | `[GNX-ATLAS] INVALID: mod=<folder> entry=<name>: <reason>; not used` | An atlas entry cannot be drawn; its strip PNG is used instead. | Re-run the packer ([20.4](#204-how-gnx-uses-the-atlas)). |
 | `[GNX] ERROR: Cell '<name>': scr_slot_h_gnx_places runs the whole scene, so it must be the only entry of scr_h; the other entries are left out` (also `needs max_mon_num 1 or more; the cell gets no monsters`) | Other scene scripts were listed next to the independent places script (they are not run), or the cell has no room for a monster. | Use `"scr_h": ["scr_slot_h_gnx_places"]` and `max_mon_num` 1 or more ([11.5](#115-independent-places)). |
 | `[MON:<id>] CALLED OFF from h_type=<N> place=<n> ...` (VERBOSE) | Information: a monster on its way was called off when the scene ended. | Nothing ([11.4](#114-how-a-scene-runs-with-several-monsters)). |
+| `[GNX-WARN] cell '<name>': its ej has <n> frames, numbered 0-<n-1> (Aseprite 1-<n>), so these key frames were moved: <key> <old> -> <new>; ...` | `ej_start`, `ej_hold` or `ej_return` does not fit the ejaculation strip and was moved into it (1.5.1). | Count the frames from 0: the last frame of an 8-frame strip is 7 ([ej_return](#ej_return-and-the-ejaculation-key-frames)). |
+| `[GNX] ERROR: Cell '<name>': intermission ej_end has <n> frames, but the <monsters> of place <p> have no ej_end, ej or loop strips (<why>), so they use the vanilla ej sheets (5 frames)` | Those monsters would play `ej_end` with the 5-frame vanilla sheets (1.5.1). | Give them `ej_end`, `ej` or `loop` strips, or give `ej_end` 5 frames ([Independent places](#independent-places-intermissions-ej_end-join_skip-and-speed)). |
+| `[GNX] ERROR: Cell '<name>': physical.speed works only with scr_slot_h_gnx_places and underground scenes; ignored` (also `physical.join_skip works only with scr_slot_h_gnx_places (independent places); ignored` and the same for `intermissions.ej_end`) | The key does nothing in this cell (1.5.1). | Remove it, or use independent places ([11.5](#115-independent-places)). |
+| `[GNX] ERROR: Mod '<folder>': underground cell '<name>', <cell / class '<key>' / default>: <problem>` | A declared `milk_spr` or `infant_spr` cannot load (1.5.1). | Fix the named strip, or leave the key out ([Underground cells](#underground-cells-milk-and-newborn-per-class)). |
+| `[GNX] ERROR: Mod '<folder>': not loaded - an underground cell declares milk or newborn strips that cannot load (see the errors above)` | Because of the lines above, the whole mod is not loaded (1.5.1). | Fix every strip named above. |
+| `[GNX-SAVES] <file> cannot be shown on the load page: <reason>; the slot shows as empty, the file is kept` | The save is broken or incomplete; the game goes on (1.5.1). | Load another save; keep the file if you want to repair it ([Other fixes](#other-fixes)). |
+| `[GNX] ERROR: Mod '<folder>': quest condition <type> has no h_type, so it never matches` | A `cell_built`, `cell_occupied` or `cell_count` condition without the cell's `h_type` (1.5.1). | Add `h_type`: a number or `"<folder>.<cell name>"` (`QUESTS_SCHEMA.md`). |
+| `[GNX] ERROR: Mod '<folder>': quest event '<folder>.<event>' has no completion condition, so it never completes` | A `"type": "quest"` event without a `completion` object (1.5.1). | Add `completion` ([Quests](#quests-build_count), `QUESTS_SCHEMA.md`). |
+| `[GNX] ERROR: Mod '<folder>': event '<folder>.<event>': completion_hook must be a text such as "cell_built", not <value>; "frame" is used` | `completion_hook` is an object or a number (1.5.1). | Write it as text: `"completion_hook": "cell_built"`. |
+| `[GNX] ERROR: Mod '<folder>': a condition is <value>, not an object like {"type": "state_equals", ...}; it never matches` (also `a condition has no "type"; it never matches`) | A condition in a quest, trigger, raid spawn, cage escape, tower boss or map unlock is not an object, or has no `type` (1.5.1). | Write it as an object with `type`, for example `{"type": "state_equals", "key": "stage", "value": 1}`. |
+| `[GNX] ERROR: Mod '<folder>': map_info.unlock is <value>, not a condition object or a list of them; the map stays hidden` | `unlock` is text, a number, true/false or `null` (1.5.1). | Write a condition object or a list of them ([21.2](#212-map_info)). |
 
 ### B.3 Common mistakes
 
