@@ -4298,7 +4298,7 @@ Not set or `"vanilla"`: the mod belongs to the village map. `"all"`: it loads on
 | Key | What it means | Type | Default |
 |---|---|---|---|
 | `label` | The map's name in the travel menu and on the load page. | text | the `map` ID |
-| `map_sprite` | PNG in your mod's `sprites/` folder (133 × 91), drawn as the raid panel's world map while on this map. | text | none |
+| `map_sprite` | PNG in your mod's `sprites/` folder, drawn as the raid panel's world map while on this map. Make it 133 × 113 like the game's own map (`spr_map`): only the top 133 × 91 shows, the FRONT / BACK bars cover the rest. A 133 × 91 picture works too. | text | none |
 | `nest` | `[x, y]` on this map's raid map where raid carts to mod stages leave from ([27.4](#274-cart-routes)). Set it with a `map_sprite` that shows the nest elsewhere. | [x, y] | `[200, 59]` |
 | `no_capture` | Raid encounters of this map that can be fought and won (loot, quest progress) but capture nobody, vanilla enemies included: a list of `{ "stage": 0-4, "level": 0-2 }` (stage and encounter level as in [13.1](#131-stages-and-encounter-levels)). Bosses (vanilla boss classes) stay capturable, since capturing one records its defeat. The player gets a note when the raid ends. Only on this mod's own map; the village's raids are never touched. A wrong entry is a mod error and left out. | list | none |
 | `return_label` | The village's name in the travel menu while on this map. | text | `"Return"` |
@@ -4892,7 +4892,7 @@ New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest, so an older GNX 
 |---|---|---|---|
 | `id` | The stage's name in your mod. Other mods, quests and saves refer to it as `"<mod folder>.<id>"` (`"my_mod.CRYPT"`), your own files as just `"CRYPT"`. | text | required |
 | `label` | The name the player sees: next to the button while it is pointed at or selected (above it, or under its level bar near the top of the map), and in the discovery popup. Translated by your `lang` files ([4.6](#46-translations-lang)). | text | the `id` |
-| `pos` | `[x, y]` of the button's centre on the raid map, in the map's pixels (the map panel is 133 × 91 at x 173, y 39). Keep x within 186–293 and y within 52–109 so the button and the level bar under it stay on the map. | [x, y] | required |
+| `pos` | `[x, y]` of the button's centre on the raid map, in the map's pixels (the map shows 133 × 91 at x 173, y 39: the top of the 133 × 113 map picture). Keep x within 186–293 and y within 52–109 so the button and the level bar under it stay on the map. | [x, y] | required |
 | `icon` | The button's picture: a PNG in your `sprites/` folder, either one 27 × 27 frame or two side by side (normal, pointed at), or a number 0–4 to reuse that vanilla stage's button ([27.3](#273-naming-stages)). One frame is lightened when pointed at. | text or number | `0` (the Village's) |
 | `unlock` | A quest condition, or a list that must all hold ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). GNX checks it every second; the first time it holds, the stage is discovered. Without `unlock` the stage is there from the start, without a popup. `state_*` conditions read your mod's own state. | object or list | none |
 | `on_discover` | A quest event of your mod fired once, when the stage is discovered (an intro dialog, a side effect). | text | none |
