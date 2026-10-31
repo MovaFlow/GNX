@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1610 @@
+@@ -0,0 +1,1624 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1233,7 +1233,7 @@
 +
 +
 +// GNX-VSTAGE: map_info.vanilla_stages of a map mod (its own map only): { "VILLAGE" | "MOUNTAIN" | "FOREST" | "CASTLE" |
-+// "TOWER": { "hidden", "pos", "path", "curve", "replace_pool", "reward" } } -> an array of 5 (undefined = untouched)
++// "TOWER": { "hidden", "pos", "path", "curve", "replace_pool", "reward", "icon" } } -> an array of 5 (undefined = untouched)
 +function gnx_parse_vanilla_stages(arg0, arg1)
 +{
 +    var _out = [undefined, undefined, undefined, undefined, undefined];
@@ -1284,8 +1284,14 @@
 +            curve: gnx_json_num(gnx_stage_field(_e, "curve", false), 0) != 0,
 +            replace_pool: gnx_json_num(gnx_stage_field(_e, "replace_pool", false), 0) != 0,
 +            reward: undefined,
-+            route: undefined
++            route: undefined,
++            icon: undefined  // its own button picture on this map (as a mod stage's icon), else the vanilla one
 +        };
++
++        var _icon = gnx_stage_field(_e, "icon", undefined);
++
++        if (_icon != undefined)
++            _ov.icon = gnx_stage_load_icon(arg1, _icon);
 +
 +        if (!_ov.moved && array_length(_ov.path) > 0)
 +            gnx_report_mod_error(_who + ": a path needs a pos (the stage keeps its vanilla cart otherwise); path ignored");
@@ -1327,6 +1333,14 @@
 +    }
 +
 +    return undefined;
++}
++
++
++// the button picture ({spr, frames, vanilla}, as gnx_stage_load_icon) vanilla stage arg0 has on this map, or undefined
++function gnx_vstage_icon(arg0)
++{
++    var _ov = gnx_vstage_ov(arg0);
++    return (_ov != undefined) ? _ov.icon : undefined;
 +}
 +
 +

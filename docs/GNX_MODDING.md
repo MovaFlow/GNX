@@ -4975,6 +4975,7 @@ A map mod (the owner of its map, [21](#21-multi-map-travel)) can change the five
 |---|---|---|
 | `hidden` | No button and no map icon on this map, and Nyx never joins its encounters. The stage keeps its progress (vanilla quests read it), and still counts for the trader's slots. | true/false |
 | `pos`, `path`, `curve` | The stage moves; its raids then use the GNX cart on this route instead of the vanilla cart animation ([27.4](#274-cart-routes)). | as in 27.1 / 27.4 |
+| `icon` | Its button on this map: a PNG in your `sprites/` folder (one 27 × 27 frame, or two side by side: normal, pointed at) or a number 0–4 to use that vanilla stage's button, as a mod stage's `icon` ([27.1](#271-stages)). Shown on the raid map and while the cart is out. | text or number |
 | `replace_pool` | Its vanilla enemies leave its encounter pools on this map; enemies that mods add with `raid_spawns` stay, so give it some (an empty pool falls back to level-0 Peasants). What the game sets itself stays: the Village's first level, the stage's own boss (Hathor in the Village, Selene in the Forest, Morrigan in the Castle) and the Tower's first encounter (Lilith). The Tower's other units come from its pools, so they change too. | true/false |
 | `reward` | Replaces the win reward: `{ "gold", "food" }` for every level, or a list with one per level (the last one repeats). | object or list |
 

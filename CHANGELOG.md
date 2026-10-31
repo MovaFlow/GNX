@@ -18,7 +18,7 @@
 
 - **Mod raid stages** (`raids.json`): a mod adds raid locations of its own to the raid map, each with a position, a button picture, a name, an unlock condition (with a "New raid location" notice and an optional quest event) and any number of levels. A level sets its enemies (a pool like `raid_spawns`, other mods can add to it), enemy strength, an optional boss that stops coming once captured, gold and food finds, a win reward, one-time loot, no-capture and the wins needed for the next level. Raids there work like vanilla raids; the cart can follow a route of your own (`path`, `curve`) with its own picture. Stages are named in quests, tools, `raid_spawns`, loot and `trade_stage` as `vanilla.FOREST` or `my_mod.CRYPT`. Saves keep them by name, so removing and reinstalling the mod keeps their progress. GNX DEBUG > RAID ROUTES shows the routes while placing them (modding guide 27, tutorial §8).
 - **Quest condition `last_raid`**: the last raid on the map went to a given stage, at a given level, and was won or lost; with the `post_raid_win` hook it makes "win a raid at the Crypt" quests (QUESTS_SCHEMA.md).
-- **Vanilla raid stages on a map mod's map** (`map_info.vanilla_stages`): hide, move or re-route a vanilla stage, replace its enemies or its win reward, on the mod's own map only. `map_info.nest` sets where raid carts leave from on a custom map picture (modding guide 27.5).
+- **Vanilla raid stages on a map mod's map** (`map_info.vanilla_stages`): hide, move or re-route a vanilla stage, give it its own button picture, replace its enemies or its win reward, on the mod's own map only. `map_info.nest` sets where raid carts leave from on a custom map picture (modding guide 27.5).
 
 ### Bug Fixes
 

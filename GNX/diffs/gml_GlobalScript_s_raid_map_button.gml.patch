@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_raid_map_button.gml	2026-09-02 08:45:16.543618000 +0200
-+++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-31 17:20:08.990303100 +0100
++++ gml/gml_GlobalScript_s_raid_map_button.gml	2026-10-31 19:46:13.601033700 +0100
 @@ -14,6 +14,17 @@
          switch_type = false;
          act_resize = true;
@@ -18,7 +18,7 @@
          
          switch (button_num)
          {
-@@ -43,6 +54,21 @@
+@@ -43,6 +54,29 @@
                  break;
          }
          
@@ -37,10 +37,18 @@
 +            y = _gnx_ov.y;
 +        }
 +
++        // GNX-VSTAGE: its own button picture on this map (map_info.vanilla_stages icon)
++        if (_gnx_ov != undefined && _gnx_ov.icon != undefined)
++        {
++            sprite_index = _gnx_ov.icon.spr;
++            image_index = max(0, _gnx_ov.icon.vanilla);
++            spr_sel = (_gnx_ov.icon.vanilla >= 0) ? spr_button_stage_sel : -1;
++        }
++
          if (source_id.raid_data.stage == button_num)
              scr_create_button_layout(-13, 14, depth - 5, 2, 2, 27, 0, 0, spr_button_arrow, UnknownEnum.Value_30, id, false, scr_create_stage_sel_arrow, -1, scr_draw_hover_button);
      }
-@@ -74,7 +100,8 @@
+@@ -74,7 +108,8 @@
      hover = false;
      gui = true;
      act_resize = true;
@@ -50,7 +58,7 @@
      
      if (button_num == 1)
          image_xscale = -1;
-@@ -82,24 +109,63 @@
+@@ -82,24 +117,65 @@
  
  function scr_draw_stage_button()
  {
@@ -58,12 +66,14 @@
 +    // GNX-STAGE: a mod stage's own picture: its hover frame, or the picture lightened when it has none
 +    var _gnx_sdef = gnx_stage_def(button_num);
 +    var _gnx_hover = hover != -1 && hover && !trigger;
++    // GNX-VSTAGE: a vanilla stage's own picture on this map draws the same way
++    var _gnx_icon = (_gnx_sdef != undefined) ? _gnx_sdef.icon : gnx_vstage_icon(button_num);
 +    
-+    if (_gnx_sdef != undefined && _gnx_sdef.icon.vanilla < 0)
++    if (_gnx_icon != undefined && _gnx_icon.vanilla < 0)
 +    {
-+        draw_sprite_ext(sprite_index, (_gnx_hover && _gnx_sdef.icon.frames > 1) ? 1 : 0, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
++        draw_sprite_ext(sprite_index, (_gnx_hover && _gnx_icon.frames > 1) ? 1 : 0, x, y, image_xscale, image_yscale, image_angle, image_blend, image_alpha);
 +        
-+        if (_gnx_hover && _gnx_sdef.icon.frames == 1)
++        if (_gnx_hover && _gnx_icon.frames == 1)
 +        {
 +            gpu_set_blendmode(bm_add);
 +            draw_sprite_ext(sprite_index, 0, x, y, image_xscale, image_yscale, image_angle, c_white, 0.35);
@@ -118,7 +128,7 @@
      
      if (button_num == UnknownEnum.Value_4)
      {
-@@ -135,10 +201,23 @@
+@@ -135,10 +211,23 @@
      }
      
      _y += 2;
