@@ -31832,7 +31832,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +}
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-31 17:13:34.252348700 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-10-31 17:13:53.640431700 +0100
 @@ -1,8 +1,18 @@
 +// GNX: this file holds the game's start-up only (scr_create_initials: vanilla plus GNX's boot steps).
 +// GNX's own functions live in one file per topic: s_gnx_content, s_gnx_cells, s_gnx_props, s_gnx_mods,
@@ -31942,7 +31942,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +191,3257 @@
+@@ -167,12 +191,3261 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -35163,8 +35163,12 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    scr_gnx_test_dispatch_routing();
 +    gnx_time_log("boot tests + dispatch check", _gnx_tt0);
 +
-+    // harness runs (tools/gnx_test.py) are silent: several games may run at once
-+    if (gnx_cli_has("-gnx-autotest") || gnx_cli_value("-gnx-scenario") != "")
++    // harness runs (tools/gnx_test.py) are silent: several games may run at once. They also ignore the speed keys
++    // (SPACE pauses, 1 / 2 set the speed): a harness window that gets the focus while someone types elsewhere
++    // used to pause the game, and time-based scenarios (day_hook, raid clocks) failed now and then
++    global.gnx_harness_run = gnx_cli_has("-gnx-autotest") || gnx_cli_value("-gnx-scenario") != "";
++
++    if (global.gnx_harness_run)
 +        audio_master_gain(0);
 +
 +    // tools/gnx_test.py launches with -gnx-autotest: exit cleanly once boot tests are logged
@@ -35202,7 +35206,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +3452,9 @@
+@@ -183,42 +3456,9 @@
      Value_3,
      Value_4,
      Value_5,
@@ -40807,7 +40811,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_state.gml gml/gml_GlobalScript_s_mon_sta
          mon_data.ff = false;
 diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mouse_action.gml
 --- gml_138/gml_GlobalScript_s_mouse_action.gml	2026-09-02 08:45:16.155545700 +0200
-+++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-31 17:13:34.362067900 +0100
++++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-31 17:13:53.661948200 +0100
 @@ -1,6 +1,7 @@
  function scr_mouse_control()
  {
@@ -40836,6 +40840,15 @@ diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mous
          {
              var _last_x, _last_y;
              
+@@ -198,7 +200,7 @@
+         }
+     }
+     
+-    if (!global.speed_lock)
++    if (!global.speed_lock && !global.gnx_harness_run)  // GNX: harness runs ignore the speed keys (s_initials)
+     {
+         var _set_button = false;
+         
 @@ -458,7 +460,7 @@
                                                      _scr_fail_pop = UnknownEnum.Value_1;
                                                  }
