@@ -963,6 +963,7 @@ frame number = skin × (frames ÷ 3) + pose
 - Another frame count is allowed but logged: the game plays the frames it counts, so frames past the game's count are never shown.
 - Names: UndertaleModTool shows every game sprite's name; [Appendix A](#appendix-a-vanilla-ids-and-cell-list) lists the cells.
 - `active_dates` (manifest, optional): `["MM-DD", "MM-DD"]`. Outside those dates the mod's sprites are not replaced (the rest of the mod still loads). A window may cross the new year.
+- In the MODS menu a mod with `active_dates` shows **SEASON** instead of ON; clicking it cycles SEASON → **ALL YEAR** (its sprites replaced whatever the date) → OFF. The choice is game-wide, like ON/OFF (save folder, `gnx_mods_all_year.json`).
 - Turning the mod off in the MODS menu, a date window ending or a travel to a map where the mod is not loaded puts the game's own art back, without a restart.
 
 > **When** two mods replace the same game sprite, the one loaded last wins.

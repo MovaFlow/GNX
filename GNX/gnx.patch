@@ -11097,7 +11097,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw.gml
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1231 @@
+@@ -0,0 +1,1232 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -12202,7 +12202,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +        {
 +            gnx_report_mod_error(_who + ": active_dates must be two dates like [\"12-01\", \"01-06\"]; ignored, the sprites are replaced all year");
 +        }
-+        else if (!gnx_in_dates(_ad))
++        // ALL YEAR (MODS menu, gnx_mods_all_year.json): the player wants it outside its dates too
++        else if (!gnx_in_dates(_ad) && !gnx_array_has(scr_gnx_read_mods_off("gnx_mods_all_year.json"), arg0))
 +        {
 +            var _ol = gnx_log_open();
 +            gnx_log_write(_ol, "[GNX] " + _who + ": sprite_replace off today (active_dates " + _ad[0] + " to " + _ad[1] + ")\n");
@@ -12332,7 +12333,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,5472 @@
+@@ -0,0 +1,5531 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -14256,6 +14257,65 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +
 +    return 1;
++}
++
++
++// {"call": "gnx_scn_make_cell", "args": [h_type, [from h_types]]}: turns the first empty, idle cell whose type is one of
++// arg1 (cells of the same size) into cell type arg0 (scr_set_slot_h_data), so an occupy step finds one
++function gnx_scn_make_cell(arg0, arg1)
++{
++    var _c = -1;
++
++    with (obj_slot)
++    {
++        if (_c == -1 && slot_data.anim_struct != -1 && !is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && array_contains(arg1, slot_data.h_type) && array_length(h_unit_list) == 0)
++            _c = id;
++    }
++
++    if (_c != -1)
++        scr_set_slot_h_data(_c, arg0);
++
++    gnx_scn_log("make_cell h=" + string(arg0) + ((_c != -1) ? " done" : " no empty cell of types " + json_stringify(arg1)));
++}
++
++
++// {"call": "gnx_scn_camera_on_occupied"}: the view on the cell the last occupy step filled (camera_cell takes the first
++// occupied cell of a type, which may be another one)
++function gnx_scn_camera_on_occupied()
++{
++    var _c = global.gnx_scn_occupied;
++
++    with (obj_camera)
++    {
++        x = _c.x - 300;
++        y = _c.y - 100;
++    }
++}
++
++
++// {"call": "gnx_scn_log_occupied_view"}: logs where the cell the last occupy step filled sits in the view
++// ("[GNX-SCN] view cell x y w | view w h"), so a screenshot can be cropped to it
++function gnx_scn_log_occupied_view()
++{
++    var _c = global.gnx_scn_occupied;
++    var _vx = camera_get_view_x(view_camera[0]);
++    var _vy = camera_get_view_y(view_camera[0]);
++    gnx_scn_log("view cell " + string(_c.x - _vx) + " " + string(_c.y - _vy) + " " + string(sprite_get_width(_c.sprite_index)) + " | view " + string(camera_get_view_width(view_camera[0])) + " " + string(camera_get_view_height(view_camera[0])));
++}
++
++
++// for {"assert": "fn"}: the text of mod folder arg0's ON/OFF button on the open MODS page ("" when not shown)
++function gnx_scn_mod_row_text(arg0)
++{
++    var _r = "";
++
++    with (obj_button)
++    {
++        if (interact_type == 9072 && instance_exists(source_id) && source_id.rows[button_num].folder == arg0)
++            _r = text;
++    }
++
++    return _r;
 +}
 +
 +
@@ -18113,7 +18173,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2748 @@
+@@ -0,0 +1,2769 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18123,14 +18183,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +// mods it needs; when one of them is off or missing the mod is skipped and reported.
 +// ---------------------------------------------------------------------------
 +
-+function scr_gnx_read_mods_off()
++// arg0: the list file (default the off-list; "gnx_mods_all_year.json" = mods whose active_dates are ignored)
++function scr_gnx_read_mods_off(arg0 = "gnx_mods_off.json")
 +{
 +    var _off = [];
 +    
-+    if (!file_exists("gnx_mods_off.json"))
++    if (!file_exists(arg0))
 +        return _off;
 +    
-+    var _f = file_text_open_read("gnx_mods_off.json");
++    var _f = file_text_open_read(arg0);
 +    var _raw = "";
 +    
 +    while (!file_text_eof(_f))
@@ -18154,9 +18215,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +}
 +
 +
-+function scr_gnx_write_mods_off(arg0)
++function scr_gnx_write_mods_off(arg0, arg1 = "gnx_mods_off.json")
 +{
-+    var _f = file_text_open_write("gnx_mods_off.json");
++    var _f = file_text_open_write(arg1);
 +    file_text_write_string(_f, json_stringify(arg0));
 +    file_text_close(_f);
 +}
@@ -18216,6 +18277,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            
 +            if (variable_struct_exists(_m, "author"))
 +                _e.author = string(_m.author);
++
++            // GNX-REPLACE: a seasonal mod; its MODS row also offers ALL YEAR
++            _e.dated = variable_struct_exists(_m, "active_dates");
 +
 +            // "min_gnx_version": "1.5.0": a mod that uses newer GNX keys is not loaded by an older GNX (those keys
 +            // would do nothing) and the player is told to update GNX
@@ -18813,6 +18877,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +        scr_window_draw = scr_gnx_draw_mod_menu;
 +        page = 0;
 +        pending = scr_gnx_read_mods_off();
++        pending_year = scr_gnx_read_mods_off("gnx_mods_all_year.json");  // GNX-REPLACE: ALL YEAR rows
 +        dirty = false;
 +        rows = scr_gnx_mod_menu_rows();
 +        scr_gnx_mod_menu_buttons();
@@ -18854,7 +18919,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +        {
 +            var _on = gnx_mod_row_on(id, _row);
 +            _b.image_index = _on ? 0 : 1;
-+            _b.text = _on ? "ON" : "OFF";
++            // GNX-REPLACE: a seasonal mod (active_dates) is SEASON (its dates) or ALL YEAR when on
++            _b.text = !_on ? "OFF" : (!_row.dated ? "ON" : (gnx_array_has(pending_year, _row.folder) ? "ALL YEAR" : "SEASON"));
 +        }
 +    }
 +
@@ -19048,6 +19114,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +function scr_gnx_mod_menu_apply(arg0)
 +{
 +    scr_gnx_write_mods_off(arg0.pending);
++    scr_gnx_write_mods_off(arg0.pending_year, "gnx_mods_all_year.json");  // GNX-REPLACE
 +    var _l = gnx_log_open();
 +    gnx_log_write(_l, "[GNX] mod menu: apply, off = " + json_stringify(arg0.pending) + chr(10));
 +    gnx_log_close(_l);
@@ -19102,6 +19169,20 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            var _w = source_id;
 +            var _row = _w.rows[button_num];
 +
++            // GNX-REPLACE: a seasonal mod goes SEASON -> ALL YEAR -> OFF -> SEASON
++            if (gnx_mod_row_on(_w, _row) && _row.dated && !gnx_array_has(_w.pending_year, _row.folder))
++            {
++                array_push(_w.pending_year, _row.folder);
++
++                with (_w)
++                    scr_gnx_mod_menu_buttons();
++
++                break;
++            }
++
++            if (_row.dated)
++                _w.pending_year = gnx_array_without(_w.pending_year, _row.folder);
++
 +            if (gnx_mod_row_on(_w, _row))
 +            {
 +                var _lines = scr_gnx_mod_off_impact(_w, _row);
@@ -19136,7 +19217,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +        case 9074:
 +            var _w = source_id;
 +
-+            if (gnx_same_set(_w.pending, scr_gnx_read_mods_off()))
++            if (gnx_same_set(_w.pending, scr_gnx_read_mods_off()) && gnx_same_set(_w.pending_year, scr_gnx_read_mods_off("gnx_mods_all_year.json")))
 +                break;
 +
 +            scr_gnx_mod_menu_apply(_w);
@@ -19240,7 +19321,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
 +    {
 +        var _e = global.gnx_mod_list[_i];
-+        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e) });
++        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e), dated: gnx_opt(_e, "dated", false) });
 +    }
 +
 +    for (var _f = 0; _f < array_length(_files); _f++)
@@ -19267,7 +19348,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +
 +            if (_row == undefined)
 +            {
-+                _row = { folder: _rec.id, name: _rec.name, version: _rec.version, status: "missing", why: "not installed", installed: false, used: [], cells: 0, units: 0, requires: [], mod_id: _rec.id, description: "", author: "", adds: "" };
++                _row = { folder: _rec.id, name: _rec.name, version: _rec.version, status: "missing", why: "not installed", installed: false, used: [], cells: 0, units: 0, requires: [], mod_id: _rec.id, description: "", author: "", adds: "", dated: false };
 +                array_push(_rows, _row);
 +            }
 +
@@ -19379,7 +19460,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +        }
 +    }
 +
-+    dirty = !gnx_same_set(pending, scr_gnx_read_mods_off());
++    dirty = !gnx_same_set(pending, scr_gnx_read_mods_off()) || !gnx_same_set(pending_year, scr_gnx_read_mods_off("gnx_mods_all_year.json"));
 +    draw_set_halign(fa_right);
 +
 +    if (dirty)
@@ -33711,7 +33792,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_tr
 diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util.gml
 --- gml_138/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,588 @@
+@@ -0,0 +1,603 @@
 +// GNX: logging and small shared helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -33787,6 +33868,21 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +    var _l = gnx_log_open();
 +    gnx_log_write(_l, "[GNX-TIME] " + arg0 + " = " + string((get_timer() - arg1) / 1000) + " ms" + chr(10));
 +    gnx_log_close(_l);
++}
++
++
++// a copy of array arg0 without the entries equal to arg1
++function gnx_array_without(arg0, arg1)
++{
++    var _out = [];
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        if (arg0[_i] != arg1)
++            array_push(_out, arg0[_i]);
++    }
++
++    return _out;
 +}
 +
 +

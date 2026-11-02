@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2748 @@
+@@ -0,0 +1,2769 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -10,14 +10,15 @@
 +// mods it needs; when one of them is off or missing the mod is skipped and reported.
 +// ---------------------------------------------------------------------------
 +
-+function scr_gnx_read_mods_off()
++// arg0: the list file (default the off-list; "gnx_mods_all_year.json" = mods whose active_dates are ignored)
++function scr_gnx_read_mods_off(arg0 = "gnx_mods_off.json")
 +{
 +    var _off = [];
 +    
-+    if (!file_exists("gnx_mods_off.json"))
++    if (!file_exists(arg0))
 +        return _off;
 +    
-+    var _f = file_text_open_read("gnx_mods_off.json");
++    var _f = file_text_open_read(arg0);
 +    var _raw = "";
 +    
 +    while (!file_text_eof(_f))
@@ -41,9 +42,9 @@
 +}
 +
 +
-+function scr_gnx_write_mods_off(arg0)
++function scr_gnx_write_mods_off(arg0, arg1 = "gnx_mods_off.json")
 +{
-+    var _f = file_text_open_write("gnx_mods_off.json");
++    var _f = file_text_open_write(arg1);
 +    file_text_write_string(_f, json_stringify(arg0));
 +    file_text_close(_f);
 +}
@@ -103,6 +104,9 @@
 +            
 +            if (variable_struct_exists(_m, "author"))
 +                _e.author = string(_m.author);
++
++            // GNX-REPLACE: a seasonal mod; its MODS row also offers ALL YEAR
++            _e.dated = variable_struct_exists(_m, "active_dates");
 +
 +            // "min_gnx_version": "1.5.0": a mod that uses newer GNX keys is not loaded by an older GNX (those keys
 +            // would do nothing) and the player is told to update GNX
@@ -700,6 +704,7 @@
 +        scr_window_draw = scr_gnx_draw_mod_menu;
 +        page = 0;
 +        pending = scr_gnx_read_mods_off();
++        pending_year = scr_gnx_read_mods_off("gnx_mods_all_year.json");  // GNX-REPLACE: ALL YEAR rows
 +        dirty = false;
 +        rows = scr_gnx_mod_menu_rows();
 +        scr_gnx_mod_menu_buttons();
@@ -741,7 +746,8 @@
 +        {
 +            var _on = gnx_mod_row_on(id, _row);
 +            _b.image_index = _on ? 0 : 1;
-+            _b.text = _on ? "ON" : "OFF";
++            // GNX-REPLACE: a seasonal mod (active_dates) is SEASON (its dates) or ALL YEAR when on
++            _b.text = !_on ? "OFF" : (!_row.dated ? "ON" : (gnx_array_has(pending_year, _row.folder) ? "ALL YEAR" : "SEASON"));
 +        }
 +    }
 +
@@ -935,6 +941,7 @@
 +function scr_gnx_mod_menu_apply(arg0)
 +{
 +    scr_gnx_write_mods_off(arg0.pending);
++    scr_gnx_write_mods_off(arg0.pending_year, "gnx_mods_all_year.json");  // GNX-REPLACE
 +    var _l = gnx_log_open();
 +    gnx_log_write(_l, "[GNX] mod menu: apply, off = " + json_stringify(arg0.pending) + chr(10));
 +    gnx_log_close(_l);
@@ -989,6 +996,20 @@
 +            var _w = source_id;
 +            var _row = _w.rows[button_num];
 +
++            // GNX-REPLACE: a seasonal mod goes SEASON -> ALL YEAR -> OFF -> SEASON
++            if (gnx_mod_row_on(_w, _row) && _row.dated && !gnx_array_has(_w.pending_year, _row.folder))
++            {
++                array_push(_w.pending_year, _row.folder);
++
++                with (_w)
++                    scr_gnx_mod_menu_buttons();
++
++                break;
++            }
++
++            if (_row.dated)
++                _w.pending_year = gnx_array_without(_w.pending_year, _row.folder);
++
 +            if (gnx_mod_row_on(_w, _row))
 +            {
 +                var _lines = scr_gnx_mod_off_impact(_w, _row);
@@ -1023,7 +1044,7 @@
 +        case 9074:
 +            var _w = source_id;
 +
-+            if (gnx_same_set(_w.pending, scr_gnx_read_mods_off()))
++            if (gnx_same_set(_w.pending, scr_gnx_read_mods_off()) && gnx_same_set(_w.pending_year, scr_gnx_read_mods_off("gnx_mods_all_year.json")))
 +                break;
 +
 +            scr_gnx_mod_menu_apply(_w);
@@ -1127,7 +1148,7 @@
 +    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
 +    {
 +        var _e = global.gnx_mod_list[_i];
-+        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e) });
++        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e), dated: gnx_opt(_e, "dated", false) });
 +    }
 +
 +    for (var _f = 0; _f < array_length(_files); _f++)
@@ -1154,7 +1175,7 @@
 +
 +            if (_row == undefined)
 +            {
-+                _row = { folder: _rec.id, name: _rec.name, version: _rec.version, status: "missing", why: "not installed", installed: false, used: [], cells: 0, units: 0, requires: [], mod_id: _rec.id, description: "", author: "", adds: "" };
++                _row = { folder: _rec.id, name: _rec.name, version: _rec.version, status: "missing", why: "not installed", installed: false, used: [], cells: 0, units: 0, requires: [], mod_id: _rec.id, description: "", author: "", adds: "", dated: false };
 +                array_push(_rows, _row);
 +            }
 +
@@ -1266,7 +1287,7 @@
 +        }
 +    }
 +
-+    dirty = !gnx_same_set(pending, scr_gnx_read_mods_off());
++    dirty = !gnx_same_set(pending, scr_gnx_read_mods_off()) || !gnx_same_set(pending_year, scr_gnx_read_mods_off("gnx_mods_all_year.json"));
 +    draw_set_halign(fa_right);
 +
 +    if (dirty)

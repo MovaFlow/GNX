@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,5472 @@
+@@ -0,0 +1,5531 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1924,6 +1924,65 @@
 +    }
 +
 +    return 1;
++}
++
++
++// {"call": "gnx_scn_make_cell", "args": [h_type, [from h_types]]}: turns the first empty, idle cell whose type is one of
++// arg1 (cells of the same size) into cell type arg0 (scr_set_slot_h_data), so an occupy step finds one
++function gnx_scn_make_cell(arg0, arg1)
++{
++    var _c = -1;
++
++    with (obj_slot)
++    {
++        if (_c == -1 && slot_data.anim_struct != -1 && !is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && array_contains(arg1, slot_data.h_type) && array_length(h_unit_list) == 0)
++            _c = id;
++    }
++
++    if (_c != -1)
++        scr_set_slot_h_data(_c, arg0);
++
++    gnx_scn_log("make_cell h=" + string(arg0) + ((_c != -1) ? " done" : " no empty cell of types " + json_stringify(arg1)));
++}
++
++
++// {"call": "gnx_scn_camera_on_occupied"}: the view on the cell the last occupy step filled (camera_cell takes the first
++// occupied cell of a type, which may be another one)
++function gnx_scn_camera_on_occupied()
++{
++    var _c = global.gnx_scn_occupied;
++
++    with (obj_camera)
++    {
++        x = _c.x - 300;
++        y = _c.y - 100;
++    }
++}
++
++
++// {"call": "gnx_scn_log_occupied_view"}: logs where the cell the last occupy step filled sits in the view
++// ("[GNX-SCN] view cell x y w | view w h"), so a screenshot can be cropped to it
++function gnx_scn_log_occupied_view()
++{
++    var _c = global.gnx_scn_occupied;
++    var _vx = camera_get_view_x(view_camera[0]);
++    var _vy = camera_get_view_y(view_camera[0]);
++    gnx_scn_log("view cell " + string(_c.x - _vx) + " " + string(_c.y - _vy) + " " + string(sprite_get_width(_c.sprite_index)) + " | view " + string(camera_get_view_width(view_camera[0])) + " " + string(camera_get_view_height(view_camera[0])));
++}
++
++
++// for {"assert": "fn"}: the text of mod folder arg0's ON/OFF button on the open MODS page ("" when not shown)
++function gnx_scn_mod_row_text(arg0)
++{
++    var _r = "";
++
++    with (obj_button)
++    {
++        if (interact_type == 9072 && instance_exists(source_id) && source_id.rows[button_num].folder == arg0)
++            _r = text;
++    }
++
++    return _r;
 +}
 +
 +
