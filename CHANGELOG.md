@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.5.1
 
 **Game version:** 1.40
 
@@ -39,7 +39,7 @@
 - Range tools (`set_speed` `"range"`, `set_val` `add_range`, used by range mods and some character mods) wrote the shop's own CELL RANGE+ counter. The shop prices that upgrade from it and only makes its late FLOOR+ and PRISON SIZE+ offers when it is exactly 4, so a tool range of 5, 10 or 20 hid those offers and made CELL RANGE+ free; RESET removed the upgrades the player had bought. Tools now add their range on top of the shop's, and a save where a tool did this is repaired when it loads.
 - A quest or trigger condition naming a cell GNX cannot find (for example another mod's cell written without its folder, `"MILK BAR"` instead of `"py_more_cells_mod.MILK BAR"`) never matched, without a word. It is now a mod error. A cell of a mod that is not installed is only logged, so a quest can name an optional mod's cells.
 
-### Contributed by Mav (1.5.0.5)
+### Contributed by Mav
 
 - **ej return frame** (`physical.ej_return`): the frame the ej goes back to for its next hold (default `ej_start`). Works with the vanilla scene scripts using `frames`, underground cells and cells with independent places.
 - **Intermissions in cells with independent places**: each monster plays its own `idle_start`, `start_loop`, `loop_ej` and the new `ej_end`, on its own clock and with its own strips (`mon_spr.<name>`). A monster coming in later skips `start_loop`; `"join_skip": true` starts it where the captive is. The captive now plays the ej of a monster alone in the cell (her `phase_3` table, else her loop).
