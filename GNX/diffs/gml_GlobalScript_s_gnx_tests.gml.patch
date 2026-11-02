@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_tests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_tests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2356 @@
+@@ -0,0 +1,2231 @@
 +// GNX: boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -78,143 +78,195 @@
 +function scr_gnx_test_suite()
 +{
 +    var _log = gnx_log_open();
-+    var _pass = 0;
-+    var _fail = 0;
 +    gnx_log_write(_log, "[GNX-TEST] ============================================================\n");
 +    gnx_log_write(_log, "[GNX-TEST] Suite start\n");
++    var _r = { pass: 0, fail: 0 };
++    var _tests = [
++        "scr_gnx_test_t01",
++        "scr_gnx_test_t02",
++        "scr_gnx_test_t03",
++        "scr_gnx_test_t04",
++        "scr_gnx_test_t05",
++        "scr_gnx_test_t06",
++        "scr_gnx_test_t07",
++        "scr_gnx_test_t08",
++        "scr_gnx_test_t09",
++        "scr_gnx_test_t10",
++        "scr_gnx_test_t11",
++        "scr_gnx_test_t12",
++        "scr_gnx_test_t13",
++        "scr_gnx_test_t14",
++        "scr_gnx_test_t15",
++        "scr_gnx_test_t16",
++        "scr_gnx_test_t17",
++        "scr_gnx_test_t18",
++        "scr_gnx_test_t19",
++        "scr_gnx_test_t20",
++        "scr_gnx_test_t21",
++        "scr_gnx_test_t22",
++        "scr_gnx_test_t23",
++        "scr_gnx_test_t24",
++        "scr_gnx_test_t25",
++        "scr_gnx_test_t26",
++        "scr_gnx_test_t27",
++        "scr_gnx_test_t28",
++        "scr_gnx_test_t29",
++        "scr_gnx_test_t30",
++        "scr_gnx_test_t31",
++        "scr_gnx_test_t32",
++        "scr_gnx_test_t33",
++        "scr_gnx_test_t34",
++        "scr_gnx_test_t35",
++        "scr_gnx_test_t36",
++        "scr_gnx_test_t37",
++        "scr_gnx_test_t38",
++        "scr_gnx_test_t39",
++        "scr_gnx_test_t40",
++        "scr_gnx_test_t41",
++        "scr_gnx_test_t42",
++        "scr_gnx_test_t43",
++        "scr_gnx_test_t44",
++        "scr_gnx_test_t45",
++        "scr_gnx_test_t54_t57",
++        "scr_gnx_test_t58",
++        "scr_gnx_test_t59",
++        "scr_gnx_test_t60",
++        "scr_gnx_test_t61_t75",
++        "scr_gnx_test_t81",
++        "scr_gnx_test_t82",
++        "scr_gnx_test_t83",
++        "scr_gnx_test_t84",
++        "scr_gnx_test_t85"
++    ];
++
++    // each test function logs its PASS / FAIL lines and counts them in _r
++    for (var _ti = 0; _ti < array_length(_tests); _ti++)
++        script_execute(gnx_resolve_script(_tests[_ti]), _r, _log);
++
++    var _total = _r.pass + _r.fail;
++    gnx_log_write(_log, "[GNX-TEST] " + string(_r.pass) + "/" + string(_total) + " passed");
++    
++    if (_r.fail > 0)
++        gnx_log_write(_log, "  *** " + string(_r.fail) + " FAILED ***");
++    
++    gnx_log_write(_log, "\n");
++    gnx_log_write(_log, "[GNX-TEST] ============================================================\n");
++    gnx_log_close(_log);
++}
++
++
++// logs one boot test result and counts it in arg0 ({pass, fail}); both messages are built by the caller
++function gnx_test_check(arg0, arg1, arg2, arg3, arg4)
++{
++    if (arg2)
++    {
++        gnx_log_write(arg1, "[GNX-TEST] PASS  " + arg3 + "\n");
++        arg0.pass++;
++    }
++    else
++    {
++        gnx_log_write(arg1, "[GNX-TEST] FAIL  " + arg4 + "\n");
++        arg0.fail++;
++    }
++}
++
++
++// T01
++function scr_gnx_test_t01(_r, _log)
++{
 +    var _ok = ds_exists(global.cell_registry, ds_type_map);
 +    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T01 cell_registry is a map\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T01 cell_registry not a map\n");
-+        _fail++;
-+    }
++    gnx_test_check(_r, _log, _ok, "T01 cell_registry is a map", "T01 cell_registry not a map");
++}
++
++
++// T02
++function scr_gnx_test_t02(_r, _log)
++{
++    var _ok = ds_exists(global.class_registry, ds_type_map);
 +    
-+    _ok = ds_exists(global.class_registry, ds_type_map);
++    gnx_test_check(_r, _log, _ok, "T02 class_registry is a map", "T02 class_registry not a map");
++}
++
++
++// T03
++function scr_gnx_test_t03(_r, _log)
++{
++    var _ok = ds_exists(global.bl_lookup, ds_type_map);
 +    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T02 class_registry is a map\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T02 class_registry not a map\n");
-+        _fail++;
-+    }
++    gnx_test_check(_r, _log, _ok, "T03 bl_lookup is a map", "T03 bl_lookup not a map");
++}
++
++
++// T04
++function scr_gnx_test_t04(_r, _log)
++{
++    var _ok = ds_exists(global.gnx_encounter_pools, ds_type_map);
 +    
-+    _ok = ds_exists(global.bl_lookup, ds_type_map);
++    gnx_test_check(_r, _log, _ok, "T04 gnx_encounter_pools is a map", "T04 gnx_encounter_pools not a map");
++}
++
++
++// T05
++function scr_gnx_test_t05(_r, _log)
++{
++    var _ok = ds_exists(global.front_row, ds_type_list);
 +    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T03 bl_lookup is a map\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T03 bl_lookup not a map\n");
-+        _fail++;
-+    }
++    gnx_test_check(_r, _log, _ok, "T05 front_row is a list", "T05 front_row not a list");
++}
++
++
++// T06
++function scr_gnx_test_t06(_r, _log)
++{
++    var _ok = ds_exists(global.back_row, ds_type_list);
 +    
-+    _ok = ds_exists(global.gnx_encounter_pools, ds_type_map);
-+    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T04 gnx_encounter_pools is a map\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T04 gnx_encounter_pools not a map\n");
-+        _fail++;
-+    }
-+    
-+    _ok = ds_exists(global.front_row, ds_type_list);
-+    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T05 front_row is a list\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T05 front_row not a list\n");
-+        _fail++;
-+    }
-+    
-+    _ok = ds_exists(global.back_row, ds_type_list);
-+    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T06 back_row is a list\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T06 back_row not a list\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _ok, "T06 back_row is a list", "T06 back_row not a list");
++}
++
++
++// T07
++function scr_gnx_test_t07(_r, _log)
++{
 +    var _n = ds_map_size(global.cell_registry);
-+    _ok = _n >= 39;
++    var _ok = _n >= 39;
 +    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T07 cell_registry size=" + string(_n) + " (>=39)\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T07 cell_registry size=" + string(_n) + " (<39)\n");
-+        _fail++;
-+    }
++    gnx_test_check(_r, _log, _ok, "T07 cell_registry size=" + string(_n) + " (>=39)", "T07 cell_registry size=" + string(_n) + " (<39)");
++}
++
++
++// T08
++function scr_gnx_test_t08(_r, _log)
++{
++    var _n = ds_map_size(global.class_registry);
++    var _ok = _n >= 14;
 +    
-+    _n = ds_map_size(global.class_registry);
-+    _ok = _n >= 14;
++    gnx_test_check(_r, _log, _ok, "T08 class_registry size=" + string(_n) + " (>=14)", "T08 class_registry size=" + string(_n) + " (<14)");
++}
++
++
++// T09
++function scr_gnx_test_t09(_r, _log)
++{
++    var _ok = ds_exists(global.gnx_cov, ds_type_map);
 +    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T08 class_registry size=" + string(_n) + " (>=14)\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T08 class_registry size=" + string(_n) + " (<14)\n");
-+        _fail++;
-+    }
++    gnx_test_check(_r, _log, _ok, "T09 gnx_cov is a map", "T09 gnx_cov not a map");
++}
++
++
++// T10
++function scr_gnx_test_t10(_r, _log)
++{
++    var _n = ds_map_size(global.gnx_encounter_pools);
++    var _ok = _n > 0;
 +    
-+    _ok = ds_exists(global.gnx_cov, ds_type_map);
-+    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T09 gnx_cov is a map\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T09 gnx_cov not a map\n");
-+        _fail++;
-+    }
-+    
-+    _n = ds_map_size(global.gnx_encounter_pools);
-+    _ok = _n > 0;
-+    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T10 encounter_pools size=" + string(_n) + "\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T10 encounter_pools empty\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _ok, "T10 encounter_pools size=" + string(_n), "T10 encounter_pools empty");
++}
++
++
++// T11
++function scr_gnx_test_t11(_r, _log)
++{
 +    var _exp = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39, 40, 41, 42];
 +    var _missing = "";
 +    var _i = 0;
@@ -227,17 +279,13 @@
 +            _missing += (string(_ht) + " ");
 +    }
 +    
-+    if (_missing == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T11 all 39 cells registered\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T11 cells missing: " + _missing + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _missing == "", "T11 all 39 cells registered", "T11 cells missing: " + _missing);
++}
++
++
++// T12
++function scr_gnx_test_t12(_r, _log)
++{
 +    var _missing_c = "";
 +    var _ci = 0;
 +    
@@ -249,21 +297,17 @@
 +        _ci++;
 +    }
 +    
-+    if (_missing_c == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T12 classes 0-13 all registered\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T12 classes missing: " + _missing_c + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _missing_c == "", "T12 classes 0-13 all registered", "T12 classes missing: " + _missing_c);
++}
++
++
++// T13
++function scr_gnx_test_t13(_r, _log)
++{
 +    if (ds_map_exists(global.cell_registry, 1))
 +    {
 +        var _c1 = ds_map_find_value(global.cell_registry, 1);
-+        _ok = variable_struct_exists(_c1, "name") && variable_struct_exists(_c1, "physical") && variable_struct_exists(_c1, "human_spr");
++        var _ok = variable_struct_exists(_c1, "name") && variable_struct_exists(_c1, "physical") && variable_struct_exists(_c1, "human_spr");
 +        
 +        if (_ok)
 +        {
@@ -271,67 +315,64 @@
 +            _ok = variable_struct_exists(_p1, "allow_preg") && variable_struct_exists(_p1, "max_mon_num") && variable_struct_exists(_p1, "anal") && variable_struct_exists(_p1, "spr_row_pos");
 +        }
 +        
-+        if (_ok)
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T13 WALL1 registry entry complete\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T13 WALL1 registry entry missing fields\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _ok, "T13 WALL1 registry entry complete", "T13 WALL1 registry entry missing fields");
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T13 WALL1 (h=1) not in registry\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T14
++function scr_gnx_test_t14(_r, _log)
++{
 +    if (ds_map_exists(global.cell_registry, 36))
 +    {
 +        var _c36 = ds_map_find_value(global.cell_registry, 36);
-+        _ok = variable_struct_exists(_c36, "human_spr") && _c36.human_spr.mode == "fixed";
++        var _ok = variable_struct_exists(_c36, "human_spr") && _c36.human_spr.mode == "fixed";
 +        
-+        if (_ok)
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T14 DAIRY human_spr mode=fixed\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T14 DAIRY human_spr mode wrong\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _ok, "T14 DAIRY human_spr mode=fixed", "T14 DAIRY human_spr mode wrong");
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T14 DAIRY (h=36) not in registry\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T15
++function scr_gnx_test_t15(_r, _log)
++{
 +    if (ds_map_exists(global.cell_registry, 27))
 +    {
 +        var _c27 = ds_map_find_value(global.cell_registry, 27);
-+        _ok = variable_struct_exists(_c27, "slot_type") && _c27.slot_type == 3;
++        var _ok = variable_struct_exists(_c27, "slot_type") && _c27.slot_type == 3;
 +        
 +        if (_ok)
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T15 BIND1 slot_type=3 (tent)\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T15 BIND1 slot_type wrong (got " + string(_c27.slot_type) + ")\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T15 BIND1 (h=27) not in registry\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T16
++function scr_gnx_test_t16(_r, _log)
++{
 +    var _cls_n = ds_map_size(global.class_registry);
 +    var _bad_mod_classes = "";
 +    
@@ -357,19 +398,24 @@
 +    if (_bad_mod_classes == "")
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T16 mod classes valid (extra=" + string(max(0, _cls_n - 14)) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T16 mod class entries invalid: " + _bad_mod_classes + "\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
-+    _ok = is_array(global.gnx_registered_cells);
++}
++
++
++// T17
++function scr_gnx_test_t17(_r, _log)
++{
++    var _ok = is_array(global.gnx_registered_cells);
 +    var _rn = _ok ? array_length(global.gnx_registered_cells) : 0;
 +    var _bad_mod_cells = "";
 +    
-+    for (_i = 0; _i < _rn; _i++)
++    for (var _i = 0; _i < _rn; _i++)
 +    {
 +        var _rh = global.gnx_registered_cells[_i];
 +        var _rht = is_struct(_rh) ? _rh.h_type : _rh;
@@ -383,49 +429,46 @@
 +    if (_ok && _bad_mod_cells == "")
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T17 gnx_registered_cells valid (len=" + string(_rn) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else if (!_ok)
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T17 gnx_registered_cells not an array\n");
-+        _fail++;
++        _r.fail++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T17 gnx_registered_cells invalid entries: " + _bad_mod_cells + "\n");
-+        _fail++;
++        _r.fail++;
 +    }
++}
++
++
++// T18
++function scr_gnx_test_t18(_r, _log)
++{
++    var _ok = global.use_legacy_dispatch == false;
 +    
-+    _ok = global.use_legacy_dispatch == false;
++    gnx_test_check(_r, _log, _ok, "T18 use_legacy_dispatch=false", "T18 use_legacy_dispatch=true (registry bypassed!)");
++}
++
++
++// T19
++function scr_gnx_test_t19(_r, _log)
++{
++    var _ok = is_struct(global.val.gnx_mod_data);
 +    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T18 use_legacy_dispatch=false\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T18 use_legacy_dispatch=true (registry bypassed!)\n");
-+        _fail++;
-+    }
-+    
-+    _ok = is_struct(global.val.gnx_mod_data);
-+    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T19 gnx_mod_data is a struct\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T19 gnx_mod_data not a struct\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _ok, "T19 gnx_mod_data is a struct", "T19 gnx_mod_data not a struct");
++}
++
++
++// T20
++function scr_gnx_test_t20(_r, _log)
++{
 +    var _selftest_mod = "_gnx_selftest";
 +    scr_gnx_set_state(_selftest_mod, "_test_rt", 42);
 +    var _rt = scr_gnx_get_state(_selftest_mod, "_test_rt");
-+    _ok = _rt == 42;
++    var _ok = _rt == 42;
 +    
 +    if (_ok)
 +        _ok = variable_struct_get(variable_struct_get(global.val.gnx_mod_data, _selftest_mod), "_test_rt") == 42;
@@ -436,17 +479,13 @@
 +    if (variable_struct_exists(global.val.gnx_mod_data, _selftest_mod))
 +        variable_struct_remove(global.val.gnx_mod_data, _selftest_mod);
 +    
-+    if (_ok)
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T20 set/get round-trip + persistence path\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T20 set/get round-trip: got " + string(_rt) + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _ok, "T20 set/get round-trip + persistence path", "T20 set/get round-trip: got " + string(_rt));
++}
++
++
++// T21
++function scr_gnx_test_t21(_r, _log)
++{
 +    var _bad21 = "";
 +    var _k21 = ds_map_find_first(global.cell_registry);
 +    
@@ -468,17 +507,13 @@
 +        _k21 = ds_map_find_next(global.cell_registry, _k21);
 +    }
 +    
-+    if (_bad21 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T21 fixed-mode cell sprites valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T21 fixed-mode bad sprites: " + _bad21 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad21 == "", "T21 fixed-mode cell sprites valid", "T21 fixed-mode bad sprites: " + _bad21);
++}
++
++
++// T22
++function scr_gnx_test_t22(_r, _log)
++{
 +    var _bad22 = "";
 +    var _k22 = ds_map_find_first(global.class_registry);
 +    
@@ -500,17 +535,13 @@
 +        _k22 = ds_map_find_next(global.class_registry, _k22);
 +    }
 +    
-+    if (_bad22 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T22 class clothing sprites valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T22 class clothing bad sprites: " + _bad22 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad22 == "", "T22 class clothing sprites valid", "T22 class clothing bad sprites: " + _bad22);
++}
++
++
++// T23
++function scr_gnx_test_t23(_r, _log)
++{
 +    var _ok23 = is_array(global.gnx_indexed_mods) && is_array(global.gnx_loaded_mods);
 +    var _miss23 = "";
 +    
@@ -538,14 +569,19 @@
 +    if (_ok23 && _miss23 == "")
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T23 all indexed mods loaded (" + string(_ok23 ? array_length(global.gnx_indexed_mods) : 0) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T23 mods not loaded: " + _miss23 + "\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T24
++function scr_gnx_test_t24(_r, _log)
++{
 +    var _bad24 = "";
 +    var _k24 = ds_map_find_first(global.cell_registry);
 +    
@@ -567,17 +603,13 @@
 +        _k24 = ds_map_find_next(global.cell_registry, _k24);
 +    }
 +    
-+    if (_bad24 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T24 required_class resolve\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T24 unresolved class refs: " + _bad24 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad24 == "", "T24 required_class resolve", "T24 unresolved class refs: " + _bad24);
++}
++
++
++// T25
++function scr_gnx_test_t25(_r, _log)
++{
 +    var _bad25 = 0;
 +    var _bk25 = ds_map_find_first(global.bl_lookup);
 +    
@@ -592,19 +624,24 @@
 +    if (_bad25 == 0)
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T25 bl_lookup sprites valid (n=" + string(ds_map_size(global.bl_lookup)) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T25 bl_lookup invalid entries: " + string(_bad25) + "\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T26
++function scr_gnx_test_t26(_r, _log)
++{
 +    var _dup26 = "";
 +    
 +    if (is_array(global.gnx_registered_cells))
 +    {
-+        for (_i = 0; _i < array_length(global.gnx_registered_cells); _i++)
++        for (var _i = 0; _i < array_length(global.gnx_registered_cells); _i++)
 +        {
 +            var _ei = global.gnx_registered_cells[_i];
 +            var _hi = is_struct(_ei) ? _ei.h_type : _ei;
@@ -623,17 +660,13 @@
 +        }
 +    }
 +    
-+    if (_dup26 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T26 no duplicate registered h_type\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T26 duplicate h_type: " + _dup26 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _dup26 == "", "T26 no duplicate registered h_type", "T26 duplicate h_type: " + _dup26);
++}
++
++
++// T27
++function scr_gnx_test_t27(_r, _log)
++{
 +    if (array_length(global.gnx_registered_cells) == 0)
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T27 no mod cells loaded\n");
@@ -642,7 +675,7 @@
 +    {
 +        var _hash27 = false;
 +        
-+        for (_ci = 0; _ci < array_length(global.gnx_registered_cells); _ci++)
++        for (var _ci = 0; _ci < array_length(global.gnx_registered_cells); _ci++)
 +        {
 +            var _e27 = global.gnx_registered_cells[_ci];
 +            var _h27 = is_struct(_e27) ? _e27.h_type : _e27;
@@ -654,40 +687,46 @@
 +            }
 +        }
 +        
-+        if (_hash27)
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T27 hash-assigned cell h_type>=100 found\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T27 no hash-assigned cell found\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _hash27, "T27 hash-assigned cell h_type>=100 found", "T27 no hash-assigned cell found");
 +    }
-+    
++}
++
++
++// T28
++function scr_gnx_test_t28(_r, _log)
++{
 +    if (ds_exists(global.gnx_quest_events, ds_type_map))
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T28 gnx_quest_events is valid ds_map (size=" + string(ds_map_size(global.gnx_quest_events)) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T28 gnx_quest_events not a valid ds_map\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T29
++function scr_gnx_test_t29(_r, _log)
++{
 +    if (is_array(global.gnx_quest_triggers))
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T29 gnx_quest_triggers is array (len=" + string(array_length(global.gnx_quest_triggers)) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T29 gnx_quest_triggers not an array\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T30
++function scr_gnx_test_t30(_r, _log)
++{
 +    if (ds_map_size(global.gnx_quest_events) > 0)
 +    {
 +        var _bad30 = "";
@@ -711,22 +750,18 @@
 +            _key30 = ds_map_find_next(global.gnx_quest_events, _key30);
 +        }
 +        
-+        if (_bad30 == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T30 all quest event portraits valid\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T30 invalid portraits: " + _bad30 + "\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _bad30 == "", "T30 all quest event portraits valid", "T30 invalid portraits: " + _bad30);
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T30 no quest events loaded\n");
 +    }
-+    
++}
++
++
++// T31
++function scr_gnx_test_t31(_r, _log)
++{
 +    if (array_length(global.gnx_quest_triggers) > 0)
 +    {
 +        var _bad31 = "";
@@ -743,30 +778,40 @@
 +        if (_bad31 == "")
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T31 all triggers ref valid events (n=" + string(array_length(global.gnx_quest_triggers)) + ")\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T31 triggers ref missing events: " + _bad31 + "\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T31 no triggers loaded\n");
 +    }
-+    
++}
++
++
++// T32
++function scr_gnx_test_t32(_r, _log)
++{
 +    if (ds_exists(global.gnx_popups, ds_type_map))
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T32 gnx_popups is valid ds_map (size=" + string(ds_map_size(global.gnx_popups)) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T32 gnx_popups not a valid ds_map\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T33
++function scr_gnx_test_t33(_r, _log)
++{
 +    var _bad33 = "";
 +    var _k33 = ds_map_find_first(global.gnx_encounter_pools);
 +    
@@ -785,17 +830,13 @@
 +        _k33 = ds_map_find_next(global.gnx_encounter_pools, _k33);
 +    }
 +    
-+    if (_bad33 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T33 all conditional pool entries have mod_name\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T33 missing mod_name: " + _bad33 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad33 == "", "T33 all conditional pool entries have mod_name", "T33 missing mod_name: " + _bad33);
++}
++
++
++// T34
++function scr_gnx_test_t34(_r, _log)
++{
 +    var _bad34 = "";
 +    var _k34 = ds_map_find_first(global.class_registry);
 +    
@@ -822,17 +863,13 @@
 +        _k34 = ds_map_find_next(global.class_registry, _k34);
 +    }
 +    
-+    if (_bad34 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T34 post_raid structures valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T34 invalid post_raid: " + _bad34 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad34 == "", "T34 post_raid structures valid", "T34 invalid post_raid: " + _bad34);
++}
++
++
++// T35
++function scr_gnx_test_t35(_r, _log)
++{
 +    var _bad35 = "";
 +    var _k35 = ds_map_find_first(global.class_registry);
 +    
@@ -869,28 +906,29 @@
 +        _k35 = ds_map_find_next(global.class_registry, _k35);
 +    }
 +    
-+    if (_bad35 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T35 birth_class values valid (0-3)\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T35 invalid birth_class: " + _bad35 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad35 == "", "T35 birth_class values valid (0-3)", "T35 invalid birth_class: " + _bad35);
++}
++
++
++// T36
++function scr_gnx_test_t36(_r, _log)
++{
 +    if (is_array(global.gnx_tool_registry))
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T36 gnx_tool_registry is array (len=" + string(array_length(global.gnx_tool_registry)) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T36 gnx_tool_registry is not an array\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T37
++function scr_gnx_test_t37(_r, _log)
++{
 +    var _known_types = ["add_gold", "add_food", "add_milk", "add_orbs", "give_item", "give_blueprint", "give_prop", "spawn_mon", "set_troop_level", "add_troop_exp", "set_skill_level", "set_troop_size", "create_unit", "create_unit_cage", "unlock_boss", "unlock_stage_next", "unlock_breeds", "unlock_cell", "unlock_prop", "unlock_raid", "unlock_all_cells", "add_floor", "set_day", "add_day_time", "set_speed", "swap_mouse", "show_debug_overlay", "set_val", "set_var", "reroll_shop", "reroll_trade", "reroll_encounters", "reload_mods", "set_state", "set_continuous", "fire_event", "fire_trigger", "popup", "play_sfx", "travel_map"];
 +    var _bad37 = "";
 +    
@@ -898,7 +936,7 @@
 +    {
 +        var _reg = global.gnx_tool_registry[_mi];
 +        
-+        for (_ci = 0; _ci < array_length(_reg.categories); _ci++)
++        for (var _ci = 0; _ci < array_length(_reg.categories); _ci++)
 +        {
 +            var _cat = _reg.categories[_ci];
 +            
@@ -931,17 +969,13 @@
 +        }
 +    }
 +    
-+    if (_bad37 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T37 all tool button action types valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T37 invalid tool actions: " + _bad37 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad37 == "", "T37 all tool button action types valid", "T37 invalid tool actions: " + _bad37);
++}
++
++
++// T38
++function scr_gnx_test_t38(_r, _log)
++{
 +    var _bad38 = "";
 +    
 +    for (var _ki = 0; _ki < array_length(global.gnx_keybinds); _ki++)
@@ -962,21 +996,26 @@
 +    if (_bad38 == "")
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] PASS  T38 all keybinds valid (count=" + string(array_length(global.gnx_keybinds)) + ")\n");
-+        _pass++;
++        _r.pass++;
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] FAIL  T38 invalid keybinds: " + _bad38 + "\n");
-+        _fail++;
++        _r.fail++;
 +    }
-+    
++}
++
++
++// T39
++function scr_gnx_test_t39(_r, _log)
++{
 +    var _bad39 = "";
 +    
 +    for (var _mi = 0; _mi < array_length(global.gnx_tool_registry); _mi++)
 +    {
 +        var _reg = global.gnx_tool_registry[_mi];
 +        
-+        for (_ci = 0; _ci < array_length(_reg.categories); _ci++)
++        for (var _ci = 0; _ci < array_length(_reg.categories); _ci++)
 +        {
 +            var _cat = _reg.categories[_ci];
 +            
@@ -998,17 +1037,13 @@
 +        }
 +    }
 +    
-+    if (_bad39 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T39 all toggle keys exist in save_state\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T39 missing toggle keys: " + _bad39 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad39 == "", "T39 all toggle keys exist in save_state", "T39 missing toggle keys: " + _bad39);
++}
++
++
++// T40
++function scr_gnx_test_t40(_r, _log)
++{
 +    var _bad40 = "";
 +    var _k40 = ds_map_find_first(global.class_registry);
 +    
@@ -1040,17 +1075,13 @@
 +        _k40 = ds_map_find_next(global.class_registry, _k40);
 +    }
 +    
-+    if (_bad40 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T40 naked layer sprites valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T40 naked layer bad sprites: " + _bad40 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad40 == "", "T40 naked layer sprites valid", "T40 naked layer bad sprites: " + _bad40);
++}
++
++
++// T41
++function scr_gnx_test_t41(_r, _log)
++{
 +    if (!global.gnx_has_sounds)
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T41 no sound mods loaded\n");
@@ -1083,15 +1114,20 @@
 +        if (_bad41 == "")
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T41 voice banks valid (count=" + string(array_length(global.gnx_voice_bank_names)) + ")\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T41 bad voice banks: " + _bad41 + "\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +    }
-+    
++}
++
++
++// T42
++function scr_gnx_test_t42(_r, _log)
++{
 +    if (!global.gnx_has_sounds)
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T42 no sound mods loaded\n");
@@ -1113,18 +1149,14 @@
 +            }
 +        }
 +        
-+        if (_bad42 == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T42 SFX pools valid\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T42 bad SFX entries: " + _bad42 + "\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _bad42 == "", "T42 SFX pools valid", "T42 bad SFX entries: " + _bad42);
 +    }
-+    
++}
++
++
++// T43
++function scr_gnx_test_t43(_r, _log)
++{
 +    if (!global.gnx_has_sounds)
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T43 no sound mods loaded\n");
@@ -1147,18 +1179,14 @@
 +            _k43 = ds_map_find_next(global.class_registry, _k43);
 +        }
 +        
-+        if (_bad43 == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T43 class voice bank refs valid\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T43 bad voice bank refs: " + _bad43 + "\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _bad43 == "", "T43 class voice bank refs valid", "T43 bad voice bank refs: " + _bad43);
 +    }
-+    
++}
++
++
++// T44
++function scr_gnx_test_t44(_r, _log)
++{
 +    var _bad44 = "";
 +    var _mso_keys = ds_map_find_first(global.class_registry);
 +    
@@ -1183,17 +1211,13 @@
 +        _mso_keys = ds_map_find_next(global.class_registry, _mso_keys);
 +    }
 +    
-+    if (_bad44 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T44 mon_spr_overrides sprites valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T44 bad mon_spr_overrides: " + _bad44 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad44 == "", "T44 mon_spr_overrides sprites valid", "T44 bad mon_spr_overrides: " + _bad44);
++}
++
++
++// T45
++function scr_gnx_test_t45(_r, _log)
++{
 +    var _bad45 = "";
 +    var _k45 = ds_map_find_first(global.cell_registry);
 +    
@@ -1240,17 +1264,13 @@
 +        _k45 = ds_map_find_next(global.cell_registry, _k45);
 +    }
 +    
-+    if (_bad45 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T45 class_map cell sprites valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T45 class_map bad sprites: " + _bad45 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad45 == "", "T45 class_map cell sprites valid", "T45 class_map bad sprites: " + _bad45);
++}
++
++
++// T54, T55, T56, T57
++function scr_gnx_test_t54_t57(_r, _log)
++{
 +    if (global.gnx_multimap_enabled)
 +    {
 +        var _ok54 = is_string(global.gnx_active_map) && is_struct(global.gnx_inactive_maps) && is_struct(global.gnx_mod_map_decl) && (global.gnx_travel_data == -1 || (global.gnx_in_travel && is_struct(global.gnx_travel_data)));
@@ -1258,12 +1278,12 @@
 +        if (_ok54)
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T54 multi-map globals\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T54 multi-map globals (active_map=" + string(global.gnx_active_map) + " travel_data=" + string(global.gnx_travel_data) + ")\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +        
 +        var _bad55 = "";
@@ -1276,16 +1296,7 @@
 +                _bad55 += (_mn55 + " ");
 +        }
 +        
-+        if (_bad55 == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T55 all loaded mods have map decl\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T55 mods missing map decl: " + _bad55 + "\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _bad55 == "", "T55 all loaded mods have map decl", "T55 mods missing map decl: " + _bad55);
 +        
 +        var _valid56 = {};
 +        variable_struct_set(_valid56, "vanilla", true);
@@ -1311,16 +1322,7 @@
 +        if (!variable_struct_exists(_valid56, global.gnx_active_map) && global.gnx_active_map != "vanilla")
 +            _bad56 += ("active:" + global.gnx_active_map + " ");
 +        
-+        if (_bad56 == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T56 no orphaned maps\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T56 orphaned maps: " + _bad56 + "\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _bad56 == "", "T56 no orphaned maps", "T56 orphaned maps: " + _bad56);
 +        
 +        var _ok57 = is_array(global.gnx_travel_locations);
 +        var _bad57 = "";
@@ -1339,19 +1341,24 @@
 +        if (_ok57 && _bad57 == "")
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T57 travel locations valid (n=" + string(array_length(global.gnx_travel_locations)) + ")\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T57 travel locations: " + _bad57 + "\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +    }
 +    else
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T54-T57 multi-map disabled\n");
 +    }
-+    
++}
++
++
++// T58
++function scr_gnx_test_t58(_r, _log)
++{
 +    var _bad58 = "";
 +    var _k58 = ds_map_find_first(global.class_registry);
 +    
@@ -1390,17 +1397,13 @@
 +        _k58 = ds_map_find_next(global.class_registry, _k58);
 +    }
 +    
-+    if (_bad58 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T58 birth_spr sprites valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T58 birth_spr invalid: " + _bad58 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad58 == "", "T58 birth_spr sprites valid", "T58 birth_spr invalid: " + _bad58);
++}
++
++
++// T59
++function scr_gnx_test_t59(_r, _log)
++{
 +    var _bad59 = "";
 +    var _k59 = ds_map_find_first(global.prop_registry);
 +    
@@ -1442,17 +1445,13 @@
 +        _k59 = ds_map_find_next(global.prop_registry, _k59);
 +    }
 +    
-+    if (_bad59 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T59 prop_registry valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T59 prop_registry invalid: " + _bad59 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad59 == "", "T59 prop_registry valid", "T59 prop_registry invalid: " + _bad59);
++}
++
++
++// T60
++function scr_gnx_test_t60(_r, _log)
++{
 +    if (!global.gnx_has_ambience)
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T60 goblin ambience (no mod provides an 'ambience' block)\n");
@@ -1529,15 +1528,20 @@
 +        if (_bad60 == "")
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T60 goblin ambience valid + isolated (clips=" + string(array_length(_amb_ids)) + ")\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T60 goblin ambience: " + _bad60 + "\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +    }
-+    
++}
++
++
++// T61, T62, T63, T64, T65, T66, T67, T68, T69, T70, T71, T72, T73, T74, T75
++function scr_gnx_test_t61_t75(_r, _log)
++{
 +    if (global.gnx_multimap_enabled)
 +    {
 +        var _ok61 = variable_global_exists("gnx_map_deferred_mods") && is_array(global.gnx_map_deferred_mods);
@@ -1545,12 +1549,12 @@
 +        if (_ok61)
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T61 gnx_map_deferred_mods is array (n=" + string(array_length(global.gnx_map_deferred_mods)) + ")\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T61 gnx_map_deferred_mods missing or not array\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +        
 +        var _bad62 = "";
@@ -1581,29 +1585,11 @@
 +            }
 +        }
 +        
-+        if (_bad62 == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T62 deferred mods have valid map decl\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T62 deferred mods: " + _bad62 + "\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _bad62 == "", "T62 deferred mods have valid map decl", "T62 deferred mods: " + _bad62);
 +        
 +        var _ok63 = is_string(global.gnx_active_map) && global.gnx_active_map != "";
 +        
-+        if (_ok63)
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T63 gnx_active_map='" + global.gnx_active_map + "'\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T63 gnx_active_map empty or not string\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _ok63, "T63 gnx_active_map='" + global.gnx_active_map + "'", "T63 gnx_active_map empty or not string");
 +        
 +        var _ok64 = is_struct(global.gnx_inactive_maps);
 +        var _bad64 = "";
@@ -1614,56 +1600,29 @@
 +        if (_ok64 && _bad64 == "")
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T64 inactive_maps clean (n=" + string(array_length(variable_struct_get_names(global.gnx_inactive_maps))) + ")\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T64 inactive_maps: " + _bad64 + "\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +        
 +        if (!global.gnx_in_travel)
 +        {
-+            if (global.gnx_travel_data == -1)
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] PASS  T65 travel_data == -1 (idle)\n");
-+                _pass++;
-+            }
-+            else
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] FAIL  T65 travel_data not -1 at rest\n");
-+                _fail++;
-+            }
++            gnx_test_check(_r, _log, global.gnx_travel_data == -1, "T65 travel_data == -1 (idle)", "T65 travel_data not -1 at rest");
 +            
-+            if (!global.gnx_trigger_load)
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] PASS  T66 trigger_load=false (idle)\n");
-+                _pass++;
-+            }
-+            else
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] FAIL  T66 trigger_load still true\n");
-+                _fail++;
-+            }
++            gnx_test_check(_r, _log, !global.gnx_trigger_load, "T66 trigger_load=false (idle)", "T66 trigger_load still true");
 +            
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T67 gnx_in_travel=false (idle)\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] SKIP  T65-T67 (mid-travel)\n");
 +        }
 +        
-+        if (global.gnx_pending_map_start == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T68 pending_map_start='' (idle)\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T68 pending_map_start='" + global.gnx_pending_map_start + "'\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, global.gnx_pending_map_start == "", "T68 pending_map_start='' (idle)", "T68 pending_map_start='" + global.gnx_pending_map_start + "'");
 +        
 +        if (global.gnx_in_travel)
 +        {
@@ -1689,16 +1648,7 @@
 +                }
 +            }
 +
-+            if (_found69)
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] PASS  T69 active map '" + global.gnx_active_map + "' has a return entry\n");
-+                _pass++;
-+            }
-+            else
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] FAIL  T69 active map '" + global.gnx_active_map + "' has no return entry\n");
-+                _fail++;
-+            }
++            gnx_test_check(_r, _log, _found69, "T69 active map '" + global.gnx_active_map + "' has a return entry", "T69 active map '" + global.gnx_active_map + "' has no return entry");
 +        }
 +        
 +        var _test70 = {};
@@ -1722,16 +1672,7 @@
 +        var _rt70 = json_parse(_json70);
 +        var _ok70 = is_struct(_rt70) && _rt70.gnx_active_map == "test_roundtrip" && _rt70.val.money == 999 && _rt70.unlock.raid == true && is_array(_rt70.unlock.breed) && array_length(_rt70.unlock.breed) == 2 && _rt70.unlock.breed[0] == 1;
 +        
-+        if (_ok70)
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T70 snapshot JSON round-trip\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T70 snapshot round-trip mismatch\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _ok70, "T70 snapshot JSON round-trip", "T70 snapshot round-trip mismatch");
 +        
 +        var _bad71 = "";
 +        var _mk71 = variable_struct_get_names(global.gnx_map_start_decl);
@@ -1781,12 +1722,12 @@
 +        if (_bad71 == "")
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] PASS  T71 map_start declarations valid (n=" + string(array_length(_mk71)) + ")\n");
-+            _pass++;
++            _r.pass++;
 +        }
 +        else
 +        {
 +            gnx_log_write(_log, "[GNX-TEST] FAIL  T71 map_start: " + _bad71 + "\n");
-+            _fail++;
++            _r.fail++;
 +        }
 +        
 +        var _bad72 = "";
@@ -1805,16 +1746,7 @@
 +                _bad72 += ("idx" + string(_i72) + "(no_target) ");
 +        }
 +        
-+        if (_bad72 == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T72 travel coords in-bounds\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T72 travel coords: " + _bad72 + "\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _bad72 == "", "T72 travel coords in-bounds", "T72 travel coords: " + _bad72);
 +        
 +        var _bad73 = "";
 +        var _req73 = ["raid", "unit", "timer", "entrance", "breed", "utility", "pleasure", "b_breed", "b_utility", "b_other", "t_breed", "t_utility", "edit_between", "edit_top", "edit_mid", "edit_bot", "boss"];
@@ -1825,16 +1757,7 @@
 +                _bad73 += (_req73[_i73] + " ");
 +        }
 +        
-+        if (_bad73 == "")
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] PASS  T73 global.unlock has all fields\n");
-+            _pass++;
-+        }
-+        else
-+        {
-+            gnx_log_write(_log, "[GNX-TEST] FAIL  T73 unlock missing: " + _bad73 + "\n");
-+            _fail++;
-+        }
++        gnx_test_check(_r, _log, _bad73 == "", "T73 global.unlock has all fields", "T73 unlock missing: " + _bad73);
 +        
 +        if (global.gnx_in_travel)
 +        {
@@ -1859,16 +1782,7 @@
 +            if (global.val.guide_unlock.num < 3)
 +                _bad74 += ("guide_unlock(num=" + string(global.val.guide_unlock.num) + ") ");
 +            
-+            if (_bad74 == "")
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] PASS  T74 non-vanilla UI unlocks all true\n");
-+                _pass++;
-+            }
-+            else
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] FAIL  T74 missing unlocks on '" + global.gnx_active_map + "': " + _bad74 + "\n");
-+                _fail++;
-+            }
++            gnx_test_check(_r, _log, _bad74 == "", "T74 non-vanilla UI unlocks all true", "T74 missing unlocks on '" + global.gnx_active_map + "': " + _bad74);
 +        }
 +        else
 +        {
@@ -1890,16 +1804,7 @@
 +                }
 +            }
 +            
-+            if (_found75)
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] PASS  T75 return-to-vanilla button exists (show_on='" + global.gnx_active_map + "')\n");
-+                _pass++;
-+            }
-+            else
-+            {
-+                gnx_log_write(_log, "[GNX-TEST] FAIL  T75 no return-to-vanilla for map '" + global.gnx_active_map + "'\n");
-+                _fail++;
-+            }
++            gnx_test_check(_r, _log, _found75, "T75 return-to-vanilla button exists (show_on='" + global.gnx_active_map + "')", "T75 no return-to-vanilla for map '" + global.gnx_active_map + "'");
 +        }
 +        else
 +        {
@@ -1910,7 +1815,12 @@
 +    {
 +        gnx_log_write(_log, "[GNX-TEST] SKIP  T61-T75 multi-map disabled\n");
 +    }
-+    
++}
++
++
++// T81
++function scr_gnx_test_t81(_r, _log)
++{
 +    var _bad81 = "";
 +    var _h81 = ds_map_find_first(global.cell_registry);
 +    
@@ -1939,17 +1849,13 @@
 +        _h81 = ds_map_find_next(global.cell_registry, _h81);
 +    }
 +    
-+    if (_bad81 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T81 gnx_mon_positions valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T81 bad mon_positions: " + _bad81 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad81 == "", "T81 gnx_mon_positions valid", "T81 bad mon_positions: " + _bad81);
++}
++
++
++// T82
++function scr_gnx_test_t82(_r, _log)
++{
 +    var _bad82 = "";
 +    var _pp82 = ["mon_spr_p0", "mon_spr_p1", "mon_spr_p2", "mon_spr_hob_p0", "mon_spr_hob_p1", "mon_spr_hob_p2", "mon_spr_ogr_p0", "mon_spr_ogr_p1", "mon_spr_ogr_p2"];
 +    var _h82 = ds_map_find_first(global.cell_registry);
@@ -1972,17 +1878,13 @@
 +        _h82 = ds_map_find_next(global.cell_registry, _h82);
 +    }
 +    
-+    if (_bad82 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T82 per-placement sprites valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T82 bad per-placement: " + _bad82 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad82 == "", "T82 per-placement sprites valid", "T82 bad per-placement: " + _bad82);
++}
++
++
++// T83
++function scr_gnx_test_t83(_r, _log)
++{
 +    var _bad83 = "";
 +    var _ph83n = ["phase_0", "phase_1", "phase_2", "phase_4"];
 +    var _h83 = ds_map_find_first(global.cell_registry);
@@ -2018,17 +1920,13 @@
 +        _h83 = ds_map_find_next(global.cell_registry, _h83);
 +    }
 +    
-+    if (_bad83 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T83 by_class phase entries valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T83 bad by_class: " + _bad83 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad83 == "", "T83 by_class phase entries valid", "T83 bad by_class: " + _bad83);
++}
++
++
++// T84
++function scr_gnx_test_t84(_r, _log)
++{
 +    var _bad84 = "";
 +    var _h84 = ds_map_find_first(global.cell_registry);
 +    
@@ -2057,17 +1955,13 @@
 +        _h84 = ds_map_find_next(global.cell_registry, _h84);
 +    }
 +    
-+    if (_bad84 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T84 required_class types valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T84 bad required_class: " + _bad84 + "\n");
-+        _fail++;
-+    }
-+    
++    gnx_test_check(_r, _log, _bad84 == "", "T84 required_class types valid", "T84 bad required_class: " + _bad84);
++}
++
++
++// T85
++function scr_gnx_test_t85(_r, _log)
++{
 +    // T85: only_listed_cells classes rejected from non-listing cells
 +    var _bad85 = "";
 +    var _c85 = ds_map_find_first(global.class_registry);
@@ -2111,26 +2005,7 @@
 +        _c85 = ds_map_find_next(global.class_registry, _c85);
 +    }
 +
-+    if (_bad85 == "")
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] PASS  T85 only_listed_cells constraint valid\n");
-+        _pass++;
-+    }
-+    else
-+    {
-+        gnx_log_write(_log, "[GNX-TEST] FAIL  T85 only_listed_cells: " + _bad85 + "\n");
-+        _fail++;
-+    }
-+
-+    var _total = _pass + _fail;
-+    gnx_log_write(_log, "[GNX-TEST] " + string(_pass) + "/" + string(_total) + " passed");
-+    
-+    if (_fail > 0)
-+        gnx_log_write(_log, "  *** " + string(_fail) + " FAILED ***");
-+    
-+    gnx_log_write(_log, "\n");
-+    gnx_log_write(_log, "[GNX-TEST] ============================================================\n");
-+    gnx_log_close(_log);
++    gnx_test_check(_r, _log, _bad85 == "", "T85 only_listed_cells constraint valid", "T85 only_listed_cells: " + _bad85);
 +}
 +
 +
