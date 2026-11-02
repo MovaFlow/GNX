@@ -282,7 +282,7 @@
 +    }
 +
 +    // map mods: the save holds that map's state (as the active map or a stored one)
-+    var _active = variable_struct_exists(arg0, "gnx_active_map") ? arg0.gnx_active_map : "vanilla";
++    var _active = gnx_opt(arg0, "gnx_active_map", "vanilla");
 +    var _owned = variable_struct_get_names(global.gnx_map_owner);
 +
 +    for (var _i = 0; _i < array_length(_owned); _i++)
@@ -1127,7 +1127,7 @@
 +    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
 +    {
 +        var _e = global.gnx_mod_list[_i];
-+        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: variable_struct_exists(_e, "description") ? _e.description : "", author: variable_struct_exists(_e, "author") ? _e.author : "", adds: gnx_mod_adds(_e) });
++        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e) });
 +    }
 +
 +    for (var _f = 0; _f < array_length(_files); _f++)
@@ -2253,7 +2253,7 @@
 +        _manifest.map_button = _manifest.map_info;
 +    }
 +
-+    var _versions = variable_struct_exists(_manifest, "compatible_game_versions") ? _manifest.compatible_game_versions : [];
++    var _versions = gnx_opt(_manifest, "compatible_game_versions", []);
 +    var _game_ver = string(global.val.version);
 +    var _ok = false;
 +    
@@ -2303,7 +2303,7 @@
 +            ds_map_add(global.gnx_mod_atlases, arg0, _atref);
 +    }
 +    
-+    var _mod_map = variable_struct_exists(_manifest, "map") ? _manifest.map : "vanilla";  // one map ID or a list of them
++    var _mod_map = gnx_opt(_manifest, "map", "vanilla");  // one map ID or a list of them
 +
 +    if (is_array(_mod_map) && array_length(_mod_map) == 0)
 +    {
@@ -2345,9 +2345,9 @@
 +            var _tl = {};
 +            _tl.target = _own_map;
 +            _tl.show_on = "vanilla";
-+            _tl.label = variable_struct_exists(_mb, "label") ? _mb.label : _own_map;
-+            _tl.x = variable_struct_exists(_mb, "x") ? _mb.x : 210;
-+            _tl.y = variable_struct_exists(_mb, "y") ? _mb.y : 70;
++            _tl.label = gnx_opt(_mb, "label", _own_map);
++            _tl.x = gnx_opt(_mb, "x", 210);
++            _tl.y = gnx_opt(_mb, "y", 70);
 +            _tl.mod_name = arg0;
 +            _tl.travel = variable_struct_exists(_mb, "travel") ? string(_mb.travel) : "simple";  // pre-travel selector tier
 +            var _tc = (variable_struct_exists(_mb, "travel_cost") && is_struct(_mb.travel_cost)) ? _mb.travel_cost : {};
@@ -2405,7 +2405,7 @@
 +            
 +            _tl.return_x = variable_struct_exists(_mb, "return_x") ? _mb.return_x : _tl.x;
 +            _tl.return_y = variable_struct_exists(_mb, "return_y") ? _mb.return_y : _tl.y;
-+            _tl.return_label = variable_struct_exists(_mb, "return_label") ? _mb.return_label : "Return";
++            _tl.return_label = gnx_opt(_mb, "return_label", "Return");
 +            _tl.no_capture = gnx_parse_no_capture(_mb, arg0);
 +
 +            // GNX-STAGE: where raid carts leave from on this map's own map_sprite
@@ -2545,7 +2545,7 @@
 +    if (_has_save_state)
 +    {
 +        var _ss = arg1.save_state;
-+        _schema_ver = variable_struct_exists(_ss, "version") ? _ss.version : 1;
++        _schema_ver = gnx_opt(_ss, "version", 1);
 +        
 +        if (variable_struct_exists(_ss, "fields"))
 +            _defaults = _ss.fields;
@@ -2582,7 +2582,7 @@
 +                variable_struct_set(_existing, _k, variable_struct_get(_defaults, _k));
 +        }
 +        
-+        var _saved_ver = variable_struct_exists(_existing, "_version") ? _existing._version : 0;
++        var _saved_ver = gnx_opt(_existing, "_version", 0);
 +        
 +        if (_schema_ver > _saved_ver)
 +            _existing._version = _schema_ver;

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4012 @@
+@@ -0,0 +1,4108 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -143,7 +143,7 @@
 +    }
 +    else if (is_struct(_s) && variable_struct_exists(_s, "from_game"))
 +    {
-+        _cache_key = "game:" + string(_s.from_game) + "#" + string(variable_struct_exists(_s, "index") ? _s.index : 0);
++        _cache_key = "game:" + string(_s.from_game) + "#" + string(gnx_opt(_s, "index", 0));
 +    }
 +    else if (!is_struct(_s))
 +    {
@@ -262,7 +262,7 @@
 +    else if (variable_struct_exists(_s, "from_game"))
 +    {
 +        var _gs = asset_get_index(string(_s.from_game));
-+        var _gi = variable_struct_exists(_s, "index") ? _s.index : 0;
++        var _gi = gnx_opt(_s, "index", 0);
 +
 +        if (_gs < 0 || !sprite_exists(_gs))
 +        {
@@ -516,7 +516,7 @@
 +    }
 +    else
 +    {
-+        var _cname = variable_struct_exists(arg0, "name") ? arg0.name : "";
++        var _cname = gnx_opt(arg0, "name", "");
 +        _h = gnx_hash_cell_id(arg1 + "." + _cname);
 +        
 +        while (ds_map_exists(global.cell_registry, _h))
@@ -567,9 +567,9 @@
 +        ds_map_add(global.gnx_cell_name_to_id, arg1 + "." + arg0.name, _h);
 +
 +    var _phys = arg0.physical;
-+    var _sprites_dict = variable_struct_exists(arg0, "sprites") ? arg0.sprites : undefined;
++    var _sprites_dict = gnx_opt(arg0, "sprites", undefined);
 +    var _base_dir = global.gnx_mods_root + arg1 + "/";
-+    var _char_row = variable_struct_exists(_phys, "character_row") ? _phys.character_row : 0;
++    var _char_row = gnx_opt(_phys, "character_row", 0);
 +    var _spr_row_pos = _h - _char_row - 1;
 +    var _raw_layers = _phys.layers;
 +    var _n_layers = array_length(_raw_layers);
@@ -590,7 +590,7 @@
 +
 +    // human_spr is optional (docs: base+class is the default); base_body follows the cell kind
 +    var _hspr_cat = variable_struct_exists(arg0, "category") ? string(arg0.category) : "";
-+    var _hspr_st = variable_struct_exists(arg0, "slot_type") ? arg0.slot_type : 0;
++    var _hspr_st = gnx_opt(arg0, "slot_type", 0);
 +    var _hspr_body = (string_copy(_hspr_cat, 1, 2) == "b_" || _hspr_st == 2) ? "big" : ((string_copy(_hspr_cat, 1, 2) == "t_" || _hspr_st == 3) ? "tent" : "standard");
 +
 +    if (variable_struct_exists(arg0, "human_spr") && variable_struct_exists(arg0.human_spr, "base_body"))
@@ -638,7 +638,7 @@
 +        gnx_inter_push_scripts(_scr_h);
 +    
 +    var _scr_draw = gnx_resolve_script(_phys.scr_draw);
-+    var _sp_spr_raw = variable_struct_exists(_phys, "sp_spr") ? _phys.sp_spr : -1;
++    var _sp_spr_raw = gnx_opt(_phys, "sp_spr", -1);
 +    var _sp_spr = gnx_resolve_layer_sprite(_sp_spr_raw, _sprites_dict, _base_dir);
 +    var _spr_wall = -1;
 +    
@@ -665,10 +665,10 @@
 +    var _cell = 
 +    {
 +        h_type: _h,
-+        slot_type: variable_struct_exists(arg0, "slot_type") ? arg0.slot_type : 0,
++        slot_type: gnx_opt(arg0, "slot_type", 0),
 +        name: _cn,
-+        gnx_price: variable_struct_exists(arg0, "price") ? arg0.price : 100,
-+        gnx_code_text: variable_struct_exists(arg0, "code_text") ? arg0.code_text : -1,
++        gnx_price: gnx_opt(arg0, "price", 100),
++        gnx_code_text: gnx_opt(arg0, "code_text", -1),
 +        gnx_spawn_info: variable_struct_exists(arg0, "spawn_info") ? gnx_spawn_info_norm(arg0.spawn_info, _cn) : -1,
 +        physical: 
 +        {
@@ -706,7 +706,7 @@
 +            mode: _hspr_mode,
 +            base_body: _hspr_body
 +        },
-+        mon_spr: gnx_resolve_mon_spr(variable_struct_exists(arg0, "mon_spr") ? arg0.mon_spr : undefined, _sprites_dict, _base_dir)
++        mon_spr: gnx_resolve_mon_spr(gnx_opt(arg0, "mon_spr", undefined), _sprites_dict, _base_dir)
 +    };
 +    var _cp = _cell.physical;
 +    
@@ -745,28 +745,7 @@
 +    // and bring none in). physical.transfer true / false sets this for any mod cell (is_bool = written
 +    // as true or false in the JSON; || = or, && = and, ! = not).
 +    _cp.gnx_no_transfer = _hspr_cat == "ug_breed" || _gnx_ug_scene;
-+    
-+    // GNX: json_parse reads true / false as the numbers 1 / 0 (is_bool is never true for them), so numbers count too
-+    if (variable_struct_exists(_phys, "transfer"))
-+        _cp.gnx_no_transfer = !gnx_json_bool(_phys.transfer, !_cp.gnx_no_transfer, _cn, "physical.transfer");
-+    
-+    if (variable_struct_exists(_phys, "frames") && !_gnx_ug_scene)
-+        gnx_frames_register(_cp, arg0, _cn, _hspr_mode, _hspr_body, _sprites_dict);
-+    
-+    
-+    // GNX-FRAMES: every mod cell follows the same rule: the captive's and the monsters' strips have the
-+    // frame count of their phase. Without physical.frames these are the vanilla counts (start 2, idle 2,
-+    // loop 5, ej 5, birth 2). The class sheets of mode base+class are the game's and are not checked.
-+    if (!variable_struct_exists(_phys, "frames") && !_gnx_ug_scene)
-+        gnx_frames_check_strips(arg0, _cn, _sprites_dict, [2, 2, 5, 5, 2], false, _hspr_body);
-+    
-+    // GNX-LOOP: "loop_scale": true makes the loop parts longer in proportion to the loop frames
-+    // (is_numeric(true) is true in GameMaker, so true and 1 switch it on; "true" as text too)
-+    if (variable_struct_exists(_phys, "loop_scale"))
-+    {
-+        var _ls = _phys.loop_scale;
-+        _cp.gnx_loop_scale = (is_numeric(_ls) && _ls != 0) || (is_string(_ls) && _ls == "true");
-+    }
++    gnx_cell_parse_transfer(arg0, _cn, _cp, _gnx_ug_scene, _hspr_body, _hspr_mode, _phys, _sprites_dict);
 +    
 +    // GNX-EJ: ej key frames counted from 0 in the ej frames (any cell with own frames, and underground
 +    // cells); without them they move in proportion from vanilla 2 (first) and 3 (held) of 5
@@ -800,7 +779,279 @@
 +        if (is_array(_slr))
 +            _cp.gnx_start_loops = _slr;
 +    }
++    gnx_cell_parse_ug_frames(arg0, _cn, _cp, _gnx_ug_scene, _hspr_body, _phys, _sprites_dict);
++    gnx_cell_parse_places_speed(arg0, _cell, _cn, _cp, _gnx_ug_scene, _hspr_body, _hspr_mode, _phys, _sprites_dict);
 +    
++    // GNX-UG: tentacle sprite per phase (index = phase: 0 start, 1 idle, 2 loop, 3 ej, 4 birth, 5 milk),
++    // drawn by layer type 20, and the newborn sprite used by scr_slot_h_gnx_ug_birth.
++    // GNX-INTER: 6-9 = the intermissions idle_start, start_loop, loop_ej, ej_birth (tent_spr.<name>); without
++    // the key no tentacle is drawn there (spr_empty), so the empty-cell tentacle does not show up mid-scene
++    _cell.gnx_tent = [-1, -1, -1, -1, -1, -1, spr_empty, spr_empty, spr_empty, spr_empty];
++    
++    if (variable_struct_exists(arg0, "tent_spr") && is_struct(arg0.tent_spr))
++    {
++        var _ugk = ["start", "idle", "loop", "ej", "birth", "milk", "idle_start", "start_loop", "loop_ej", "ej_birth"];
++        
++        for (var _ugi = 0; _ugi < 10; _ugi++)
++        {
++            if (variable_struct_exists(arg0.tent_spr, _ugk[_ugi]))
++                _cell.gnx_tent[_ugi] = gnx_resolve_layer_sprite(variable_struct_get(arg0.tent_spr, _ugk[_ugi]), _sprites_dict, _base_dir);
++        }
++    }
++    
++    _cell.gnx_infant = variable_struct_exists(arg0, "infant_spr") ? gnx_resolve_layer_sprite(arg0.infant_spr, _sprites_dict, _base_dir) : -1;
++    
++    // GNX-UG: milking overlay per phase (0 start, 1 idle, 2 loop, 3 ej, 4 birth; GNX-INTER: 6-9 the
++    // intermissions idle_start, start_loop, loop_ej, ej_birth; index 5 is not used), drawn by layer type 21.
++    // GNX-BYCLASS: gnx_milk_tables builds the tables (strip, own clock, frames) of one milk_spr block: the
++    // cell's own here, a class's own below
++    var _mfr = undefined;
++    gnx_cell_parse_milk(arg0, _base_dir, _cell, _cn, _cp, _gnx_ug_scene, _mfr, _sprites_dict);
++    gnx_cell_parse_underground_and_props(arg0, arg1, _base_dir, _cell, _cn, _cp, _h, _phys, _sprites_dict);
++    ds_map_add(global.cell_registry, _h, _cell);
++    var _log2 = gnx_log_open();
++    gnx_log_write(_log2, "[GNX] cell sprites h=" + string(_h) + ":");
++    
++    for (var _di = 0; _di < array_length(_spr_slot); _di++)
++        gnx_log_write(_log2, " [" + string(_di) + "]=" + string(_spr_slot[_di][1]));
++    
++    gnx_log_write(_log2, "\n");
++    gnx_log_close(_log2);
++    var _cat = arg0.category;
++    gnx_cell_add_to_category(_cat, _h);
++    
++    var _reg_entry = 
++    {
++        h_type: _h,
++        category: _cat
++    };
++    
++    if (variable_struct_exists(arg0, "locked") && arg0.locked == true)
++        _reg_entry.locked = true;
++    
++    array_push(global.gnx_registered_cells, _reg_entry);
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] cell OK: h=" + string(_h) + " name=" + string(_cn) + " cat=" + string(_cat) + "\n");
++    gnx_log_close(_log);
++}
++
++
++// milk and infant sprite tables (part of scr_gnx_register_cell)
++function gnx_cell_parse_milk(arg0, _base_dir, _cell, _cn, _cp, _gnx_ug_scene, _mfr, _sprites_dict)
++{
++    if (_gnx_ug_scene && variable_struct_exists(_cp, "gnx_frames"))
++    {
++        // frames of each phase (5 unused); an intermission the cell does not declare is never played
++        _mfr = [_cp.gnx_frames.start, _cp.gnx_frames.idle, _cp.gnx_frames.loop, _cp.gnx_frames.ej, _cp.gnx_frames.birth, 1, 1, 1, 1, 1];
++        
++        for (var _ik = 0; _ik < 4; _ik++)
++        {
++            if (variable_struct_exists(_cp, "gnx_inter") && is_struct(_cp.gnx_inter[_ik]))
++                _mfr[6 + _ik] = _cp.gnx_inter[_ik].frames;
++        }
++    }
++    
++    // ? : the block when the cell has one, else undefined (no milk strips)
++    var _msp = (variable_struct_exists(arg0, "milk_spr") && is_struct(arg0.milk_spr)) ? arg0.milk_spr : undefined;
++    var _mhs = gnx_opt(arg0, "human_spr", undefined);
++    _cell.gnx_milk_def = gnx_milk_tables(_msp, _sprites_dict, _base_dir, _mfr, _mhs);
++    _cell.gnx_milk_spr = _cell.gnx_milk_def.spr;
++    _cell.gnx_milk_clock = _cell.gnx_milk_def.clock;
++    _cell.gnx_milk_n = _cell.gnx_milk_def.n;
++    var _m_any = _cell.gnx_milk_def.any;
++    
++    // GNX-BYCLASS: in a class_map cell each entry of human_spr.classes, and the default entry, brings the
++    // class's own milk_spr and infant_spr, written as the cell's own (gnx_milk_for / gnx_infant_for pick
++    // them by the captive's class: hers, else the default entry's, else none). The cell's own milk_spr and
++    // infant_spr are not lent to any class there (a class without its own has none; gnx_ug_strips_check
++    // checks what is declared); they stay for a GNX without per-class milk, which reads only them.
++    _cell.gnx_milk_bc = {};
++    _cell.gnx_infant_bc = {};
++    // && = and: a class_map human_spr
++    _cell.gnx_milk_cmap = is_struct(_mhs) && variable_struct_exists(_mhs, "mode") && _mhs.mode == "class_map";
++    // no milk at all: the tables of an empty block
++    _cell.gnx_milk_none = gnx_milk_tables(undefined, _sprites_dict, _base_dir, _mfr, undefined);
++    
++    if (_cell.gnx_milk_cmap)
++    {
++        // the cell's own milk does not count for drawing here
++        _m_any = false;
++        // [key, entry]: every classes entry, then the default entry under the key "default"
++        var _cbl = [];
++        
++        if (variable_struct_exists(_mhs, "classes") && is_struct(_mhs.classes))
++        {
++            var _cbk = variable_struct_get_names(_mhs.classes);
++            
++            for (var _cbi = 0; _cbi < array_length(_cbk); _cbi++)
++                array_push(_cbl, [_cbk[_cbi], variable_struct_get(_mhs.classes, _cbk[_cbi])]);
++        }
++        
++        // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
++        if (variable_struct_exists(_mhs, "default"))
++            array_push(_cbl, ["default", variable_struct_get(_mhs, "default")]);
++        
++        for (var _cbj = 0; _cbj < array_length(_cbl); _cbj++)
++        {
++            var _cbe = _cbl[_cbj][1];
++            
++            // ! = not: only objects ("_comment" notes etc. are skipped)
++            if (!is_struct(_cbe))
++                continue;
++            
++            var _cb_milk = variable_struct_exists(_cbe, "milk_spr") && is_struct(_cbe.milk_spr);
++            var _cb_inf = variable_struct_exists(_cbe, "infant_spr");
++            
++            // ! && !: neither of them, nothing to read for this entry
++            if (!_cb_milk && !_cb_inf)
++                continue;
++            
++            // == : the default entry keeps its name, a class entry becomes its class number
++            var _cbid = (_cbl[_cbj][0] == "default") ? "default" : gnx_class_key_id(_cbl[_cbj][0], _cn, "human_spr.classes");
++            
++            // == undefined: the class is not loaded
++            if (_cbid == undefined)
++                continue;
++            
++            if (_cb_milk)
++            {
++                // the entry's own phase tables (arg4 = the entry) decide which phases borrow milk
++                var _mtc = gnx_milk_tables(_cbe.milk_spr, _sprites_dict, _base_dir, _mfr, _cbe);
++                variable_struct_set(_cell.gnx_milk_bc, _cbid, _mtc);
++                // || = or: the cell draws milk when any entry has a strip
++                _m_any = _m_any || _mtc.any;
++            }
++            
++            if (_cb_inf)
++                variable_struct_set(_cell.gnx_infant_bc, _cbid, gnx_resolve_layer_sprite(_cbe.infant_spr, _sprites_dict, _base_dir));
++        }
++    }
++    
++    // no milk strip at all in an underground scene: milk items still come in, but no milk is drawn
++    if (_mfr != undefined && !_m_any && variable_struct_exists(_cp, "gnx_milk_items") && _cp.gnx_milk_items > 0)
++    {
++        var _mlog = gnx_log_open();
++        gnx_log_write(_mlog, "[GNX-UG] " + string(_cn) + ": no milk_spr - milk items come in, but no milk is drawn\n");
++        gnx_log_close(_mlog);
++    }
++}
++
++
++// underground, range scripts, prop prefixes, places intermissions (part of scr_gnx_register_cell)
++function gnx_cell_parse_underground_and_props(arg0, arg1, _base_dir, _cell, _cn, _cp, _h, _phys, _sprites_dict)
++{
++    // GNX-UG stage 2: px of the cell below the floor line. A floor with such a cell gets a wider band
++    // under its floor tile, so the cell fits plus the optional gap (default 0 px) above the next ceiling.
++    // Vanilla: 32 px from the floor line to the next ceiling (140 - 108), so the extra = underground + gap - 32.
++    // GNX-FIX: underground 1-140 px (one floor is 140 px) and underground_gap 0-64, numbers as text read too;
++    // 0 or less still means "no part below the floor line" as before
++    if (variable_struct_exists(_phys, "underground") && gnx_json_num(_phys.underground, 0) > 0)
++    {
++        _cp.gnx_ug_depth = floor(gnx_json_num_in(_phys.underground, 75, 1, 140, _cn, "underground"));
++        var _ug_gap = variable_struct_exists(_phys, "underground_gap") ? floor(gnx_json_num_in(_phys.underground_gap, 0, 0, 64, _cn, "underground_gap")) : 0;
++        _cp.gnx_ug_extra = max(0, (_cp.gnx_ug_depth + _ug_gap) - 32);
++        global.gnx_ug_any = true;
++        var _ugl = gnx_log_open();
++        gnx_log_write(_ugl, "[GNX-UG] " + string(_cn) + ": underground=" + string(_cp.gnx_ug_depth) + " gap=" + string(_ug_gap) + " -> floor band +" + string(_cp.gnx_ug_extra) + " px where built\n");
++        gnx_log_close(_ugl);
++        
++        // the first cell that brings band_spr sets the floor band drawn on floors with an underground cell
++        if (global.gnx_ug_band == -1 && variable_struct_exists(arg0, "band_spr"))
++            global.gnx_ug_band = gnx_resolve_layer_sprite(arg0.band_spr, _sprites_dict, _base_dir);
++        
++        // GNX-FX: drops and drips of an underground cell land on the cell floor, 4 px above its bottom
++        _cp.gnx_fx_floor = max(0, _cp.gnx_ug_depth - 4);
++    }
++    
++    // GNX-FX: physical.fx_floor = px below the floor line where the cell's squirt drops and drips land
++    // (any cell; vanilla 0 = the floor line, negative = above it)
++    if (variable_struct_exists(_phys, "fx_floor"))
++        _cp.gnx_fx_floor = floor(gnx_json_num(_phys.fx_floor, 0));
++    
++    if (variable_struct_exists(_phys, "sign_y_base"))
++    {
++        _cp.sign_y_base = _phys.sign_y_base;
++        _cp.sign_y_jitter = gnx_opt(_phys, "sign_y_jitter", 2);
++    }
++    gnx_cell_parse_physical_opts(_base_dir, _cell, _cp, _h, _phys, _sprites_dict);
++    
++    if (variable_struct_exists(_phys, "range_draw_func"))
++        _cp.range_draw_func = gnx_resolve_script(_phys.range_draw_func);
++    
++    if (variable_struct_exists(_phys, "scr_unoccupy"))
++        _cp.scr_unoccupy = gnx_resolve_script(_phys.scr_unoccupy);
++    
++    if (variable_struct_exists(arg0, "sfx_type"))
++        _cell.sfx_type = arg0.sfx_type;
++    
++    var _hspr = gnx_opt(arg0, "human_spr", {});  // optional: base+class default
++    var _chspr = _cell.human_spr;
++    gnx_cell_resolve_human_spr(_base_dir, _chspr, _hspr, _sprites_dict);
++    
++    if (variable_struct_exists(arg0, "mon_spr_hob"))
++        _cell.mon_spr_hob = gnx_resolve_mon_spr(arg0.mon_spr_hob, _sprites_dict, _base_dir);
++    
++    if (variable_struct_exists(arg0, "mon_spr_ogr"))
++        _cell.mon_spr_ogr = gnx_resolve_mon_spr(arg0.mon_spr_ogr, _sprites_dict, _base_dir);
++    
++    var _pp_prefixes = ["mon_spr_p", "mon_spr_hob_p", "mon_spr_ogr_p"];
++    
++    for (var _ppi = 0; _ppi < 3; _ppi++)
++    {
++        for (var _ppn = 0; _ppn < 3; _ppn++)
++        {
++            var _ppk = _pp_prefixes[_ppi] + string(_ppn);
++            
++            if (variable_struct_exists(arg0, _ppk))
++                variable_struct_set(_cell, _ppk, gnx_resolve_mon_spr(variable_struct_get(arg0, _ppk), _sprites_dict, _base_dir));
++        }
++    }
++    
++    if (variable_struct_exists(arg0, "mon_types"))
++        _cell.mon_types = arg0.mon_types;
++    
++    // GNX-FIX: monster species and places checked once (audit P5)
++    gnx_cell_mon_check(_cell, _cn, arg1);
++    
++    // GNX-PLACES-INTER: ej_end's strip rule, now that the species are cleaned (a cell with independent
++    // places and an ej_end table; && = and)
++    if (variable_struct_exists(_cp, "gnx_places") && _cp.gnx_places && variable_struct_exists(_cp, "gnx_inter_end") && is_struct(_cp.gnx_inter_end))
++        gnx_frames_check_ej_end(arg0, _cn, _sprites_dict, _cp.gnx_inter_end, _cell);
++    
++    _cell.mod_name = arg1;
++}
++
++
++// physical.transfer: whether the hobgoblins of a TRANSFER cell serve this cell (part of scr_gnx_register_cell)
++function gnx_cell_parse_transfer(arg0, _cn, _cp, _gnx_ug_scene, _hspr_body, _hspr_mode, _phys, _sprites_dict)
++{
++    // GNX: json_parse reads true / false as the numbers 1 / 0 (is_bool is never true for them), so numbers count too
++    if (variable_struct_exists(_phys, "transfer"))
++        _cp.gnx_no_transfer = !gnx_json_bool(_phys.transfer, !_cp.gnx_no_transfer, _cn, "physical.transfer");
++    
++    if (variable_struct_exists(_phys, "frames") && !_gnx_ug_scene)
++        gnx_frames_register(_cp, arg0, _cn, _hspr_mode, _hspr_body, _sprites_dict);
++    
++    
++    // GNX-FRAMES: every mod cell follows the same rule: the captive's and the monsters' strips have the
++    // frame count of their phase. Without physical.frames these are the vanilla counts (start 2, idle 2,
++    // loop 5, ej 5, birth 2). The class sheets of mode base+class are the game's and are not checked.
++    if (!variable_struct_exists(_phys, "frames") && !_gnx_ug_scene)
++        gnx_frames_check_strips(arg0, _cn, _sprites_dict, [2, 2, 5, 5, 2], false, _hspr_body);
++    
++    // GNX-LOOP: "loop_scale": true makes the loop parts longer in proportion to the loop frames
++    // (is_numeric(true) is true in GameMaker, so true and 1 switch it on; "true" as text too)
++    if (variable_struct_exists(_phys, "loop_scale"))
++    {
++        var _ls = _phys.loop_scale;
++        _cp.gnx_loop_scale = (is_numeric(_ls) && _ls != 0) || (is_string(_ls) && _ls == "true");
++    }
++}
++
++
++// physical.frames of an underground-scene cell (part of scr_gnx_register_cell)
++function gnx_cell_parse_ug_frames(arg0, _cn, _cp, _gnx_ug_scene, _hspr_body, _phys, _sprites_dict)
++{
 +    if (variable_struct_exists(_phys, "frames") && is_struct(_phys.frames) && _gnx_ug_scene)
 +    {
 +        var _ugf = _phys.frames;
@@ -851,7 +1102,12 @@
 +        var _ugfr = _cp.gnx_frames;
 +        gnx_frames_check_strips(arg0, _cn, _sprites_dict, [_ugfr.start, _ugfr.idle, _ugfr.loop, _ugfr.ej, _ugfr.birth], true, _hspr_body);
 +    }
-+    
++}
++
++
++// physical.speed of a cell with independent places (part of scr_gnx_register_cell)
++function gnx_cell_parse_places_speed(arg0, _cell, _cn, _cp, _gnx_ug_scene, _hspr_body, _hspr_mode, _phys, _sprites_dict)
++{
 +    // GNX-PLACES-SPEED: a cell with independent places reads physical.speed (its own frames per second);
 +    // underground scenes read it above; any other cell plays the vanilla speeds, so it would do nothing there
 +    if (_cp.gnx_places && variable_struct_exists(_phys, "speed"))
@@ -941,162 +1197,12 @@
 +        // the strip rule for the intermissions (captive, tentacle, monsters)
 +        gnx_frames_check_inter(arg0, _cn, _sprites_dict, _cp.gnx_inter, _inx, _gnx_ug_scene, _hspr_body, _cp.gnx_inter_next, _cp.gnx_places);
 +    }
-+    
-+    // GNX-UG: tentacle sprite per phase (index = phase: 0 start, 1 idle, 2 loop, 3 ej, 4 birth, 5 milk),
-+    // drawn by layer type 20, and the newborn sprite used by scr_slot_h_gnx_ug_birth.
-+    // GNX-INTER: 6-9 = the intermissions idle_start, start_loop, loop_ej, ej_birth (tent_spr.<name>); without
-+    // the key no tentacle is drawn there (spr_empty), so the empty-cell tentacle does not show up mid-scene
-+    _cell.gnx_tent = [-1, -1, -1, -1, -1, -1, spr_empty, spr_empty, spr_empty, spr_empty];
-+    
-+    if (variable_struct_exists(arg0, "tent_spr") && is_struct(arg0.tent_spr))
-+    {
-+        var _ugk = ["start", "idle", "loop", "ej", "birth", "milk", "idle_start", "start_loop", "loop_ej", "ej_birth"];
-+        
-+        for (var _ugi = 0; _ugi < 10; _ugi++)
-+        {
-+            if (variable_struct_exists(arg0.tent_spr, _ugk[_ugi]))
-+                _cell.gnx_tent[_ugi] = gnx_resolve_layer_sprite(variable_struct_get(arg0.tent_spr, _ugk[_ugi]), _sprites_dict, _base_dir);
-+        }
-+    }
-+    
-+    _cell.gnx_infant = variable_struct_exists(arg0, "infant_spr") ? gnx_resolve_layer_sprite(arg0.infant_spr, _sprites_dict, _base_dir) : -1;
-+    
-+    // GNX-UG: milking overlay per phase (0 start, 1 idle, 2 loop, 3 ej, 4 birth; GNX-INTER: 6-9 the
-+    // intermissions idle_start, start_loop, loop_ej, ej_birth; index 5 is not used), drawn by layer type 21.
-+    // GNX-BYCLASS: gnx_milk_tables builds the tables (strip, own clock, frames) of one milk_spr block: the
-+    // cell's own here, a class's own below
-+    var _mfr = undefined;
-+    
-+    if (_gnx_ug_scene && variable_struct_exists(_cp, "gnx_frames"))
-+    {
-+        // frames of each phase (5 unused); an intermission the cell does not declare is never played
-+        _mfr = [_cp.gnx_frames.start, _cp.gnx_frames.idle, _cp.gnx_frames.loop, _cp.gnx_frames.ej, _cp.gnx_frames.birth, 1, 1, 1, 1, 1];
-+        
-+        for (var _ik = 0; _ik < 4; _ik++)
-+        {
-+            if (variable_struct_exists(_cp, "gnx_inter") && is_struct(_cp.gnx_inter[_ik]))
-+                _mfr[6 + _ik] = _cp.gnx_inter[_ik].frames;
-+        }
-+    }
-+    
-+    // ? : the block when the cell has one, else undefined (no milk strips)
-+    var _msp = (variable_struct_exists(arg0, "milk_spr") && is_struct(arg0.milk_spr)) ? arg0.milk_spr : undefined;
-+    var _mhs = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : undefined;
-+    _cell.gnx_milk_def = gnx_milk_tables(_msp, _sprites_dict, _base_dir, _mfr, _mhs);
-+    _cell.gnx_milk_spr = _cell.gnx_milk_def.spr;
-+    _cell.gnx_milk_clock = _cell.gnx_milk_def.clock;
-+    _cell.gnx_milk_n = _cell.gnx_milk_def.n;
-+    var _m_any = _cell.gnx_milk_def.any;
-+    
-+    // GNX-BYCLASS: in a class_map cell each entry of human_spr.classes, and the default entry, brings the
-+    // class's own milk_spr and infant_spr, written as the cell's own (gnx_milk_for / gnx_infant_for pick
-+    // them by the captive's class: hers, else the default entry's, else none). The cell's own milk_spr and
-+    // infant_spr are not lent to any class there (a class without its own has none; gnx_ug_strips_check
-+    // checks what is declared); they stay for a GNX without per-class milk, which reads only them.
-+    _cell.gnx_milk_bc = {};
-+    _cell.gnx_infant_bc = {};
-+    // && = and: a class_map human_spr
-+    _cell.gnx_milk_cmap = is_struct(_mhs) && variable_struct_exists(_mhs, "mode") && _mhs.mode == "class_map";
-+    // no milk at all: the tables of an empty block
-+    _cell.gnx_milk_none = gnx_milk_tables(undefined, _sprites_dict, _base_dir, _mfr, undefined);
-+    
-+    if (_cell.gnx_milk_cmap)
-+    {
-+        // the cell's own milk does not count for drawing here
-+        _m_any = false;
-+        // [key, entry]: every classes entry, then the default entry under the key "default"
-+        var _cbl = [];
-+        
-+        if (variable_struct_exists(_mhs, "classes") && is_struct(_mhs.classes))
-+        {
-+            var _cbk = variable_struct_get_names(_mhs.classes);
-+            
-+            for (var _cbi = 0; _cbi < array_length(_cbk); _cbi++)
-+                array_push(_cbl, [_cbk[_cbi], variable_struct_get(_mhs.classes, _cbk[_cbi])]);
-+        }
-+        
-+        // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
-+        if (variable_struct_exists(_mhs, "default"))
-+            array_push(_cbl, ["default", variable_struct_get(_mhs, "default")]);
-+        
-+        for (var _cbj = 0; _cbj < array_length(_cbl); _cbj++)
-+        {
-+            var _cbe = _cbl[_cbj][1];
-+            
-+            // ! = not: only objects ("_comment" notes etc. are skipped)
-+            if (!is_struct(_cbe))
-+                continue;
-+            
-+            var _cb_milk = variable_struct_exists(_cbe, "milk_spr") && is_struct(_cbe.milk_spr);
-+            var _cb_inf = variable_struct_exists(_cbe, "infant_spr");
-+            
-+            // ! && !: neither of them, nothing to read for this entry
-+            if (!_cb_milk && !_cb_inf)
-+                continue;
-+            
-+            // == : the default entry keeps its name, a class entry becomes its class number
-+            var _cbid = (_cbl[_cbj][0] == "default") ? "default" : gnx_class_key_id(_cbl[_cbj][0], _cn, "human_spr.classes");
-+            
-+            // == undefined: the class is not loaded
-+            if (_cbid == undefined)
-+                continue;
-+            
-+            if (_cb_milk)
-+            {
-+                // the entry's own phase tables (arg4 = the entry) decide which phases borrow milk
-+                var _mtc = gnx_milk_tables(_cbe.milk_spr, _sprites_dict, _base_dir, _mfr, _cbe);
-+                variable_struct_set(_cell.gnx_milk_bc, _cbid, _mtc);
-+                // || = or: the cell draws milk when any entry has a strip
-+                _m_any = _m_any || _mtc.any;
-+            }
-+            
-+            if (_cb_inf)
-+                variable_struct_set(_cell.gnx_infant_bc, _cbid, gnx_resolve_layer_sprite(_cbe.infant_spr, _sprites_dict, _base_dir));
-+        }
-+    }
-+    
-+    // no milk strip at all in an underground scene: milk items still come in, but no milk is drawn
-+    if (_mfr != undefined && !_m_any && variable_struct_exists(_cp, "gnx_milk_items") && _cp.gnx_milk_items > 0)
-+    {
-+        var _mlog = gnx_log_open();
-+        gnx_log_write(_mlog, "[GNX-UG] " + string(_cn) + ": no milk_spr - milk items come in, but no milk is drawn\n");
-+        gnx_log_close(_mlog);
-+    }
++}
 +
-+    // GNX-UG stage 2: px of the cell below the floor line. A floor with such a cell gets a wider band
-+    // under its floor tile, so the cell fits plus the optional gap (default 0 px) above the next ceiling.
-+    // Vanilla: 32 px from the floor line to the next ceiling (140 - 108), so the extra = underground + gap - 32.
-+    // GNX-FIX: underground 1-140 px (one floor is 140 px) and underground_gap 0-64, numbers as text read too;
-+    // 0 or less still means "no part below the floor line" as before
-+    if (variable_struct_exists(_phys, "underground") && gnx_json_num(_phys.underground, 0) > 0)
-+    {
-+        _cp.gnx_ug_depth = floor(gnx_json_num_in(_phys.underground, 75, 1, 140, _cn, "underground"));
-+        var _ug_gap = variable_struct_exists(_phys, "underground_gap") ? floor(gnx_json_num_in(_phys.underground_gap, 0, 0, 64, _cn, "underground_gap")) : 0;
-+        _cp.gnx_ug_extra = max(0, (_cp.gnx_ug_depth + _ug_gap) - 32);
-+        global.gnx_ug_any = true;
-+        var _ugl = gnx_log_open();
-+        gnx_log_write(_ugl, "[GNX-UG] " + string(_cn) + ": underground=" + string(_cp.gnx_ug_depth) + " gap=" + string(_ug_gap) + " -> floor band +" + string(_cp.gnx_ug_extra) + " px where built\n");
-+        gnx_log_close(_ugl);
-+        
-+        // the first cell that brings band_spr sets the floor band drawn on floors with an underground cell
-+        if (global.gnx_ug_band == -1 && variable_struct_exists(arg0, "band_spr"))
-+            global.gnx_ug_band = gnx_resolve_layer_sprite(arg0.band_spr, _sprites_dict, _base_dir);
-+        
-+        // GNX-FX: drops and drips of an underground cell land on the cell floor, 4 px above its bottom
-+        _cp.gnx_fx_floor = max(0, _cp.gnx_ug_depth - 4);
-+    }
-+    
-+    // GNX-FX: physical.fx_floor = px below the floor line where the cell's squirt drops and drips land
-+    // (any cell; vanilla 0 = the floor line, negative = above it)
-+    if (variable_struct_exists(_phys, "fx_floor"))
-+        _cp.gnx_fx_floor = floor(gnx_json_num(_phys.fx_floor, 0));
-+    
-+    if (variable_struct_exists(_phys, "sign_y_base"))
-+    {
-+        _cp.sign_y_base = _phys.sign_y_base;
-+        _cp.sign_y_jitter = variable_struct_exists(_phys, "sign_y_jitter") ? _phys.sign_y_jitter : 2;
-+    }
-+    
++
++// the optional physical.* fields copied onto the cell (part of scr_gnx_register_cell)
++function gnx_cell_parse_physical_opts(_base_dir, _cell, _cp, _h, _phys, _sprites_dict)
++{
 +    if (variable_struct_exists(_phys, "milk_step"))
 +        _cp.milk_step = _phys.milk_step;
 +    
@@ -1216,19 +1322,12 @@
 +            }
 +        }
 +    }
-+    
-+    if (variable_struct_exists(_phys, "range_draw_func"))
-+        _cp.range_draw_func = gnx_resolve_script(_phys.range_draw_func);
-+    
-+    if (variable_struct_exists(_phys, "scr_unoccupy"))
-+        _cp.scr_unoccupy = gnx_resolve_script(_phys.scr_unoccupy);
-+    
-+    if (variable_struct_exists(arg0, "sfx_type"))
-+        _cell.sfx_type = arg0.sfx_type;
-+    
-+    var _hspr = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : {};  // optional: base+class default
-+    var _chspr = _cell.human_spr;
-+    
++}
++
++
++// human_spr sprite tables per mode (part of scr_gnx_register_cell)
++function gnx_cell_resolve_human_spr(_base_dir, _chspr, _hspr, _sprites_dict)
++{
 +    if (_chspr.mode == "fixed")
 +    {
 +        if (variable_struct_exists(_hspr, "phase_0"))
@@ -1337,49 +1436,12 @@
 +            _chspr.classes = _cls_out;
 +        }
 +    }
-+    
-+    if (variable_struct_exists(arg0, "mon_spr_hob"))
-+        _cell.mon_spr_hob = gnx_resolve_mon_spr(arg0.mon_spr_hob, _sprites_dict, _base_dir);
-+    
-+    if (variable_struct_exists(arg0, "mon_spr_ogr"))
-+        _cell.mon_spr_ogr = gnx_resolve_mon_spr(arg0.mon_spr_ogr, _sprites_dict, _base_dir);
-+    
-+    var _pp_prefixes = ["mon_spr_p", "mon_spr_hob_p", "mon_spr_ogr_p"];
-+    
-+    for (var _ppi = 0; _ppi < 3; _ppi++)
-+    {
-+        for (var _ppn = 0; _ppn < 3; _ppn++)
-+        {
-+            var _ppk = _pp_prefixes[_ppi] + string(_ppn);
-+            
-+            if (variable_struct_exists(arg0, _ppk))
-+                variable_struct_set(_cell, _ppk, gnx_resolve_mon_spr(variable_struct_get(arg0, _ppk), _sprites_dict, _base_dir));
-+        }
-+    }
-+    
-+    if (variable_struct_exists(arg0, "mon_types"))
-+        _cell.mon_types = arg0.mon_types;
-+    
-+    // GNX-FIX: monster species and places checked once (audit P5)
-+    gnx_cell_mon_check(_cell, _cn, arg1);
-+    
-+    // GNX-PLACES-INTER: ej_end's strip rule, now that the species are cleaned (a cell with independent
-+    // places and an ej_end table; && = and)
-+    if (variable_struct_exists(_cp, "gnx_places") && _cp.gnx_places && variable_struct_exists(_cp, "gnx_inter_end") && is_struct(_cp.gnx_inter_end))
-+        gnx_frames_check_ej_end(arg0, _cn, _sprites_dict, _cp.gnx_inter_end, _cell);
-+    
-+    _cell.mod_name = arg1;
-+    ds_map_add(global.cell_registry, _h, _cell);
-+    var _log2 = gnx_log_open();
-+    gnx_log_write(_log2, "[GNX] cell sprites h=" + string(_h) + ":");
-+    
-+    for (var _di = 0; _di < array_length(_spr_slot); _di++)
-+        gnx_log_write(_log2, " [" + string(_di) + "]=" + string(_spr_slot[_di][1]));
-+    
-+    gnx_log_write(_log2, "\n");
-+    gnx_log_close(_log2);
-+    var _cat = arg0.category;
-+    
++}
++
++
++// the cell joins its category's build list (part of scr_gnx_register_cell)
++function gnx_cell_add_to_category(_cat, _h)
++{
 +    switch (_cat)
 +    {
 +        case "breed":
@@ -1423,20 +1485,6 @@
 +            array_push(global.ug_breed_order, _h);
 +            break;
 +    }
-+    
-+    var _reg_entry = 
-+    {
-+        h_type: _h,
-+        category: _cat
-+    };
-+    
-+    if (variable_struct_exists(arg0, "locked") && arg0.locked == true)
-+        _reg_entry.locked = true;
-+    
-+    array_push(global.gnx_registered_cells, _reg_entry);
-+    var _log = gnx_log_open();
-+    gnx_log_write(_log, "[GNX] cell OK: h=" + string(_h) + " name=" + string(_cn) + " cat=" + string(_cat) + "\n");
-+    gnx_log_close(_log);
 +}
 +
 +
@@ -1460,7 +1508,7 @@
 +    }
 +    
 +    var _base_dir = global.gnx_mods_root + arg2 + "/";
-+    var _sprites_dict = variable_struct_exists(arg1, "sprites") ? arg1.sprites : undefined;
++    var _sprites_dict = gnx_opt(arg1, "sprites", undefined);
 +    
 +    if (variable_struct_exists(arg1, "name"))
 +        _cell.name = arg1.name;
@@ -1817,8 +1865,8 @@
 +        return undefined;
 +    
 +    var _out = {};
-+    var _s = variable_struct_exists(arg0, "start") ? arg0.start : undefined;
-+    var _lo = variable_struct_exists(arg0, "loop") ? arg0.loop : undefined;
++    var _s = gnx_opt(arg0, "start", undefined);
++    var _lo = gnx_opt(arg0, "loop", undefined);
 +    gnx_resolve_mspr_body_variants((_s != undefined && variable_struct_exists(_s, "body")) ? _s.body : undefined, arg1, arg2, _out, "s");
 +    var _hp = gnx_resolve_mspr_pair((_s != undefined && variable_struct_exists(_s, "hand")) ? _s.hand : undefined, arg1, arg2);
 +    _out.s_hand_b = _hp[0];
@@ -1851,16 +1899,16 @@
 +    _out.lo_pen = gnx_resolve_mspr_spr((_lo != undefined && variable_struct_exists(_lo, "pen")) ? _lo.pen : undefined, arg1, arg2);
 +    gnx_resolve_mspr_class_variants((_lo != undefined && variable_struct_exists(_lo, "touch")) ? _lo.touch : undefined, arg1, arg2, _out, "lo_touch");
 +    gnx_resolve_mspr_class_variants((_lo != undefined && variable_struct_exists(_lo, "enter")) ? _lo.enter : undefined, arg1, arg2, _out, "lo_enter");
-+    var _ej = variable_struct_exists(arg0, "ej") ? arg0.ej : undefined;
++    var _ej = gnx_opt(arg0, "ej", undefined);
 +    
 +    if (_ej != undefined)
 +    {
-+        gnx_resolve_mspr_body_variants(variable_struct_exists(_ej, "body") ? _ej.body : undefined, arg1, arg2, _out, "ej");
-+        gnx_resolve_mspr_hand_variants(variable_struct_exists(_ej, "hand") ? _ej.hand : undefined, arg1, arg2, _out, "ej");
-+        _out.ej_pen = gnx_resolve_mspr_spr(variable_struct_exists(_ej, "pen") ? _ej.pen : undefined, arg1, arg2);
-+        gnx_resolve_mspr_class_variants(variable_struct_exists(_ej, "touch") ? _ej.touch : undefined, arg1, arg2, _out, "ej_touch");
-+        gnx_resolve_mspr_class_variants(variable_struct_exists(_ej, "enter") ? _ej.enter : undefined, arg1, arg2, _out, "ej_enter");
-+        var _ej_head = variable_struct_exists(_ej, "head") ? _ej.head : undefined;
++        gnx_resolve_mspr_body_variants(gnx_opt(_ej, "body", undefined), arg1, arg2, _out, "ej");
++        gnx_resolve_mspr_hand_variants(gnx_opt(_ej, "hand", undefined), arg1, arg2, _out, "ej");
++        _out.ej_pen = gnx_resolve_mspr_spr(gnx_opt(_ej, "pen", undefined), arg1, arg2);
++        gnx_resolve_mspr_class_variants(gnx_opt(_ej, "touch", undefined), arg1, arg2, _out, "ej_touch");
++        gnx_resolve_mspr_class_variants(gnx_opt(_ej, "enter", undefined), arg1, arg2, _out, "ej_enter");
++        var _ej_head = gnx_opt(_ej, "head", undefined);
 +        
 +        if (is_array(_ej_head) && array_length(_ej_head) >= 1)
 +        {
@@ -1904,12 +1952,12 @@
 +/// ej blocks of mon_spr) into struct arg3 under prefix arg4. arg1 = "sprites" block, arg2 = mod folder.
 +function gnx_resolve_mspr_phase(arg0, arg1, arg2, arg3, arg4)
 +{
-+    gnx_resolve_mspr_body_variants(variable_struct_exists(arg0, "body") ? arg0.body : undefined, arg1, arg2, arg3, arg4);
-+    gnx_resolve_mspr_hand_variants(variable_struct_exists(arg0, "hand") ? arg0.hand : undefined, arg1, arg2, arg3, arg4);
-+    variable_struct_set(arg3, arg4 + "_pen", gnx_resolve_mspr_spr(variable_struct_exists(arg0, "pen") ? arg0.pen : undefined, arg1, arg2));
-+    gnx_resolve_mspr_class_variants(variable_struct_exists(arg0, "touch") ? arg0.touch : undefined, arg1, arg2, arg3, arg4 + "_touch");
-+    gnx_resolve_mspr_class_variants(variable_struct_exists(arg0, "enter") ? arg0.enter : undefined, arg1, arg2, arg3, arg4 + "_enter");
-+    var _head = variable_struct_exists(arg0, "head") ? arg0.head : undefined;
++    gnx_resolve_mspr_body_variants(gnx_opt(arg0, "body", undefined), arg1, arg2, arg3, arg4);
++    gnx_resolve_mspr_hand_variants(gnx_opt(arg0, "hand", undefined), arg1, arg2, arg3, arg4);
++    variable_struct_set(arg3, arg4 + "_pen", gnx_resolve_mspr_spr(gnx_opt(arg0, "pen", undefined), arg1, arg2));
++    gnx_resolve_mspr_class_variants(gnx_opt(arg0, "touch", undefined), arg1, arg2, arg3, arg4 + "_touch");
++    gnx_resolve_mspr_class_variants(gnx_opt(arg0, "enter", undefined), arg1, arg2, arg3, arg4 + "_enter");
++    var _head = gnx_opt(arg0, "head", undefined);
 +    
 +    // a list of two heads (one is picked at random per monster) or one head; || = or
 +    if (_head == undefined || (is_array(_head) && array_length(_head) == 0))
@@ -2332,15 +2380,15 @@
 +    
 +    var _out = 
 +    {
-+        hair: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "hair") ? arg0.hair : -1, arg1, arg2),
-+        head: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "head") ? arg0.head : -1, arg1, arg2),
-+        breast: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "breast") ? arg0.breast : -1, arg1, arg2),
-+        leg: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "leg") ? arg0.leg : -1, arg1, arg2),
-+        leg_part: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "leg_part") ? arg0.leg_part : -1, arg1, arg2)
++        hair: gnx_resolve_layer_sprite(gnx_opt(arg0, "hair", -1), arg1, arg2),
++        head: gnx_resolve_layer_sprite(gnx_opt(arg0, "head", -1), arg1, arg2),
++        breast: gnx_resolve_layer_sprite(gnx_opt(arg0, "breast", -1), arg1, arg2),
++        leg: gnx_resolve_layer_sprite(gnx_opt(arg0, "leg", -1), arg1, arg2),
++        leg_part: gnx_resolve_layer_sprite(gnx_opt(arg0, "leg_part", -1), arg1, arg2)
 +    };
 +    
 +    if (arg3)
-+        _out.hand = gnx_resolve_layer_sprite(variable_struct_exists(arg0, "hand") ? arg0.hand : -1, arg1, arg2);
++        _out.hand = gnx_resolve_layer_sprite(gnx_opt(arg0, "hand", -1), arg1, arg2);
 +    
 +    return _out;
 +}
@@ -2377,8 +2425,8 @@
 +    
 +    var _out = 
 +    {
-+        head: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "head") ? arg0.head : -1, arg1, arg2),
-+        breast: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "breast") ? arg0.breast : -1, arg1, arg2)
++        head: gnx_resolve_layer_sprite(gnx_opt(arg0, "head", -1), arg1, arg2),
++        breast: gnx_resolve_layer_sprite(gnx_opt(arg0, "breast", -1), arg1, arg2)
 +    };
 +    
 +    if (variable_struct_exists(arg0, "hair"))
@@ -2725,8 +2773,8 @@
 +    
 +    var _out = 
 +    {
-+        head: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "head") ? arg0.head : -1, arg1, arg2),
-+        breast: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "breast") ? arg0.breast : -1, arg1, arg2)
++        head: gnx_resolve_layer_sprite(gnx_opt(arg0, "head", -1), arg1, arg2),
++        breast: gnx_resolve_layer_sprite(gnx_opt(arg0, "breast", -1), arg1, arg2)
 +    };
 +    
 +    if (variable_struct_exists(arg0, "leg_1"))
@@ -2743,9 +2791,9 @@
 +        var _l0 = arg0.leg_0;
 +        _out.leg_0 = 
 +        {
-+            head: gnx_resolve_layer_sprite(variable_struct_exists(_l0, "head") ? _l0.head : -1, arg1, arg2),
-+            breast: gnx_resolve_layer_sprite(variable_struct_exists(_l0, "breast") ? _l0.breast : -1, arg1, arg2),
-+            leg: gnx_resolve_layer_sprite(variable_struct_exists(_l0, "leg") ? _l0.leg : -1, arg1, arg2)
++            head: gnx_resolve_layer_sprite(gnx_opt(_l0, "head", -1), arg1, arg2),
++            breast: gnx_resolve_layer_sprite(gnx_opt(_l0, "breast", -1), arg1, arg2),
++            leg: gnx_resolve_layer_sprite(gnx_opt(_l0, "leg", -1), arg1, arg2)
 +        };
 +    }
 +    
@@ -2795,8 +2843,8 @@
 +function gnx_resolve_class(arg0, arg1)
 +{
 +    var _base_dir = global.gnx_mods_root + arg1 + "/";
-+    var _sprites = variable_struct_exists(arg0, "sprites") ? arg0.sprites : {};
-+    var _class_name = variable_struct_exists(arg0, "name") ? arg0.name : "UNKNOWN";
++    var _sprites = gnx_opt(arg0, "sprites", {});
++    var _class_name = gnx_opt(arg0, "name", "UNKNOWN");
 +    var _allow_override = variable_struct_exists(arg0, "override") && arg0.override;
 +    var _class_id;
 +    
@@ -2827,15 +2875,15 @@
 +    
 +    var _rclass = 
 +    {
-+        name: variable_struct_exists(arg0, "name") ? arg0.name : "UNKNOWN",
++        name: gnx_opt(arg0, "name", "UNKNOWN"),
 +        is_special: variable_struct_exists(arg0, "is_special") ? arg0.is_special : ((_is_merge && is_struct(_base) && variable_struct_exists(_base, "is_special")) ? _base.is_special : false),
-+        has_hair: variable_struct_exists(arg0, "has_hair") ? arg0.has_hair : true,
-+        fap_mul: variable_struct_exists(arg0, "fap_mul") ? arg0.fap_mul : 1,
-+        bap_mul: variable_struct_exists(arg0, "bap_mul") ? arg0.bap_mul : 0,
-+        preg_c_override: variable_struct_exists(arg0, "preg_c_override") ? arg0.preg_c_override : -999,
-+        hand_color: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "hand_color") ? arg0.hand_color : -1, _sprites, _base_dir),
-+        icon_spr: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "icon") ? arg0.icon : -1, _sprites, _base_dir),
-+        icon_hair_spr: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "icon_hair") ? arg0.icon_hair : -1, _sprites, _base_dir),
++        has_hair: gnx_opt(arg0, "has_hair", true),
++        fap_mul: gnx_opt(arg0, "fap_mul", 1),
++        bap_mul: gnx_opt(arg0, "bap_mul", 0),
++        preg_c_override: gnx_opt(arg0, "preg_c_override", -999),
++        hand_color: gnx_resolve_layer_sprite(gnx_opt(arg0, "hand_color", -1), _sprites, _base_dir),
++        icon_spr: gnx_resolve_layer_sprite(gnx_opt(arg0, "icon", -1), _sprites, _base_dir),
++        icon_hair_spr: gnx_resolve_layer_sprite(gnx_opt(arg0, "icon_hair", -1), _sprites, _base_dir),
 +        carry_head_spr: gnx_resolve_layer_sprite("gnx:carry_head", _sprites, _base_dir),
 +        carry_hair_spr: gnx_resolve_layer_sprite("gnx:carry_hair", _sprites, _base_dir),
 +        voice_bank: -1,
@@ -2867,7 +2915,71 @@
 +    var _ref = spr_unit_icon_head;
 +    gnx_log_write(_log, "  vanilla icon (class 0 frame 0): xo=" + string(gnx_sprite_get_xoffset(_ref)) + " yo=" + string(gnx_sprite_get_yoffset(_ref)) + " w=" + string(gnx_sprite_get_width(_ref)) + " h=" + string(gnx_sprite_get_height(_ref)) + "\n");
 +    gnx_log_close(_log);
++    gnx_class_resolve_clothing(arg0, _base_dir, _rclass, _sprites);
++
++    // POPRAWKA (GNX): "only_listed_cells": true = klasa wchodzi tylko do cel, ktorych required_class ja wymienia
++    _rclass.only_listed_cells = variable_struct_exists(arg0, "only_listed_cells") && arg0.only_listed_cells == true;
++    gnx_class_resolve_body_sprites(arg0, _base_dir, _rclass, _sprites);
++    gnx_class_parse_options(arg0, arg1, _base_dir, _class_id, _class_name, _rclass, _sprites);
++    gnx_class_parse_raid_spawns(arg0, arg1, _class_id, _log);
 +    
++    if (variable_struct_exists(arg0, "post_raid"))
++    {
++        var _pr = arg0.post_raid;
++        _pr.mod_name = arg1;
++        
++        if (variable_struct_exists(_pr, "cage_escape"))
++        {
++            var _ce = _pr.cage_escape;
++            
++            if (variable_struct_exists(_ce, "condition"))
++                scr_gnx_resolve_condition_refs(_ce.condition, arg1);
++            
++            if (variable_struct_exists(_ce, "on_escape_event") && is_string(_ce.on_escape_event))
++                _ce.on_escape_event = arg1 + "." + _ce.on_escape_event;
++            
++            if (variable_struct_exists(_ce, "on_survive_event") && is_string(_ce.on_survive_event))
++                _ce.on_survive_event = arg1 + "." + _ce.on_survive_event;
++            
++            if (variable_struct_exists(_ce, "popup") && is_string(_ce.popup))
++                _ce.popup = arg1 + "." + _ce.popup;
++        }
++        
++        _rclass.post_raid = _pr;
++        _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX] post_raid loaded for class=" + string(_class_id) + "\n");
++        gnx_log_close(_log);
++    }
++    
++    _rclass.mod_name = arg1;
++    
++    if (variable_struct_exists(arg0, "tower_boss_condition"))
++    {
++        var _tbc = arg0.tower_boss_condition;
++        scr_gnx_resolve_condition_refs(_tbc, arg1);
++        _rclass.tower_boss_condition = _tbc;
++    }
++    gnx_class_merge_base(arg0, _base, _is_merge, _rclass);
++    
++    // vanilla sprite fallback: an override takes what it lacks (or failed to load) from the class it replaces;
++    // a new non-special class gets the vanilla peasant's sprite wherever one of its files did not load
++    var _fb_base = (_is_merge && is_struct(_base)) ? _base : ((!_rclass.is_special && ds_map_exists(global.class_registry, 0)) ? ds_map_find_value(global.class_registry, 0) : undefined);
++    gnx_class_sprite_fallback(arg0, arg1, _class_id, _fb_base, _is_merge, _log, _rclass);
++    
++    if (ds_map_exists(global.class_registry, _class_id))
++        ds_map_replace(global.class_registry, _class_id, _rclass);
++    else
++        ds_map_add(global.class_registry, _class_id, _rclass);
++    
++    _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] class " + string(_class_id) + " registered: " + string(gnx_opt(arg0, "name", "?")) + "\n");
++    gnx_log_close(_log);
++}
++
++
++// clothing_standard / big / tent / giant sprite sets (part of gnx_resolve_class)
++function gnx_class_resolve_clothing(arg0, _base_dir, _rclass, _sprites)
++{
 +    if (variable_struct_exists(arg0, "clothing_standard"))
 +    {
 +        var _cs_def = arg0.clothing_standard;
@@ -2960,10 +3072,12 @@
 +
 +        _rclass.clothing_giant = _cg;
 +    }
++}
 +
-+    // POPRAWKA (GNX): "only_listed_cells": true = klasa wchodzi tylko do cel, ktorych required_class ja wymienia
-+    _rclass.only_listed_cells = variable_struct_exists(arg0, "only_listed_cells") && arg0.only_listed_cells == true;
 +
++// naked_*, carry_base_spr, gb1_breast_d2 and mon_sprite_swap sprite sets (part of gnx_resolve_class)
++function gnx_class_resolve_body_sprites(arg0, _base_dir, _rclass, _sprites)
++{
 +    if (variable_struct_exists(arg0, "naked_standard"))
 +    {
 +        var _ns_def = arg0.naked_standard;
@@ -3106,7 +3220,12 @@
 +
 +        _rclass.mon_sprite_swap = _msw;
 +    }
++}
 +
++
++// preg_mon_type_override, birth_classes, trade_stage, milk_lvl (part of gnx_resolve_class)
++function gnx_class_parse_options(arg0, arg1, _base_dir, _class_id, _class_name, _rclass, _sprites)
++{
 +    if (variable_struct_exists(arg0, "preg_mon_type_override"))
 +    {
 +        var _pmo = gnx_json_num(arg0.preg_mon_type_override, -1);
@@ -3117,7 +3236,39 @@
 +        else
 +            _rclass.preg_mon_type_override = _pmo;
 +    }
++    gnx_class_parse_birth_classes(arg0, _rclass);
++    gnx_class_parse_default_leg(arg0, _base_dir, _rclass, _sprites);
 +    
++    if (variable_struct_exists(arg0, "trade_stage"))
++    {
++        var _ts = arg0.trade_stage;
++        
++        // GNX-STAGE (D4): a stage name: sold once that stage is discovered on the map, without a trader slot of its own
++        if (is_string(_ts))
++            array_push(global.gnx_stage_trade_refs, { stage: _ts, class_id: _class_id, mod_name: arg1 });
++        else if (_ts >= 0 && _ts < array_length(global.gnx_trade_list))
++            array_push(global.gnx_trade_list[_ts], _class_id);
++    }
++    
++    // GNX-MILK: "milk_lvl" = the milk level this class gives: a number 0-4, or "lvl" = her own level, as
++    // the vanilla classes 0-7. Without it the vanilla rule stays: every class from 8 up gives level 1
++    // (Lilith 4), and mod classes have ids from 14 up. -2 marks "lvl" for gnx_milk_lvl.
++    if (variable_struct_exists(arg0, "milk_lvl"))
++    {
++        var _mlv = arg0.milk_lvl;
++        
++        // is_string = written as text; string_lower makes "LVL" and "Lvl" count too
++        if (is_string(_mlv) && string_lower(_mlv) == "lvl")
++            _rclass.gnx_milk_lvl = -2;
++        else
++            _rclass.gnx_milk_lvl = floor(gnx_json_num_in(_mlv, 1, 0, 4, "class " + arg1 + "." + _class_name, "milk_lvl"));
++    }
++}
++
++
++// birth_classes: the classes a captive of this class can give birth to (part of gnx_resolve_class)
++function gnx_class_parse_birth_classes(arg0, _rclass)
++{
 +    if (variable_struct_exists(arg0, "birth_classes"))
 +        _rclass.birth_classes = arg0.birth_classes;
 +    
@@ -3158,7 +3309,12 @@
 +        
 +        _rclass.birth_class = _bc_map;
 +    }
-+    
++}
++
++
++// default_leg and its sprites (part of gnx_resolve_class)
++function gnx_class_parse_default_leg(arg0, _base_dir, _rclass, _sprites)
++{
 +    if (variable_struct_exists(arg0, "default_leg"))
 +        _rclass.default_leg = arg0.default_leg;
 +    
@@ -3203,32 +3359,12 @@
 +        
 +        _rclass.birth_spr = _bs;
 +    }
-+    
-+    if (variable_struct_exists(arg0, "trade_stage"))
-+    {
-+        var _ts = arg0.trade_stage;
-+        
-+        // GNX-STAGE (D4): a stage name: sold once that stage is discovered on the map, without a trader slot of its own
-+        if (is_string(_ts))
-+            array_push(global.gnx_stage_trade_refs, { stage: _ts, class_id: _class_id, mod_name: arg1 });
-+        else if (_ts >= 0 && _ts < array_length(global.gnx_trade_list))
-+            array_push(global.gnx_trade_list[_ts], _class_id);
-+    }
-+    
-+    // GNX-MILK: "milk_lvl" = the milk level this class gives: a number 0-4, or "lvl" = her own level, as
-+    // the vanilla classes 0-7. Without it the vanilla rule stays: every class from 8 up gives level 1
-+    // (Lilith 4), and mod classes have ids from 14 up. -2 marks "lvl" for gnx_milk_lvl.
-+    if (variable_struct_exists(arg0, "milk_lvl"))
-+    {
-+        var _mlv = arg0.milk_lvl;
-+        
-+        // is_string = written as text; string_lower makes "LVL" and "Lvl" count too
-+        if (is_string(_mlv) && string_lower(_mlv) == "lvl")
-+            _rclass.gnx_milk_lvl = -2;
-+        else
-+            _rclass.gnx_milk_lvl = floor(gnx_json_num_in(_mlv, 1, 0, 4, "class " + arg1 + "." + _class_name, "milk_lvl"));
-+    }
-+    
++}
++
++
++// raid_spawns: where this class shows up in raids (part of gnx_resolve_class)
++function gnx_class_parse_raid_spawns(arg0, arg1, _class_id, _log)
++{
 +    if (variable_struct_exists(arg0, "raid_spawns"))
 +    {
 +        var _rs_arr = arg0.raid_spawns;
@@ -3251,15 +3387,15 @@
 +
 +            if (_rs_level != 0 || _rs_stage == 4)
 +            {
-+                var _rs_w = variable_struct_exists(_rs_e, "weight") ? _rs_e.weight : 10;
-+                var _rs_min = variable_struct_exists(_rs_e, "min_lvl") ? _rs_e.min_lvl : 0;
-+                var _rs_max = variable_struct_exists(_rs_e, "max_lvl") ? _rs_e.max_lvl : 1;
-+                var _rs_cond = variable_struct_exists(_rs_e, "condition") ? _rs_e.condition : undefined;
++                var _rs_w = gnx_opt(_rs_e, "weight", 10);
++                var _rs_min = gnx_opt(_rs_e, "min_lvl", 0);
++                var _rs_max = gnx_opt(_rs_e, "max_lvl", 1);
++                var _rs_cond = gnx_opt(_rs_e, "condition", undefined);
 +                
 +                if (_rs_cond != undefined)
 +                    scr_gnx_resolve_condition_refs(_rs_cond, arg1);
 +                
-+                var _rs_mpe = variable_struct_exists(_rs_e, "max_per_encounter") ? _rs_e.max_per_encounter : undefined;
++                var _rs_mpe = gnx_opt(_rs_e, "max_per_encounter", undefined);
 +                var _rs_apo = undefined;
 +                
 +                if (variable_struct_exists(_rs_e, "ap_override") && is_array(_rs_e.ap_override) && array_length(_rs_e.ap_override) == 2)
@@ -3278,44 +3414,12 @@
 +            }
 +        }
 +    }
-+    
-+    if (variable_struct_exists(arg0, "post_raid"))
-+    {
-+        var _pr = arg0.post_raid;
-+        _pr.mod_name = arg1;
-+        
-+        if (variable_struct_exists(_pr, "cage_escape"))
-+        {
-+            var _ce = _pr.cage_escape;
-+            
-+            if (variable_struct_exists(_ce, "condition"))
-+                scr_gnx_resolve_condition_refs(_ce.condition, arg1);
-+            
-+            if (variable_struct_exists(_ce, "on_escape_event") && is_string(_ce.on_escape_event))
-+                _ce.on_escape_event = arg1 + "." + _ce.on_escape_event;
-+            
-+            if (variable_struct_exists(_ce, "on_survive_event") && is_string(_ce.on_survive_event))
-+                _ce.on_survive_event = arg1 + "." + _ce.on_survive_event;
-+            
-+            if (variable_struct_exists(_ce, "popup") && is_string(_ce.popup))
-+                _ce.popup = arg1 + "." + _ce.popup;
-+        }
-+        
-+        _rclass.post_raid = _pr;
-+        _log = gnx_log_open();
-+        gnx_log_write(_log, "[GNX] post_raid loaded for class=" + string(_class_id) + "\n");
-+        gnx_log_close(_log);
-+    }
-+    
-+    _rclass.mod_name = arg1;
-+    
-+    if (variable_struct_exists(arg0, "tower_boss_condition"))
-+    {
-+        var _tbc = arg0.tower_boss_condition;
-+        scr_gnx_resolve_condition_refs(_tbc, arg1);
-+        _rclass.tower_boss_condition = _tbc;
-+    }
-+    
++}
++
++
++// an override takes the fields it does not set from the class it replaces (part of gnx_resolve_class)
++function gnx_class_merge_base(arg0, _base, _is_merge, _rclass)
++{
 +    if (_is_merge && is_struct(_base))
 +    {
 +        var _prov = {};
@@ -3386,11 +3490,12 @@
 +                variable_struct_set(_rclass, _bk, variable_struct_get(_base, _bk));
 +        }
 +    }
-+    
-+    // vanilla sprite fallback: an override takes what it lacks (or failed to load) from the class it replaces;
-+    // a new non-special class gets the vanilla peasant's sprite wherever one of its files did not load
-+    var _fb_base = (_is_merge && is_struct(_base)) ? _base : ((!_rclass.is_special && ds_map_exists(global.class_registry, 0)) ? ds_map_find_value(global.class_registry, 0) : undefined);
-+    
++}
++
++
++// vanilla sprite fallback for sprites that did not load (part of gnx_resolve_class)
++function gnx_class_sprite_fallback(arg0, arg1, _class_id, _fb_base, _is_merge, _log, _rclass)
++{
 +    if (is_struct(_fb_base))
 +    {
 +        var _fb_keys = ["clothing_standard", "clothing_big", "clothing_tent", "naked_standard", "naked_big", "naked_tent"];
@@ -3435,15 +3540,6 @@
 +            gnx_log_close(_log);
 +        }
 +    }
-+    
-+    if (ds_map_exists(global.class_registry, _class_id))
-+        ds_map_replace(global.class_registry, _class_id, _rclass);
-+    else
-+        ds_map_add(global.class_registry, _class_id, _rclass);
-+    
-+    _log = gnx_log_open();
-+    gnx_log_write(_log, "[GNX] class " + string(_class_id) + " registered: " + string(variable_struct_exists(arg0, "name") ? arg0.name : "?") + "\n");
-+    gnx_log_close(_log);
 +}
 +
 +

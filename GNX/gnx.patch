@@ -5748,7 +5748,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +{
 +    var _bad = 0;
 +    var _names = gnx_inter_names();
-+    var _hs = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : undefined;
++    var _hs = gnx_opt(arg0, "human_spr", undefined);
 +    // the captive table each main phase is drawn with (index = phase): start (phase_0, else the idle art),
 +    // loop, ej (phase_3 only in underground scenes, else the loop art), birth; arg7 = next phase of each
 +    var _big = arg5 || arg6 == "big";
@@ -5875,7 +5875,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +            if (!is_struct(_set) && _key != "mon_spr")
 +            {
 +                _key = "mon_spr";
-+                _set = variable_struct_exists(arg0, "mon_spr") ? arg0.mon_spr : undefined;
++                _set = gnx_opt(arg0, "mon_spr", undefined);
 +            }
 +            
 +            // ? : the block ej_end plays from this set ("" = none, the vanilla sheets)
@@ -6348,7 +6348,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +    if (_p.sq_x == -1 && _p.sp_x == -1)
 +    {
 +        var _fxl = gnx_log_open();
-+        gnx_log_write(_fxl, "[GNX-UG] mod '" + string(arg1) + "': underground cell '" + string(variable_struct_exists(arg0, "name") ? arg0.name : "?") + "' has no sq_x / sp_x - no squirt, drips or splash; set sq_x, sq_y, sp_x, sp_y in physical\n");
++        gnx_log_write(_fxl, "[GNX-UG] mod '" + string(arg1) + "': underground cell '" + string(gnx_opt(arg0, "name", "?")) + "' has no sq_x / sp_x - no squirt, drips or splash; set sq_x, sq_y, sp_x, sp_y in physical\n");
 +        gnx_log_close(_fxl);
 +    }
 +    
@@ -6370,7 +6370,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +        if (variable_struct_exists(arg0.human_spr, "mode") && arg0.human_spr.mode == "fixed" && !variable_struct_exists(_p, "required_class"))
 +        {
 +            var _l = gnx_log_open();
-+            gnx_log_write(_l, "[GNX-WARN] mod '" + string(arg1) + "': underground cell '" + string(variable_struct_exists(arg0, "name") ? arg0.name : "?") + "' uses fixed sprites without required_class - every class can enter\n");
++            gnx_log_write(_l, "[GNX-WARN] mod '" + string(arg1) + "': underground cell '" + string(gnx_opt(arg0, "name", "?")) + "' uses fixed sprites without required_class - every class can enter\n");
 +            gnx_log_close(_l);
 +        }
 +    }
@@ -6759,11 +6759,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +            }
 +            
 +            // ? : the value, else the loader's default
-+            var _pg = variable_struct_exists(_f, "atlas") ? _f.atlas : -1;
-+            var _x = variable_struct_exists(_f, "x") ? _f.x : -1;
-+            var _y = variable_struct_exists(_f, "y") ? _f.y : -1;
-+            var _w = variable_struct_exists(_f, "w") ? _f.w : 0;
-+            var _h = variable_struct_exists(_f, "h") ? _f.h : 0;
++            var _pg = gnx_opt(_f, "atlas", -1);
++            var _x = gnx_opt(_f, "x", -1);
++            var _y = gnx_opt(_f, "y", -1);
++            var _w = gnx_opt(_f, "w", 0);
++            var _h = gnx_opt(_f, "h", 0);
 +            
 +            if (!is_real(_pg) || !is_real(_x) || !is_real(_y) || !is_real(_w) || !is_real(_h))
 +            {
@@ -6864,11 +6864,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +        }
 +        
 +        var _cn = variable_struct_exists(_cell, "name") ? string(_cell.name) : ("#" + string(c));
-+        var _spr = variable_struct_exists(_cell, "sprites") ? _cell.sprites : undefined;
++        var _spr = gnx_opt(_cell, "sprites", undefined);
 +        
 +        // the places that may declare milk_spr / infant_spr: [label, object]; the cell itself always
 +        var _sets = [["cell", _cell]];
-+        var _hs = variable_struct_exists(_cell, "human_spr") ? _cell.human_spr : undefined;
++        var _hs = gnx_opt(_cell, "human_spr", undefined);
 +        
 +        if (is_struct(_hs) && variable_struct_exists(_hs, "mode") && _hs.mode == "class_map")
 +        {
@@ -6985,7 +6985,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_content.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4012 @@
+@@ -0,0 +1,4108 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -7128,7 +7128,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    }
 +    else if (is_struct(_s) && variable_struct_exists(_s, "from_game"))
 +    {
-+        _cache_key = "game:" + string(_s.from_game) + "#" + string(variable_struct_exists(_s, "index") ? _s.index : 0);
++        _cache_key = "game:" + string(_s.from_game) + "#" + string(gnx_opt(_s, "index", 0));
 +    }
 +    else if (!is_struct(_s))
 +    {
@@ -7247,7 +7247,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    else if (variable_struct_exists(_s, "from_game"))
 +    {
 +        var _gs = asset_get_index(string(_s.from_game));
-+        var _gi = variable_struct_exists(_s, "index") ? _s.index : 0;
++        var _gi = gnx_opt(_s, "index", 0);
 +
 +        if (_gs < 0 || !sprite_exists(_gs))
 +        {
@@ -7501,7 +7501,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    }
 +    else
 +    {
-+        var _cname = variable_struct_exists(arg0, "name") ? arg0.name : "";
++        var _cname = gnx_opt(arg0, "name", "");
 +        _h = gnx_hash_cell_id(arg1 + "." + _cname);
 +        
 +        while (ds_map_exists(global.cell_registry, _h))
@@ -7552,9 +7552,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        ds_map_add(global.gnx_cell_name_to_id, arg1 + "." + arg0.name, _h);
 +
 +    var _phys = arg0.physical;
-+    var _sprites_dict = variable_struct_exists(arg0, "sprites") ? arg0.sprites : undefined;
++    var _sprites_dict = gnx_opt(arg0, "sprites", undefined);
 +    var _base_dir = global.gnx_mods_root + arg1 + "/";
-+    var _char_row = variable_struct_exists(_phys, "character_row") ? _phys.character_row : 0;
++    var _char_row = gnx_opt(_phys, "character_row", 0);
 +    var _spr_row_pos = _h - _char_row - 1;
 +    var _raw_layers = _phys.layers;
 +    var _n_layers = array_length(_raw_layers);
@@ -7575,7 +7575,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +    // human_spr is optional (docs: base+class is the default); base_body follows the cell kind
 +    var _hspr_cat = variable_struct_exists(arg0, "category") ? string(arg0.category) : "";
-+    var _hspr_st = variable_struct_exists(arg0, "slot_type") ? arg0.slot_type : 0;
++    var _hspr_st = gnx_opt(arg0, "slot_type", 0);
 +    var _hspr_body = (string_copy(_hspr_cat, 1, 2) == "b_" || _hspr_st == 2) ? "big" : ((string_copy(_hspr_cat, 1, 2) == "t_" || _hspr_st == 3) ? "tent" : "standard");
 +
 +    if (variable_struct_exists(arg0, "human_spr") && variable_struct_exists(arg0.human_spr, "base_body"))
@@ -7623,7 +7623,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        gnx_inter_push_scripts(_scr_h);
 +    
 +    var _scr_draw = gnx_resolve_script(_phys.scr_draw);
-+    var _sp_spr_raw = variable_struct_exists(_phys, "sp_spr") ? _phys.sp_spr : -1;
++    var _sp_spr_raw = gnx_opt(_phys, "sp_spr", -1);
 +    var _sp_spr = gnx_resolve_layer_sprite(_sp_spr_raw, _sprites_dict, _base_dir);
 +    var _spr_wall = -1;
 +    
@@ -7650,10 +7650,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    var _cell = 
 +    {
 +        h_type: _h,
-+        slot_type: variable_struct_exists(arg0, "slot_type") ? arg0.slot_type : 0,
++        slot_type: gnx_opt(arg0, "slot_type", 0),
 +        name: _cn,
-+        gnx_price: variable_struct_exists(arg0, "price") ? arg0.price : 100,
-+        gnx_code_text: variable_struct_exists(arg0, "code_text") ? arg0.code_text : -1,
++        gnx_price: gnx_opt(arg0, "price", 100),
++        gnx_code_text: gnx_opt(arg0, "code_text", -1),
 +        gnx_spawn_info: variable_struct_exists(arg0, "spawn_info") ? gnx_spawn_info_norm(arg0.spawn_info, _cn) : -1,
 +        physical: 
 +        {
@@ -7691,7 +7691,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            mode: _hspr_mode,
 +            base_body: _hspr_body
 +        },
-+        mon_spr: gnx_resolve_mon_spr(variable_struct_exists(arg0, "mon_spr") ? arg0.mon_spr : undefined, _sprites_dict, _base_dir)
++        mon_spr: gnx_resolve_mon_spr(gnx_opt(arg0, "mon_spr", undefined), _sprites_dict, _base_dir)
 +    };
 +    var _cp = _cell.physical;
 +    
@@ -7730,28 +7730,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    // and bring none in). physical.transfer true / false sets this for any mod cell (is_bool = written
 +    // as true or false in the JSON; || = or, && = and, ! = not).
 +    _cp.gnx_no_transfer = _hspr_cat == "ug_breed" || _gnx_ug_scene;
-+    
-+    // GNX: json_parse reads true / false as the numbers 1 / 0 (is_bool is never true for them), so numbers count too
-+    if (variable_struct_exists(_phys, "transfer"))
-+        _cp.gnx_no_transfer = !gnx_json_bool(_phys.transfer, !_cp.gnx_no_transfer, _cn, "physical.transfer");
-+    
-+    if (variable_struct_exists(_phys, "frames") && !_gnx_ug_scene)
-+        gnx_frames_register(_cp, arg0, _cn, _hspr_mode, _hspr_body, _sprites_dict);
-+    
-+    
-+    // GNX-FRAMES: every mod cell follows the same rule: the captive's and the monsters' strips have the
-+    // frame count of their phase. Without physical.frames these are the vanilla counts (start 2, idle 2,
-+    // loop 5, ej 5, birth 2). The class sheets of mode base+class are the game's and are not checked.
-+    if (!variable_struct_exists(_phys, "frames") && !_gnx_ug_scene)
-+        gnx_frames_check_strips(arg0, _cn, _sprites_dict, [2, 2, 5, 5, 2], false, _hspr_body);
-+    
-+    // GNX-LOOP: "loop_scale": true makes the loop parts longer in proportion to the loop frames
-+    // (is_numeric(true) is true in GameMaker, so true and 1 switch it on; "true" as text too)
-+    if (variable_struct_exists(_phys, "loop_scale"))
-+    {
-+        var _ls = _phys.loop_scale;
-+        _cp.gnx_loop_scale = (is_numeric(_ls) && _ls != 0) || (is_string(_ls) && _ls == "true");
-+    }
++    gnx_cell_parse_transfer(arg0, _cn, _cp, _gnx_ug_scene, _hspr_body, _hspr_mode, _phys, _sprites_dict);
 +    
 +    // GNX-EJ: ej key frames counted from 0 in the ej frames (any cell with own frames, and underground
 +    // cells); without them they move in proportion from vanilla 2 (first) and 3 (held) of 5
@@ -7785,7 +7764,279 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        if (is_array(_slr))
 +            _cp.gnx_start_loops = _slr;
 +    }
++    gnx_cell_parse_ug_frames(arg0, _cn, _cp, _gnx_ug_scene, _hspr_body, _phys, _sprites_dict);
++    gnx_cell_parse_places_speed(arg0, _cell, _cn, _cp, _gnx_ug_scene, _hspr_body, _hspr_mode, _phys, _sprites_dict);
 +    
++    // GNX-UG: tentacle sprite per phase (index = phase: 0 start, 1 idle, 2 loop, 3 ej, 4 birth, 5 milk),
++    // drawn by layer type 20, and the newborn sprite used by scr_slot_h_gnx_ug_birth.
++    // GNX-INTER: 6-9 = the intermissions idle_start, start_loop, loop_ej, ej_birth (tent_spr.<name>); without
++    // the key no tentacle is drawn there (spr_empty), so the empty-cell tentacle does not show up mid-scene
++    _cell.gnx_tent = [-1, -1, -1, -1, -1, -1, spr_empty, spr_empty, spr_empty, spr_empty];
++    
++    if (variable_struct_exists(arg0, "tent_spr") && is_struct(arg0.tent_spr))
++    {
++        var _ugk = ["start", "idle", "loop", "ej", "birth", "milk", "idle_start", "start_loop", "loop_ej", "ej_birth"];
++        
++        for (var _ugi = 0; _ugi < 10; _ugi++)
++        {
++            if (variable_struct_exists(arg0.tent_spr, _ugk[_ugi]))
++                _cell.gnx_tent[_ugi] = gnx_resolve_layer_sprite(variable_struct_get(arg0.tent_spr, _ugk[_ugi]), _sprites_dict, _base_dir);
++        }
++    }
++    
++    _cell.gnx_infant = variable_struct_exists(arg0, "infant_spr") ? gnx_resolve_layer_sprite(arg0.infant_spr, _sprites_dict, _base_dir) : -1;
++    
++    // GNX-UG: milking overlay per phase (0 start, 1 idle, 2 loop, 3 ej, 4 birth; GNX-INTER: 6-9 the
++    // intermissions idle_start, start_loop, loop_ej, ej_birth; index 5 is not used), drawn by layer type 21.
++    // GNX-BYCLASS: gnx_milk_tables builds the tables (strip, own clock, frames) of one milk_spr block: the
++    // cell's own here, a class's own below
++    var _mfr = undefined;
++    gnx_cell_parse_milk(arg0, _base_dir, _cell, _cn, _cp, _gnx_ug_scene, _mfr, _sprites_dict);
++    gnx_cell_parse_underground_and_props(arg0, arg1, _base_dir, _cell, _cn, _cp, _h, _phys, _sprites_dict);
++    ds_map_add(global.cell_registry, _h, _cell);
++    var _log2 = gnx_log_open();
++    gnx_log_write(_log2, "[GNX] cell sprites h=" + string(_h) + ":");
++    
++    for (var _di = 0; _di < array_length(_spr_slot); _di++)
++        gnx_log_write(_log2, " [" + string(_di) + "]=" + string(_spr_slot[_di][1]));
++    
++    gnx_log_write(_log2, "\n");
++    gnx_log_close(_log2);
++    var _cat = arg0.category;
++    gnx_cell_add_to_category(_cat, _h);
++    
++    var _reg_entry = 
++    {
++        h_type: _h,
++        category: _cat
++    };
++    
++    if (variable_struct_exists(arg0, "locked") && arg0.locked == true)
++        _reg_entry.locked = true;
++    
++    array_push(global.gnx_registered_cells, _reg_entry);
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] cell OK: h=" + string(_h) + " name=" + string(_cn) + " cat=" + string(_cat) + "\n");
++    gnx_log_close(_log);
++}
++
++
++// milk and infant sprite tables (part of scr_gnx_register_cell)
++function gnx_cell_parse_milk(arg0, _base_dir, _cell, _cn, _cp, _gnx_ug_scene, _mfr, _sprites_dict)
++{
++    if (_gnx_ug_scene && variable_struct_exists(_cp, "gnx_frames"))
++    {
++        // frames of each phase (5 unused); an intermission the cell does not declare is never played
++        _mfr = [_cp.gnx_frames.start, _cp.gnx_frames.idle, _cp.gnx_frames.loop, _cp.gnx_frames.ej, _cp.gnx_frames.birth, 1, 1, 1, 1, 1];
++        
++        for (var _ik = 0; _ik < 4; _ik++)
++        {
++            if (variable_struct_exists(_cp, "gnx_inter") && is_struct(_cp.gnx_inter[_ik]))
++                _mfr[6 + _ik] = _cp.gnx_inter[_ik].frames;
++        }
++    }
++    
++    // ? : the block when the cell has one, else undefined (no milk strips)
++    var _msp = (variable_struct_exists(arg0, "milk_spr") && is_struct(arg0.milk_spr)) ? arg0.milk_spr : undefined;
++    var _mhs = gnx_opt(arg0, "human_spr", undefined);
++    _cell.gnx_milk_def = gnx_milk_tables(_msp, _sprites_dict, _base_dir, _mfr, _mhs);
++    _cell.gnx_milk_spr = _cell.gnx_milk_def.spr;
++    _cell.gnx_milk_clock = _cell.gnx_milk_def.clock;
++    _cell.gnx_milk_n = _cell.gnx_milk_def.n;
++    var _m_any = _cell.gnx_milk_def.any;
++    
++    // GNX-BYCLASS: in a class_map cell each entry of human_spr.classes, and the default entry, brings the
++    // class's own milk_spr and infant_spr, written as the cell's own (gnx_milk_for / gnx_infant_for pick
++    // them by the captive's class: hers, else the default entry's, else none). The cell's own milk_spr and
++    // infant_spr are not lent to any class there (a class without its own has none; gnx_ug_strips_check
++    // checks what is declared); they stay for a GNX without per-class milk, which reads only them.
++    _cell.gnx_milk_bc = {};
++    _cell.gnx_infant_bc = {};
++    // && = and: a class_map human_spr
++    _cell.gnx_milk_cmap = is_struct(_mhs) && variable_struct_exists(_mhs, "mode") && _mhs.mode == "class_map";
++    // no milk at all: the tables of an empty block
++    _cell.gnx_milk_none = gnx_milk_tables(undefined, _sprites_dict, _base_dir, _mfr, undefined);
++    
++    if (_cell.gnx_milk_cmap)
++    {
++        // the cell's own milk does not count for drawing here
++        _m_any = false;
++        // [key, entry]: every classes entry, then the default entry under the key "default"
++        var _cbl = [];
++        
++        if (variable_struct_exists(_mhs, "classes") && is_struct(_mhs.classes))
++        {
++            var _cbk = variable_struct_get_names(_mhs.classes);
++            
++            for (var _cbi = 0; _cbi < array_length(_cbk); _cbi++)
++                array_push(_cbl, [_cbk[_cbi], variable_struct_get(_mhs.classes, _cbk[_cbi])]);
++        }
++        
++        // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
++        if (variable_struct_exists(_mhs, "default"))
++            array_push(_cbl, ["default", variable_struct_get(_mhs, "default")]);
++        
++        for (var _cbj = 0; _cbj < array_length(_cbl); _cbj++)
++        {
++            var _cbe = _cbl[_cbj][1];
++            
++            // ! = not: only objects ("_comment" notes etc. are skipped)
++            if (!is_struct(_cbe))
++                continue;
++            
++            var _cb_milk = variable_struct_exists(_cbe, "milk_spr") && is_struct(_cbe.milk_spr);
++            var _cb_inf = variable_struct_exists(_cbe, "infant_spr");
++            
++            // ! && !: neither of them, nothing to read for this entry
++            if (!_cb_milk && !_cb_inf)
++                continue;
++            
++            // == : the default entry keeps its name, a class entry becomes its class number
++            var _cbid = (_cbl[_cbj][0] == "default") ? "default" : gnx_class_key_id(_cbl[_cbj][0], _cn, "human_spr.classes");
++            
++            // == undefined: the class is not loaded
++            if (_cbid == undefined)
++                continue;
++            
++            if (_cb_milk)
++            {
++                // the entry's own phase tables (arg4 = the entry) decide which phases borrow milk
++                var _mtc = gnx_milk_tables(_cbe.milk_spr, _sprites_dict, _base_dir, _mfr, _cbe);
++                variable_struct_set(_cell.gnx_milk_bc, _cbid, _mtc);
++                // || = or: the cell draws milk when any entry has a strip
++                _m_any = _m_any || _mtc.any;
++            }
++            
++            if (_cb_inf)
++                variable_struct_set(_cell.gnx_infant_bc, _cbid, gnx_resolve_layer_sprite(_cbe.infant_spr, _sprites_dict, _base_dir));
++        }
++    }
++    
++    // no milk strip at all in an underground scene: milk items still come in, but no milk is drawn
++    if (_mfr != undefined && !_m_any && variable_struct_exists(_cp, "gnx_milk_items") && _cp.gnx_milk_items > 0)
++    {
++        var _mlog = gnx_log_open();
++        gnx_log_write(_mlog, "[GNX-UG] " + string(_cn) + ": no milk_spr - milk items come in, but no milk is drawn\n");
++        gnx_log_close(_mlog);
++    }
++}
++
++
++// underground, range scripts, prop prefixes, places intermissions (part of scr_gnx_register_cell)
++function gnx_cell_parse_underground_and_props(arg0, arg1, _base_dir, _cell, _cn, _cp, _h, _phys, _sprites_dict)
++{
++    // GNX-UG stage 2: px of the cell below the floor line. A floor with such a cell gets a wider band
++    // under its floor tile, so the cell fits plus the optional gap (default 0 px) above the next ceiling.
++    // Vanilla: 32 px from the floor line to the next ceiling (140 - 108), so the extra = underground + gap - 32.
++    // GNX-FIX: underground 1-140 px (one floor is 140 px) and underground_gap 0-64, numbers as text read too;
++    // 0 or less still means "no part below the floor line" as before
++    if (variable_struct_exists(_phys, "underground") && gnx_json_num(_phys.underground, 0) > 0)
++    {
++        _cp.gnx_ug_depth = floor(gnx_json_num_in(_phys.underground, 75, 1, 140, _cn, "underground"));
++        var _ug_gap = variable_struct_exists(_phys, "underground_gap") ? floor(gnx_json_num_in(_phys.underground_gap, 0, 0, 64, _cn, "underground_gap")) : 0;
++        _cp.gnx_ug_extra = max(0, (_cp.gnx_ug_depth + _ug_gap) - 32);
++        global.gnx_ug_any = true;
++        var _ugl = gnx_log_open();
++        gnx_log_write(_ugl, "[GNX-UG] " + string(_cn) + ": underground=" + string(_cp.gnx_ug_depth) + " gap=" + string(_ug_gap) + " -> floor band +" + string(_cp.gnx_ug_extra) + " px where built\n");
++        gnx_log_close(_ugl);
++        
++        // the first cell that brings band_spr sets the floor band drawn on floors with an underground cell
++        if (global.gnx_ug_band == -1 && variable_struct_exists(arg0, "band_spr"))
++            global.gnx_ug_band = gnx_resolve_layer_sprite(arg0.band_spr, _sprites_dict, _base_dir);
++        
++        // GNX-FX: drops and drips of an underground cell land on the cell floor, 4 px above its bottom
++        _cp.gnx_fx_floor = max(0, _cp.gnx_ug_depth - 4);
++    }
++    
++    // GNX-FX: physical.fx_floor = px below the floor line where the cell's squirt drops and drips land
++    // (any cell; vanilla 0 = the floor line, negative = above it)
++    if (variable_struct_exists(_phys, "fx_floor"))
++        _cp.gnx_fx_floor = floor(gnx_json_num(_phys.fx_floor, 0));
++    
++    if (variable_struct_exists(_phys, "sign_y_base"))
++    {
++        _cp.sign_y_base = _phys.sign_y_base;
++        _cp.sign_y_jitter = gnx_opt(_phys, "sign_y_jitter", 2);
++    }
++    gnx_cell_parse_physical_opts(_base_dir, _cell, _cp, _h, _phys, _sprites_dict);
++    
++    if (variable_struct_exists(_phys, "range_draw_func"))
++        _cp.range_draw_func = gnx_resolve_script(_phys.range_draw_func);
++    
++    if (variable_struct_exists(_phys, "scr_unoccupy"))
++        _cp.scr_unoccupy = gnx_resolve_script(_phys.scr_unoccupy);
++    
++    if (variable_struct_exists(arg0, "sfx_type"))
++        _cell.sfx_type = arg0.sfx_type;
++    
++    var _hspr = gnx_opt(arg0, "human_spr", {});  // optional: base+class default
++    var _chspr = _cell.human_spr;
++    gnx_cell_resolve_human_spr(_base_dir, _chspr, _hspr, _sprites_dict);
++    
++    if (variable_struct_exists(arg0, "mon_spr_hob"))
++        _cell.mon_spr_hob = gnx_resolve_mon_spr(arg0.mon_spr_hob, _sprites_dict, _base_dir);
++    
++    if (variable_struct_exists(arg0, "mon_spr_ogr"))
++        _cell.mon_spr_ogr = gnx_resolve_mon_spr(arg0.mon_spr_ogr, _sprites_dict, _base_dir);
++    
++    var _pp_prefixes = ["mon_spr_p", "mon_spr_hob_p", "mon_spr_ogr_p"];
++    
++    for (var _ppi = 0; _ppi < 3; _ppi++)
++    {
++        for (var _ppn = 0; _ppn < 3; _ppn++)
++        {
++            var _ppk = _pp_prefixes[_ppi] + string(_ppn);
++            
++            if (variable_struct_exists(arg0, _ppk))
++                variable_struct_set(_cell, _ppk, gnx_resolve_mon_spr(variable_struct_get(arg0, _ppk), _sprites_dict, _base_dir));
++        }
++    }
++    
++    if (variable_struct_exists(arg0, "mon_types"))
++        _cell.mon_types = arg0.mon_types;
++    
++    // GNX-FIX: monster species and places checked once (audit P5)
++    gnx_cell_mon_check(_cell, _cn, arg1);
++    
++    // GNX-PLACES-INTER: ej_end's strip rule, now that the species are cleaned (a cell with independent
++    // places and an ej_end table; && = and)
++    if (variable_struct_exists(_cp, "gnx_places") && _cp.gnx_places && variable_struct_exists(_cp, "gnx_inter_end") && is_struct(_cp.gnx_inter_end))
++        gnx_frames_check_ej_end(arg0, _cn, _sprites_dict, _cp.gnx_inter_end, _cell);
++    
++    _cell.mod_name = arg1;
++}
++
++
++// physical.transfer: whether the hobgoblins of a TRANSFER cell serve this cell (part of scr_gnx_register_cell)
++function gnx_cell_parse_transfer(arg0, _cn, _cp, _gnx_ug_scene, _hspr_body, _hspr_mode, _phys, _sprites_dict)
++{
++    // GNX: json_parse reads true / false as the numbers 1 / 0 (is_bool is never true for them), so numbers count too
++    if (variable_struct_exists(_phys, "transfer"))
++        _cp.gnx_no_transfer = !gnx_json_bool(_phys.transfer, !_cp.gnx_no_transfer, _cn, "physical.transfer");
++    
++    if (variable_struct_exists(_phys, "frames") && !_gnx_ug_scene)
++        gnx_frames_register(_cp, arg0, _cn, _hspr_mode, _hspr_body, _sprites_dict);
++    
++    
++    // GNX-FRAMES: every mod cell follows the same rule: the captive's and the monsters' strips have the
++    // frame count of their phase. Without physical.frames these are the vanilla counts (start 2, idle 2,
++    // loop 5, ej 5, birth 2). The class sheets of mode base+class are the game's and are not checked.
++    if (!variable_struct_exists(_phys, "frames") && !_gnx_ug_scene)
++        gnx_frames_check_strips(arg0, _cn, _sprites_dict, [2, 2, 5, 5, 2], false, _hspr_body);
++    
++    // GNX-LOOP: "loop_scale": true makes the loop parts longer in proportion to the loop frames
++    // (is_numeric(true) is true in GameMaker, so true and 1 switch it on; "true" as text too)
++    if (variable_struct_exists(_phys, "loop_scale"))
++    {
++        var _ls = _phys.loop_scale;
++        _cp.gnx_loop_scale = (is_numeric(_ls) && _ls != 0) || (is_string(_ls) && _ls == "true");
++    }
++}
++
++
++// physical.frames of an underground-scene cell (part of scr_gnx_register_cell)
++function gnx_cell_parse_ug_frames(arg0, _cn, _cp, _gnx_ug_scene, _hspr_body, _phys, _sprites_dict)
++{
 +    if (variable_struct_exists(_phys, "frames") && is_struct(_phys.frames) && _gnx_ug_scene)
 +    {
 +        var _ugf = _phys.frames;
@@ -7836,7 +8087,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        var _ugfr = _cp.gnx_frames;
 +        gnx_frames_check_strips(arg0, _cn, _sprites_dict, [_ugfr.start, _ugfr.idle, _ugfr.loop, _ugfr.ej, _ugfr.birth], true, _hspr_body);
 +    }
-+    
++}
++
++
++// physical.speed of a cell with independent places (part of scr_gnx_register_cell)
++function gnx_cell_parse_places_speed(arg0, _cell, _cn, _cp, _gnx_ug_scene, _hspr_body, _hspr_mode, _phys, _sprites_dict)
++{
 +    // GNX-PLACES-SPEED: a cell with independent places reads physical.speed (its own frames per second);
 +    // underground scenes read it above; any other cell plays the vanilla speeds, so it would do nothing there
 +    if (_cp.gnx_places && variable_struct_exists(_phys, "speed"))
@@ -7926,162 +8182,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        // the strip rule for the intermissions (captive, tentacle, monsters)
 +        gnx_frames_check_inter(arg0, _cn, _sprites_dict, _cp.gnx_inter, _inx, _gnx_ug_scene, _hspr_body, _cp.gnx_inter_next, _cp.gnx_places);
 +    }
-+    
-+    // GNX-UG: tentacle sprite per phase (index = phase: 0 start, 1 idle, 2 loop, 3 ej, 4 birth, 5 milk),
-+    // drawn by layer type 20, and the newborn sprite used by scr_slot_h_gnx_ug_birth.
-+    // GNX-INTER: 6-9 = the intermissions idle_start, start_loop, loop_ej, ej_birth (tent_spr.<name>); without
-+    // the key no tentacle is drawn there (spr_empty), so the empty-cell tentacle does not show up mid-scene
-+    _cell.gnx_tent = [-1, -1, -1, -1, -1, -1, spr_empty, spr_empty, spr_empty, spr_empty];
-+    
-+    if (variable_struct_exists(arg0, "tent_spr") && is_struct(arg0.tent_spr))
-+    {
-+        var _ugk = ["start", "idle", "loop", "ej", "birth", "milk", "idle_start", "start_loop", "loop_ej", "ej_birth"];
-+        
-+        for (var _ugi = 0; _ugi < 10; _ugi++)
-+        {
-+            if (variable_struct_exists(arg0.tent_spr, _ugk[_ugi]))
-+                _cell.gnx_tent[_ugi] = gnx_resolve_layer_sprite(variable_struct_get(arg0.tent_spr, _ugk[_ugi]), _sprites_dict, _base_dir);
-+        }
-+    }
-+    
-+    _cell.gnx_infant = variable_struct_exists(arg0, "infant_spr") ? gnx_resolve_layer_sprite(arg0.infant_spr, _sprites_dict, _base_dir) : -1;
-+    
-+    // GNX-UG: milking overlay per phase (0 start, 1 idle, 2 loop, 3 ej, 4 birth; GNX-INTER: 6-9 the
-+    // intermissions idle_start, start_loop, loop_ej, ej_birth; index 5 is not used), drawn by layer type 21.
-+    // GNX-BYCLASS: gnx_milk_tables builds the tables (strip, own clock, frames) of one milk_spr block: the
-+    // cell's own here, a class's own below
-+    var _mfr = undefined;
-+    
-+    if (_gnx_ug_scene && variable_struct_exists(_cp, "gnx_frames"))
-+    {
-+        // frames of each phase (5 unused); an intermission the cell does not declare is never played
-+        _mfr = [_cp.gnx_frames.start, _cp.gnx_frames.idle, _cp.gnx_frames.loop, _cp.gnx_frames.ej, _cp.gnx_frames.birth, 1, 1, 1, 1, 1];
-+        
-+        for (var _ik = 0; _ik < 4; _ik++)
-+        {
-+            if (variable_struct_exists(_cp, "gnx_inter") && is_struct(_cp.gnx_inter[_ik]))
-+                _mfr[6 + _ik] = _cp.gnx_inter[_ik].frames;
-+        }
-+    }
-+    
-+    // ? : the block when the cell has one, else undefined (no milk strips)
-+    var _msp = (variable_struct_exists(arg0, "milk_spr") && is_struct(arg0.milk_spr)) ? arg0.milk_spr : undefined;
-+    var _mhs = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : undefined;
-+    _cell.gnx_milk_def = gnx_milk_tables(_msp, _sprites_dict, _base_dir, _mfr, _mhs);
-+    _cell.gnx_milk_spr = _cell.gnx_milk_def.spr;
-+    _cell.gnx_milk_clock = _cell.gnx_milk_def.clock;
-+    _cell.gnx_milk_n = _cell.gnx_milk_def.n;
-+    var _m_any = _cell.gnx_milk_def.any;
-+    
-+    // GNX-BYCLASS: in a class_map cell each entry of human_spr.classes, and the default entry, brings the
-+    // class's own milk_spr and infant_spr, written as the cell's own (gnx_milk_for / gnx_infant_for pick
-+    // them by the captive's class: hers, else the default entry's, else none). The cell's own milk_spr and
-+    // infant_spr are not lent to any class there (a class without its own has none; gnx_ug_strips_check
-+    // checks what is declared); they stay for a GNX without per-class milk, which reads only them.
-+    _cell.gnx_milk_bc = {};
-+    _cell.gnx_infant_bc = {};
-+    // && = and: a class_map human_spr
-+    _cell.gnx_milk_cmap = is_struct(_mhs) && variable_struct_exists(_mhs, "mode") && _mhs.mode == "class_map";
-+    // no milk at all: the tables of an empty block
-+    _cell.gnx_milk_none = gnx_milk_tables(undefined, _sprites_dict, _base_dir, _mfr, undefined);
-+    
-+    if (_cell.gnx_milk_cmap)
-+    {
-+        // the cell's own milk does not count for drawing here
-+        _m_any = false;
-+        // [key, entry]: every classes entry, then the default entry under the key "default"
-+        var _cbl = [];
-+        
-+        if (variable_struct_exists(_mhs, "classes") && is_struct(_mhs.classes))
-+        {
-+            var _cbk = variable_struct_get_names(_mhs.classes);
-+            
-+            for (var _cbi = 0; _cbi < array_length(_cbk); _cbi++)
-+                array_push(_cbl, [_cbk[_cbi], variable_struct_get(_mhs.classes, _cbk[_cbi])]);
-+        }
-+        
-+        // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
-+        if (variable_struct_exists(_mhs, "default"))
-+            array_push(_cbl, ["default", variable_struct_get(_mhs, "default")]);
-+        
-+        for (var _cbj = 0; _cbj < array_length(_cbl); _cbj++)
-+        {
-+            var _cbe = _cbl[_cbj][1];
-+            
-+            // ! = not: only objects ("_comment" notes etc. are skipped)
-+            if (!is_struct(_cbe))
-+                continue;
-+            
-+            var _cb_milk = variable_struct_exists(_cbe, "milk_spr") && is_struct(_cbe.milk_spr);
-+            var _cb_inf = variable_struct_exists(_cbe, "infant_spr");
-+            
-+            // ! && !: neither of them, nothing to read for this entry
-+            if (!_cb_milk && !_cb_inf)
-+                continue;
-+            
-+            // == : the default entry keeps its name, a class entry becomes its class number
-+            var _cbid = (_cbl[_cbj][0] == "default") ? "default" : gnx_class_key_id(_cbl[_cbj][0], _cn, "human_spr.classes");
-+            
-+            // == undefined: the class is not loaded
-+            if (_cbid == undefined)
-+                continue;
-+            
-+            if (_cb_milk)
-+            {
-+                // the entry's own phase tables (arg4 = the entry) decide which phases borrow milk
-+                var _mtc = gnx_milk_tables(_cbe.milk_spr, _sprites_dict, _base_dir, _mfr, _cbe);
-+                variable_struct_set(_cell.gnx_milk_bc, _cbid, _mtc);
-+                // || = or: the cell draws milk when any entry has a strip
-+                _m_any = _m_any || _mtc.any;
-+            }
-+            
-+            if (_cb_inf)
-+                variable_struct_set(_cell.gnx_infant_bc, _cbid, gnx_resolve_layer_sprite(_cbe.infant_spr, _sprites_dict, _base_dir));
-+        }
-+    }
-+    
-+    // no milk strip at all in an underground scene: milk items still come in, but no milk is drawn
-+    if (_mfr != undefined && !_m_any && variable_struct_exists(_cp, "gnx_milk_items") && _cp.gnx_milk_items > 0)
-+    {
-+        var _mlog = gnx_log_open();
-+        gnx_log_write(_mlog, "[GNX-UG] " + string(_cn) + ": no milk_spr - milk items come in, but no milk is drawn\n");
-+        gnx_log_close(_mlog);
-+    }
++}
 +
-+    // GNX-UG stage 2: px of the cell below the floor line. A floor with such a cell gets a wider band
-+    // under its floor tile, so the cell fits plus the optional gap (default 0 px) above the next ceiling.
-+    // Vanilla: 32 px from the floor line to the next ceiling (140 - 108), so the extra = underground + gap - 32.
-+    // GNX-FIX: underground 1-140 px (one floor is 140 px) and underground_gap 0-64, numbers as text read too;
-+    // 0 or less still means "no part below the floor line" as before
-+    if (variable_struct_exists(_phys, "underground") && gnx_json_num(_phys.underground, 0) > 0)
-+    {
-+        _cp.gnx_ug_depth = floor(gnx_json_num_in(_phys.underground, 75, 1, 140, _cn, "underground"));
-+        var _ug_gap = variable_struct_exists(_phys, "underground_gap") ? floor(gnx_json_num_in(_phys.underground_gap, 0, 0, 64, _cn, "underground_gap")) : 0;
-+        _cp.gnx_ug_extra = max(0, (_cp.gnx_ug_depth + _ug_gap) - 32);
-+        global.gnx_ug_any = true;
-+        var _ugl = gnx_log_open();
-+        gnx_log_write(_ugl, "[GNX-UG] " + string(_cn) + ": underground=" + string(_cp.gnx_ug_depth) + " gap=" + string(_ug_gap) + " -> floor band +" + string(_cp.gnx_ug_extra) + " px where built\n");
-+        gnx_log_close(_ugl);
-+        
-+        // the first cell that brings band_spr sets the floor band drawn on floors with an underground cell
-+        if (global.gnx_ug_band == -1 && variable_struct_exists(arg0, "band_spr"))
-+            global.gnx_ug_band = gnx_resolve_layer_sprite(arg0.band_spr, _sprites_dict, _base_dir);
-+        
-+        // GNX-FX: drops and drips of an underground cell land on the cell floor, 4 px above its bottom
-+        _cp.gnx_fx_floor = max(0, _cp.gnx_ug_depth - 4);
-+    }
-+    
-+    // GNX-FX: physical.fx_floor = px below the floor line where the cell's squirt drops and drips land
-+    // (any cell; vanilla 0 = the floor line, negative = above it)
-+    if (variable_struct_exists(_phys, "fx_floor"))
-+        _cp.gnx_fx_floor = floor(gnx_json_num(_phys.fx_floor, 0));
-+    
-+    if (variable_struct_exists(_phys, "sign_y_base"))
-+    {
-+        _cp.sign_y_base = _phys.sign_y_base;
-+        _cp.sign_y_jitter = variable_struct_exists(_phys, "sign_y_jitter") ? _phys.sign_y_jitter : 2;
-+    }
-+    
++
++// the optional physical.* fields copied onto the cell (part of scr_gnx_register_cell)
++function gnx_cell_parse_physical_opts(_base_dir, _cell, _cp, _h, _phys, _sprites_dict)
++{
 +    if (variable_struct_exists(_phys, "milk_step"))
 +        _cp.milk_step = _phys.milk_step;
 +    
@@ -8201,19 +8307,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            }
 +        }
 +    }
-+    
-+    if (variable_struct_exists(_phys, "range_draw_func"))
-+        _cp.range_draw_func = gnx_resolve_script(_phys.range_draw_func);
-+    
-+    if (variable_struct_exists(_phys, "scr_unoccupy"))
-+        _cp.scr_unoccupy = gnx_resolve_script(_phys.scr_unoccupy);
-+    
-+    if (variable_struct_exists(arg0, "sfx_type"))
-+        _cell.sfx_type = arg0.sfx_type;
-+    
-+    var _hspr = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : {};  // optional: base+class default
-+    var _chspr = _cell.human_spr;
-+    
++}
++
++
++// human_spr sprite tables per mode (part of scr_gnx_register_cell)
++function gnx_cell_resolve_human_spr(_base_dir, _chspr, _hspr, _sprites_dict)
++{
 +    if (_chspr.mode == "fixed")
 +    {
 +        if (variable_struct_exists(_hspr, "phase_0"))
@@ -8322,49 +8421,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            _chspr.classes = _cls_out;
 +        }
 +    }
-+    
-+    if (variable_struct_exists(arg0, "mon_spr_hob"))
-+        _cell.mon_spr_hob = gnx_resolve_mon_spr(arg0.mon_spr_hob, _sprites_dict, _base_dir);
-+    
-+    if (variable_struct_exists(arg0, "mon_spr_ogr"))
-+        _cell.mon_spr_ogr = gnx_resolve_mon_spr(arg0.mon_spr_ogr, _sprites_dict, _base_dir);
-+    
-+    var _pp_prefixes = ["mon_spr_p", "mon_spr_hob_p", "mon_spr_ogr_p"];
-+    
-+    for (var _ppi = 0; _ppi < 3; _ppi++)
-+    {
-+        for (var _ppn = 0; _ppn < 3; _ppn++)
-+        {
-+            var _ppk = _pp_prefixes[_ppi] + string(_ppn);
-+            
-+            if (variable_struct_exists(arg0, _ppk))
-+                variable_struct_set(_cell, _ppk, gnx_resolve_mon_spr(variable_struct_get(arg0, _ppk), _sprites_dict, _base_dir));
-+        }
-+    }
-+    
-+    if (variable_struct_exists(arg0, "mon_types"))
-+        _cell.mon_types = arg0.mon_types;
-+    
-+    // GNX-FIX: monster species and places checked once (audit P5)
-+    gnx_cell_mon_check(_cell, _cn, arg1);
-+    
-+    // GNX-PLACES-INTER: ej_end's strip rule, now that the species are cleaned (a cell with independent
-+    // places and an ej_end table; && = and)
-+    if (variable_struct_exists(_cp, "gnx_places") && _cp.gnx_places && variable_struct_exists(_cp, "gnx_inter_end") && is_struct(_cp.gnx_inter_end))
-+        gnx_frames_check_ej_end(arg0, _cn, _sprites_dict, _cp.gnx_inter_end, _cell);
-+    
-+    _cell.mod_name = arg1;
-+    ds_map_add(global.cell_registry, _h, _cell);
-+    var _log2 = gnx_log_open();
-+    gnx_log_write(_log2, "[GNX] cell sprites h=" + string(_h) + ":");
-+    
-+    for (var _di = 0; _di < array_length(_spr_slot); _di++)
-+        gnx_log_write(_log2, " [" + string(_di) + "]=" + string(_spr_slot[_di][1]));
-+    
-+    gnx_log_write(_log2, "\n");
-+    gnx_log_close(_log2);
-+    var _cat = arg0.category;
-+    
++}
++
++
++// the cell joins its category's build list (part of scr_gnx_register_cell)
++function gnx_cell_add_to_category(_cat, _h)
++{
 +    switch (_cat)
 +    {
 +        case "breed":
@@ -8408,20 +8470,6 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            array_push(global.ug_breed_order, _h);
 +            break;
 +    }
-+    
-+    var _reg_entry = 
-+    {
-+        h_type: _h,
-+        category: _cat
-+    };
-+    
-+    if (variable_struct_exists(arg0, "locked") && arg0.locked == true)
-+        _reg_entry.locked = true;
-+    
-+    array_push(global.gnx_registered_cells, _reg_entry);
-+    var _log = gnx_log_open();
-+    gnx_log_write(_log, "[GNX] cell OK: h=" + string(_h) + " name=" + string(_cn) + " cat=" + string(_cat) + "\n");
-+    gnx_log_close(_log);
 +}
 +
 +
@@ -8445,7 +8493,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    }
 +    
 +    var _base_dir = global.gnx_mods_root + arg2 + "/";
-+    var _sprites_dict = variable_struct_exists(arg1, "sprites") ? arg1.sprites : undefined;
++    var _sprites_dict = gnx_opt(arg1, "sprites", undefined);
 +    
 +    if (variable_struct_exists(arg1, "name"))
 +        _cell.name = arg1.name;
@@ -8802,8 +8850,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        return undefined;
 +    
 +    var _out = {};
-+    var _s = variable_struct_exists(arg0, "start") ? arg0.start : undefined;
-+    var _lo = variable_struct_exists(arg0, "loop") ? arg0.loop : undefined;
++    var _s = gnx_opt(arg0, "start", undefined);
++    var _lo = gnx_opt(arg0, "loop", undefined);
 +    gnx_resolve_mspr_body_variants((_s != undefined && variable_struct_exists(_s, "body")) ? _s.body : undefined, arg1, arg2, _out, "s");
 +    var _hp = gnx_resolve_mspr_pair((_s != undefined && variable_struct_exists(_s, "hand")) ? _s.hand : undefined, arg1, arg2);
 +    _out.s_hand_b = _hp[0];
@@ -8836,16 +8884,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    _out.lo_pen = gnx_resolve_mspr_spr((_lo != undefined && variable_struct_exists(_lo, "pen")) ? _lo.pen : undefined, arg1, arg2);
 +    gnx_resolve_mspr_class_variants((_lo != undefined && variable_struct_exists(_lo, "touch")) ? _lo.touch : undefined, arg1, arg2, _out, "lo_touch");
 +    gnx_resolve_mspr_class_variants((_lo != undefined && variable_struct_exists(_lo, "enter")) ? _lo.enter : undefined, arg1, arg2, _out, "lo_enter");
-+    var _ej = variable_struct_exists(arg0, "ej") ? arg0.ej : undefined;
++    var _ej = gnx_opt(arg0, "ej", undefined);
 +    
 +    if (_ej != undefined)
 +    {
-+        gnx_resolve_mspr_body_variants(variable_struct_exists(_ej, "body") ? _ej.body : undefined, arg1, arg2, _out, "ej");
-+        gnx_resolve_mspr_hand_variants(variable_struct_exists(_ej, "hand") ? _ej.hand : undefined, arg1, arg2, _out, "ej");
-+        _out.ej_pen = gnx_resolve_mspr_spr(variable_struct_exists(_ej, "pen") ? _ej.pen : undefined, arg1, arg2);
-+        gnx_resolve_mspr_class_variants(variable_struct_exists(_ej, "touch") ? _ej.touch : undefined, arg1, arg2, _out, "ej_touch");
-+        gnx_resolve_mspr_class_variants(variable_struct_exists(_ej, "enter") ? _ej.enter : undefined, arg1, arg2, _out, "ej_enter");
-+        var _ej_head = variable_struct_exists(_ej, "head") ? _ej.head : undefined;
++        gnx_resolve_mspr_body_variants(gnx_opt(_ej, "body", undefined), arg1, arg2, _out, "ej");
++        gnx_resolve_mspr_hand_variants(gnx_opt(_ej, "hand", undefined), arg1, arg2, _out, "ej");
++        _out.ej_pen = gnx_resolve_mspr_spr(gnx_opt(_ej, "pen", undefined), arg1, arg2);
++        gnx_resolve_mspr_class_variants(gnx_opt(_ej, "touch", undefined), arg1, arg2, _out, "ej_touch");
++        gnx_resolve_mspr_class_variants(gnx_opt(_ej, "enter", undefined), arg1, arg2, _out, "ej_enter");
++        var _ej_head = gnx_opt(_ej, "head", undefined);
 +        
 +        if (is_array(_ej_head) && array_length(_ej_head) >= 1)
 +        {
@@ -8889,12 +8937,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +/// ej blocks of mon_spr) into struct arg3 under prefix arg4. arg1 = "sprites" block, arg2 = mod folder.
 +function gnx_resolve_mspr_phase(arg0, arg1, arg2, arg3, arg4)
 +{
-+    gnx_resolve_mspr_body_variants(variable_struct_exists(arg0, "body") ? arg0.body : undefined, arg1, arg2, arg3, arg4);
-+    gnx_resolve_mspr_hand_variants(variable_struct_exists(arg0, "hand") ? arg0.hand : undefined, arg1, arg2, arg3, arg4);
-+    variable_struct_set(arg3, arg4 + "_pen", gnx_resolve_mspr_spr(variable_struct_exists(arg0, "pen") ? arg0.pen : undefined, arg1, arg2));
-+    gnx_resolve_mspr_class_variants(variable_struct_exists(arg0, "touch") ? arg0.touch : undefined, arg1, arg2, arg3, arg4 + "_touch");
-+    gnx_resolve_mspr_class_variants(variable_struct_exists(arg0, "enter") ? arg0.enter : undefined, arg1, arg2, arg3, arg4 + "_enter");
-+    var _head = variable_struct_exists(arg0, "head") ? arg0.head : undefined;
++    gnx_resolve_mspr_body_variants(gnx_opt(arg0, "body", undefined), arg1, arg2, arg3, arg4);
++    gnx_resolve_mspr_hand_variants(gnx_opt(arg0, "hand", undefined), arg1, arg2, arg3, arg4);
++    variable_struct_set(arg3, arg4 + "_pen", gnx_resolve_mspr_spr(gnx_opt(arg0, "pen", undefined), arg1, arg2));
++    gnx_resolve_mspr_class_variants(gnx_opt(arg0, "touch", undefined), arg1, arg2, arg3, arg4 + "_touch");
++    gnx_resolve_mspr_class_variants(gnx_opt(arg0, "enter", undefined), arg1, arg2, arg3, arg4 + "_enter");
++    var _head = gnx_opt(arg0, "head", undefined);
 +    
 +    // a list of two heads (one is picked at random per monster) or one head; || = or
 +    if (_head == undefined || (is_array(_head) && array_length(_head) == 0))
@@ -9317,15 +9365,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    
 +    var _out = 
 +    {
-+        hair: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "hair") ? arg0.hair : -1, arg1, arg2),
-+        head: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "head") ? arg0.head : -1, arg1, arg2),
-+        breast: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "breast") ? arg0.breast : -1, arg1, arg2),
-+        leg: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "leg") ? arg0.leg : -1, arg1, arg2),
-+        leg_part: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "leg_part") ? arg0.leg_part : -1, arg1, arg2)
++        hair: gnx_resolve_layer_sprite(gnx_opt(arg0, "hair", -1), arg1, arg2),
++        head: gnx_resolve_layer_sprite(gnx_opt(arg0, "head", -1), arg1, arg2),
++        breast: gnx_resolve_layer_sprite(gnx_opt(arg0, "breast", -1), arg1, arg2),
++        leg: gnx_resolve_layer_sprite(gnx_opt(arg0, "leg", -1), arg1, arg2),
++        leg_part: gnx_resolve_layer_sprite(gnx_opt(arg0, "leg_part", -1), arg1, arg2)
 +    };
 +    
 +    if (arg3)
-+        _out.hand = gnx_resolve_layer_sprite(variable_struct_exists(arg0, "hand") ? arg0.hand : -1, arg1, arg2);
++        _out.hand = gnx_resolve_layer_sprite(gnx_opt(arg0, "hand", -1), arg1, arg2);
 +    
 +    return _out;
 +}
@@ -9362,8 +9410,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    
 +    var _out = 
 +    {
-+        head: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "head") ? arg0.head : -1, arg1, arg2),
-+        breast: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "breast") ? arg0.breast : -1, arg1, arg2)
++        head: gnx_resolve_layer_sprite(gnx_opt(arg0, "head", -1), arg1, arg2),
++        breast: gnx_resolve_layer_sprite(gnx_opt(arg0, "breast", -1), arg1, arg2)
 +    };
 +    
 +    if (variable_struct_exists(arg0, "hair"))
@@ -9710,8 +9758,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    
 +    var _out = 
 +    {
-+        head: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "head") ? arg0.head : -1, arg1, arg2),
-+        breast: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "breast") ? arg0.breast : -1, arg1, arg2)
++        head: gnx_resolve_layer_sprite(gnx_opt(arg0, "head", -1), arg1, arg2),
++        breast: gnx_resolve_layer_sprite(gnx_opt(arg0, "breast", -1), arg1, arg2)
 +    };
 +    
 +    if (variable_struct_exists(arg0, "leg_1"))
@@ -9728,9 +9776,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        var _l0 = arg0.leg_0;
 +        _out.leg_0 = 
 +        {
-+            head: gnx_resolve_layer_sprite(variable_struct_exists(_l0, "head") ? _l0.head : -1, arg1, arg2),
-+            breast: gnx_resolve_layer_sprite(variable_struct_exists(_l0, "breast") ? _l0.breast : -1, arg1, arg2),
-+            leg: gnx_resolve_layer_sprite(variable_struct_exists(_l0, "leg") ? _l0.leg : -1, arg1, arg2)
++            head: gnx_resolve_layer_sprite(gnx_opt(_l0, "head", -1), arg1, arg2),
++            breast: gnx_resolve_layer_sprite(gnx_opt(_l0, "breast", -1), arg1, arg2),
++            leg: gnx_resolve_layer_sprite(gnx_opt(_l0, "leg", -1), arg1, arg2)
 +        };
 +    }
 +    
@@ -9780,8 +9828,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +function gnx_resolve_class(arg0, arg1)
 +{
 +    var _base_dir = global.gnx_mods_root + arg1 + "/";
-+    var _sprites = variable_struct_exists(arg0, "sprites") ? arg0.sprites : {};
-+    var _class_name = variable_struct_exists(arg0, "name") ? arg0.name : "UNKNOWN";
++    var _sprites = gnx_opt(arg0, "sprites", {});
++    var _class_name = gnx_opt(arg0, "name", "UNKNOWN");
 +    var _allow_override = variable_struct_exists(arg0, "override") && arg0.override;
 +    var _class_id;
 +    
@@ -9812,15 +9860,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    
 +    var _rclass = 
 +    {
-+        name: variable_struct_exists(arg0, "name") ? arg0.name : "UNKNOWN",
++        name: gnx_opt(arg0, "name", "UNKNOWN"),
 +        is_special: variable_struct_exists(arg0, "is_special") ? arg0.is_special : ((_is_merge && is_struct(_base) && variable_struct_exists(_base, "is_special")) ? _base.is_special : false),
-+        has_hair: variable_struct_exists(arg0, "has_hair") ? arg0.has_hair : true,
-+        fap_mul: variable_struct_exists(arg0, "fap_mul") ? arg0.fap_mul : 1,
-+        bap_mul: variable_struct_exists(arg0, "bap_mul") ? arg0.bap_mul : 0,
-+        preg_c_override: variable_struct_exists(arg0, "preg_c_override") ? arg0.preg_c_override : -999,
-+        hand_color: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "hand_color") ? arg0.hand_color : -1, _sprites, _base_dir),
-+        icon_spr: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "icon") ? arg0.icon : -1, _sprites, _base_dir),
-+        icon_hair_spr: gnx_resolve_layer_sprite(variable_struct_exists(arg0, "icon_hair") ? arg0.icon_hair : -1, _sprites, _base_dir),
++        has_hair: gnx_opt(arg0, "has_hair", true),
++        fap_mul: gnx_opt(arg0, "fap_mul", 1),
++        bap_mul: gnx_opt(arg0, "bap_mul", 0),
++        preg_c_override: gnx_opt(arg0, "preg_c_override", -999),
++        hand_color: gnx_resolve_layer_sprite(gnx_opt(arg0, "hand_color", -1), _sprites, _base_dir),
++        icon_spr: gnx_resolve_layer_sprite(gnx_opt(arg0, "icon", -1), _sprites, _base_dir),
++        icon_hair_spr: gnx_resolve_layer_sprite(gnx_opt(arg0, "icon_hair", -1), _sprites, _base_dir),
 +        carry_head_spr: gnx_resolve_layer_sprite("gnx:carry_head", _sprites, _base_dir),
 +        carry_hair_spr: gnx_resolve_layer_sprite("gnx:carry_hair", _sprites, _base_dir),
 +        voice_bank: -1,
@@ -9852,7 +9900,71 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    var _ref = spr_unit_icon_head;
 +    gnx_log_write(_log, "  vanilla icon (class 0 frame 0): xo=" + string(gnx_sprite_get_xoffset(_ref)) + " yo=" + string(gnx_sprite_get_yoffset(_ref)) + " w=" + string(gnx_sprite_get_width(_ref)) + " h=" + string(gnx_sprite_get_height(_ref)) + "\n");
 +    gnx_log_close(_log);
++    gnx_class_resolve_clothing(arg0, _base_dir, _rclass, _sprites);
++
++    // POPRAWKA (GNX): "only_listed_cells": true = klasa wchodzi tylko do cel, ktorych required_class ja wymienia
++    _rclass.only_listed_cells = variable_struct_exists(arg0, "only_listed_cells") && arg0.only_listed_cells == true;
++    gnx_class_resolve_body_sprites(arg0, _base_dir, _rclass, _sprites);
++    gnx_class_parse_options(arg0, arg1, _base_dir, _class_id, _class_name, _rclass, _sprites);
++    gnx_class_parse_raid_spawns(arg0, arg1, _class_id, _log);
 +    
++    if (variable_struct_exists(arg0, "post_raid"))
++    {
++        var _pr = arg0.post_raid;
++        _pr.mod_name = arg1;
++        
++        if (variable_struct_exists(_pr, "cage_escape"))
++        {
++            var _ce = _pr.cage_escape;
++            
++            if (variable_struct_exists(_ce, "condition"))
++                scr_gnx_resolve_condition_refs(_ce.condition, arg1);
++            
++            if (variable_struct_exists(_ce, "on_escape_event") && is_string(_ce.on_escape_event))
++                _ce.on_escape_event = arg1 + "." + _ce.on_escape_event;
++            
++            if (variable_struct_exists(_ce, "on_survive_event") && is_string(_ce.on_survive_event))
++                _ce.on_survive_event = arg1 + "." + _ce.on_survive_event;
++            
++            if (variable_struct_exists(_ce, "popup") && is_string(_ce.popup))
++                _ce.popup = arg1 + "." + _ce.popup;
++        }
++        
++        _rclass.post_raid = _pr;
++        _log = gnx_log_open();
++        gnx_log_write(_log, "[GNX] post_raid loaded for class=" + string(_class_id) + "\n");
++        gnx_log_close(_log);
++    }
++    
++    _rclass.mod_name = arg1;
++    
++    if (variable_struct_exists(arg0, "tower_boss_condition"))
++    {
++        var _tbc = arg0.tower_boss_condition;
++        scr_gnx_resolve_condition_refs(_tbc, arg1);
++        _rclass.tower_boss_condition = _tbc;
++    }
++    gnx_class_merge_base(arg0, _base, _is_merge, _rclass);
++    
++    // vanilla sprite fallback: an override takes what it lacks (or failed to load) from the class it replaces;
++    // a new non-special class gets the vanilla peasant's sprite wherever one of its files did not load
++    var _fb_base = (_is_merge && is_struct(_base)) ? _base : ((!_rclass.is_special && ds_map_exists(global.class_registry, 0)) ? ds_map_find_value(global.class_registry, 0) : undefined);
++    gnx_class_sprite_fallback(arg0, arg1, _class_id, _fb_base, _is_merge, _log, _rclass);
++    
++    if (ds_map_exists(global.class_registry, _class_id))
++        ds_map_replace(global.class_registry, _class_id, _rclass);
++    else
++        ds_map_add(global.class_registry, _class_id, _rclass);
++    
++    _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX] class " + string(_class_id) + " registered: " + string(gnx_opt(arg0, "name", "?")) + "\n");
++    gnx_log_close(_log);
++}
++
++
++// clothing_standard / big / tent / giant sprite sets (part of gnx_resolve_class)
++function gnx_class_resolve_clothing(arg0, _base_dir, _rclass, _sprites)
++{
 +    if (variable_struct_exists(arg0, "clothing_standard"))
 +    {
 +        var _cs_def = arg0.clothing_standard;
@@ -9945,10 +10057,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +        _rclass.clothing_giant = _cg;
 +    }
++}
 +
-+    // POPRAWKA (GNX): "only_listed_cells": true = klasa wchodzi tylko do cel, ktorych required_class ja wymienia
-+    _rclass.only_listed_cells = variable_struct_exists(arg0, "only_listed_cells") && arg0.only_listed_cells == true;
 +
++// naked_*, carry_base_spr, gb1_breast_d2 and mon_sprite_swap sprite sets (part of gnx_resolve_class)
++function gnx_class_resolve_body_sprites(arg0, _base_dir, _rclass, _sprites)
++{
 +    if (variable_struct_exists(arg0, "naked_standard"))
 +    {
 +        var _ns_def = arg0.naked_standard;
@@ -10091,7 +10205,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +        _rclass.mon_sprite_swap = _msw;
 +    }
++}
 +
++
++// preg_mon_type_override, birth_classes, trade_stage, milk_lvl (part of gnx_resolve_class)
++function gnx_class_parse_options(arg0, arg1, _base_dir, _class_id, _class_name, _rclass, _sprites)
++{
 +    if (variable_struct_exists(arg0, "preg_mon_type_override"))
 +    {
 +        var _pmo = gnx_json_num(arg0.preg_mon_type_override, -1);
@@ -10102,7 +10221,39 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        else
 +            _rclass.preg_mon_type_override = _pmo;
 +    }
++    gnx_class_parse_birth_classes(arg0, _rclass);
++    gnx_class_parse_default_leg(arg0, _base_dir, _rclass, _sprites);
 +    
++    if (variable_struct_exists(arg0, "trade_stage"))
++    {
++        var _ts = arg0.trade_stage;
++        
++        // GNX-STAGE (D4): a stage name: sold once that stage is discovered on the map, without a trader slot of its own
++        if (is_string(_ts))
++            array_push(global.gnx_stage_trade_refs, { stage: _ts, class_id: _class_id, mod_name: arg1 });
++        else if (_ts >= 0 && _ts < array_length(global.gnx_trade_list))
++            array_push(global.gnx_trade_list[_ts], _class_id);
++    }
++    
++    // GNX-MILK: "milk_lvl" = the milk level this class gives: a number 0-4, or "lvl" = her own level, as
++    // the vanilla classes 0-7. Without it the vanilla rule stays: every class from 8 up gives level 1
++    // (Lilith 4), and mod classes have ids from 14 up. -2 marks "lvl" for gnx_milk_lvl.
++    if (variable_struct_exists(arg0, "milk_lvl"))
++    {
++        var _mlv = arg0.milk_lvl;
++        
++        // is_string = written as text; string_lower makes "LVL" and "Lvl" count too
++        if (is_string(_mlv) && string_lower(_mlv) == "lvl")
++            _rclass.gnx_milk_lvl = -2;
++        else
++            _rclass.gnx_milk_lvl = floor(gnx_json_num_in(_mlv, 1, 0, 4, "class " + arg1 + "." + _class_name, "milk_lvl"));
++    }
++}
++
++
++// birth_classes: the classes a captive of this class can give birth to (part of gnx_resolve_class)
++function gnx_class_parse_birth_classes(arg0, _rclass)
++{
 +    if (variable_struct_exists(arg0, "birth_classes"))
 +        _rclass.birth_classes = arg0.birth_classes;
 +    
@@ -10143,7 +10294,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        
 +        _rclass.birth_class = _bc_map;
 +    }
-+    
++}
++
++
++// default_leg and its sprites (part of gnx_resolve_class)
++function gnx_class_parse_default_leg(arg0, _base_dir, _rclass, _sprites)
++{
 +    if (variable_struct_exists(arg0, "default_leg"))
 +        _rclass.default_leg = arg0.default_leg;
 +    
@@ -10188,32 +10344,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        
 +        _rclass.birth_spr = _bs;
 +    }
-+    
-+    if (variable_struct_exists(arg0, "trade_stage"))
-+    {
-+        var _ts = arg0.trade_stage;
-+        
-+        // GNX-STAGE (D4): a stage name: sold once that stage is discovered on the map, without a trader slot of its own
-+        if (is_string(_ts))
-+            array_push(global.gnx_stage_trade_refs, { stage: _ts, class_id: _class_id, mod_name: arg1 });
-+        else if (_ts >= 0 && _ts < array_length(global.gnx_trade_list))
-+            array_push(global.gnx_trade_list[_ts], _class_id);
-+    }
-+    
-+    // GNX-MILK: "milk_lvl" = the milk level this class gives: a number 0-4, or "lvl" = her own level, as
-+    // the vanilla classes 0-7. Without it the vanilla rule stays: every class from 8 up gives level 1
-+    // (Lilith 4), and mod classes have ids from 14 up. -2 marks "lvl" for gnx_milk_lvl.
-+    if (variable_struct_exists(arg0, "milk_lvl"))
-+    {
-+        var _mlv = arg0.milk_lvl;
-+        
-+        // is_string = written as text; string_lower makes "LVL" and "Lvl" count too
-+        if (is_string(_mlv) && string_lower(_mlv) == "lvl")
-+            _rclass.gnx_milk_lvl = -2;
-+        else
-+            _rclass.gnx_milk_lvl = floor(gnx_json_num_in(_mlv, 1, 0, 4, "class " + arg1 + "." + _class_name, "milk_lvl"));
-+    }
-+    
++}
++
++
++// raid_spawns: where this class shows up in raids (part of gnx_resolve_class)
++function gnx_class_parse_raid_spawns(arg0, arg1, _class_id, _log)
++{
 +    if (variable_struct_exists(arg0, "raid_spawns"))
 +    {
 +        var _rs_arr = arg0.raid_spawns;
@@ -10236,15 +10372,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +            if (_rs_level != 0 || _rs_stage == 4)
 +            {
-+                var _rs_w = variable_struct_exists(_rs_e, "weight") ? _rs_e.weight : 10;
-+                var _rs_min = variable_struct_exists(_rs_e, "min_lvl") ? _rs_e.min_lvl : 0;
-+                var _rs_max = variable_struct_exists(_rs_e, "max_lvl") ? _rs_e.max_lvl : 1;
-+                var _rs_cond = variable_struct_exists(_rs_e, "condition") ? _rs_e.condition : undefined;
++                var _rs_w = gnx_opt(_rs_e, "weight", 10);
++                var _rs_min = gnx_opt(_rs_e, "min_lvl", 0);
++                var _rs_max = gnx_opt(_rs_e, "max_lvl", 1);
++                var _rs_cond = gnx_opt(_rs_e, "condition", undefined);
 +                
 +                if (_rs_cond != undefined)
 +                    scr_gnx_resolve_condition_refs(_rs_cond, arg1);
 +                
-+                var _rs_mpe = variable_struct_exists(_rs_e, "max_per_encounter") ? _rs_e.max_per_encounter : undefined;
++                var _rs_mpe = gnx_opt(_rs_e, "max_per_encounter", undefined);
 +                var _rs_apo = undefined;
 +                
 +                if (variable_struct_exists(_rs_e, "ap_override") && is_array(_rs_e.ap_override) && array_length(_rs_e.ap_override) == 2)
@@ -10263,44 +10399,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            }
 +        }
 +    }
-+    
-+    if (variable_struct_exists(arg0, "post_raid"))
-+    {
-+        var _pr = arg0.post_raid;
-+        _pr.mod_name = arg1;
-+        
-+        if (variable_struct_exists(_pr, "cage_escape"))
-+        {
-+            var _ce = _pr.cage_escape;
-+            
-+            if (variable_struct_exists(_ce, "condition"))
-+                scr_gnx_resolve_condition_refs(_ce.condition, arg1);
-+            
-+            if (variable_struct_exists(_ce, "on_escape_event") && is_string(_ce.on_escape_event))
-+                _ce.on_escape_event = arg1 + "." + _ce.on_escape_event;
-+            
-+            if (variable_struct_exists(_ce, "on_survive_event") && is_string(_ce.on_survive_event))
-+                _ce.on_survive_event = arg1 + "." + _ce.on_survive_event;
-+            
-+            if (variable_struct_exists(_ce, "popup") && is_string(_ce.popup))
-+                _ce.popup = arg1 + "." + _ce.popup;
-+        }
-+        
-+        _rclass.post_raid = _pr;
-+        _log = gnx_log_open();
-+        gnx_log_write(_log, "[GNX] post_raid loaded for class=" + string(_class_id) + "\n");
-+        gnx_log_close(_log);
-+    }
-+    
-+    _rclass.mod_name = arg1;
-+    
-+    if (variable_struct_exists(arg0, "tower_boss_condition"))
-+    {
-+        var _tbc = arg0.tower_boss_condition;
-+        scr_gnx_resolve_condition_refs(_tbc, arg1);
-+        _rclass.tower_boss_condition = _tbc;
-+    }
-+    
++}
++
++
++// an override takes the fields it does not set from the class it replaces (part of gnx_resolve_class)
++function gnx_class_merge_base(arg0, _base, _is_merge, _rclass)
++{
 +    if (_is_merge && is_struct(_base))
 +    {
 +        var _prov = {};
@@ -10371,11 +10475,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +                variable_struct_set(_rclass, _bk, variable_struct_get(_base, _bk));
 +        }
 +    }
-+    
-+    // vanilla sprite fallback: an override takes what it lacks (or failed to load) from the class it replaces;
-+    // a new non-special class gets the vanilla peasant's sprite wherever one of its files did not load
-+    var _fb_base = (_is_merge && is_struct(_base)) ? _base : ((!_rclass.is_special && ds_map_exists(global.class_registry, 0)) ? ds_map_find_value(global.class_registry, 0) : undefined);
-+    
++}
++
++
++// vanilla sprite fallback for sprites that did not load (part of gnx_resolve_class)
++function gnx_class_sprite_fallback(arg0, arg1, _class_id, _fb_base, _is_merge, _log, _rclass)
++{
 +    if (is_struct(_fb_base))
 +    {
 +        var _fb_keys = ["clothing_standard", "clothing_big", "clothing_tent", "naked_standard", "naked_big", "naked_tent"];
@@ -10420,15 +10525,6 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            gnx_log_close(_log);
 +        }
 +    }
-+    
-+    if (ds_map_exists(global.class_registry, _class_id))
-+        ds_map_replace(global.class_registry, _class_id, _rclass);
-+    else
-+        ds_map_add(global.class_registry, _class_id, _rclass);
-+    
-+    _log = gnx_log_open();
-+    gnx_log_write(_log, "[GNX] class " + string(_class_id) + " registered: " + string(variable_struct_exists(arg0, "name") ? arg0.name : "?") + "\n");
-+    gnx_log_close(_log);
 +}
 +
 +
@@ -11860,11 +11956,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +            
 +            array_push(_frames, 
 +            {
-+                atlas: variable_struct_exists(_fr, "atlas") ? _fr.atlas : -1,
-+                x: variable_struct_exists(_fr, "x") ? _fr.x : -1,
-+                y: variable_struct_exists(_fr, "y") ? _fr.y : -1,
-+                w: variable_struct_exists(_fr, "w") ? _fr.w : 0,
-+                h: variable_struct_exists(_fr, "h") ? _fr.h : 0
++                atlas: gnx_opt(_fr, "atlas", -1),
++                x: gnx_opt(_fr, "x", -1),
++                y: gnx_opt(_fr, "y", -1),
++                w: gnx_opt(_fr, "w", 0),
++                h: gnx_opt(_fr, "h", 0)
 +            });
 +        }
 +        
@@ -11887,8 +11983,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +            continue;
 +        }
 +        
-+        var _xo = variable_struct_exists(_entry, "xo") ? _entry.xo : 0;
-+        var _yo = variable_struct_exists(_entry, "yo") ? _entry.yo : 0;
++        var _xo = gnx_opt(_entry, "xo", 0);
++        var _yo = gnx_opt(_entry, "yo", 0);
 +        var _sref = sprref_atlas_multi(_atlas_sprites, _frames, _xo, _yo);
 +        variable_struct_set(_sprrefs, _key, _sref);
 +        // lowercase index for case-insensitive lookups (the first entry wins)
@@ -12272,7 +12368,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    if (!variable_struct_exists(_data, "realtime") || !_data.realtime)
 +        game_set_speed(1000, gamespeed_fps);
 +
-+    global.gnx_scn.seed = variable_struct_exists(_data, "seed") ? _data.seed : 1;
++    global.gnx_scn.seed = gnx_opt(_data, "seed", 1);
 +    random_set_seed(global.gnx_scn.seed);
 +    if (variable_struct_exists(_data, "start") && _data.start == "menu")  // menu scenarios (mod menu, load page)
 +    {
@@ -12309,7 +12405,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    with (obj_slot)
 +    {
 +        // not every slot kind carries h_type (e.g. stair/corridor slots)
-+        var _k = "t" + string(variable_struct_exists(slot_data, "slot_type") ? slot_data.slot_type : "?") + "h" + string(variable_struct_exists(slot_data, "h_type") ? slot_data.h_type : "-");
++        var _k = "t" + string(gnx_opt(slot_data, "slot_type", "?")) + "h" + string(gnx_opt(slot_data, "h_type", "-"));
 +        variable_struct_set(_hist, _k, (variable_struct_exists(_hist, _k) ? variable_struct_get(_hist, _k) : 0) + 1);
 +    }
 +
@@ -12673,7 +12769,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    var _vok;
 +
 +    if (is_numeric(_vv) && is_numeric(arg0.is))
-+        _vok = abs(_vv - arg0.is) <= (variable_struct_exists(arg0, "tol") ? arg0.tol : 0.01);
++        _vok = abs(_vv - arg0.is) <= (gnx_opt(arg0, "tol", 0.01));
 +    else
 +        _vok = string(_vv) == string(arg0.is);
 +
@@ -13312,7 +13408,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +{
 +    // {"assert": "infants", "is": n}: live infant props (no "is": consistency only) (obj_prop type 40); also fails on a cell whose prop list
 +    // names an infant that no longer exists, or an infant whose cell does not list it. "h_type": only cells of that type
-+    var _if_h = variable_struct_exists(arg0, "h_type") ? arg0.h_type : -1;
++    var _if_h = gnx_opt(arg0, "h_type", -1);
 +    var _if_n = 0;
 +    var _if_bad = 0;
 +
@@ -13568,7 +13664,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    // never outnumber the hobgoblins owned (the old mid-transfer explosion)
 +    var _births = _cn2.births - _cw.births;
 +    var _grow = (_cn2.hob_owned - _cw.hob_owned) - _births;
-+    var _gmax = variable_struct_exists(arg0, "max_hob_growth") ? arg0.max_hob_growth : 6;
++    var _gmax = gnx_opt(arg0, "max_hob_growth", 6);
 +    var _cok = _cn2.max_carriers_per_cage <= 2 && _cn2.bad_carriers == 0 && _grow <= _gmax && _cn2.hobgoblins <= _cn2.hob_owned;
 +    scr_gnx_scn_check("carry_ok", _cok, "max carriers/cage=" + string(_cn2.max_carriers_per_cage) + " bad=" + string(_cn2.bad_carriers) + " hobgoblins owned " + string(_cw.hob_owned) + "->" + string(_cn2.hob_owned) + ", births " + string(_births) + " (growth beyond births " + string(_grow) + ", max +" + string(_gmax) + "), walking " + string(_cn2.hobgoblins) + " <= owned");
 +}
@@ -13646,7 +13742,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +{
 +    var _v = variable_struct_get(scr_gnx_scn_state(), arg0.key);
 +    // {"assert": "min", "key": k, "value": lo} and optional "max": hi (state keys, see scr_gnx_scn_state)
-+    var _vhi = variable_struct_exists(arg0, "max") ? arg0.max : infinity;
++    var _vhi = gnx_opt(arg0, "max", infinity);
 +    scr_gnx_scn_check("min", _v >= arg0.value && _v <= _vhi, arg0.key + "=" + string(_v) + " want " + string(arg0.value) + ((_vhi != infinity) ? ".." + string(_vhi) : "+"));
 +}
 +
@@ -15073,7 +15169,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        return;
 +    }
 +    
-+    _t += " cs=" + string(variable_struct_exists(_c.slot_data, "char_state") ? _c.slot_data.char_state : -9) + " list=" + string(array_length(_c.h_unit_list));
++    _t += " cs=" + string(gnx_opt(_c.slot_data, "char_state", -9)) + " list=" + string(array_length(_c.h_unit_list));
 +    
 +    for (var i = 0; i < array_length(_c.h_unit_list); i++)
 +    {
@@ -15085,7 +15181,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +            continue;
 +        }
 +        
-+        _t += " [" + string(real(_m.id)) + " t" + string(_m.mon_data.mon_type) + " p" + string(variable_struct_exists(_m.mon_data, "placement_num") ? _m.mon_data.placement_num : -9) + " s" + string(variable_struct_exists(_m.mon_data, "mon_state") ? _m.mon_data.mon_state : -9) + " v" + string(_m.visible) + " dx" + string(floor(_m.x - _c.x)) + "]";
++        _t += " [" + string(real(_m.id)) + " t" + string(_m.mon_data.mon_type) + " p" + string(gnx_opt(_m.mon_data, "placement_num", -9)) + " s" + string(gnx_opt(_m.mon_data, "mon_state", -9)) + " v" + string(_m.visible) + " dx" + string(floor(_m.x - _c.x)) + "]";
 +    }
 +    
 +    if (is_array(_c.slot_data.mon_placement))
@@ -15437,7 +15533,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +{
 +    // any game/GNX function by name, e.g. {"call": "scr_swap_floors", "args": [0, 1]}
 +    var _fn = gnx_resolve_script(_st.call);
-+    var _a = variable_struct_exists(_st, "args") ? _st.args : [];
++    var _a = gnx_opt(_st, "args", []);
 +
 +    for (var _ai = 0; _ai < array_length(_a); _ai++)
 +        _a[_ai] = gnx_scn_ref(_a[_ai]);
@@ -15490,7 +15586,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +function gnx_scn_st_until_phase(_s, _st)
 +{
 +    // {"until_phase": {"phase": 2, "max_frames": 3000}}: wait until the traced cell (step "trace") plays that phase
-+    _s.until_phase = { phase: _st.until_phase.phase, left: variable_struct_exists(_st.until_phase, "max_frames") ? _st.until_phase.max_frames : 3000 };
++    _s.until_phase = { phase: _st.until_phase.phase, left: gnx_opt(_st.until_phase, "max_frames", 3000) };
 +    return true;
 +}
 +
@@ -15560,7 +15656,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        }
 +    }
 +
-+    gnx_scn_log("BUTTONS " + string(variable_struct_exists(_st.button_dump, "label") ? _st.button_dump.label : "") + " type " + string(_bd_t) + " n=" + string(_bd_n) + _bd_txt);
++    gnx_scn_log("BUTTONS " + string(gnx_opt(_st.button_dump, "label", "")) + " type " + string(_bd_t) + " n=" + string(_bd_n) + _bd_txt);
 +
 +    return false;
 +}
@@ -15758,7 +15854,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        {
 +            mon_data.slot_id = _mc;
 +            scr_set_mon_spr_data(_mc, _mp.phase);
-+            _flag = variable_struct_exists(mon_data, "gnx_ogre_alpha") ? mon_data.gnx_ogre_alpha : undefined;
++            _flag = gnx_opt(mon_data, "gnx_ogre_alpha", undefined);
 +            _bl = mon_spr.body_l;
 +            instance_destroy();
 +        }
@@ -16507,14 +16603,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    // {"press_travel_button": {"num": 3, "row": 0, "times": 2}}: click selector buttons through their real
 +    // handler. num 0/1/2/3 = -1/+1/-10/+10 on a row; 20 = cancel, 21 = confirm (row -1).
 +    var _pb = _st.press_travel_button;
-+    var _pt = variable_struct_exists(_pb, "times") ? _pb.times : 1;
++    var _pt = gnx_opt(_pb, "times", 1);
 +    var _pressed = 0;
 +    
 +    repeat (_pt)
 +    {
 +        with (obj_button)
 +        {
-+            if (interact_type == 9061 && button_num == _pb.num && variable_instance_exists(id, "travel_row") && travel_row == (variable_struct_exists(_pb, "row") ? _pb.row : -1))
++            if (interact_type == 9061 && button_num == _pb.num && variable_instance_exists(id, "travel_row") && travel_row == (gnx_opt(_pb, "row", -1)))
 +            {
 +                _pressed++;
 +                gnx_scn_click();
@@ -16775,8 +16871,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    // rows the way a drag does: a head of that class is dropped on the row (scr_raid_drop_mon_head),
 +    // then the number window that opens is entered with num (scr_mon_num_enter). cat 0 = goblins.
 +    var _rf = _st.raid_formation;
-+    var _rf_cat = variable_struct_exists(_rf, "cat") ? _rf.cat : 0;
-+    var _rf_rows = [variable_struct_exists(_rf, "front") ? _rf.front : [], variable_struct_exists(_rf, "back") ? _rf.back : []];
++    var _rf_cat = gnx_opt(_rf, "cat", 0);
++    var _rf_rows = [gnx_opt(_rf, "front", []), gnx_opt(_rf, "back", [])];
 +    var _rf_y = [66, 120];
 +    var _raid = obj_np.obj_raid;
 +    var _old_cat = _raid.raid_data.cat;
@@ -16834,7 +16930,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    // {"press": {"type": 47, "num": 1, "defer": false}}: click any button by interact type + button_num.
 +    // defer = set trigger and let the button's own step run it (for handlers that read `other`).
 +    var _pp = _st.press;
-+    var _pp_num = variable_struct_exists(_pp, "num") ? _pp.num : 0;
++    var _pp_num = gnx_opt(_pp, "num", 0);
 +    var _pp_defer = variable_struct_exists(_pp, "defer") && _pp.defer;
 +    var _pp_hit = 0;
 +
@@ -17016,7 +17112,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    if (!variable_struct_exists(_s, "stuck_seen"))
 +        _s.stuck_seen = ds_map_create();
 +
-+    var _sk_min = variable_struct_exists(_st, "min_frames") ? _st.min_frames : 3000;
++    var _sk_min = gnx_opt(_st, "min_frames", 3000);
 +    var _sk_now = ds_map_create();
 +    var _sk_lines = "";
 +    var _sk_n = 0;
@@ -17047,8 +17143,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +
 +                if (_sk_n <= 12)
 +                {
-+                    var _sku = is_struct(unit_data) ? ("class=" + string(unit_data.class) + " preg=" + string(unit_data.preg) + " milk=" + string(variable_struct_exists(unit_data, "milk") ? unit_data.milk : "-") + " tired=" + string(floor(unit_data.tired_c))) : "no captive";
-+                    _sk_lines += "\n    mon " + string(real(_skm)) + " type=" + string(_skm.mon_data.mon_type) + " task=" + string(_skm.mon_data.task) + " state=" + string(_skm.mon_data.mon_state) + " slot_id=" + ((_skm.mon_data.slot_id == id) ? "this" : string(_skm.mon_data.slot_id)) + " spd=" + string(_skm.mon_data.spd) + " spd_b=" + string(_skm.spd_b) + " cell_w=" + string(image_xscale) + " ff=" + string(_skm.mon_data.ff) + " follow=" + string(_skm.mon_data.follow) + " dx=" + string(floor(_skm.x - x)) + " dy=" + string(floor(_skm.y - y)) + " placement=" + string(_skm.mon_data.placement_num) + " in h=" + _skh + " floor=" + string(slot_data.slot_floor) + " for " + string(_s.frame_n - _sk_first) + "f | cell char_state=" + string(slot_data.anim_struct != -1 ? slot_data.anim_struct.char_state : -1) + " h_step=" + string(slot_data.h_step) + " units=" + string(array_length(h_unit_list)) + "/" + string(slot_data.max_mon_num) + " drink=" + string(variable_struct_exists(slot_data, "drink_num") ? slot_data.drink_num : "-") + " | " + _sku;
++                    var _sku = is_struct(unit_data) ? ("class=" + string(unit_data.class) + " preg=" + string(unit_data.preg) + " milk=" + string(gnx_opt(unit_data, "milk", "-")) + " tired=" + string(floor(unit_data.tired_c))) : "no captive";
++                    _sk_lines += "\n    mon " + string(real(_skm)) + " type=" + string(_skm.mon_data.mon_type) + " task=" + string(_skm.mon_data.task) + " state=" + string(_skm.mon_data.mon_state) + " slot_id=" + ((_skm.mon_data.slot_id == id) ? "this" : string(_skm.mon_data.slot_id)) + " spd=" + string(_skm.mon_data.spd) + " spd_b=" + string(_skm.spd_b) + " cell_w=" + string(image_xscale) + " ff=" + string(_skm.mon_data.ff) + " follow=" + string(_skm.mon_data.follow) + " dx=" + string(floor(_skm.x - x)) + " dy=" + string(floor(_skm.y - y)) + " placement=" + string(_skm.mon_data.placement_num) + " in h=" + _skh + " floor=" + string(slot_data.slot_floor) + " for " + string(_s.frame_n - _sk_first) + "f | cell char_state=" + string(slot_data.anim_struct != -1 ? slot_data.anim_struct.char_state : -1) + " h_step=" + string(slot_data.h_step) + " units=" + string(array_length(h_unit_list)) + "/" + string(slot_data.max_mon_num) + " drink=" + string(gnx_opt(slot_data, "drink_num", "-")) + " | " + _sku;
 +                }
 +            }
 +        }
@@ -17089,7 +17185,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    else
 +    {
 +        scr_occupy_slot(_sw_c, -1, false, 1);
-+        scr_occupy_slot(_sw_c, scr_create_unit_base(gnx_scn_ref(_st.swap_unit.class), variable_struct_exists(_st.swap_unit, "level") ? _st.swap_unit.level : 1), false, 1);
++        scr_occupy_slot(_sw_c, scr_create_unit_base(gnx_scn_ref(_st.swap_unit.class), gnx_opt(_st.swap_unit, "level", 1)), false, 1);
 +        gnx_scn_log("swap_unit h=" + string(_sw_h) + " cell " + string(_sw_c));
 +    }
 +
@@ -17117,7 +17213,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +    else
 +    {
-+        var _oc_u = scr_create_unit_base(_oc_cls, variable_struct_exists(_st.occupy, "level") ? _st.occupy.level : 1);
++        var _oc_u = scr_create_unit_base(_oc_cls, gnx_opt(_st.occupy, "level", 1));
 +
 +        if (variable_struct_exists(_st.occupy, "preg"))  // "preg": mon type she carries (0 goblin, 1 hobgoblin)
 +            _oc_u.preg = _st.occupy.preg;
@@ -17169,7 +17265,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    var _rr = obj_np.obj_raid;
 +    var _rstate = _rr.raid_data.raid_state;
 +
-+    var _until = variable_struct_exists(_st, "until_state") ? _st.until_state : 0;
++    var _until = gnx_opt(_st, "until_state", 0);
 +    
 +    if (_rstate == _until)
 +    {
@@ -17260,9 +17356,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    
 +    with (_sel)
 +    {
-+        carry_gold = clamp(variable_struct_exists(_tw, "gold") ? _tw.gold : 0, 0, max_gold);
-+        carry_food = clamp(variable_struct_exists(_tw, "food") ? _tw.food : 0, 0, max_food);
-+        carry_goblins = clamp(variable_struct_exists(_tw, "goblins") ? _tw.goblins : 0, 0, max_goblins);
++        carry_gold = clamp(gnx_opt(_tw, "gold", 0), 0, max_gold);
++        carry_food = clamp(gnx_opt(_tw, "food", 0), 0, max_food);
++        carry_goblins = clamp(gnx_opt(_tw, "goblins", 0), 0, max_goblins);
 +
 +        // "troops": [[type, class, n], ...] (TROOPS tab), "captives": n (the first n prisoners, CAPTIVES tab)
 +        if (variable_struct_exists(_tw, "troops"))
@@ -17352,7 +17448,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        with (obj_mon)
 +        {
 +            if (abs(x - (_cs_c.x + _cs_c.image_xscale * 0.5)) < 60 && abs(y - _cs_c.y) < 20)
-+                _cs_near += " [mon " + string(real(id)) + " type=" + string(mon_data.mon_type) + " state=" + string(variable_struct_exists(mon_data, "mon_state") ? mon_data.mon_state : -9) + " in_list=" + string(array_contains(_cs_c.h_unit_list, id)) + " spr=" + (sprite_exists(sprite_index) ? sprite_get_name(sprite_index) : "-") + " draw=" + string(scr_mon_draw) + " dx=" + string(floor(x - _cs_c.x)) + "]";
++                _cs_near += " [mon " + string(real(id)) + " type=" + string(mon_data.mon_type) + " state=" + string(gnx_opt(mon_data, "mon_state", -9)) + " in_list=" + string(array_contains(_cs_c.h_unit_list, id)) + " spr=" + (sprite_exists(sprite_index) ? sprite_get_name(sprite_index) : "-") + " draw=" + string(scr_mon_draw) + " dx=" + string(floor(x - _cs_c.x)) + "]";
 +        }
 +
 +        var _cs_cov = "";
@@ -17579,7 +17675,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 +
 +    var _sprites = (is_struct(_json) && variable_struct_exists(_json, "sprites")) ? _json.sprites : undefined;
 +    // a file with only "loot" (no items of its own) is fine: its item list is empty
-+    var _items = is_struct(_json) ? (variable_struct_exists(_json, "items") ? _json.items : []) : _json;
++    var _items = is_struct(_json) ? (gnx_opt(_json, "items", [])) : _json;
 +    var _base_dir = global.gnx_mods_root + arg0 + "/";
 +
 +    if (!is_array(_items))
@@ -17699,7 +17795,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 +            
 +            // a complete blueprint is piece 3 (unlocks the cell when picked up); 3 different pieces (0-2) combine
 +            var _complete = variable_struct_exists(_l, "complete") && gnx_json_bool(_l.complete, false, _who, "complete");
-+            var _piece = _complete ? 3 : clamp(floor(gnx_json_num(variable_struct_exists(_l, "piece") ? _l.piece : 0, 0)), 0, 2);
++            var _piece = _complete ? 3 : clamp(floor(gnx_json_num(gnx_opt(_l, "piece", 0), 0)), 0, 2);
 +            _entry = [5, _h, _piece];
 +            _what = "blueprint " + string(_l.blueprint) + (_complete ? "" : " piece " + string(_piece));
 +        }
@@ -18040,7 +18136,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    }
 +
 +    // map mods: the save holds that map's state (as the active map or a stored one)
-+    var _active = variable_struct_exists(arg0, "gnx_active_map") ? arg0.gnx_active_map : "vanilla";
++    var _active = gnx_opt(arg0, "gnx_active_map", "vanilla");
 +    var _owned = variable_struct_get_names(global.gnx_map_owner);
 +
 +    for (var _i = 0; _i < array_length(_owned); _i++)
@@ -18885,7 +18981,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
 +    {
 +        var _e = global.gnx_mod_list[_i];
-+        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: variable_struct_exists(_e, "description") ? _e.description : "", author: variable_struct_exists(_e, "author") ? _e.author : "", adds: gnx_mod_adds(_e) });
++        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e) });
 +    }
 +
 +    for (var _f = 0; _f < array_length(_files); _f++)
@@ -20011,7 +20107,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +        _manifest.map_button = _manifest.map_info;
 +    }
 +
-+    var _versions = variable_struct_exists(_manifest, "compatible_game_versions") ? _manifest.compatible_game_versions : [];
++    var _versions = gnx_opt(_manifest, "compatible_game_versions", []);
 +    var _game_ver = string(global.val.version);
 +    var _ok = false;
 +    
@@ -20061,7 +20157,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            ds_map_add(global.gnx_mod_atlases, arg0, _atref);
 +    }
 +    
-+    var _mod_map = variable_struct_exists(_manifest, "map") ? _manifest.map : "vanilla";  // one map ID or a list of them
++    var _mod_map = gnx_opt(_manifest, "map", "vanilla");  // one map ID or a list of them
 +
 +    if (is_array(_mod_map) && array_length(_mod_map) == 0)
 +    {
@@ -20103,9 +20199,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            var _tl = {};
 +            _tl.target = _own_map;
 +            _tl.show_on = "vanilla";
-+            _tl.label = variable_struct_exists(_mb, "label") ? _mb.label : _own_map;
-+            _tl.x = variable_struct_exists(_mb, "x") ? _mb.x : 210;
-+            _tl.y = variable_struct_exists(_mb, "y") ? _mb.y : 70;
++            _tl.label = gnx_opt(_mb, "label", _own_map);
++            _tl.x = gnx_opt(_mb, "x", 210);
++            _tl.y = gnx_opt(_mb, "y", 70);
 +            _tl.mod_name = arg0;
 +            _tl.travel = variable_struct_exists(_mb, "travel") ? string(_mb.travel) : "simple";  // pre-travel selector tier
 +            var _tc = (variable_struct_exists(_mb, "travel_cost") && is_struct(_mb.travel_cost)) ? _mb.travel_cost : {};
@@ -20163,7 +20259,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            
 +            _tl.return_x = variable_struct_exists(_mb, "return_x") ? _mb.return_x : _tl.x;
 +            _tl.return_y = variable_struct_exists(_mb, "return_y") ? _mb.return_y : _tl.y;
-+            _tl.return_label = variable_struct_exists(_mb, "return_label") ? _mb.return_label : "Return";
++            _tl.return_label = gnx_opt(_mb, "return_label", "Return");
 +            _tl.no_capture = gnx_parse_no_capture(_mb, arg0);
 +
 +            // GNX-STAGE: where raid carts leave from on this map's own map_sprite
@@ -20303,7 +20399,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    if (_has_save_state)
 +    {
 +        var _ss = arg1.save_state;
-+        _schema_ver = variable_struct_exists(_ss, "version") ? _ss.version : 1;
++        _schema_ver = gnx_opt(_ss, "version", 1);
 +        
 +        if (variable_struct_exists(_ss, "fields"))
 +            _defaults = _ss.fields;
@@ -20340,7 +20436,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +                variable_struct_set(_existing, _k, variable_struct_get(_defaults, _k));
 +        }
 +        
-+        var _saved_ver = variable_struct_exists(_existing, "_version") ? _existing._version : 0;
++        var _saved_ver = gnx_opt(_existing, "_version", 0);
 +        
 +        if (_schema_ver > _saved_ver)
 +            _existing._version = _schema_ver;
@@ -20743,7 +20839,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_nest.gml gml/gml_GlobalScript_s_gnx_nest
 +        if (_ty == 4 || _ty == 5)
 +            continue;
 +
-+        var _h = variable_struct_exists(_s.slot_data, "h_type") ? _s.slot_data.h_type : -1;
++        var _h = gnx_opt(_s.slot_data, "h_type", -1);
 +        var _reuse = _past && _ty == 3 && !_start_used;  // the floor below's start slot
 +
 +        if (_reuse)
@@ -21586,7 +21682,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 +
 +function scr_gnx_register_prop(arg0, arg1, arg2, arg3)
 +{
-+    var _id_str = variable_struct_exists(arg0, "id") ? arg0.id : "";
++    var _id_str = gnx_opt(arg0, "id", "");
 +    
 +    if (!is_string(_id_str) || _id_str == "")
 +    {
@@ -21656,7 +21752,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 +    if (_spr == -1)
 +        gnx_report_mod_error("Prop '" + _full_id + "': sprite " + (variable_struct_exists(arg0, "sprite") ? ("'" + string(arg0.sprite) + "' was not found in the props file's \"sprites\", or its image file is missing") : "is missing") + "; the prop is drawn as nothing");
 +    
-+    var _position = variable_struct_exists(arg0, "position") ? arg0.position : "bot";
++    var _position = gnx_opt(arg0, "position", "bot");
 +    
 +    // GNX-PROP: only top / mid / bot exist; anything else went to the bottom row with the top rows' depth
 +    if (_position != "top" && _position != "mid" && _position != "bot")
@@ -21692,7 +21788,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 +        gnx_report_mod_error("Prop '" + _full_id + "': speed does not loop a prop whose frames move on events (react); react.speed sets how fast \"play\" runs");
 +    
 +    // GNX-FIX (audit 25): the button text must be text; anything else is a mod error and the id is shown
-+    var _disp = variable_struct_exists(arg0, "display_name_key") ? arg0.display_name_key : _id_str;
++    var _disp = gnx_opt(arg0, "display_name_key", _id_str);
 +    
 +    if (!is_string(_disp))
 +    {
@@ -21704,7 +21800,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 +    {
 +        prop_id: _prop_id,
 +        display_name_key: _disp,
-+        code_text: variable_struct_exists(arg0, "code_text") ? arg0.code_text : "?",
++        code_text: gnx_opt(arg0, "code_text", "?"),
 +        sprite: _spr,
 +        position: _position,
 +        // GNX-FIX: numbers and true / false checked (text or a list used to reach the placement maths)
@@ -23701,7 +23797,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            var _pk = _pkeys[_pi];
 +            var _pdef = variable_struct_get(_data.portraits, _pk);
 +            var _strip_path = _base_dir + "portraits/" + _pdef.strip;
-+            var _frames = variable_struct_exists(_pdef, "frames") ? _pdef.frames : 1;
++            var _frames = gnx_opt(_pdef, "frames", 1);
 +            var _full_key = arg0 + "." + _pk;
 +            
 +            if (file_exists(_strip_path))
@@ -24267,7 +24363,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        _data.event_after = -1;
 +        _data.gnx_event_id = arg0;
 +        _data.gnx_event = _evt;
-+        _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++        _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +        _data.gnx_mod_name = _evt.mod_name;
 +        
 +        if (variable_struct_exists(_evt, "side_effects"))
@@ -24307,10 +24403,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        _data.quest_clear = false;
 +        _data.quest_type = arg0;
 +        _data.quest_text = _evt.quest_text;
-+        _data.quest_reward = scr_gnx_make_reward(_evt.reward, variable_struct_exists(_evt, "mod_name") ? _evt.mod_name : "");
++        _data.quest_reward = scr_gnx_make_reward(_evt.reward, gnx_opt(_evt, "mod_name", ""));
 +        _data.gnx_event_id = arg0;
 +        _data.gnx_event = _evt;
-+        _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++        _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +        _data.gnx_mod_name = _evt.mod_name;
 +        _data.event_after = -1;
 +        // GNX-BUILD: a build_count quest counts from now on, and shows its progress (2/4) in its text
@@ -24427,7 +24523,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +    
 +    // GNX-FIX: every field is checked before it is read: a reward missing one gave a GameMaker error (crash)
 +    // when the quest was completed
-+    var _type = variable_struct_exists(arg0, "type") ? arg0.type : "";
++    var _type = gnx_opt(arg0, "type", "");
 +    var _amount = variable_struct_exists(arg0, "amount") ? gnx_json_num(arg0.amount, 0) : 0;
 +
 +    if (_type == "gold")
@@ -24443,7 +24539,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        var _lvl = UnknownEnum.Value_3;
 +        
 +        if (variable_struct_exists(arg0, "fragment") && arg0.fragment == true)
-+            _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1;
++            _lvl = gnx_opt(arg0, "lvl", 1);
 +        
 +        if (!variable_struct_exists(arg0, "h_type"))
 +        {
@@ -24466,7 +24562,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +    else if (_type == "prop")
 +    {
 +        // GNX-PROP: prop_id may be a name ("Mod.id", or "id" of the quest's own mod, arg1)
-+        var _rpid = gnx_prop_resolve_id(variable_struct_exists(arg0, "prop_id") ? arg0.prop_id : undefined, arg1);
++        var _rpid = gnx_prop_resolve_id(gnx_opt(arg0, "prop_id", undefined), arg1);
 +        
 +        if (_rpid != -1)
 +            return scr_set_item_data(UnknownEnum.Value_7, _rpid, 0);
@@ -24588,14 +24684,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            _data.quest_clear = _saved.quest_clear;
 +            _data.quest_type = _saved.event_id;
 +            _data.quest_text = _evt.quest_text;
-+            _data.quest_reward = scr_gnx_make_reward(_evt.reward, variable_struct_exists(_evt, "mod_name") ? _evt.mod_name : "");
++            _data.quest_reward = scr_gnx_make_reward(_evt.reward, gnx_opt(_evt, "mod_name", ""));
 +            _data.gnx_event_id = _saved.event_id;
 +            _data.gnx_event = _evt;
-+            _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++            _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +            _data.gnx_mod_name = _evt.mod_name;
 +            _data.event_after = -1;
 +            // GNX-BUILD: the saved start of its build_count (? : a save from before 1.5.1 has none, so it counts from now)
-+            gnx_quest_build_start(_data, variable_struct_exists(_saved, "build_base") ? _saved.build_base : -1);
++            gnx_quest_build_start(_data, gnx_opt(_saved, "build_base", -1));
 +            ds_list_add(global.quest_list, _data);
 +        }
 +    }
@@ -24619,7 +24715,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            _data.event_after = -1;
 +            _data.gnx_event_id = _saved.event_id;
 +            _data.gnx_event = _evt;
-+            _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++            _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +            _data.gnx_mod_name = _evt.mod_name;
 +            ds_list_add(global.noti_list, _data);
 +        }
@@ -24944,8 +25040,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +                continue;
 +        }
 +        
-+        var _base = variable_struct_exists(_ce, "base_chance") ? _ce.base_chance : 0;
-+        var _scale = variable_struct_exists(_ce, "over_diff_scale") ? _ce.over_diff_scale : 300;
++        var _base = gnx_opt(_ce, "base_chance", 0);
++        var _scale = gnx_opt(_ce, "over_diff_scale", 300);
 +        var _escape_roll = irandom_range(1, 100);
 +        var _threshold = ((_base + irandom_range(1, 100)) - _scale) + (_scale * (_over_diff - 1));
 +        var _escaped = _escape_roll <= _threshold;
@@ -25528,7 +25624,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +            x: gnx_json_num(_pos[0], 0),
 +            y: gnx_json_num(_pos[1], 0),
 +            icon: gnx_stage_load_icon(arg0, gnx_stage_field(_s, "icon", "")),
-+            raid_time: max(60, floor(gnx_json_num(variable_struct_exists(_s, "raid_time") ? _s.raid_time : 3600, 3600))),
++            raid_time: max(60, floor(gnx_json_num(gnx_opt(_s, "raid_time", 3600), 3600))),
 +            unlock: (variable_struct_exists(_s, "unlock") && (is_struct(_s.unlock) || is_array(_s.unlock))) ? _s.unlock : undefined,
 +            on_discover: is_string(gnx_stage_field(_s, "on_discover", "")) ? gnx_stage_field(_s, "on_discover", "") : "",
 +            path: gnx_stage_points(gnx_stage_field(_s, "path", []), _who),
@@ -26621,7 +26717,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +            var _mapped = 
 +            {
 +                bank: variable_struct_exists(_entry, "bank") ? (arg0 + "." + _entry.bank) : -1,
-+                pitch: variable_struct_exists(_entry, "pitch") ? _entry.pitch : -1,
++                pitch: gnx_opt(_entry, "pitch", -1),
 +                by_mon: variable_struct_exists(_entry, "by_mon_type") ? gnx_parse_voice_by_mon(_entry.by_mon_type, arg0) : -1
 +            };
 +            ds_map_set(global.gnx_voice_class_map, _cls_id, _mapped);
@@ -26672,7 +26768,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +                array_push(global.gnx_ambience_variants, _av);
 +        }
 +        
-+        var _amb_species = variable_struct_exists(_amb, "species") ? _amb.species : {};
++        var _amb_species = gnx_opt(_amb, "species", {});
 +        var _sp_names = ["goblin", "hobgoblin", "ogre"];
 +        var _kind_names = ["ambient", "breeding", "victory", "defeat"];
 +        var _amb_loaded = 0;
@@ -26823,7 +26919,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +        if (is_string(_e))
 +            _out[_t] = { bank: arg1 + "." + _e, pitch: -1 };
 +        else if (is_struct(_e) && variable_struct_exists(_e, "bank"))
-+            _out[_t] = { bank: arg1 + "." + _e.bank, pitch: variable_struct_exists(_e, "pitch") ? _e.pitch : -1 };
++            _out[_t] = { bank: arg1 + "." + _e.bank, pitch: gnx_opt(_e, "pitch", -1) };
 +    }
 +
 +    return _out;
@@ -29158,7 +29254,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 +            }
 +            else
 +            {
-+                var _bb = variable_struct_exists(_rule, "base_body") ? _rule.base_body : "";
++                var _bb = gnx_opt(_rule, "base_body", "");
 +                var _clsi = 0;
 +                
 +                repeat (array_length(_classes))
@@ -29530,13 +29626,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +    return 
 +    {
 +        label: arg0.label,
-+        actions: variable_struct_exists(arg0, "actions") ? arg0.actions : [],
-+        popup: variable_struct_exists(arg0, "popup") ? arg0.popup : "",
-+        toggle: variable_struct_exists(arg0, "toggle") ? arg0.toggle : "",
-+        undo_actions: variable_struct_exists(arg0, "undo_actions") ? arg0.undo_actions : [],
-+        undo_popup: variable_struct_exists(arg0, "undo_popup") ? arg0.undo_popup : "",
-+        guard: variable_struct_exists(arg0, "guard") ? arg0.guard : -1,
-+        guard_fail_popup: variable_struct_exists(arg0, "guard_fail_popup") ? arg0.guard_fail_popup : ""
++        actions: gnx_opt(arg0, "actions", []),
++        popup: gnx_opt(arg0, "popup", ""),
++        toggle: gnx_opt(arg0, "toggle", ""),
++        undo_actions: gnx_opt(arg0, "undo_actions", []),
++        undo_popup: gnx_opt(arg0, "undo_popup", ""),
++        guard: gnx_opt(arg0, "guard", -1),
++        guard_fail_popup: gnx_opt(arg0, "guard_fail_popup", "")
 +    };
 +}
 +
@@ -29625,15 +29721,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +            var _parsed_kb = 
 +            {
 +                mod_name: arg0,
-+                modifier: variable_struct_exists(_kb, "modifier") ? _kb.modifier : "none",
-+                popup: variable_struct_exists(_kb, "popup") ? _kb.popup : "",
-+                popup_template: variable_struct_exists(_kb, "popup_template") ? _kb.popup_template : "",
++                modifier: gnx_opt(_kb, "modifier", "none"),
++                popup: gnx_opt(_kb, "popup", ""),
++                popup_template: gnx_opt(_kb, "popup_template", ""),
 +                key_type: "single",
 +                vk_code: -1,
 +                key_start: 0,
 +                key_end: 0,
-+                actions: variable_struct_exists(_kb, "actions") ? _kb.actions : [],
-+                action_per_key: variable_struct_exists(_kb, "action_per_key") ? _kb.action_per_key : -1
++                actions: gnx_opt(_kb, "actions", []),
++                action_per_key: gnx_opt(_kb, "action_per_key", -1)
 +            };
 +            var _key = _kb.key;
 +            
@@ -29764,8 +29860,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +            break;
 +        
 +        case "add_milk":
-+            var _rarity = variable_struct_exists(arg0, "rarity") ? arg0.rarity : -1;
-+            var _amt = variable_struct_exists(arg0, "amount") ? arg0.amount : 1;
++            var _rarity = gnx_opt(arg0, "rarity", -1);
++            var _amt = gnx_opt(arg0, "amount", 1);
 +            
 +            if (_rarity == -1)
 +            {
@@ -29809,8 +29905,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +                scr_gnx_pop_up_create("Unknown cell (" + string(arg0.h_type) + "). Contact modder.");
 +                break;
 +            }
-+            var _frag = variable_struct_exists(arg0, "fragment") ? arg0.fragment : false;
-+            var _lvl = _frag ? (variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1) : 3;
++            var _frag = gnx_opt(arg0, "fragment", false);
++            var _lvl = _frag ? (gnx_opt(arg0, "lvl", 1)) : 3;
 +            scr_add_item(scr_set_item_data(5, _ht, _lvl));  // GNX fix: the item was never passed
 +            break;
 +        
@@ -29952,7 +30048,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +                break;
 +            }
 +            
-+            var _lvl = variable_struct_exists(arg0, "level") ? arg0.level : -1;
++            var _lvl = gnx_opt(arg0, "level", -1);
 +            
 +            if (_lvl <= 0)
 +                _lvl = variable_global_exists("gnx_spawn_rank") ? global.gnx_spawn_rank : 0;
@@ -30031,7 +30127,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +                break;
 +            }
 +            
-+            var _lvl = variable_struct_exists(arg0, "level") ? arg0.level : 1;
++            var _lvl = gnx_opt(arg0, "level", 1);
 +            var _unit = scr_create_unit_base(_cls, _lvl);
 +            array_push(global.val.cage, _unit);
 +            break;
@@ -30273,7 +30369,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +            break;
 +        
 +        case "show_debug_overlay":
-+            var _en = variable_struct_exists(arg0, "enable") ? arg0.enable : true;
++            var _en = gnx_opt(arg0, "enable", true);
 +            
 +            if (_en)
 +                show_debug_overlay(true);
@@ -30548,7 +30644,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +    if (global.gnx_debug_verbose)
 +    {
 +        var _tlog = gnx_log_open();
-+        gnx_log_write(_tlog, "[GNX-TOOL] press mod=" + string(arg1) + " label='" + string(variable_struct_exists(arg0, "label") ? arg0.label : "?") + "'" + " toggle='" + string(arg0.toggle) + "'" + " state=" + string(scr_gnx_get_state(arg1, arg0.toggle)) + " actions=" + string(array_length(arg0.actions)) + "\n");
++        gnx_log_write(_tlog, "[GNX-TOOL] press mod=" + string(arg1) + " label='" + string(gnx_opt(arg0, "label", "?")) + "'" + " toggle='" + string(arg0.toggle) + "'" + " state=" + string(scr_gnx_get_state(arg1, arg0.toggle)) + " actions=" + string(array_length(arg0.actions)) + "\n");
 +        gnx_log_close(_tlog);
 +    }
 +    
@@ -33352,7 +33448,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_tr
 diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util.gml
 --- gml_138/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_util.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,580 @@
+@@ -0,0 +1,588 @@
 +// GNX: logging and small shared helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -33440,6 +33536,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +    }
 +
 +    return false;
++}
++
++
++// optional field: arg0.<arg1> when struct arg0 has it, else the default arg2 (always evaluated: keep it a
++// plain value). Load-time code only; per-frame code keeps the inline variable_struct_exists test.
++function gnx_opt(arg0, arg1, arg2)
++{
++    return variable_struct_exists(arg0, arg1) ? variable_struct_get(arg0, arg1) : arg2;
 +}
 +
 +

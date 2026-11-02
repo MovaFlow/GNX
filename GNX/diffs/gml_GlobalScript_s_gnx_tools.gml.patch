@@ -279,13 +279,13 @@
 +    return 
 +    {
 +        label: arg0.label,
-+        actions: variable_struct_exists(arg0, "actions") ? arg0.actions : [],
-+        popup: variable_struct_exists(arg0, "popup") ? arg0.popup : "",
-+        toggle: variable_struct_exists(arg0, "toggle") ? arg0.toggle : "",
-+        undo_actions: variable_struct_exists(arg0, "undo_actions") ? arg0.undo_actions : [],
-+        undo_popup: variable_struct_exists(arg0, "undo_popup") ? arg0.undo_popup : "",
-+        guard: variable_struct_exists(arg0, "guard") ? arg0.guard : -1,
-+        guard_fail_popup: variable_struct_exists(arg0, "guard_fail_popup") ? arg0.guard_fail_popup : ""
++        actions: gnx_opt(arg0, "actions", []),
++        popup: gnx_opt(arg0, "popup", ""),
++        toggle: gnx_opt(arg0, "toggle", ""),
++        undo_actions: gnx_opt(arg0, "undo_actions", []),
++        undo_popup: gnx_opt(arg0, "undo_popup", ""),
++        guard: gnx_opt(arg0, "guard", -1),
++        guard_fail_popup: gnx_opt(arg0, "guard_fail_popup", "")
 +    };
 +}
 +
@@ -374,15 +374,15 @@
 +            var _parsed_kb = 
 +            {
 +                mod_name: arg0,
-+                modifier: variable_struct_exists(_kb, "modifier") ? _kb.modifier : "none",
-+                popup: variable_struct_exists(_kb, "popup") ? _kb.popup : "",
-+                popup_template: variable_struct_exists(_kb, "popup_template") ? _kb.popup_template : "",
++                modifier: gnx_opt(_kb, "modifier", "none"),
++                popup: gnx_opt(_kb, "popup", ""),
++                popup_template: gnx_opt(_kb, "popup_template", ""),
 +                key_type: "single",
 +                vk_code: -1,
 +                key_start: 0,
 +                key_end: 0,
-+                actions: variable_struct_exists(_kb, "actions") ? _kb.actions : [],
-+                action_per_key: variable_struct_exists(_kb, "action_per_key") ? _kb.action_per_key : -1
++                actions: gnx_opt(_kb, "actions", []),
++                action_per_key: gnx_opt(_kb, "action_per_key", -1)
 +            };
 +            var _key = _kb.key;
 +            
@@ -513,8 +513,8 @@
 +            break;
 +        
 +        case "add_milk":
-+            var _rarity = variable_struct_exists(arg0, "rarity") ? arg0.rarity : -1;
-+            var _amt = variable_struct_exists(arg0, "amount") ? arg0.amount : 1;
++            var _rarity = gnx_opt(arg0, "rarity", -1);
++            var _amt = gnx_opt(arg0, "amount", 1);
 +            
 +            if (_rarity == -1)
 +            {
@@ -558,8 +558,8 @@
 +                scr_gnx_pop_up_create("Unknown cell (" + string(arg0.h_type) + "). Contact modder.");
 +                break;
 +            }
-+            var _frag = variable_struct_exists(arg0, "fragment") ? arg0.fragment : false;
-+            var _lvl = _frag ? (variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1) : 3;
++            var _frag = gnx_opt(arg0, "fragment", false);
++            var _lvl = _frag ? (gnx_opt(arg0, "lvl", 1)) : 3;
 +            scr_add_item(scr_set_item_data(5, _ht, _lvl));  // GNX fix: the item was never passed
 +            break;
 +        
@@ -701,7 +701,7 @@
 +                break;
 +            }
 +            
-+            var _lvl = variable_struct_exists(arg0, "level") ? arg0.level : -1;
++            var _lvl = gnx_opt(arg0, "level", -1);
 +            
 +            if (_lvl <= 0)
 +                _lvl = variable_global_exists("gnx_spawn_rank") ? global.gnx_spawn_rank : 0;
@@ -780,7 +780,7 @@
 +                break;
 +            }
 +            
-+            var _lvl = variable_struct_exists(arg0, "level") ? arg0.level : 1;
++            var _lvl = gnx_opt(arg0, "level", 1);
 +            var _unit = scr_create_unit_base(_cls, _lvl);
 +            array_push(global.val.cage, _unit);
 +            break;
@@ -1022,7 +1022,7 @@
 +            break;
 +        
 +        case "show_debug_overlay":
-+            var _en = variable_struct_exists(arg0, "enable") ? arg0.enable : true;
++            var _en = gnx_opt(arg0, "enable", true);
 +            
 +            if (_en)
 +                show_debug_overlay(true);
@@ -1297,7 +1297,7 @@
 +    if (global.gnx_debug_verbose)
 +    {
 +        var _tlog = gnx_log_open();
-+        gnx_log_write(_tlog, "[GNX-TOOL] press mod=" + string(arg1) + " label='" + string(variable_struct_exists(arg0, "label") ? arg0.label : "?") + "'" + " toggle='" + string(arg0.toggle) + "'" + " state=" + string(scr_gnx_get_state(arg1, arg0.toggle)) + " actions=" + string(array_length(arg0.actions)) + "\n");
++        gnx_log_write(_tlog, "[GNX-TOOL] press mod=" + string(arg1) + " label='" + string(gnx_opt(arg0, "label", "?")) + "'" + " toggle='" + string(arg0.toggle) + "'" + " state=" + string(scr_gnx_get_state(arg1, arg0.toggle)) + " actions=" + string(array_length(arg0.actions)) + "\n");
 +        gnx_log_close(_tlog);
 +    }
 +    

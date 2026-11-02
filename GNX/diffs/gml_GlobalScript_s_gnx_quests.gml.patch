@@ -87,7 +87,7 @@
 +            var _pk = _pkeys[_pi];
 +            var _pdef = variable_struct_get(_data.portraits, _pk);
 +            var _strip_path = _base_dir + "portraits/" + _pdef.strip;
-+            var _frames = variable_struct_exists(_pdef, "frames") ? _pdef.frames : 1;
++            var _frames = gnx_opt(_pdef, "frames", 1);
 +            var _full_key = arg0 + "." + _pk;
 +            
 +            if (file_exists(_strip_path))
@@ -653,7 +653,7 @@
 +        _data.event_after = -1;
 +        _data.gnx_event_id = arg0;
 +        _data.gnx_event = _evt;
-+        _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++        _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +        _data.gnx_mod_name = _evt.mod_name;
 +        
 +        if (variable_struct_exists(_evt, "side_effects"))
@@ -693,10 +693,10 @@
 +        _data.quest_clear = false;
 +        _data.quest_type = arg0;
 +        _data.quest_text = _evt.quest_text;
-+        _data.quest_reward = scr_gnx_make_reward(_evt.reward, variable_struct_exists(_evt, "mod_name") ? _evt.mod_name : "");
++        _data.quest_reward = scr_gnx_make_reward(_evt.reward, gnx_opt(_evt, "mod_name", ""));
 +        _data.gnx_event_id = arg0;
 +        _data.gnx_event = _evt;
-+        _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++        _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +        _data.gnx_mod_name = _evt.mod_name;
 +        _data.event_after = -1;
 +        // GNX-BUILD: a build_count quest counts from now on, and shows its progress (2/4) in its text
@@ -813,7 +813,7 @@
 +    
 +    // GNX-FIX: every field is checked before it is read: a reward missing one gave a GameMaker error (crash)
 +    // when the quest was completed
-+    var _type = variable_struct_exists(arg0, "type") ? arg0.type : "";
++    var _type = gnx_opt(arg0, "type", "");
 +    var _amount = variable_struct_exists(arg0, "amount") ? gnx_json_num(arg0.amount, 0) : 0;
 +
 +    if (_type == "gold")
@@ -829,7 +829,7 @@
 +        var _lvl = UnknownEnum.Value_3;
 +        
 +        if (variable_struct_exists(arg0, "fragment") && arg0.fragment == true)
-+            _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 1;
++            _lvl = gnx_opt(arg0, "lvl", 1);
 +        
 +        if (!variable_struct_exists(arg0, "h_type"))
 +        {
@@ -852,7 +852,7 @@
 +    else if (_type == "prop")
 +    {
 +        // GNX-PROP: prop_id may be a name ("Mod.id", or "id" of the quest's own mod, arg1)
-+        var _rpid = gnx_prop_resolve_id(variable_struct_exists(arg0, "prop_id") ? arg0.prop_id : undefined, arg1);
++        var _rpid = gnx_prop_resolve_id(gnx_opt(arg0, "prop_id", undefined), arg1);
 +        
 +        if (_rpid != -1)
 +            return scr_set_item_data(UnknownEnum.Value_7, _rpid, 0);
@@ -974,14 +974,14 @@
 +            _data.quest_clear = _saved.quest_clear;
 +            _data.quest_type = _saved.event_id;
 +            _data.quest_text = _evt.quest_text;
-+            _data.quest_reward = scr_gnx_make_reward(_evt.reward, variable_struct_exists(_evt, "mod_name") ? _evt.mod_name : "");
++            _data.quest_reward = scr_gnx_make_reward(_evt.reward, gnx_opt(_evt, "mod_name", ""));
 +            _data.gnx_event_id = _saved.event_id;
 +            _data.gnx_event = _evt;
-+            _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++            _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +            _data.gnx_mod_name = _evt.mod_name;
 +            _data.event_after = -1;
 +            // GNX-BUILD: the saved start of its build_count (? : a save from before 1.5.1 has none, so it counts from now)
-+            gnx_quest_build_start(_data, variable_struct_exists(_saved, "build_base") ? _saved.build_base : -1);
++            gnx_quest_build_start(_data, gnx_opt(_saved, "build_base", -1));
 +            ds_list_add(global.quest_list, _data);
 +        }
 +    }
@@ -1005,7 +1005,7 @@
 +            _data.event_after = -1;
 +            _data.gnx_event_id = _saved.event_id;
 +            _data.gnx_event = _evt;
-+            _data.gnx_next = variable_struct_exists(_evt, "next_event") ? _evt.next_event : undefined;
++            _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +            _data.gnx_mod_name = _evt.mod_name;
 +            ds_list_add(global.noti_list, _data);
 +        }

@@ -9,7 +9,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | File | What it holds | Functions | Lines |
 |---|---|---|---|
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 63 | 2542 |
-| `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 58 | 4013 |
+| `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 74 | 4109 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 31 | 1063 |
 | `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 227 | 5383 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 302 |
@@ -22,7 +22,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 63 | 2232 |
 | `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 23 | 1792 |
 | `s_gnx_travel.gml` | multi-map travel: maps, selector, carry, troops | 61 | 2303 |
-| `s_gnx_util.gml` | logging and small shared helpers | 26 | 581 |
+| `s_gnx_util.gml` | logging and small shared helpers | 27 | 589 |
 | `s_initials.gml` | the game's start-up: vanilla `scr_create_initials` plus GNX's boot steps (registries, mod loading, tests) | 1 | 3466 |
 
 ## Every GNX function
@@ -48,6 +48,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_can_sell` | `s_gnx_raid.gml` |
 | `gnx_cancel_mon_assignment` | `s_gnx_cells.gml` |
 | `gnx_cap_pos` | `s_gnx_travel.gml` |
+| `gnx_cell_add_to_category` | `s_gnx_content.gml` |
 | `gnx_cell_built` | `s_gnx_quests.gml` |
 | `gnx_cell_event` | `s_gnx_content.gml` |
 | `gnx_cell_is_home` | `s_gnx_content.gml` |
@@ -58,13 +59,28 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_cell_off_offered` | `s_gnx_nest.gml` |
 | `gnx_cell_off_power` | `s_gnx_nest.gml` |
 | `gnx_cell_off_toggle` | `s_gnx_nest.gml` |
+| `gnx_cell_parse_milk` | `s_gnx_content.gml` |
+| `gnx_cell_parse_physical_opts` | `s_gnx_content.gml` |
+| `gnx_cell_parse_places_speed` | `s_gnx_content.gml` |
+| `gnx_cell_parse_transfer` | `s_gnx_content.gml` |
+| `gnx_cell_parse_ug_frames` | `s_gnx_content.gml` |
+| `gnx_cell_parse_underground_and_props` | `s_gnx_content.gml` |
 | `gnx_cell_ref_missing` | `s_gnx_quests.gml` |
+| `gnx_cell_resolve_human_spr` | `s_gnx_content.gml` |
 | `gnx_cell_state_events` | `s_gnx_content.gml` |
 | `gnx_cell_unlocked` | `s_gnx_content.gml` |
 | `gnx_class_cell_listed_ok` | `s_gnx_content.gml` |
 | `gnx_class_has` | `s_gnx_content.gml` |
 | `gnx_class_has_home_cell` | `s_gnx_content.gml` |
 | `gnx_class_key_id` | `s_gnx_cells.gml` |
+| `gnx_class_merge_base` | `s_gnx_content.gml` |
+| `gnx_class_parse_birth_classes` | `s_gnx_content.gml` |
+| `gnx_class_parse_default_leg` | `s_gnx_content.gml` |
+| `gnx_class_parse_options` | `s_gnx_content.gml` |
+| `gnx_class_parse_raid_spawns` | `s_gnx_content.gml` |
+| `gnx_class_resolve_body_sprites` | `s_gnx_content.gml` |
+| `gnx_class_resolve_clothing` | `s_gnx_content.gml` |
+| `gnx_class_sprite_fallback` | `s_gnx_content.gml` |
 | `gnx_class_unlocked` | `s_gnx_quests.gml` |
 | `gnx_cleanup_sounds` | `s_gnx_sound.gml` |
 | `gnx_cli_has` | `s_gnx_util.gml` |
@@ -210,6 +226,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_note_last_raid` | `s_gnx_raid.gml` |
 | `gnx_nyx_has_target` | `s_gnx_raid.gml` |
 | `gnx_open_prop_row` | `s_gnx_props.gml` |
+| `gnx_opt` | `s_gnx_util.gml` |
 | `gnx_origin_named` | `s_gnx_draw.gml` |
 | `gnx_pair_usable` | `s_gnx_draw.gml` |
 | `gnx_parse_no_capture` | `s_gnx_raid.gml` |

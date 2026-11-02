@@ -205,7 +205,7 @@
 +    if (!variable_struct_exists(_data, "realtime") || !_data.realtime)
 +        game_set_speed(1000, gamespeed_fps);
 +
-+    global.gnx_scn.seed = variable_struct_exists(_data, "seed") ? _data.seed : 1;
++    global.gnx_scn.seed = gnx_opt(_data, "seed", 1);
 +    random_set_seed(global.gnx_scn.seed);
 +    if (variable_struct_exists(_data, "start") && _data.start == "menu")  // menu scenarios (mod menu, load page)
 +    {
@@ -242,7 +242,7 @@
 +    with (obj_slot)
 +    {
 +        // not every slot kind carries h_type (e.g. stair/corridor slots)
-+        var _k = "t" + string(variable_struct_exists(slot_data, "slot_type") ? slot_data.slot_type : "?") + "h" + string(variable_struct_exists(slot_data, "h_type") ? slot_data.h_type : "-");
++        var _k = "t" + string(gnx_opt(slot_data, "slot_type", "?")) + "h" + string(gnx_opt(slot_data, "h_type", "-"));
 +        variable_struct_set(_hist, _k, (variable_struct_exists(_hist, _k) ? variable_struct_get(_hist, _k) : 0) + 1);
 +    }
 +
@@ -606,7 +606,7 @@
 +    var _vok;
 +
 +    if (is_numeric(_vv) && is_numeric(arg0.is))
-+        _vok = abs(_vv - arg0.is) <= (variable_struct_exists(arg0, "tol") ? arg0.tol : 0.01);
++        _vok = abs(_vv - arg0.is) <= (gnx_opt(arg0, "tol", 0.01));
 +    else
 +        _vok = string(_vv) == string(arg0.is);
 +
@@ -1245,7 +1245,7 @@
 +{
 +    // {"assert": "infants", "is": n}: live infant props (no "is": consistency only) (obj_prop type 40); also fails on a cell whose prop list
 +    // names an infant that no longer exists, or an infant whose cell does not list it. "h_type": only cells of that type
-+    var _if_h = variable_struct_exists(arg0, "h_type") ? arg0.h_type : -1;
++    var _if_h = gnx_opt(arg0, "h_type", -1);
 +    var _if_n = 0;
 +    var _if_bad = 0;
 +
@@ -1501,7 +1501,7 @@
 +    // never outnumber the hobgoblins owned (the old mid-transfer explosion)
 +    var _births = _cn2.births - _cw.births;
 +    var _grow = (_cn2.hob_owned - _cw.hob_owned) - _births;
-+    var _gmax = variable_struct_exists(arg0, "max_hob_growth") ? arg0.max_hob_growth : 6;
++    var _gmax = gnx_opt(arg0, "max_hob_growth", 6);
 +    var _cok = _cn2.max_carriers_per_cage <= 2 && _cn2.bad_carriers == 0 && _grow <= _gmax && _cn2.hobgoblins <= _cn2.hob_owned;
 +    scr_gnx_scn_check("carry_ok", _cok, "max carriers/cage=" + string(_cn2.max_carriers_per_cage) + " bad=" + string(_cn2.bad_carriers) + " hobgoblins owned " + string(_cw.hob_owned) + "->" + string(_cn2.hob_owned) + ", births " + string(_births) + " (growth beyond births " + string(_grow) + ", max +" + string(_gmax) + "), walking " + string(_cn2.hobgoblins) + " <= owned");
 +}
@@ -1579,7 +1579,7 @@
 +{
 +    var _v = variable_struct_get(scr_gnx_scn_state(), arg0.key);
 +    // {"assert": "min", "key": k, "value": lo} and optional "max": hi (state keys, see scr_gnx_scn_state)
-+    var _vhi = variable_struct_exists(arg0, "max") ? arg0.max : infinity;
++    var _vhi = gnx_opt(arg0, "max", infinity);
 +    scr_gnx_scn_check("min", _v >= arg0.value && _v <= _vhi, arg0.key + "=" + string(_v) + " want " + string(arg0.value) + ((_vhi != infinity) ? ".." + string(_vhi) : "+"));
 +}
 +
@@ -3006,7 +3006,7 @@
 +        return;
 +    }
 +    
-+    _t += " cs=" + string(variable_struct_exists(_c.slot_data, "char_state") ? _c.slot_data.char_state : -9) + " list=" + string(array_length(_c.h_unit_list));
++    _t += " cs=" + string(gnx_opt(_c.slot_data, "char_state", -9)) + " list=" + string(array_length(_c.h_unit_list));
 +    
 +    for (var i = 0; i < array_length(_c.h_unit_list); i++)
 +    {
@@ -3018,7 +3018,7 @@
 +            continue;
 +        }
 +        
-+        _t += " [" + string(real(_m.id)) + " t" + string(_m.mon_data.mon_type) + " p" + string(variable_struct_exists(_m.mon_data, "placement_num") ? _m.mon_data.placement_num : -9) + " s" + string(variable_struct_exists(_m.mon_data, "mon_state") ? _m.mon_data.mon_state : -9) + " v" + string(_m.visible) + " dx" + string(floor(_m.x - _c.x)) + "]";
++        _t += " [" + string(real(_m.id)) + " t" + string(_m.mon_data.mon_type) + " p" + string(gnx_opt(_m.mon_data, "placement_num", -9)) + " s" + string(gnx_opt(_m.mon_data, "mon_state", -9)) + " v" + string(_m.visible) + " dx" + string(floor(_m.x - _c.x)) + "]";
 +    }
 +    
 +    if (is_array(_c.slot_data.mon_placement))
@@ -3370,7 +3370,7 @@
 +{
 +    // any game/GNX function by name, e.g. {"call": "scr_swap_floors", "args": [0, 1]}
 +    var _fn = gnx_resolve_script(_st.call);
-+    var _a = variable_struct_exists(_st, "args") ? _st.args : [];
++    var _a = gnx_opt(_st, "args", []);
 +
 +    for (var _ai = 0; _ai < array_length(_a); _ai++)
 +        _a[_ai] = gnx_scn_ref(_a[_ai]);
@@ -3423,7 +3423,7 @@
 +function gnx_scn_st_until_phase(_s, _st)
 +{
 +    // {"until_phase": {"phase": 2, "max_frames": 3000}}: wait until the traced cell (step "trace") plays that phase
-+    _s.until_phase = { phase: _st.until_phase.phase, left: variable_struct_exists(_st.until_phase, "max_frames") ? _st.until_phase.max_frames : 3000 };
++    _s.until_phase = { phase: _st.until_phase.phase, left: gnx_opt(_st.until_phase, "max_frames", 3000) };
 +    return true;
 +}
 +
@@ -3493,7 +3493,7 @@
 +        }
 +    }
 +
-+    gnx_scn_log("BUTTONS " + string(variable_struct_exists(_st.button_dump, "label") ? _st.button_dump.label : "") + " type " + string(_bd_t) + " n=" + string(_bd_n) + _bd_txt);
++    gnx_scn_log("BUTTONS " + string(gnx_opt(_st.button_dump, "label", "")) + " type " + string(_bd_t) + " n=" + string(_bd_n) + _bd_txt);
 +
 +    return false;
 +}
@@ -3691,7 +3691,7 @@
 +        {
 +            mon_data.slot_id = _mc;
 +            scr_set_mon_spr_data(_mc, _mp.phase);
-+            _flag = variable_struct_exists(mon_data, "gnx_ogre_alpha") ? mon_data.gnx_ogre_alpha : undefined;
++            _flag = gnx_opt(mon_data, "gnx_ogre_alpha", undefined);
 +            _bl = mon_spr.body_l;
 +            instance_destroy();
 +        }
@@ -4440,14 +4440,14 @@
 +    // {"press_travel_button": {"num": 3, "row": 0, "times": 2}}: click selector buttons through their real
 +    // handler. num 0/1/2/3 = -1/+1/-10/+10 on a row; 20 = cancel, 21 = confirm (row -1).
 +    var _pb = _st.press_travel_button;
-+    var _pt = variable_struct_exists(_pb, "times") ? _pb.times : 1;
++    var _pt = gnx_opt(_pb, "times", 1);
 +    var _pressed = 0;
 +    
 +    repeat (_pt)
 +    {
 +        with (obj_button)
 +        {
-+            if (interact_type == 9061 && button_num == _pb.num && variable_instance_exists(id, "travel_row") && travel_row == (variable_struct_exists(_pb, "row") ? _pb.row : -1))
++            if (interact_type == 9061 && button_num == _pb.num && variable_instance_exists(id, "travel_row") && travel_row == (gnx_opt(_pb, "row", -1)))
 +            {
 +                _pressed++;
 +                gnx_scn_click();
@@ -4708,8 +4708,8 @@
 +    // rows the way a drag does: a head of that class is dropped on the row (scr_raid_drop_mon_head),
 +    // then the number window that opens is entered with num (scr_mon_num_enter). cat 0 = goblins.
 +    var _rf = _st.raid_formation;
-+    var _rf_cat = variable_struct_exists(_rf, "cat") ? _rf.cat : 0;
-+    var _rf_rows = [variable_struct_exists(_rf, "front") ? _rf.front : [], variable_struct_exists(_rf, "back") ? _rf.back : []];
++    var _rf_cat = gnx_opt(_rf, "cat", 0);
++    var _rf_rows = [gnx_opt(_rf, "front", []), gnx_opt(_rf, "back", [])];
 +    var _rf_y = [66, 120];
 +    var _raid = obj_np.obj_raid;
 +    var _old_cat = _raid.raid_data.cat;
@@ -4767,7 +4767,7 @@
 +    // {"press": {"type": 47, "num": 1, "defer": false}}: click any button by interact type + button_num.
 +    // defer = set trigger and let the button's own step run it (for handlers that read `other`).
 +    var _pp = _st.press;
-+    var _pp_num = variable_struct_exists(_pp, "num") ? _pp.num : 0;
++    var _pp_num = gnx_opt(_pp, "num", 0);
 +    var _pp_defer = variable_struct_exists(_pp, "defer") && _pp.defer;
 +    var _pp_hit = 0;
 +
@@ -4949,7 +4949,7 @@
 +    if (!variable_struct_exists(_s, "stuck_seen"))
 +        _s.stuck_seen = ds_map_create();
 +
-+    var _sk_min = variable_struct_exists(_st, "min_frames") ? _st.min_frames : 3000;
++    var _sk_min = gnx_opt(_st, "min_frames", 3000);
 +    var _sk_now = ds_map_create();
 +    var _sk_lines = "";
 +    var _sk_n = 0;
@@ -4980,8 +4980,8 @@
 +
 +                if (_sk_n <= 12)
 +                {
-+                    var _sku = is_struct(unit_data) ? ("class=" + string(unit_data.class) + " preg=" + string(unit_data.preg) + " milk=" + string(variable_struct_exists(unit_data, "milk") ? unit_data.milk : "-") + " tired=" + string(floor(unit_data.tired_c))) : "no captive";
-+                    _sk_lines += "\n    mon " + string(real(_skm)) + " type=" + string(_skm.mon_data.mon_type) + " task=" + string(_skm.mon_data.task) + " state=" + string(_skm.mon_data.mon_state) + " slot_id=" + ((_skm.mon_data.slot_id == id) ? "this" : string(_skm.mon_data.slot_id)) + " spd=" + string(_skm.mon_data.spd) + " spd_b=" + string(_skm.spd_b) + " cell_w=" + string(image_xscale) + " ff=" + string(_skm.mon_data.ff) + " follow=" + string(_skm.mon_data.follow) + " dx=" + string(floor(_skm.x - x)) + " dy=" + string(floor(_skm.y - y)) + " placement=" + string(_skm.mon_data.placement_num) + " in h=" + _skh + " floor=" + string(slot_data.slot_floor) + " for " + string(_s.frame_n - _sk_first) + "f | cell char_state=" + string(slot_data.anim_struct != -1 ? slot_data.anim_struct.char_state : -1) + " h_step=" + string(slot_data.h_step) + " units=" + string(array_length(h_unit_list)) + "/" + string(slot_data.max_mon_num) + " drink=" + string(variable_struct_exists(slot_data, "drink_num") ? slot_data.drink_num : "-") + " | " + _sku;
++                    var _sku = is_struct(unit_data) ? ("class=" + string(unit_data.class) + " preg=" + string(unit_data.preg) + " milk=" + string(gnx_opt(unit_data, "milk", "-")) + " tired=" + string(floor(unit_data.tired_c))) : "no captive";
++                    _sk_lines += "\n    mon " + string(real(_skm)) + " type=" + string(_skm.mon_data.mon_type) + " task=" + string(_skm.mon_data.task) + " state=" + string(_skm.mon_data.mon_state) + " slot_id=" + ((_skm.mon_data.slot_id == id) ? "this" : string(_skm.mon_data.slot_id)) + " spd=" + string(_skm.mon_data.spd) + " spd_b=" + string(_skm.spd_b) + " cell_w=" + string(image_xscale) + " ff=" + string(_skm.mon_data.ff) + " follow=" + string(_skm.mon_data.follow) + " dx=" + string(floor(_skm.x - x)) + " dy=" + string(floor(_skm.y - y)) + " placement=" + string(_skm.mon_data.placement_num) + " in h=" + _skh + " floor=" + string(slot_data.slot_floor) + " for " + string(_s.frame_n - _sk_first) + "f | cell char_state=" + string(slot_data.anim_struct != -1 ? slot_data.anim_struct.char_state : -1) + " h_step=" + string(slot_data.h_step) + " units=" + string(array_length(h_unit_list)) + "/" + string(slot_data.max_mon_num) + " drink=" + string(gnx_opt(slot_data, "drink_num", "-")) + " | " + _sku;
 +                }
 +            }
 +        }
@@ -5022,7 +5022,7 @@
 +    else
 +    {
 +        scr_occupy_slot(_sw_c, -1, false, 1);
-+        scr_occupy_slot(_sw_c, scr_create_unit_base(gnx_scn_ref(_st.swap_unit.class), variable_struct_exists(_st.swap_unit, "level") ? _st.swap_unit.level : 1), false, 1);
++        scr_occupy_slot(_sw_c, scr_create_unit_base(gnx_scn_ref(_st.swap_unit.class), gnx_opt(_st.swap_unit, "level", 1)), false, 1);
 +        gnx_scn_log("swap_unit h=" + string(_sw_h) + " cell " + string(_sw_c));
 +    }
 +
@@ -5050,7 +5050,7 @@
 +    }
 +    else
 +    {
-+        var _oc_u = scr_create_unit_base(_oc_cls, variable_struct_exists(_st.occupy, "level") ? _st.occupy.level : 1);
++        var _oc_u = scr_create_unit_base(_oc_cls, gnx_opt(_st.occupy, "level", 1));
 +
 +        if (variable_struct_exists(_st.occupy, "preg"))  // "preg": mon type she carries (0 goblin, 1 hobgoblin)
 +            _oc_u.preg = _st.occupy.preg;
@@ -5102,7 +5102,7 @@
 +    var _rr = obj_np.obj_raid;
 +    var _rstate = _rr.raid_data.raid_state;
 +
-+    var _until = variable_struct_exists(_st, "until_state") ? _st.until_state : 0;
++    var _until = gnx_opt(_st, "until_state", 0);
 +    
 +    if (_rstate == _until)
 +    {
@@ -5193,9 +5193,9 @@
 +    
 +    with (_sel)
 +    {
-+        carry_gold = clamp(variable_struct_exists(_tw, "gold") ? _tw.gold : 0, 0, max_gold);
-+        carry_food = clamp(variable_struct_exists(_tw, "food") ? _tw.food : 0, 0, max_food);
-+        carry_goblins = clamp(variable_struct_exists(_tw, "goblins") ? _tw.goblins : 0, 0, max_goblins);
++        carry_gold = clamp(gnx_opt(_tw, "gold", 0), 0, max_gold);
++        carry_food = clamp(gnx_opt(_tw, "food", 0), 0, max_food);
++        carry_goblins = clamp(gnx_opt(_tw, "goblins", 0), 0, max_goblins);
 +
 +        // "troops": [[type, class, n], ...] (TROOPS tab), "captives": n (the first n prisoners, CAPTIVES tab)
 +        if (variable_struct_exists(_tw, "troops"))
@@ -5285,7 +5285,7 @@
 +        with (obj_mon)
 +        {
 +            if (abs(x - (_cs_c.x + _cs_c.image_xscale * 0.5)) < 60 && abs(y - _cs_c.y) < 20)
-+                _cs_near += " [mon " + string(real(id)) + " type=" + string(mon_data.mon_type) + " state=" + string(variable_struct_exists(mon_data, "mon_state") ? mon_data.mon_state : -9) + " in_list=" + string(array_contains(_cs_c.h_unit_list, id)) + " spr=" + (sprite_exists(sprite_index) ? sprite_get_name(sprite_index) : "-") + " draw=" + string(scr_mon_draw) + " dx=" + string(floor(x - _cs_c.x)) + "]";
++                _cs_near += " [mon " + string(real(id)) + " type=" + string(mon_data.mon_type) + " state=" + string(gnx_opt(mon_data, "mon_state", -9)) + " in_list=" + string(array_contains(_cs_c.h_unit_list, id)) + " spr=" + (sprite_exists(sprite_index) ? sprite_get_name(sprite_index) : "-") + " draw=" + string(scr_mon_draw) + " dx=" + string(floor(x - _cs_c.x)) + "]";
 +        }
 +
 +        var _cs_cov = "";
