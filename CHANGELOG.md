@@ -35,6 +35,8 @@
 - The quest side effect `unlock_class` did nothing (the docs said it added the class to the raid encounters). It now unlocks the class for good (saved, shared by every map), and the new condition `class_unlocked` reads it: put it in a `raid_spawns` entry's `condition` to keep a class out of raids until a quest unlocks it (QUESTS_SCHEMA.md, modding guide 13.2).
 - A map mod's raid loot (`items.json` `loot`) was missing after loading a save made on that map from the menu, until the next trip; it is now there right after the load.
 - An `items.json` with only `loot` (no `items` of its own) was refused with "items must be a list"; it now loads.
+- A save made while a cell was mid-scene stopped the game every frame ("Variable Index [2] out of range [1]" in `scr_slot_state`) when the cell's mod had since been updated with a shorter scene list (`scr_h`). The scene now ends and the cell goes back to idle.
+- A quest or trigger condition naming a cell GNX cannot find (for example another mod's cell written without its folder, `"MILK BAR"` instead of `"py_more_cells_mod.MILK BAR"`) never matched, without a word. It is now a mod error. A cell of a mod that is not installed is only logged, so a quest can name an optional mod's cells.
 
 ### Contributed by Mav (1.5.0.5)
 

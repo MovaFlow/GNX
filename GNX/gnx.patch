@@ -12067,7 +12067,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4940 @@
+@@ -0,0 +1,4959 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -13845,6 +13845,25 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +
 +    return _n;
++}
++
++
++// {"call": "gnx_scn_scene_past_end"}: puts the cell the last occupy step filled mid-scene one step past the end
++// of its scene list, as a save made before its mod shortened scr_h; then {"assert": "fn", "name":
++// "gnx_scn_occupied_state"} reads char_state back (0 = idle again, no crash)
++function gnx_scn_scene_past_end()
++{
++    with (global.gnx_scn_occupied)
++    {
++        slot_data.anim_struct.char_state = 1;
++        slot_data.h_step = array_length(scr_slot.h);
++    }
++}
++
++
++function gnx_scn_occupied_state()
++{
++    return global.gnx_scn_occupied.slot_data.anim_struct.char_state;
 +}
 +
 +
@@ -23172,7 +23191,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_quests.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1169 @@
+@@ -0,0 +1,1194 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -23463,6 +23482,29 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        
 +        if (_hid != undefined)
 +            arg0.h_type = _hid;
++        else
++            gnx_cell_ref_missing(_ref, arg1);
++    }
++}
++
++
++// GNX-FIX: a cell reference arg0 ("folder.NAME") of mod arg1 that names no loaded cell. It stays text, so the condition
++// never matches: before, without a word. A mod that is installed but has no such cell (or the mod's own cell
++// written without its folder, e.g. "MILK BAR" from another mod) is a mod error; a mod that is not installed is only
++// logged, so a quest can name an optional mod's cells and simply never match without it.
++function gnx_cell_ref_missing(arg0, arg1)
++{
++    var _folder = string_copy(arg0, 1, string_pos(".", arg0) - 1);
++    
++    if (array_contains(global.gnx_indexed_mods, _folder))
++    {
++        gnx_report_mod_error("Mod '" + string(arg1) + "': cell \"" + arg0 + "\" not found, so it never matches. Name a mod's cell as \"<its folder>.<its name>\" (e.g. \"py_more_cells_mod.MILK BAR\"), a vanilla cell by its number (guide, Appendix A)");
++    }
++    else
++    {
++        var _l = gnx_log_open();
++        gnx_log_write(_l, "[GNX] Mod '" + string(arg1) + "': cell \"" + arg0 + "\" belongs to mod '" + _folder + "', which is not installed: it never matches\n");
++        gnx_log_close(_l);
 +    }
 +}
 +
@@ -23480,6 +23522,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        
 +        if (_hid != undefined)
 +            arg0.h_type = _hid;
++        else
++            gnx_cell_ref_missing(_ref, arg1);
 +    }
 +    
 +    if (variable_struct_exists(arg0, "class") && is_string(arg0.class))
@@ -53666,7 +53710,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
 diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slot_function.gml
 --- gml_138/gml_GlobalScript_s_slot_function.gml	2026-09-02 08:45:16.550128500 +0200
-+++ gml/gml_GlobalScript_s_slot_function.gml	2026-10-31 17:37:27.228880000 +0100
++++ gml/gml_GlobalScript_s_slot_function.gml	2026-11-02 10:11:31.675392000 +0100
 @@ -3,7 +3,7 @@
      var _list = global.slot_list[arg1];
      var _x;
@@ -54249,7 +54293,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              {
                  with (h_unit_list[0])
                      spr_type = spr_h_tent_ej_mon;
-@@ -602,25 +706,54 @@
+@@ -602,25 +706,68 @@
  
  function scr_slot_state()
  {
@@ -54290,6 +54334,20 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
 +                break;
 +            }
 +            
++            // GNX-FIX: a save made mid-scene, loaded after the cell's mod changed its scene list (scr_h) to fewer
++            // steps, pointed past its end ("Variable Index [2] out of range [1]"): the scene ends and the cell idles
++            if (slot_data.h_step < 0 || slot_data.h_step >= array_length(scr_slot.h))
++            {
++                var _f = gnx_log_open();
++                gnx_log_write(_f, "[GNX] scr_slot_state: h_step " + string(slot_data.h_step) + " past the " + string(array_length(scr_slot.h)) + " scene step(s) of h_type=" + string(slot_data.h_type) + " (its mod changed since the save); back to idle");
++                gnx_log_writeln(_f);
++                gnx_log_close(_f);
++                slot_data.h_step = 0;
++                slot_data.anim_struct.char_state = 0;
++                slot_data.anim_struct.ff = true;
++                break;
++            }
++            
              script_execute(scr_slot.h[slot_data.h_step]);
              break;
          
@@ -54308,7 +54366,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
  }
  
  function scr_shift_slot(arg0, arg1, arg2)
-@@ -654,7 +787,7 @@
+@@ -654,7 +801,7 @@
              {
                  array_push(global.unlock.breed, arg0);
                  _base_array = global.unlock.breed;
@@ -54317,7 +54375,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  _set = true;
              }
          }
-@@ -670,7 +803,7 @@
+@@ -670,7 +817,7 @@
              {
                  array_push(global.unlock.utility, arg0);
                  _base_array = global.unlock.utility;
@@ -54326,7 +54384,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  _set = true;
              }
          }
-@@ -686,7 +819,7 @@
+@@ -686,7 +833,7 @@
              {
                  array_push(global.unlock.pleasure, arg0);
                  _base_array = global.unlock.pleasure;
@@ -54335,7 +54393,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  _set = true;
              }
          }
-@@ -702,7 +835,7 @@
+@@ -702,7 +849,7 @@
              {
                  array_push(global.unlock.b_breed, arg0);
                  _base_array = global.unlock.b_breed;
@@ -54344,7 +54402,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  _set = true;
              }
          }
-@@ -718,7 +851,7 @@
+@@ -718,7 +865,7 @@
              {
                  array_push(global.unlock.b_utility, arg0);
                  _base_array = global.unlock.b_utility;
@@ -54353,7 +54411,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  _set = true;
              }
          }
-@@ -734,7 +867,7 @@
+@@ -734,7 +881,7 @@
              {
                  array_push(global.unlock.b_other, arg0);
                  _base_array = global.unlock.b_other;
@@ -54362,7 +54420,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  _set = true;
              }
          }
-@@ -750,7 +883,7 @@
+@@ -750,7 +897,7 @@
              {
                  array_push(global.unlock.t_breed, arg0);
                  _base_array = global.unlock.t_breed;
@@ -54371,7 +54429,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  _set = true;
              }
          }
-@@ -766,14 +899,60 @@
+@@ -766,14 +913,60 @@
              {
                  array_push(global.unlock.t_utility, arg0);
                  _base_array = global.unlock.t_utility;
@@ -54434,7 +54492,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      {
          slot_type: arg0,
          prop_type: -1,
-@@ -783,9 +962,10 @@
+@@ -783,9 +976,10 @@
      scr_check_add_guide(arg0);
      
      if (arg1)
@@ -54448,7 +54506,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
  }
  
  function scr_add_new_prop_type(arg0, arg1)
-@@ -803,7 +983,7 @@
+@@ -803,7 +997,7 @@
              _set = true;
              array_push(global.unlock.edit_top, arg0);
              _base_array = global.unlock.edit_top;
@@ -54457,7 +54515,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          }
      }
      
-@@ -820,7 +1000,7 @@
+@@ -820,7 +1014,7 @@
              _set = true;
              array_push(global.unlock.edit_mid, arg0);
              _base_array = global.unlock.edit_mid;
@@ -54466,7 +54524,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          }
      }
      
-@@ -837,7 +1017,7 @@
+@@ -837,7 +1031,7 @@
              _set = true;
              array_push(global.unlock.edit_bot, arg0);
              _base_array = global.unlock.edit_bot;
@@ -54475,7 +54533,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          }
      }
      
-@@ -853,9 +1033,9 @@
+@@ -853,9 +1047,9 @@
      ds_list_add(global.new_button_list, _data);
      
      if (arg1)
@@ -54487,7 +54545,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
  }
  
  function scr_add_new_between_type(arg0, arg1)
-@@ -868,12 +1048,12 @@
+@@ -868,12 +1062,12 @@
      {
          if (arg0 == _order_array[i])
          {
@@ -54503,7 +54561,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _set = true;
          }
      }
-@@ -888,9 +1068,9 @@
+@@ -888,9 +1082,9 @@
      ds_list_add(global.new_button_list, _data);
      
      if (arg1)
@@ -54515,7 +54573,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
  }
  
  function scr_rearrange_buttons(arg0, arg1, arg2)
-@@ -915,51 +1095,61 @@
+@@ -915,51 +1109,61 @@
      
      switch (arg0)
      {
@@ -54589,7 +54647,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              global.unlock.edit_bot = _array;
              break;
      }
-@@ -986,173 +1176,246 @@
+@@ -986,173 +1190,246 @@
      {
          switch (slot_data.slot_type)
          {
@@ -54896,7 +54954,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      return _result;
  }
  
-@@ -1170,7 +1433,7 @@
+@@ -1170,7 +1447,7 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[arg2], _c_pos);
          
@@ -54905,7 +54963,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          {
              if (abs(arg0 - _c_pos) < _slot_dist)
              {
-@@ -1203,6 +1466,13 @@
+@@ -1203,6 +1480,13 @@
          {
              var _c_slot_id = id;
              
@@ -54919,7 +54977,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              if (unit_data.preg != -1)
              {
                  for (var i = 0; i < _count; i++)
-@@ -1211,7 +1481,7 @@
+@@ -1211,7 +1495,7 @@
                      _flip *= -1;
                      var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                      
@@ -54928,7 +54986,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                      {
                          i = _count;
                          _set_mon = true;
-@@ -1229,7 +1499,7 @@
+@@ -1229,7 +1513,7 @@
                          _flip *= -1;
                          var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                          
@@ -54937,7 +54995,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                          {
                              i = _count;
                              _set_mon = true;
-@@ -1246,7 +1516,7 @@
+@@ -1246,7 +1530,7 @@
                          _flip *= -1;
                          var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                          
@@ -54946,7 +55004,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                          {
                              i = _count;
                              _set_mon = true;
-@@ -1259,19 +1529,23 @@
+@@ -1259,19 +1543,23 @@
                  {
                      switch (unit_data.class)
                      {
@@ -54976,7 +55034,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                      if (_cell_spe != -1)
                      {
                          for (var i = 0; i < _count; i++)
-@@ -1280,7 +1554,7 @@
+@@ -1280,7 +1568,7 @@
                              _flip *= -1;
                              var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                              
@@ -54985,7 +55043,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                              {
                                  i = _count;
                                  _set_mon = true;
-@@ -1297,7 +1571,7 @@
+@@ -1297,7 +1585,7 @@
                              _flip *= -1;
                              var _t_slot_id = ds_list_find_value(global.slot_list[_floor], _t_pos);
                              
@@ -54994,7 +55052,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                              {
                                  i = _count;
                                  _set_mon = true;
-@@ -1332,7 +1606,8 @@
+@@ -1332,7 +1620,8 @@
                  _flip *= -1;
                  var _c_slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
                  
@@ -55004,7 +55062,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  {
                      if (_c_slot_id.slot_data.allow_preg)
                      {
-@@ -1359,7 +1634,7 @@
+@@ -1359,7 +1648,7 @@
                                          }
                                      }
                                      
@@ -55013,7 +55071,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                      {
                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                          
-@@ -1387,22 +1662,25 @@
+@@ -1387,22 +1676,25 @@
                          
                          switch (_c_slot_id.unit_data.class)
                          {
@@ -55046,7 +55104,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1428,7 +1706,7 @@
+@@ -1428,7 +1720,7 @@
                                                      }
                                                  }
                                                  
@@ -55055,7 +55113,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1465,7 +1743,7 @@
+@@ -1465,7 +1757,7 @@
                                                      }
                                                  }
                                                  
@@ -55064,7 +55122,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1489,7 +1767,7 @@
+@@ -1489,7 +1781,7 @@
                                  
                                  break;
                              
@@ -55073,7 +55131,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1515,7 +1793,7 @@
+@@ -1515,7 +1807,7 @@
                                                      }
                                                  }
                                                  
@@ -55082,7 +55140,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1552,7 +1830,7 @@
+@@ -1552,7 +1844,7 @@
                                                      }
                                                  }
                                                  
@@ -55091,7 +55149,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1576,8 +1854,8 @@
+@@ -1576,8 +1868,8 @@
                                  
                                  break;
                              
@@ -55102,7 +55160,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                  {
                                      if (_c_slot_id.unit_data.milk)
                                      {
-@@ -1602,7 +1880,7 @@
+@@ -1602,7 +1894,7 @@
                                                      }
                                                  }
                                                  
@@ -55111,7 +55169,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1646,7 +1924,7 @@
+@@ -1646,7 +1938,7 @@
                                                      }
                                                  }
                                                  
@@ -55120,7 +55178,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1692,7 +1970,7 @@
+@@ -1692,7 +1984,7 @@
                                                          }
                                                      }
                                                      
@@ -55129,7 +55187,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1729,7 +2007,7 @@
+@@ -1729,7 +2021,7 @@
                                                          }
                                                      }
                                                      
@@ -55138,7 +55196,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1753,8 +2031,8 @@
+@@ -1753,8 +2045,8 @@
                                  
                                  break;
                              
@@ -55149,7 +55207,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                  {
                                      if (_c_slot_id.unit_data.milk)
                                      {
-@@ -1779,7 +2057,7 @@
+@@ -1779,7 +2071,7 @@
                                                      }
                                                  }
                                                  
@@ -55158,7 +55216,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1823,7 +2101,7 @@
+@@ -1823,7 +2115,7 @@
                                                      }
                                                  }
                                                  
@@ -55167,7 +55225,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1869,7 +2147,7 @@
+@@ -1869,7 +2161,7 @@
                                                          }
                                                      }
                                                      
@@ -55176,7 +55234,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1906,7 +2184,7 @@
+@@ -1906,7 +2198,7 @@
                                                          }
                                                      }
                                                      
@@ -55185,7 +55243,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                      {
                                                          _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                          
-@@ -1930,7 +2208,7 @@
+@@ -1930,7 +2222,7 @@
                                  
                                  break;
                              
@@ -55194,7 +55252,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                  if (!_c_slot_id.unit_data.milk)
                                  {
                                      if (_cell_spe != -1)
-@@ -1956,7 +2234,7 @@
+@@ -1956,7 +2248,7 @@
                                                      }
                                                  }
                                                  
@@ -55203,7 +55261,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -1993,7 +2271,7 @@
+@@ -1993,7 +2285,7 @@
                                                      }
                                                  }
                                                  
@@ -55212,7 +55270,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                                                  {
                                                      _slot_pos_dist = abs(x - _c_slot_id.x) + abs(_c_slot_id.x - _t_slot_id.x);
                                                      
-@@ -2022,12 +2300,33 @@
+@@ -2022,12 +2314,33 @@
              }
          }
      }
@@ -55247,7 +55305,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      }
      
      return _carry_exe;
-@@ -2037,13 +2336,27 @@
+@@ -2037,13 +2350,27 @@
  {
      var _carry = scr_check_carry_slot_range(arg0);
      
@@ -55276,7 +55334,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          if (_door != -1)
          {
              _x = _door.x + floor(_door.image_xscale * 0.5);
-@@ -2051,15 +2364,24 @@
+@@ -2051,15 +2378,24 @@
              var _slot_pos = ds_list_find_index(global.slot_list[_floor], id);
              var _c_slot_id = _carry[0];
              var _t_slot_id = _carry[1];
@@ -55303,7 +55361,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  mon_data.mood_timer = 180;
                  scr_mood_value_set(-0.25);
              }
-@@ -2081,7 +2403,7 @@
+@@ -2081,7 +2417,7 @@
                  scr_create_slot_head(false, id);
              }
              
@@ -55312,7 +55370,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              slot_data.anim_struct.ff = true;
          }
      }
-@@ -2102,14 +2424,17 @@
+@@ -2102,14 +2438,17 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
@@ -55332,7 +55390,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  
                  clean_id = instance_create_depth(x + _shift_x, y, -761, obj_clean);
                  
-@@ -2119,8 +2444,10 @@
+@@ -2119,8 +2458,10 @@
                      shift_x = _shift_x;
                      var _width;
                      
@@ -55344,7 +55402,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                      else
                          _width = 77;
                      
-@@ -2156,37 +2483,39 @@
+@@ -2156,37 +2497,39 @@
      }
  }
  
@@ -55396,7 +55454,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              var _hob = true;
              var _slot_ar = [false, false, false];
              var _ar = [];
-@@ -2206,12 +2535,12 @@
+@@ -2206,12 +2549,12 @@
                  _place = choose(0, 1);
              
              if (_place != 0)
@@ -55412,7 +55470,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              var _slot_ar = [false, false];
              var _ar = [];
              
-@@ -2227,8 +2556,8 @@
+@@ -2227,8 +2570,8 @@
              _place = _ar[irandom_range(0, array_length(_ar) - 1)];
              break;
          
@@ -55423,7 +55481,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              var _slot_ar = [false, false];
              var _ar = [];
              
-@@ -2244,13 +2573,13 @@
+@@ -2244,13 +2587,13 @@
              _place = _ar[irandom_range(0, array_length(_ar) - 1)];
              break;
          
@@ -55439,7 +55497,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  _place = 0;
              }
              else if (slot_data.mon_placement[0] == -1)
-@@ -2264,27 +2593,127 @@
+@@ -2264,27 +2607,127 @@
              
              break;
          
@@ -55577,7 +55635,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      if (_exists)
      {
          var _a = irandom_range(0, array_length(_type_ar) - 1);
-@@ -2297,8 +2726,157 @@
+@@ -2297,8 +2740,157 @@
      }
  }
  
@@ -55735,7 +55793,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      var _num = array_length(h_unit_list);
      
      if (_num < slot_data.max_mon_num && !slot_data.carry)
-@@ -2308,7 +2886,9 @@
+@@ -2308,7 +2900,9 @@
          if (slot_data.h_wait <= 0)
          {
              slot_data.h_wait = irandom_range(240, 360);
@@ -55746,7 +55804,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              
              if (_ar != -1)
              {
-@@ -2322,13 +2902,22 @@
+@@ -2322,13 +2916,22 @@
                  {
                      with (obj_mon)
                      {
@@ -55771,7 +55829,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                              break;
                          }
                      }
-@@ -2340,7 +2929,7 @@
+@@ -2340,7 +2943,7 @@
                      var _y = y;
                      var _door = -1;
                      
@@ -55780,7 +55838,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                      {
                          _door = scr_find_nearest_door(_x, _y, _floor);
                      }
-@@ -2420,15 +3009,19 @@
+@@ -2420,15 +3023,19 @@
          
          if (unit_data.scr_wait >= 240)
          {
@@ -55803,7 +55861,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
  {
      arg1 += global.val.add_range;
      var _floor = arg0.slot_data.slot_floor;
-@@ -2446,8 +3039,21 @@
+@@ -2446,8 +3053,21 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
@@ -55827,7 +55885,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              var _num = array_length(_slot_id.h_unit_list);
              
              if (abs(_pos - _c_pos) < _slot_dist)
-@@ -2456,7 +3062,7 @@
+@@ -2456,7 +3076,7 @@
                  
                  switch (_slot_id.slot_data.h_type)
                  {
@@ -55836,7 +55894,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                          _check = true;
                          
                          if (_num == 1)
-@@ -2467,10 +3073,10 @@
+@@ -2467,10 +3087,10 @@
                          
                          break;
                      
@@ -55849,7 +55907,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2478,10 +3084,10 @@
+@@ -2478,10 +3098,10 @@
                          
                          break;
                      
@@ -55862,7 +55920,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2509,7 +3115,7 @@
+@@ -2509,7 +3129,7 @@
  {
      var _exists = false;
      
@@ -55871,7 +55929,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          _exists = true;
      
      if (_exists)
-@@ -2527,7 +3133,7 @@
+@@ -2527,7 +3147,7 @@
      
      switch (arg0)
      {
@@ -55880,7 +55938,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2535,7 +3141,7 @@
+@@ -2535,7 +3155,7 @@
              
              break;
          
@@ -55889,7 +55947,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2543,7 +3149,7 @@
+@@ -2543,7 +3163,7 @@
              
              break;
          
@@ -55898,7 +55956,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2558,7 +3164,7 @@
+@@ -2558,7 +3178,7 @@
              
              break;
          
@@ -55907,7 +55965,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2573,12 +3179,28 @@
+@@ -2573,12 +3193,28 @@
              
              break;
          
@@ -55937,7 +55995,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      if (!_slot && slot_data.allow_preg)
      {
          if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1)
-@@ -2602,7 +3224,7 @@
+@@ -2602,7 +3238,7 @@
              var _c_pos = _start_pos + i;
              var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
              
@@ -55946,7 +56004,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              {
                  i = _dist;
                  _frog = true;
-@@ -2623,8 +3245,8 @@
+@@ -2623,8 +3259,8 @@
                  ds_list_set(global.unit_list, _swap_pos, -1);
                  scr_insert_unit_to_list(_unit_data, _swap_pos, -1);
                  var _button = scr_reset_single_unit_window(_swap_pos);
@@ -55957,7 +56015,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  scr_create_slot_head(true, id);
                  scr_swap_emitter(x + round(image_xscale * 0.5), y - 30, false);
                  scr_swap_emitter(_button.x, _button.y, true);
-@@ -2641,7 +3263,7 @@
+@@ -2641,7 +3277,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -55966,7 +56024,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2662,14 +3284,14 @@
+@@ -2662,14 +3298,14 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -55983,7 +56041,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      return _swap_pos;
  }
  
-@@ -2681,18 +3303,27 @@
+@@ -2681,18 +3317,27 @@
      var _class = arg0.class;
      var _same_check = false;
      var _tent = false;
@@ -56014,7 +56072,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          {
              _swap_pos = i;
              i = _num;
-@@ -2700,13 +3331,13 @@
+@@ -2700,13 +3345,13 @@
          }
      }
      
@@ -56030,7 +56088,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2725,7 +3356,7 @@
+@@ -2725,7 +3370,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -56039,7 +56097,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2746,7 +3377,7 @@
+@@ -2746,7 +3391,7 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -56048,7 +56106,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2773,23 +3404,30 @@
+@@ -2773,23 +3418,30 @@
          }
          else
          {
@@ -56085,7 +56143,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          }
      }
      
-@@ -2804,23 +3442,30 @@
+@@ -2804,23 +3456,30 @@
          }
          else
          {
@@ -56122,7 +56180,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          }
      }
  }
-@@ -2832,67 +3477,94 @@
+@@ -2832,67 +3491,94 @@
      
      switch (arg0.slot_data.slot_type)
      {
@@ -56239,7 +56297,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              break;
      }
      
-@@ -2929,35 +3601,167 @@
+@@ -2929,35 +3615,167 @@
      ds_list_destroy(_new_list_1);
      ds_list_destroy(_new_list_2);
      
@@ -56422,7 +56480,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
  }
  
  function scr_slot_anim_base()
-@@ -2978,49 +3782,3 @@
+@@ -2978,49 +3796,3 @@
              bar_glow_rep = 0;
      }
  }
