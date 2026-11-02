@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,5382 @@
+@@ -0,0 +1,5472 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1862,6 +1862,96 @@
 +    }
 +
 +    return _n;
++}
++
++
++// for {"assert": "fn"}: the colour (BGR number, c_red = 255) of pixel arg2, arg3 of frame arg1 of game sprite arg0
++function gnx_scn_sprite_pixel(arg0, arg1, arg2, arg3)
++{
++    var _spr = asset_get_index(arg0);
++    var _w = sprite_get_width(_spr);
++    var _h = sprite_get_height(_spr);
++    var _surf = surface_create(_w, _h);
++    surface_set_target(_surf);
++    draw_clear_alpha(c_black, 0);
++    draw_sprite(_spr, arg1, sprite_get_xoffset(_spr), sprite_get_yoffset(_spr));
++    surface_reset_target();
++    var _c = surface_getpixel(_surf, arg2, arg3);
++    surface_free(_surf);
++    return _c;
++}
++
++
++// for {"assert": "fn"}: 1 when GNX replaced game sprite arg0 with a mod's art (sprite_replace) in this mod load
++function gnx_scn_sprite_replaced(arg0)
++{
++    return array_contains(global.gnx_sprite_replaced, arg0) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when game sprite arg0 shows its own art again: the middle pixel of every frame matches the
++// copy GNX kept before replacing it (1 too when it was never replaced)
++function gnx_scn_sprite_is_original(arg0)
++{
++    var _spr = asset_get_index(arg0);
++
++    if (!ds_map_exists(global.gnx_sprite_backup, _spr))
++        return 1;
++
++    var _bak = ds_map_find_value(global.gnx_sprite_backup, _spr);
++    var _x = sprite_get_width(_spr) div 2;
++    var _y = sprite_get_height(_spr) div 2;
++
++    for (var i = 0; i < sprite_get_number(_bak); i++)
++    {
++        var _w = sprite_get_width(_spr);
++        var _h = sprite_get_height(_spr);
++        var _s = surface_create(_w, _h);
++        surface_set_target(_s);
++        draw_clear_alpha(c_black, 0);
++        draw_sprite(_spr, i, sprite_get_xoffset(_spr), sprite_get_yoffset(_spr));
++        surface_reset_target();
++        var _a = surface_getpixel_ext(_s, _x, _y);
++        surface_set_target(_s);
++        draw_clear_alpha(c_black, 0);
++        draw_sprite(_bak, i, sprite_get_xoffset(_bak), sprite_get_yoffset(_bak));
++        surface_reset_target();
++        var _b = surface_getpixel_ext(_s, _x, _y);
++        surface_free(_s);
++
++        if (_a != _b || sprite_get_number(_spr) != sprite_get_number(_bak))
++            return 0;
++    }
++
++    return 1;
++}
++
++
++// {"call": "gnx_scn_set_today", "args": [1225]}: the date (MMDD) active_dates checks against, until the run ends
++function gnx_scn_set_today(arg0)
++{
++    global.gnx_today_override = arg0;
++}
++
++
++// {"call": "gnx_scn_sprite_list", "args": ["lilith"]}: logs "[GNX-SPR] name w h xorig yorig frames" for every game
++// sprite whose name holds arg0 (for checking art made to replace game sprites)
++function gnx_scn_sprite_list(arg0)
++{
++    var _l = gnx_log_open();
++
++    for (var i = 0; i < 20000; i++)
++    {
++        if (!sprite_exists(i))
++            continue;
++
++        var _n = sprite_get_name(i);
++
++        if (string_pos(arg0, _n) > 0)
++            gnx_log_write(_l, "[GNX-SPR] " + _n + " " + string(sprite_get_width(i)) + " " + string(sprite_get_height(i)) + " " + string(sprite_get_xoffset(i)) + " " + string(sprite_get_yoffset(i)) + " " + string(sprite_get_number(i)) + "\n");
++    }
++
++    gnx_log_close(_l);
 +}
 +
 +

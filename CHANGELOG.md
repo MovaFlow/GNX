@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+**Game version:** 1.40
+
+### New Features
+
+- **Replacing game sprites** (`sprite_replace`): a mod puts its own art in place of game sprites by name (a folder of frames, a strip or a sprite entry), and every cell, phase and screen that draws them draws the mod's art. The game's own art comes back when the mod is turned off. `active_dates` limits it to a date window, for seasonal looks (modding guide 5.9).
+
 ## v1.5.1
 
 **Game version:** 1.40

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1062 @@
+@@ -0,0 +1,1231 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1046,6 +1046,175 @@
 +    }
 +
 +    return !is_struct(arg0) && array_contains(global.gnx_skin3_overlays, arg0);
++}
++
++
++// GNX-REPLACE: a mod's "sprite_replace" (manifest key: a file name or the object itself) puts its own art in place of
++// game sprites, by name: { "spr_h_lilith_hand_c": "lilith/spr_h_lilith_hand_c", "spr_slot_giant_pillar": "tree.png" }.
++// A folder holds one PNG per frame (numbered from 0 or 1), a .png is a strip with the game sprite's frame count, an
++// object is a sprite entry as in "sprites" (guide 5). The art takes the game sprite's origin and must have its size.
++// sprite_assign copies it over the game sprite, so every cell, phase and vanilla draw uses it; the original is kept
++// (global.gnx_sprite_backup) and put back at the start of every mod load (gnx_sprite_replace_restore), so a mod
++// turned off, out of its "active_dates" or not on the current map leaves the game's own art.
++function gnx_sprite_replace_restore()
++{
++    global.gnx_sprite_replaced = [];
++
++    if (!variable_global_exists("gnx_sprite_backup") || !ds_exists(global.gnx_sprite_backup, ds_type_map))
++    {
++        global.gnx_sprite_backup = ds_map_create();
++        return;
++    }
++
++    var _k = ds_map_find_first(global.gnx_sprite_backup);
++
++    repeat (ds_map_size(global.gnx_sprite_backup))
++    {
++        sprite_assign(_k, ds_map_find_value(global.gnx_sprite_backup, _k));
++        _k = ds_map_find_next(global.gnx_sprite_backup, _k);
++    }
++}
++
++
++// GNX-REPLACE: true when today is within "active_dates" arg0, ["MM-DD", "MM-DD"] (a window may cross the new year,
++// e.g. ["12-01", "01-06"]); global.gnx_today_override (MMDD, for the harness) stands in for today
++function gnx_in_dates(arg0)
++{
++    var _now = (variable_global_exists("gnx_today_override") && global.gnx_today_override > 0) ? global.gnx_today_override : (current_month * 100 + current_day);
++    var _a = real(string_digits(arg0[0]));
++    var _b = real(string_digits(arg0[1]));
++
++    // <= : a window within one year; else it crosses the new year
++    return (_a <= _b) ? (_now >= _a && _now <= _b) : (_now >= _a || _now <= _b);
++}
++
++
++// GNX-REPLACE: loads mod arg0's sprite_replace arg1 (file name or object); arg2 = its manifest (active_dates)
++function scr_gnx_load_sprite_replace(arg0, arg1, arg2)
++{
++    var _who = "Mod '" + arg0 + "'";
++    var _dir = global.gnx_mods_root + arg0 + "/";
++    var _map = arg1;
++
++    if (variable_struct_exists(arg2, "active_dates"))
++    {
++        var _ad = arg2.active_dates;
++
++        // two "MM-DD" texts, else the dates are ignored (! = not, || = or)
++        if (!is_array(_ad) || array_length(_ad) != 2 || !is_string(_ad[0]) || !is_string(_ad[1]) || string_length(string_digits(_ad[0])) != 4 || string_length(string_digits(_ad[1])) != 4)
++        {
++            gnx_report_mod_error(_who + ": active_dates must be two dates like [\"12-01\", \"01-06\"]; ignored, the sprites are replaced all year");
++        }
++        else if (!gnx_in_dates(_ad))
++        {
++            var _ol = gnx_log_open();
++            gnx_log_write(_ol, "[GNX] " + _who + ": sprite_replace off today (active_dates " + _ad[0] + " to " + _ad[1] + ")\n");
++            gnx_log_close(_ol);
++            return;
++        }
++    }
++
++    if (is_string(_map))
++    {
++        var _path = _dir + _map;
++        _map = undefined;
++
++        if (file_exists(_path))
++        {
++            var _buf = buffer_load(_path);
++            var _raw = buffer_read(_buf, buffer_text);
++            buffer_delete(_buf);
++
++            try
++            {
++                _map = json_parse(_raw);
++            }
++            catch (_e)
++            {
++                _map = undefined;
++            }
++        }
++
++        if (!is_struct(_map))
++        {
++            gnx_report_mod_error(_who + ": sprite_replace file " + string(arg1) + " is missing or not a JSON object");
++            return;
++        }
++    }
++
++    if (!is_struct(_map))
++    {
++        gnx_report_mod_error(_who + ": sprite_replace must be a file name or an object of game sprite name -> art");
++        return;
++    }
++
++    var _keys = variable_struct_get_names(_map);
++    var _done = 0;
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        var _name = _keys[_i];
++
++        // "_..." keys are comments
++        if (string_char_at(_name, 1) == "_")
++            continue;
++
++        var _game = asset_get_index(_name);
++
++        if (_game < 0 || asset_get_type(_name) != asset_sprite)
++        {
++            gnx_report_mod_error(_who + ": sprite_replace '" + _name + "' is not a game sprite; left out");
++            continue;
++        }
++
++        var _v = variable_struct_get(_map, _name);
++        var _spec;
++
++        if (is_struct(_v))
++            _spec = gnx_struct_copy(_v);
++        else if (string_lower(string_copy(string(_v), string_length(string(_v)) - 3, 4)) == ".png")
++            _spec = { strip: string(_v), frames: sprite_get_number(_game) };
++        else
++            _spec = { folder: string(_v) };
++
++        // the game sprite's origin, unless the entry gives one
++        if (!variable_struct_exists(_spec, "xorig") && !variable_struct_exists(_spec, "yorig") && !variable_struct_exists(_spec, "origin_from"))
++            _spec.origin_from = _name;
++
++        var _holder = {};
++        variable_struct_set(_holder, _name, _spec);
++        var _art = gnx_resolve_sprite_raw(_holder, _name, _dir, -1);
++
++        if (_art == -1 || !sprite_exists(_art))
++        {
++            gnx_report_mod_error(_who + ": sprite_replace '" + _name + "': no art found at " + string(_v) + "; left out");
++            continue;
++        }
++
++        if (sprite_get_width(_art) != sprite_get_width(_game) || sprite_get_height(_art) != sprite_get_height(_game))
++        {
++            gnx_report_mod_error(_who + ": sprite_replace '" + _name + "' is " + string(sprite_get_width(_art)) + " x " + string(sprite_get_height(_art)) + ", the game sprite " + string(sprite_get_width(_game)) + " x " + string(sprite_get_height(_game)) + "; left out");
++            continue;
++        }
++
++        if (sprite_get_number(_art) != sprite_get_number(_game))
++        {
++            var _wl = gnx_log_open();
++            gnx_log_write(_wl, "[GNX-WARN] " + _who + ": sprite_replace '" + _name + "' has " + string(sprite_get_number(_art)) + " frames, the game sprite " + string(sprite_get_number(_game)) + " (the game plays the frames it counts)\n");
++            gnx_log_close(_wl);
++        }
++
++        if (!ds_map_exists(global.gnx_sprite_backup, _game))
++            ds_map_add(global.gnx_sprite_backup, _game, sprite_duplicate(_game));
++
++        sprite_assign(_game, _art);
++        array_push(global.gnx_sprite_replaced, _name);
++        _done++;
++    }
++
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX] " + _who + ": sprite_replace " + string(_done) + " game sprite(s)\n");
++    gnx_log_close(_l);
 +}
 +
 +

@@ -930,8 +930,8 @@ diff -uN gml_138/gml_GlobalScript_PropertyHolder.gml gml/gml_GlobalScript_Proper
 +    properties = {};
 +}
 diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_button_activate.gml
---- gml_138/gml_GlobalScript_s_button_activate.gml	2026-10-31 17:46:47.594620300 +0100
-+++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-31 17:48:11.950901100 +0100
+--- gml_138/gml_GlobalScript_s_button_activate.gml	2026-09-02 08:45:16.448590100 +0200
++++ gml/gml_GlobalScript_s_button_activate.gml	2026-10-31 17:24:01.828676000 +0100
 @@ -29,6 +29,15 @@
              trigger = false;
              global.click_lock = false;
@@ -11097,7 +11097,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw.gml
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_draw.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1062 @@
+@@ -0,0 +1,1231 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -12146,6 +12146,175 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +}
 +
 +
++// GNX-REPLACE: a mod's "sprite_replace" (manifest key: a file name or the object itself) puts its own art in place of
++// game sprites, by name: { "spr_h_lilith_hand_c": "lilith/spr_h_lilith_hand_c", "spr_slot_giant_pillar": "tree.png" }.
++// A folder holds one PNG per frame (numbered from 0 or 1), a .png is a strip with the game sprite's frame count, an
++// object is a sprite entry as in "sprites" (guide 5). The art takes the game sprite's origin and must have its size.
++// sprite_assign copies it over the game sprite, so every cell, phase and vanilla draw uses it; the original is kept
++// (global.gnx_sprite_backup) and put back at the start of every mod load (gnx_sprite_replace_restore), so a mod
++// turned off, out of its "active_dates" or not on the current map leaves the game's own art.
++function gnx_sprite_replace_restore()
++{
++    global.gnx_sprite_replaced = [];
++
++    if (!variable_global_exists("gnx_sprite_backup") || !ds_exists(global.gnx_sprite_backup, ds_type_map))
++    {
++        global.gnx_sprite_backup = ds_map_create();
++        return;
++    }
++
++    var _k = ds_map_find_first(global.gnx_sprite_backup);
++
++    repeat (ds_map_size(global.gnx_sprite_backup))
++    {
++        sprite_assign(_k, ds_map_find_value(global.gnx_sprite_backup, _k));
++        _k = ds_map_find_next(global.gnx_sprite_backup, _k);
++    }
++}
++
++
++// GNX-REPLACE: true when today is within "active_dates" arg0, ["MM-DD", "MM-DD"] (a window may cross the new year,
++// e.g. ["12-01", "01-06"]); global.gnx_today_override (MMDD, for the harness) stands in for today
++function gnx_in_dates(arg0)
++{
++    var _now = (variable_global_exists("gnx_today_override") && global.gnx_today_override > 0) ? global.gnx_today_override : (current_month * 100 + current_day);
++    var _a = real(string_digits(arg0[0]));
++    var _b = real(string_digits(arg0[1]));
++
++    // <= : a window within one year; else it crosses the new year
++    return (_a <= _b) ? (_now >= _a && _now <= _b) : (_now >= _a || _now <= _b);
++}
++
++
++// GNX-REPLACE: loads mod arg0's sprite_replace arg1 (file name or object); arg2 = its manifest (active_dates)
++function scr_gnx_load_sprite_replace(arg0, arg1, arg2)
++{
++    var _who = "Mod '" + arg0 + "'";
++    var _dir = global.gnx_mods_root + arg0 + "/";
++    var _map = arg1;
++
++    if (variable_struct_exists(arg2, "active_dates"))
++    {
++        var _ad = arg2.active_dates;
++
++        // two "MM-DD" texts, else the dates are ignored (! = not, || = or)
++        if (!is_array(_ad) || array_length(_ad) != 2 || !is_string(_ad[0]) || !is_string(_ad[1]) || string_length(string_digits(_ad[0])) != 4 || string_length(string_digits(_ad[1])) != 4)
++        {
++            gnx_report_mod_error(_who + ": active_dates must be two dates like [\"12-01\", \"01-06\"]; ignored, the sprites are replaced all year");
++        }
++        else if (!gnx_in_dates(_ad))
++        {
++            var _ol = gnx_log_open();
++            gnx_log_write(_ol, "[GNX] " + _who + ": sprite_replace off today (active_dates " + _ad[0] + " to " + _ad[1] + ")\n");
++            gnx_log_close(_ol);
++            return;
++        }
++    }
++
++    if (is_string(_map))
++    {
++        var _path = _dir + _map;
++        _map = undefined;
++
++        if (file_exists(_path))
++        {
++            var _buf = buffer_load(_path);
++            var _raw = buffer_read(_buf, buffer_text);
++            buffer_delete(_buf);
++
++            try
++            {
++                _map = json_parse(_raw);
++            }
++            catch (_e)
++            {
++                _map = undefined;
++            }
++        }
++
++        if (!is_struct(_map))
++        {
++            gnx_report_mod_error(_who + ": sprite_replace file " + string(arg1) + " is missing or not a JSON object");
++            return;
++        }
++    }
++
++    if (!is_struct(_map))
++    {
++        gnx_report_mod_error(_who + ": sprite_replace must be a file name or an object of game sprite name -> art");
++        return;
++    }
++
++    var _keys = variable_struct_get_names(_map);
++    var _done = 0;
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        var _name = _keys[_i];
++
++        // "_..." keys are comments
++        if (string_char_at(_name, 1) == "_")
++            continue;
++
++        var _game = asset_get_index(_name);
++
++        if (_game < 0 || asset_get_type(_name) != asset_sprite)
++        {
++            gnx_report_mod_error(_who + ": sprite_replace '" + _name + "' is not a game sprite; left out");
++            continue;
++        }
++
++        var _v = variable_struct_get(_map, _name);
++        var _spec;
++
++        if (is_struct(_v))
++            _spec = gnx_struct_copy(_v);
++        else if (string_lower(string_copy(string(_v), string_length(string(_v)) - 3, 4)) == ".png")
++            _spec = { strip: string(_v), frames: sprite_get_number(_game) };
++        else
++            _spec = { folder: string(_v) };
++
++        // the game sprite's origin, unless the entry gives one
++        if (!variable_struct_exists(_spec, "xorig") && !variable_struct_exists(_spec, "yorig") && !variable_struct_exists(_spec, "origin_from"))
++            _spec.origin_from = _name;
++
++        var _holder = {};
++        variable_struct_set(_holder, _name, _spec);
++        var _art = gnx_resolve_sprite_raw(_holder, _name, _dir, -1);
++
++        if (_art == -1 || !sprite_exists(_art))
++        {
++            gnx_report_mod_error(_who + ": sprite_replace '" + _name + "': no art found at " + string(_v) + "; left out");
++            continue;
++        }
++
++        if (sprite_get_width(_art) != sprite_get_width(_game) || sprite_get_height(_art) != sprite_get_height(_game))
++        {
++            gnx_report_mod_error(_who + ": sprite_replace '" + _name + "' is " + string(sprite_get_width(_art)) + " x " + string(sprite_get_height(_art)) + ", the game sprite " + string(sprite_get_width(_game)) + " x " + string(sprite_get_height(_game)) + "; left out");
++            continue;
++        }
++
++        if (sprite_get_number(_art) != sprite_get_number(_game))
++        {
++            var _wl = gnx_log_open();
++            gnx_log_write(_wl, "[GNX-WARN] " + _who + ": sprite_replace '" + _name + "' has " + string(sprite_get_number(_art)) + " frames, the game sprite " + string(sprite_get_number(_game)) + " (the game plays the frames it counts)\n");
++            gnx_log_close(_wl);
++        }
++
++        if (!ds_map_exists(global.gnx_sprite_backup, _game))
++            ds_map_add(global.gnx_sprite_backup, _game, sprite_duplicate(_game));
++
++        sprite_assign(_game, _art);
++        array_push(global.gnx_sprite_replaced, _name);
++        _done++;
++    }
++
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX] " + _who + ": sprite_replace " + string(_done) + " game sprite(s)\n");
++    gnx_log_close(_l);
++}
++
++
 +enum UnknownEnum
 +{
 +    Value_0,
@@ -12163,7 +12332,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,5382 @@
+@@ -0,0 +1,5472 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -14025,6 +14194,96 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +
 +    return _n;
++}
++
++
++// for {"assert": "fn"}: the colour (BGR number, c_red = 255) of pixel arg2, arg3 of frame arg1 of game sprite arg0
++function gnx_scn_sprite_pixel(arg0, arg1, arg2, arg3)
++{
++    var _spr = asset_get_index(arg0);
++    var _w = sprite_get_width(_spr);
++    var _h = sprite_get_height(_spr);
++    var _surf = surface_create(_w, _h);
++    surface_set_target(_surf);
++    draw_clear_alpha(c_black, 0);
++    draw_sprite(_spr, arg1, sprite_get_xoffset(_spr), sprite_get_yoffset(_spr));
++    surface_reset_target();
++    var _c = surface_getpixel(_surf, arg2, arg3);
++    surface_free(_surf);
++    return _c;
++}
++
++
++// for {"assert": "fn"}: 1 when GNX replaced game sprite arg0 with a mod's art (sprite_replace) in this mod load
++function gnx_scn_sprite_replaced(arg0)
++{
++    return array_contains(global.gnx_sprite_replaced, arg0) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when game sprite arg0 shows its own art again: the middle pixel of every frame matches the
++// copy GNX kept before replacing it (1 too when it was never replaced)
++function gnx_scn_sprite_is_original(arg0)
++{
++    var _spr = asset_get_index(arg0);
++
++    if (!ds_map_exists(global.gnx_sprite_backup, _spr))
++        return 1;
++
++    var _bak = ds_map_find_value(global.gnx_sprite_backup, _spr);
++    var _x = sprite_get_width(_spr) div 2;
++    var _y = sprite_get_height(_spr) div 2;
++
++    for (var i = 0; i < sprite_get_number(_bak); i++)
++    {
++        var _w = sprite_get_width(_spr);
++        var _h = sprite_get_height(_spr);
++        var _s = surface_create(_w, _h);
++        surface_set_target(_s);
++        draw_clear_alpha(c_black, 0);
++        draw_sprite(_spr, i, sprite_get_xoffset(_spr), sprite_get_yoffset(_spr));
++        surface_reset_target();
++        var _a = surface_getpixel_ext(_s, _x, _y);
++        surface_set_target(_s);
++        draw_clear_alpha(c_black, 0);
++        draw_sprite(_bak, i, sprite_get_xoffset(_bak), sprite_get_yoffset(_bak));
++        surface_reset_target();
++        var _b = surface_getpixel_ext(_s, _x, _y);
++        surface_free(_s);
++
++        if (_a != _b || sprite_get_number(_spr) != sprite_get_number(_bak))
++            return 0;
++    }
++
++    return 1;
++}
++
++
++// {"call": "gnx_scn_set_today", "args": [1225]}: the date (MMDD) active_dates checks against, until the run ends
++function gnx_scn_set_today(arg0)
++{
++    global.gnx_today_override = arg0;
++}
++
++
++// {"call": "gnx_scn_sprite_list", "args": ["lilith"]}: logs "[GNX-SPR] name w h xorig yorig frames" for every game
++// sprite whose name holds arg0 (for checking art made to replace game sprites)
++function gnx_scn_sprite_list(arg0)
++{
++    var _l = gnx_log_open();
++
++    for (var i = 0; i < 20000; i++)
++    {
++        if (!sprite_exists(i))
++            continue;
++
++        var _n = sprite_get_name(i);
++
++        if (string_pos(arg0, _n) > 0)
++            gnx_log_write(_l, "[GNX-SPR] " + _n + " " + string(sprite_get_width(i)) + " " + string(sprite_get_height(i)) + " " + string(sprite_get_xoffset(i)) + " " + string(sprite_get_yoffset(i)) + " " + string(sprite_get_number(i)) + "\n");
++    }
++
++    gnx_log_close(_l);
 +}
 +
 +
@@ -17854,7 +18113,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2744 @@
+@@ -0,0 +1,2748 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -19360,6 +19619,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    global.gnx_loaded_mods = [];
 +    global.gnx_tr = {};  // translations of mod text, by language code (gnx_load_translations, gnx_tr)
 +    gnx_items_reset();  // mod items and raid loot (items.json)
++    gnx_sprite_replace_restore();  // GNX-REPLACE: the game's own art back before mods replace it again
 +    global.gnx_map_deferred_mods = [];
 +    global.gnx_mod_map_decl = {};
 +    global.gnx_multimap_enabled = true;
@@ -20366,6 +20626,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    
 +    if (variable_struct_exists(_manifest, "props"))
 +        scr_gnx_load_props(arg0, _manifest.props);
++    
++    if (variable_struct_exists(_manifest, "sprite_replace"))
++        scr_gnx_load_sprite_replace(arg0, _manifest.sprite_replace, _manifest);  // GNX-REPLACE
 +    
 +    _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
@@ -38578,8 +38841,8 @@ diff -uN gml_138/gml_GlobalScript_s_mod_button.gml gml/gml_GlobalScript_s_mod_bu
 +    Value_5
 +}
 diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data.gml
---- gml_138/gml_GlobalScript_s_mon_data.gml	2026-10-31 17:46:47.386541900 +0100
-+++ gml/gml_GlobalScript_s_mon_data.gml	2026-10-31 17:48:11.969900700 +0100
+--- gml_138/gml_GlobalScript_s_mon_data.gml	2026-09-02 08:45:16.386592300 +0200
++++ gml/gml_GlobalScript_s_mon_data.gml	2026-10-31 17:24:01.837677200 +0100
 @@ -1,20 +1,20 @@
  function scr_set_mon_range()
  {
@@ -44171,8 +44434,8 @@ diff -uN gml_138/gml_GlobalScript_s_raid_button.gml gml/gml_GlobalScript_s_raid_
      scr_create_button(233, 50, depth - 5, spr_raid_shop_button, UnknownEnum.Value_45, id, scr_create_shop_button, -1, scr_draw_hover_button, 0, 0);
  }
 diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_raid_cal_stat.gml
---- gml_138/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-31 17:46:47.610128400 +0100
-+++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-31 17:48:11.977901600 +0100
+--- gml_138/gml_GlobalScript_s_raid_cal_stat.gml	2026-09-02 08:45:16.522590500 +0200
++++ gml/gml_GlobalScript_s_raid_cal_stat.gml	2026-10-31 17:24:01.838675700 +0100
 @@ -119,7 +119,7 @@
  
  function scr_calculate_fight_outcome()
@@ -50559,8 +50822,8 @@ diff -uN gml_138/gml_GlobalScript_s_slot_data.gml gml/gml_GlobalScript_s_slot_da
 -    Value_42
 -}
 diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_draw.gml
---- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-10-31 17:46:47.558111300 +0100
-+++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-31 17:48:11.984897600 +0100
+--- gml_138/gml_GlobalScript_s_slot_draw.gml	2026-09-02 08:45:16.434590200 +0200
++++ gml/gml_GlobalScript_s_slot_draw.gml	2026-10-31 17:24:01.839676600 +0100
 @@ -2,27 +2,31 @@
  {
      switch (slot_data.slot_type)
@@ -57446,8 +57709,8 @@ diff -uN gml_138/gml_GlobalScript_s_slot_prop.gml gml/gml_GlobalScript_s_slot_pr
  {
      draw_self();
 diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_state.gml
---- gml_138/gml_GlobalScript_s_slot_state.gml	2026-10-31 17:46:47.625434300 +0100
-+++ gml/gml_GlobalScript_s_slot_state.gml	2026-10-31 17:48:11.986898100 +0100
+--- gml_138/gml_GlobalScript_s_slot_state.gml	2026-09-02 08:45:16.527590000 +0200
++++ gml/gml_GlobalScript_s_slot_state.gml	2026-10-31 17:24:01.842678400 +0100
 @@ -3,20 +3,24 @@
      if (slot_data.anim_struct.ff)
      {
@@ -61449,8 +61712,8 @@ diff -uN gml_138/gml_GlobalScript_s_trade_draw.gml gml/gml_GlobalScript_s_trade_
              draw_set_font(fnt_base_font_eng);
              draw_sprite(spr_icon, !sign(_unit_data.preg_c) * 3, _x + 6, _y + 31);
 diff -uN gml_138/gml_GlobalScript_s_trade_function.gml gml/gml_GlobalScript_s_trade_function.gml
---- gml_138/gml_GlobalScript_s_trade_function.gml	2026-10-31 17:46:47.581109100 +0100
-+++ gml/gml_GlobalScript_s_trade_function.gml	2026-10-31 17:48:11.990898700 +0100
+--- gml_138/gml_GlobalScript_s_trade_function.gml	2026-09-02 08:45:16.443594600 +0200
++++ gml/gml_GlobalScript_s_trade_function.gml	2026-10-31 17:34:00.188742400 +0100
 @@ -2,14 +2,15 @@
  {
      var _empty = true;
@@ -65564,8 +65827,8 @@ diff -uN gml_138/gml_GlobalScript_s_window_num_draw.gml gml/gml_GlobalScript_s_w
  
  function scr_draw_sure_window()
 diff -uN gml_138/gml_GlobalScript_scr_create_menu_button.gml gml/gml_GlobalScript_scr_create_menu_button.gml
---- gml_138/gml_GlobalScript_scr_create_menu_button.gml	2026-10-31 17:46:48.123806100 +0100
-+++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-10-31 17:48:11.949898400 +0100
+--- gml_138/gml_GlobalScript_scr_create_menu_button.gml	2026-09-02 08:45:16.120550900 +0200
++++ gml/gml_GlobalScript_scr_create_menu_button.gml	2026-10-31 17:24:01.844677300 +0100
 @@ -19,116 +19,61 @@
  function scr_create_load_file(arg0)
  {

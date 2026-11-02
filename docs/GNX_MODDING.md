@@ -543,6 +543,8 @@ What this example does:
 | `save_state` | Saved variables ([4.3](#43-save_state)). | object | — |
 | `mod_id` | A second name for other mods' `requires`, usually the folder name. References always use the folder name. `build_mod.py` deploys the mod into `GNX_mods/<mod_id>/` (the source folder's name without it): that folder name is what your class and cell IDs and references are made from, so keep it fixed once players have saves. | text | the folder name |
 | `requires` | Mods this one needs, by folder name or `mod_id` ([4.5](#45-requires-and-the-mods-menu)). | list | — |
+| `sprite_replace` | Your art in place of game sprites, by name: a file name or the object itself ([5.9](#59-replacing-game-sprites-sprite_replace)). | text or object | — |
+| `active_dates` | `["MM-DD", "MM-DD"]`: `sprite_replace` only applies between these dates ([5.9](#59-replacing-game-sprites-sprite_replace)). | list | — |
 | `min_gnx_version` | The oldest GNX your mod works with, for example `"1.5.0"` when it uses keys new in 1.5 ([4.2](#42-the-version-check)). | text | — |
 | `map`, `map_info`, `map_start` | Which map(s) the mod belongs to, and your own map for multi-map travel ([§21](#21-multi-map-travel)). `map_info` was called `map_button` before 1.4.9; the old name is still read. | — | — |
 
@@ -926,6 +928,44 @@ frame number = skin × (frames ÷ 3) + pose
 - For many sprites, an atlas loads faster than separate strips ([§20](#20-atlas-packing)).
 
 > **When** `frames` does not match the picture (a 90-frame strip declared with `"frames": 30`), every frame is three times too wide and the animation shows the wrong poses.
+
+### 5.9 Replacing game sprites (sprite_replace)
+
+**In short:** `sprite_replace` puts your art in place of game sprites, by their names. Every cell, phase and screen that draws that sprite then draws yours, with no cell or class setup. Use it for re-skins: an outfit for a vanilla girl, a seasonal look for a cell.
+
+```json
+{
+  "name": "Christmas",
+  "version": "1.0.0",
+  "compatible_game_versions": ["1.40"],
+  "active_dates": ["12-01", "01-06"],
+  "sprite_replace": "sprite_replace.json"
+}
+```
+
+`sprite_replace.json` (or the same object written directly in the manifest):
+
+```json
+{
+  "spr_h_lilith_hand_c": "lilith/spr_h_lilith_hand_c",
+  "spr_slot_giant_pillar": "selene/tree_pillar.png"
+}
+```
+
+| Value | What GNX loads |
+|---|---|
+| a folder | one PNG per frame, ordered by the number at the end of the name; numbering from 0 or from 1 both work (as exported by UndertaleModTool or Aseprite) |
+| a `.png` file | a strip with as many frames as the game sprite |
+| an object | a sprite entry as in [5.2](#52-where-gnx-takes-the-image-from) (`strip` + `frames`, `folder`, `frames` list) |
+
+- Your art takes the game sprite's origin; give `xorig` / `yorig` in an object only to change it.
+- Each frame must have the game sprite's size. Otherwise it is a mod error and the game sprite stays as it is.
+- Another frame count is allowed but logged: the game plays the frames it counts, so frames past the game's count are never shown.
+- Names: UndertaleModTool shows every game sprite's name; [Appendix A](#appendix-a-vanilla-ids-and-cell-list) lists the cells.
+- `active_dates` (manifest, optional): `["MM-DD", "MM-DD"]`. Outside those dates the mod's sprites are not replaced (the rest of the mod still loads). A window may cross the new year.
+- Turning the mod off in the MODS menu, a date window ending or a travel to a map where the mod is not loaded puts the game's own art back, without a restart.
+
+> **When** two mods replace the same game sprite, the one loaded last wins.
 
 ---
 

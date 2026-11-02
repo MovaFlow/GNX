@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_mods.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,2744 @@
+@@ -0,0 +1,2748 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1506,6 +1506,7 @@
 +    global.gnx_loaded_mods = [];
 +    global.gnx_tr = {};  // translations of mod text, by language code (gnx_load_translations, gnx_tr)
 +    gnx_items_reset();  // mod items and raid loot (items.json)
++    gnx_sprite_replace_restore();  // GNX-REPLACE: the game's own art back before mods replace it again
 +    global.gnx_map_deferred_mods = [];
 +    global.gnx_mod_map_decl = {};
 +    global.gnx_multimap_enabled = true;
@@ -2512,6 +2513,9 @@
 +    
 +    if (variable_struct_exists(_manifest, "props"))
 +        scr_gnx_load_props(arg0, _manifest.props);
++    
++    if (variable_struct_exists(_manifest, "sprite_replace"))
++        scr_gnx_load_sprite_replace(arg0, _manifest.sprite_replace, _manifest);  // GNX-REPLACE
 +    
 +    _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");

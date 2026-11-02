@@ -1,0 +1,195 @@
+{
+  "about": "sprite_replace: a mod puts its own art in place of game sprites by name (strip, frame folder numbered from 0 or 1, another frame count), with the game sprite's origin; a wrong size or an unknown name is a mod error. The game's art comes back at every mod load (mod turned off, out of active_dates). active_dates switch a mod's replacements by date.",
+  "mods": [
+    "tools/scenarios/mods/harness_replace",
+    "tools/scenarios/mods/harness_replace_season"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "is not a game sprite",
+  "expect_mod_errors": [
+    "is 5 x 10, the game sprite 7 x 7"
+  ],
+  "steps": [
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_slot_giant_birth"
+      ],
+      "is": 1,
+      "why": "a strip"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_pixel",
+      "args": [
+        "spr_slot_giant_birth",
+        0,
+        5,
+        1
+      ],
+      "is": 255,
+      "why": "the mod's red art is drawn"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_pixel",
+      "args": [
+        "spr_slot_giant_pillar",
+        0,
+        38,
+        50
+      ],
+      "is": 65280,
+      "why": "a frame folder numbered from 1"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_pixel",
+      "args": [
+        "spr_giant_idle_head",
+        1,
+        38,
+        45
+      ],
+      "is": 16711680,
+      "why": "4 frames over a 2-frame game sprite: frame 1 is the mod's"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_h_lilith_hand_c"
+      ],
+      "is": 0,
+      "why": "wrong size: left out"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_is_original",
+      "args": [
+        "spr_h_lilith_hand_c"
+      ],
+      "is": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_slot_giant_extra"
+      ],
+      "is": 0,
+      "why": "the seasonal mod is off outside 12-01..01-06"
+    },
+    {
+      "call": "gnx_scn_set_today",
+      "args": [
+        1225
+      ]
+    },
+    {
+      "do": {
+        "type": "reload_mods"
+      }
+    },
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_slot_giant_extra"
+      ],
+      "is": 1,
+      "why": "on 12-25 it is on"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_pixel",
+      "args": [
+        "spr_slot_giant_extra",
+        1,
+        10,
+        10
+      ],
+      "is": 65535,
+      "why": "its yellow art, both frames"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_pixel",
+      "args": [
+        "spr_slot_giant_birth",
+        0,
+        5,
+        1
+      ],
+      "is": 255,
+      "why": "still replaced after the reload"
+    },
+    {
+      "call": "gnx_scn_set_today",
+      "args": [
+        301
+      ]
+    },
+    {
+      "do": {
+        "type": "reload_mods"
+      }
+    },
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_slot_giant_extra"
+      ],
+      "is": 0,
+      "why": "out of season again"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_is_original",
+      "args": [
+        "spr_slot_giant_extra"
+      ],
+      "is": 1,
+      "why": "the game's own art is back"
+    },
+    {
+      "call": "gnx_sprite_replace_restore"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_is_original",
+      "args": [
+        "spr_slot_giant_birth"
+      ],
+      "is": 1,
+      "why": "every replaced sprite is restored (what turning the mod off does)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_is_original",
+      "args": [
+        "spr_slot_giant_pillar"
+      ],
+      "is": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_is_original",
+      "args": [
+        "spr_giant_idle_head"
+      ],
+      "is": 1
+    }
+  ]
+}
