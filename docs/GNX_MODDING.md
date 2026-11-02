@@ -3275,7 +3275,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **39** a
 
 | Type | Fields | What it does |
 |---|---|---|
-| `set_speed` | `target` (text), `value` (number), both required | `"world"`: game speed 0–10 (0 pauses); `"cart"`: raid cart speed 0–10; `"range"`: extra cell range 0–20. Clamped; any other `target` does nothing. |
+| `set_speed` | `target` (text), `value` (number), both required | `"world"`: game speed 0–10 (0 pauses); `"cart"`: raid cart speed 0–10; `"range"`: extra cell range 0–20, the total reach on top of each cell's own (it never goes below the CELL RANGE+ upgrades the player bought, and leaves them as they are, so the shop's late FLOOR+ / PRISON SIZE+ offers stay). Clamped; any other `target` does nothing. |
 | `swap_mouse` | none | Swaps the mouse buttons for moving the camera and selecting. |
 | `show_debug_overlay` | `enable` (default true) | Shows or hides GameMaker's debug overlay. |
 
@@ -3287,7 +3287,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **39** a
 | `food`, `money`, `orb_num`, `day_timer` | Food, gold, orbs, time of the current day | 0 or more |
 | `day` | Day counter | 1 or more |
 | `cart_spd` | Raid cart speed | 0–10 |
-| `add_range` | Extra cell range | 0–20 |
+| `add_range` | Extra cell range, as `set_speed` `"range"` (the shop's upgrades are kept) | 0–20 |
 | `sfx_vol`, `bgm_vol` | Sound effect and music volume | 0–1 |
 | `alpha_type`, `crate_alpha_type` | Monster (MON TYPE) and prop (PROP TYPE) transparency mode | 0–2 |
 | `mon_alpha`, `crate_alpha` | Monster and prop opacity | 0–1 |

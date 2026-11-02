@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1773 @@
+@@ -0,0 +1,1791 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1011,7 +1011,7 @@
 +            else if (_target == "cart")
 +                global.val.cart_spd = clamp(_val, 0, 10);
 +            else if (_target == "range")
-+                global.val.add_range = clamp(_val, 0, 20);
++                gnx_set_range_total(_val);
 +            
 +            break;
 +        
@@ -1054,7 +1054,7 @@
 +                    break;
 +                
 +                case "add_range":
-+                    global.val.add_range = clamp(_v, 0, 20);
++                    gnx_set_range_total(_v);
 +                    break;
 +                
 +                case "day":
@@ -1757,6 +1757,24 @@
 +    }
 +    
 +    draw_set_font(fnt_base_font_eng);
++}
++
++
++// GNX-RANGE: the extra cell range every range check adds: the shop's CELL RANGE+ upgrades (global.val.add_range,
++// 0-4) plus what tools set (global.val.gnx_extra_range). The shop prices its upgrade from add_range, and its late
++// FLOOR+ and PRISON SIZE+ offers need add_range == 4 exactly, so tools never write add_range: they set
++// gnx_extra_range (before, a tool range of 5, 10 or 20 hid those offers for good and made CELL RANGE+ free).
++function gnx_range_add()
++{
++    return global.val.add_range + (variable_struct_exists(global.val, "gnx_extra_range") ? global.val.gnx_extra_range : 0);
++}
++
++
++// GNX-RANGE: a tool sets the total extra range to arg0 (0-20, as before): the part above the shop's upgrades goes
++// to gnx_extra_range; it never goes below what the player bought
++function gnx_set_range_total(arg0)
++{
++    global.val.gnx_extra_range = max(0, clamp(floor(arg0), 0, 20) - global.val.add_range);
 +}
 +
 +

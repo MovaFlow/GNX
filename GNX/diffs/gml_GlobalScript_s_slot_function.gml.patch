@@ -1,5 +1,5 @@
 --- gml_138/gml_GlobalScript_s_slot_function.gml	2026-09-02 08:45:16.550128500 +0200
-+++ gml/gml_GlobalScript_s_slot_function.gml	2026-11-02 10:11:31.675392000 +0100
++++ gml/gml_GlobalScript_s_slot_function.gml	2026-11-02 10:27:17.732514500 +0100
 @@ -3,7 +3,7 @@
      var _list = global.slot_list[arg1];
      var _x;
@@ -936,7 +936,7 @@
              global.unlock.edit_bot = _array;
              break;
      }
-@@ -986,173 +1190,246 @@
+@@ -986,179 +1190,252 @@
      {
          switch (slot_data.slot_type)
          {
@@ -1243,6 +1243,13 @@
      return _result;
  }
  
+ function scr_check_drink_slot_range(arg0, arg1, arg2)
+ {
+-    arg1 += global.val.add_range;
++    arg1 += gnx_range_add();  // GNX-RANGE
+     var _start_pos = max(0, arg0 - (arg1 * 2));
+     var _end_pos = arg0 + (arg1 * 2);
+     var _dist = (_end_pos - _start_pos) + 1;
 @@ -1170,7 +1447,7 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[arg2], _c_pos);
@@ -1252,6 +1259,15 @@
          {
              if (abs(arg0 - _c_pos) < _slot_dist)
              {
+@@ -1187,7 +1464,7 @@
+ {
+     var _start_id = -1;
+     var _flip = -1;
+-    var _count = (arg0 + global.val.add_range) * 4;
++    var _count = (arg0 + gnx_range_add()) * 4;  // GNX-RANGE
+     var _set_mon = false;
+     var _carry_exe = -1;
+     var _floor = slot_data.slot_floor;
 @@ -1203,6 +1480,13 @@
          {
              var _c_slot_id = id;
@@ -1659,6 +1675,15 @@
              slot_data.anim_struct.ff = true;
          }
      }
+@@ -2089,7 +2425,7 @@
+ 
+ function scr_check_clean_range(arg0)
+ {
+-    arg0 += global.val.add_range;
++    arg0 += gnx_range_add();  // GNX-RANGE
+     var _floor = slot_data.slot_floor;
+     var _pos = ds_list_find_index(global.slot_list[_floor], id);
+     var _start_pos = max(0, _pos - (arg0 * 2));
 @@ -2102,14 +2438,17 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
@@ -2127,7 +2152,7 @@
                      {
                          _door = scr_find_nearest_door(_x, _y, _floor);
                      }
-@@ -2420,15 +3023,19 @@
+@@ -2420,17 +3023,21 @@
          
          if (unit_data.scr_wait >= 240)
          {
@@ -2148,8 +2173,11 @@
 +// arg2 = typ potwora, ktory ma wejsc (-1 = bez sprawdzania, jak dotad)
 +function scr_check_empty_cell_range(arg0, arg1, arg2 = -1)
  {
-     arg1 += global.val.add_range;
+-    arg1 += global.val.add_range;
++    arg1 += gnx_range_add();  // GNX-RANGE
      var _floor = arg0.slot_data.slot_floor;
+     var _pos = ds_list_find_index(global.slot_list[_floor], arg0);
+     var _start_pos = max(0, _pos - (arg1 * 2));
 @@ -2446,8 +3053,21 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
@@ -2284,6 +2312,15 @@
      if (!_slot && slot_data.allow_preg)
      {
          if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1)
+@@ -2587,7 +3223,7 @@
+     
+     if (_scr_check != -1)
+     {
+-        var _range = 5 + global.val.add_range;
++        var _range = 5 + gnx_range_add();  // GNX-RANGE
+         var _floor = slot_data.slot_floor;
+         var _h_type = slot_data.h_type;
+         var _pos = ds_list_find_index(global.slot_list[_floor], id);
 @@ -2602,7 +3238,7 @@
              var _c_pos = _start_pos + i;
              var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);

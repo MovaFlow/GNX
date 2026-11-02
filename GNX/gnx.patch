@@ -12067,7 +12067,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,4959 @@
+@@ -0,0 +1,4966 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -13845,6 +13845,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +
 +    return _n;
++}
++
++
++// {"call": "gnx_scn_set_val", "args": [key, value]}: writes a global.val field directly, as an old save holds it
++function gnx_scn_set_val(arg0, arg1)
++{
++    variable_struct_set(global.val, arg0, arg1);
 +}
 +
 +
@@ -28953,7 +28960,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_tools.gml
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_tools.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1773 @@
+@@ -0,0 +1,1791 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -29964,7 +29971,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +            else if (_target == "cart")
 +                global.val.cart_spd = clamp(_val, 0, 10);
 +            else if (_target == "range")
-+                global.val.add_range = clamp(_val, 0, 20);
++                gnx_set_range_total(_val);
 +            
 +            break;
 +        
@@ -30007,7 +30014,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +                    break;
 +                
 +                case "add_range":
-+                    global.val.add_range = clamp(_v, 0, 20);
++                    gnx_set_range_total(_v);
 +                    break;
 +                
 +                case "day":
@@ -30710,6 +30717,24 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +    }
 +    
 +    draw_set_font(fnt_base_font_eng);
++}
++
++
++// GNX-RANGE: the extra cell range every range check adds: the shop's CELL RANGE+ upgrades (global.val.add_range,
++// 0-4) plus what tools set (global.val.gnx_extra_range). The shop prices its upgrade from add_range, and its late
++// FLOOR+ and PRISON SIZE+ offers need add_range == 4 exactly, so tools never write add_range: they set
++// gnx_extra_range (before, a tool range of 5, 10 or 20 hid those offers for good and made CELL RANGE+ free).
++function gnx_range_add()
++{
++    return global.val.add_range + (variable_struct_exists(global.val, "gnx_extra_range") ? global.val.gnx_extra_range : 0);
++}
++
++
++// GNX-RANGE: a tool sets the total extra range to arg0 (0-20, as before): the part above the shop's upgrades goes
++// to gnx_extra_range; it never goes below what the player bought
++function gnx_set_range_total(arg0)
++{
++    global.val.gnx_extra_range = max(0, clamp(floor(arg0), 0, 20) - global.val.add_range);
 +}
 +
 +
@@ -33619,7 +33644,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_util.gml gml/gml_GlobalScript_s_gnx_util
 +}
 diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials.gml
 --- gml_138/gml_GlobalScript_s_initials.gml	2026-09-02 08:45:16.435593000 +0200
-+++ gml/gml_GlobalScript_s_initials.gml	2026-10-31 18:00:46.984723600 +0100
++++ gml/gml_GlobalScript_s_initials.gml	2026-11-02 10:27:17.729513500 +0100
 @@ -1,8 +1,18 @@
 +// GNX: this file holds the game's start-up only (scr_create_initials: vanilla plus GNX's boot steps).
 +// GNX's own functions live in one file per topic: s_gnx_content, s_gnx_cells, s_gnx_props, s_gnx_mods,
@@ -33639,7 +33664,13 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.val.money = 0;
      global.val.food = 0;
      global.val.play_time = 0;
-@@ -27,16 +37,16 @@
+@@ -22,21 +32,22 @@
+     global.val.troop_size = 0;
+     global.val.cart_spd = 1;
+     global.val.add_range = 0;
++    global.val.gnx_extra_range = 0;  // GNX: cell range from tools, on top of the shop's (gnx_range_add)
+     global.val.orb_num = 4;
+     global.val.elf_num = 0;
      global.val.raid_num = 0;
      global.val.birth_num = 0;
      global.val.cap_num = 0;
@@ -33659,7 +33690,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.val.goblin = 
      {
          num: [0, -1, -1, -1],
-@@ -85,6 +95,8 @@
+@@ -85,6 +96,8 @@
          b_other: [],
          t_breed: [],
          t_utility: [],
@@ -33668,7 +33699,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
          edit_between: [],
          edit_top: [],
          edit_mid: [],
-@@ -96,6 +108,9 @@
+@@ -96,6 +109,9 @@
          boss: [-1, -1, -1, -1, -1, -1]
      };
      global.val.br_unlock = [[[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]], [[-1, -1], [-1, -1], [-1, -1], [-1, -1]]];
@@ -33678,7 +33709,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.val.guide_unlock = 
      {
          num: 0,
-@@ -119,7 +134,14 @@
+@@ -119,7 +135,14 @@
      scr_set_encounter_reward();
      scr_set_shop_list();
      global.load_file = -1;
@@ -33694,7 +33725,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.dirt_fix = 0;
      global.death_fix = 0;
      global.trans_lock = false;
-@@ -132,19 +154,21 @@
+@@ -132,19 +155,21 @@
      global.w_spd = 1;
      global.zoom_target = 0;
      global.muffle = 1;
@@ -33729,7 +33760,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +191,3261 @@
+@@ -167,12 +192,3261 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -36993,7 +37024,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +3456,9 @@
+@@ -183,42 +3457,9 @@
      Value_3,
      Value_4,
      Value_5,
@@ -42464,7 +42495,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
 -}
 diff -uN gml_138/gml_GlobalScript_s_mon_state.gml gml/gml_GlobalScript_s_mon_state.gml
 --- gml_138/gml_GlobalScript_s_mon_state.gml	2026-09-02 08:45:16.163547800 +0200
-+++ gml/gml_GlobalScript_s_mon_state.gml	2026-10-15 15:01:18.935235400 +0200
++++ gml/gml_GlobalScript_s_mon_state.gml	2026-11-02 10:27:17.730510800 +0100
 @@ -169,6 +169,14 @@
  
  function scr_mon_state_carry_start()
@@ -42602,6 +42633,24 @@ diff -uN gml_138/gml_GlobalScript_s_mon_state.gml gml/gml_GlobalScript_s_mon_sta
      if (mon_data.ff)
      {
          mon_data.ff = false;
+@@ -433,7 +491,7 @@
+         depth = -800;
+         var _floor = mon_data.slot_id.slot_data.slot_floor;
+         var _pos = ds_list_find_index(global.slot_list[_floor], mon_data.slot_id);
+-        var _range = mon_data.slot_id.slot_range + global.val.add_range;
++        var _range = mon_data.slot_id.slot_range + gnx_range_add();  // GNX-RANGE
+         var _start_id = ds_list_find_value(global.slot_list[_floor], max(0, _pos - (_range * 2)));
+         var _end_id = ds_list_find_value(global.slot_list[_floor], min(ds_list_size(global.slot_list[_floor]) - 1, _pos + (_range * 2)));
+         var _x = choose(_start_id.x, _end_id.x + _end_id.image_xscale);
+@@ -454,7 +512,7 @@
+         x = mon_data.xto;
+         var _floor = mon_data.slot_id.slot_data.slot_floor;
+         var _pos = ds_list_find_index(global.slot_list[_floor], mon_data.slot_id);
+-        var _range = mon_data.slot_id.slot_range + global.val.add_range;
++        var _range = mon_data.slot_id.slot_range + gnx_range_add();  // GNX-RANGE
+         var _start_id = ds_list_find_value(global.slot_list[_floor], max(0, _pos - (_range * 2)));
+         var _end_id = ds_list_find_value(global.slot_list[_floor], min(ds_list_size(global.slot_list[_floor]) - 1, _pos + (_range * 2)));
+         var _x;
 diff -uN gml_138/gml_GlobalScript_s_mouse_action.gml gml/gml_GlobalScript_s_mouse_action.gml
 --- gml_138/gml_GlobalScript_s_mouse_action.gml	2026-09-02 08:45:16.155545700 +0200
 +++ gml/gml_GlobalScript_s_mouse_action.gml	2026-10-31 17:13:53.661948200 +0100
@@ -45804,7 +45853,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_stage.gml gml/gml_GlobalScript_s_raid_s
                  scr_check_quest_raid();
 diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_load.gml
 --- gml_138/gml_GlobalScript_s_save_load.gml	2026-09-02 08:45:16.167546400 +0200
-+++ gml/gml_GlobalScript_s_save_load.gml	2026-10-31 18:12:35.337674800 +0100
++++ gml/gml_GlobalScript_s_save_load.gml	2026-11-02 10:28:43.364285300 +0100
 @@ -48,6 +48,14 @@
                          _data.slot_data.prop[iii].yscale = image_yscale;
                          _data.slot_data.prop[iii].iindex = image_index;
@@ -46236,12 +46285,12 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +                    }
 +                    
 +                    array_push(_gnx_kept, _pd);
++                    
++                    if (variable_struct_exists(_pd, "prop_pos"))
++                        array_push(_gnx_rows, _pd.prop_pos);
                      
 -                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
 -                    _prop.prop_data = _data.slot_data.prop[ii];
-+                    if (variable_struct_exists(_pd, "prop_pos"))
-+                        array_push(_gnx_rows, _pd.prop_pos);
-+                    
 +                    _prop.prop_data = _pd;
                      _prop.prop_data.prop_id = _prop;
 -                    _prop.x = _data.slot_data.prop[ii].x_pos;
@@ -46346,7 +46395,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +884,56 @@
+@@ -567,7 +884,68 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -46391,6 +46440,18 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +        if (!variable_struct_exists(global.val, "language"))
 +            global.val.language = 0;
 +        
++        // GNX-RANGE: tool range kept apart from the shop's upgrades (gnx_range_add). A save where a tool wrote more
++        // than the shop's maximum (4) into add_range keeps its range, the excess moved over, and gets its late
++        // shop offers back
++        if (!variable_struct_exists(global.val, "gnx_extra_range"))
++            global.val.gnx_extra_range = 0;
++        
++        if (global.val.add_range > 4)
++        {
++            global.val.gnx_extra_range += global.val.add_range - 4;
++            global.val.add_range = 4;
++        }
++        
 +        if (variable_struct_exists(global.val, "fullscreen"))
 +        {
 +            // GNX: harness games stay minimized (a fixture made from a fullscreen save took the foreground)
@@ -46403,7 +46464,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +972,21 @@
+@@ -606,11 +984,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -46426,7 +46487,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1010,12 @@
+@@ -634,7 +1022,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -46439,7 +46500,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1035,395 @@
+@@ -654,8 +1047,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -46835,7 +46896,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1431,7 @@
+@@ -663,6 +1443,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -46843,7 +46904,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1451,25 @@
+@@ -682,33 +1463,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -46888,7 +46949,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1494,119 @@
+@@ -733,3 +1506,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
@@ -53710,7 +53771,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_draw.gml gml/gml_GlobalScript_s_slot_dr
  }
 diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slot_function.gml
 --- gml_138/gml_GlobalScript_s_slot_function.gml	2026-09-02 08:45:16.550128500 +0200
-+++ gml/gml_GlobalScript_s_slot_function.gml	2026-11-02 10:11:31.675392000 +0100
++++ gml/gml_GlobalScript_s_slot_function.gml	2026-11-02 10:27:17.732514500 +0100
 @@ -3,7 +3,7 @@
      var _list = global.slot_list[arg1];
      var _x;
@@ -54647,7 +54708,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              global.unlock.edit_bot = _array;
              break;
      }
-@@ -986,173 +1190,246 @@
+@@ -986,179 +1190,252 @@
      {
          switch (slot_data.slot_type)
          {
@@ -54954,6 +55015,13 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      return _result;
  }
  
+ function scr_check_drink_slot_range(arg0, arg1, arg2)
+ {
+-    arg1 += global.val.add_range;
++    arg1 += gnx_range_add();  // GNX-RANGE
+     var _start_pos = max(0, arg0 - (arg1 * 2));
+     var _end_pos = arg0 + (arg1 * 2);
+     var _dist = (_end_pos - _start_pos) + 1;
 @@ -1170,7 +1447,7 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[arg2], _c_pos);
@@ -54963,6 +55031,15 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          {
              if (abs(arg0 - _c_pos) < _slot_dist)
              {
+@@ -1187,7 +1464,7 @@
+ {
+     var _start_id = -1;
+     var _flip = -1;
+-    var _count = (arg0 + global.val.add_range) * 4;
++    var _count = (arg0 + gnx_range_add()) * 4;  // GNX-RANGE
+     var _set_mon = false;
+     var _carry_exe = -1;
+     var _floor = slot_data.slot_floor;
 @@ -1203,6 +1480,13 @@
          {
              var _c_slot_id = id;
@@ -55370,6 +55447,15 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              slot_data.anim_struct.ff = true;
          }
      }
+@@ -2089,7 +2425,7 @@
+ 
+ function scr_check_clean_range(arg0)
+ {
+-    arg0 += global.val.add_range;
++    arg0 += gnx_range_add();  // GNX-RANGE
+     var _floor = slot_data.slot_floor;
+     var _pos = ds_list_find_index(global.slot_list[_floor], id);
+     var _start_pos = max(0, _pos - (arg0 * 2));
 @@ -2102,14 +2438,17 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
@@ -55838,7 +55924,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                      {
                          _door = scr_find_nearest_door(_x, _y, _floor);
                      }
-@@ -2420,15 +3023,19 @@
+@@ -2420,17 +3023,21 @@
          
          if (unit_data.scr_wait >= 240)
          {
@@ -55859,8 +55945,11 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
 +// arg2 = typ potwora, ktory ma wejsc (-1 = bez sprawdzania, jak dotad)
 +function scr_check_empty_cell_range(arg0, arg1, arg2 = -1)
  {
-     arg1 += global.val.add_range;
+-    arg1 += global.val.add_range;
++    arg1 += gnx_range_add();  // GNX-RANGE
      var _floor = arg0.slot_data.slot_floor;
+     var _pos = ds_list_find_index(global.slot_list[_floor], arg0);
+     var _start_pos = max(0, _pos - (arg1 * 2));
 @@ -2446,8 +3053,21 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
@@ -55995,6 +56084,15 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      if (!_slot && slot_data.allow_preg)
      {
          if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1)
+@@ -2587,7 +3223,7 @@
+     
+     if (_scr_check != -1)
+     {
+-        var _range = 5 + global.val.add_range;
++        var _range = 5 + gnx_range_add();  // GNX-RANGE
+         var _floor = slot_data.slot_floor;
+         var _h_type = slot_data.h_type;
+         var _pos = ds_list_find_index(global.slot_list[_floor], id);
 @@ -2602,7 +3238,7 @@
              var _c_pos = _start_pos + i;
              var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
@@ -60424,7 +60522,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
  }
 diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot_windows.gml
 --- gml_138/gml_GlobalScript_s_slot_windows.gml	2026-09-02 08:45:16.420589400 +0200
-+++ gml/gml_GlobalScript_s_slot_windows.gml	2026-10-28 09:49:18.268337700 +0100
++++ gml/gml_GlobalScript_s_slot_windows.gml	2026-11-02 10:27:17.730510800 +0100
 @@ -31,15 +31,15 @@
              scr_create_button_layout(20 + (i * _w), 7, depth - 20 - (50 * i), min(_ver, arg3 - (i * _ver)), 1, 0, 0, i * _ver, spr_button_guide, arg5, id, true, arg6, scr_button_list_step, scr_button_text_draw);
          
@@ -60567,7 +60665,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
          source_id = arg0;
          var _set = true;
          var _floor = arg1.slot_data.slot_floor;
-@@ -188,12 +197,26 @@
+@@ -188,15 +197,29 @@
          
          switch (arg1.slot_data.h_type)
          {
@@ -60594,7 +60692,11 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
 +        
          if (_set)
          {
-             var _range = arg1.slot_range + global.val.add_range;
+-            var _range = arg1.slot_range + global.val.add_range;
++            var _range = arg1.slot_range + gnx_range_add();  // GNX-RANGE
+             var _slot_x_max = global.slot_x[_floor];
+             var _last_pos = ds_list_size(global.slot_list[_floor]) - 1;
+             var _pos = ds_list_find_index(global.slot_list[_floor], arg1);
 @@ -205,30 +228,7 @@
              var _end_slot = ds_list_find_value(global.slot_list[_floor], _end_pos);
              start_x = max(0, ds_list_find_value(global.slot_list[_floor], _start_pos).x);

@@ -1,0 +1,110 @@
+{
+  "about": "Range tools (set_speed target range, set_val add_range; e.g. a Range Control mod, Frieren's tools) wrote the shop's own range counter, add_range. The shop's late FLOOR+ and PRISON SIZE+ offers need add_range == 4 and CELL RANGE+ is priced from it, so a tool range of 5, 10 or 20 hid those offers and made CELL RANGE+ free. Tools now set gnx_extra_range on top of the shop's upgrades; a save a tool broke is repaired on load.",
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 10
+    },
+    {
+      "call": "gnx_scn_set_val",
+      "args": [
+        "add_range",
+        4
+      ]
+    },
+    {
+      "do": {
+        "type": "set_speed",
+        "target": "range",
+        "value": 20
+      }
+    },
+    {
+      "assert": "val",
+      "key": "add_range",
+      "is": 4,
+      "why": "the shop's upgrades stay as bought (the late FLOOR+ / PRISON SIZE+ offers need 4)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_range_add",
+      "args": [],
+      "is": 20,
+      "why": "the tool's total range"
+    },
+    {
+      "do": {
+        "type": "set_speed",
+        "target": "range",
+        "value": 0
+      }
+    },
+    {
+      "assert": "val",
+      "key": "add_range",
+      "is": 4,
+      "why": "RESET keeps what the player bought"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_range_add",
+      "args": [],
+      "is": 4
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "add_range",
+        "value": 10
+      }
+    },
+    {
+      "assert": "val",
+      "key": "add_range",
+      "is": 4,
+      "why": "set_val add_range goes the same way"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_range_add",
+      "args": [],
+      "is": 10
+    },
+    {
+      "call": "gnx_scn_set_val",
+      "args": [
+        "gnx_extra_range",
+        0
+      ]
+    },
+    {
+      "call": "gnx_scn_set_val",
+      "args": [
+        "add_range",
+        12
+      ]
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "val",
+      "key": "add_range",
+      "is": 4,
+      "why": "a save a tool broke (add_range 12) is repaired on load"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_range_add",
+      "args": [],
+      "is": 12,
+      "why": "and keeps its range"
+    }
+  ]
+}

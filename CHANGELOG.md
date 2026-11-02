@@ -36,6 +36,7 @@
 - A map mod's raid loot (`items.json` `loot`) was missing after loading a save made on that map from the menu, until the next trip; it is now there right after the load.
 - An `items.json` with only `loot` (no `items` of its own) was refused with "items must be a list"; it now loads.
 - A save made while a cell was mid-scene stopped the game every frame ("Variable Index [2] out of range [1]" in `scr_slot_state`) when the cell's mod had since been updated with a shorter scene list (`scr_h`). The scene now ends and the cell goes back to idle.
+- Range tools (`set_speed` `"range"`, `set_val` `add_range`, used by range mods and some character mods) wrote the shop's own CELL RANGE+ counter. The shop prices that upgrade from it and only makes its late FLOOR+ and PRISON SIZE+ offers when it is exactly 4, so a tool range of 5, 10 or 20 hid those offers and made CELL RANGE+ free; RESET removed the upgrades the player had bought. Tools now add their range on top of the shop's, and a save where a tool did this is repaired when it loads.
 - A quest or trigger condition naming a cell GNX cannot find (for example another mod's cell written without its folder, `"MILK BAR"` instead of `"py_more_cells_mod.MILK BAR"`) never matched, without a word. It is now a mod error. A cell of a mod that is not installed is only logged, so a quest can name an optional mod's cells.
 
 ### Contributed by Mav (1.5.0.5)
