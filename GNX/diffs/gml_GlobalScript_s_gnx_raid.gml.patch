@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_raid.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,1624 @@
+@@ -0,0 +1,1661 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -443,7 +443,7 @@
 +// Returns { spr, frames, vanilla } (vanilla = the vanilla frame, or -1).
 +function gnx_stage_load_icon(arg0, arg1)
 +{
-+    var _out = { spr: spr_button_stage, frames: 1, vanilla: 0 };
++    var _out = { spr: spr_button_stage, frames: 1, vanilla: 0, sel: -1 };
 +
 +    if (is_numeric(arg1))
 +    {
@@ -492,6 +492,33 @@
 +    _out.spr = _spr;
 +    _out.frames = sprite_get_number(_spr);
 +    _out.vanilla = -1;
++
++    // GNX-STAGE (F35): "<icon>_sel.png" next to the icon, when there is one, is drawn over it while it is pointed
++    // at, as the vanilla buttons' white outline (spr_button_stage_sel)
++    if (string_lower(string_copy(arg1, string_length(arg1) - 3, 4)) == ".png")
++    {
++        var _sel_path = global.gnx_mods_root + arg0 + "/sprites/" + string_copy(arg1, 1, string_length(arg1) - 4) + "_sel.png";
++        var _sel_cache = _sel_path + "#stage";
++
++        if (ds_map_exists(global.gnx_sprite_cache, _sel_cache) && gnx_sprite_exists(ds_map_find_value(global.gnx_sprite_cache, _sel_cache)))
++        {
++            _out.sel = ds_map_find_value(global.gnx_sprite_cache, _sel_cache);
++        }
++        else if (file_exists(_sel_path))
++        {
++            var _sp = sprite_add(_sel_path, 1, false, false, 0, 0);
++
++            if (_sp != -1)
++            {
++                // the same centred origin as the icon's frame
++                sprite_set_offset(_sp, sprite_get_width(_sp) div 2, sprite_get_height(_sp) div 2);
++                array_push(global.gnx_runtime_sprites, _sp);
++                ds_map_set(global.gnx_sprite_cache, _sel_cache, _sp);
++                _out.sel = _sp;
++            }
++        }
++    }
++
 +    return _out;
 +}
 +
@@ -737,6 +764,16 @@
 +        // an event of this mod by its own id, like next_event
 +        if (_def.on_discover != "" && string_pos(".", _def.on_discover) == 0)
 +            _def.on_discover = arg0 + "." + _def.on_discover;
++
++        // GNX-STAGE (F33): "map": one map ID or a list of them (as the manifest's "map"): the stage is only on those
++        // maps, while the rest of the mod loads on every map it declares. Without it, on every map the mod loads on
++        var _smap = gnx_stage_field(_s, "map", undefined);
++
++        if (_smap != undefined && !gnx_map_decl_has(_smap, global.gnx_active_map))
++        {
++            gnx_log_write(_log, "[GNX-STAGE] " + _key + " not on this map (" + global.gnx_active_map + "): map " + json_stringify(_smap) + "\n");
++            continue;
++        }
 +
 +        var _idx = 5 + array_length(global.gnx_stage_registry);
 +

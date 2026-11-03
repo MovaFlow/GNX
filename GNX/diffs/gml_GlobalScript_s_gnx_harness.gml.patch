@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,5568 @@
+@@ -0,0 +1,5599 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1980,6 +1980,37 @@
 +    {
 +        if (interact_type == 9072 && instance_exists(source_id) && source_id.rows[button_num].folder == arg0)
 +            _r = text;
++    }
++
++    return _r;
++}
++
++
++// for {"assert": "fn"}: 1 when mod stage arg0 ("folder.ID") is on the map the player is on
++function gnx_scn_stage_here(arg0)
++{
++    return (gnx_stage_index(arg0) != -1) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when mod stage arg0 has a hover outline picture (<icon>_sel.png)
++function gnx_scn_stage_has_sel(arg0)
++{
++    var _i = gnx_stage_index(arg0);
++    return (_i != -1 && gnx_stage_def(_i).icon.sel != -1) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when the raid map button of stage number arg0 is drawn in front of the other stage
++// buttons (its name showing: pointed at or selected), 0 when at its own depth, -1 when there is no such button
++function gnx_scn_stage_button_front(arg0)
++{
++    var _r = -1;
++
++    with (obj_button)
++    {
++        if (interact_type == 43 && button_num == arg0 && variable_instance_exists(id, "gnx_base_depth"))
++            _r = (depth < gnx_base_depth) ? 1 : 0;
 +    }
 +
 +    return _r;

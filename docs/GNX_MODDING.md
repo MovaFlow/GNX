@@ -4935,13 +4935,14 @@ New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest, so an older GNX 
 | `label` | The name the player sees: next to the button while it is pointed at or selected (above it, or under its level bar near the top of the map), and in the discovery popup. Translated by your `lang` files ([4.6](#46-translations-lang)). | text | the `id` |
 | `pos` | `[x, y]` of the button's centre on the raid map, in the map's pixels (the map shows 133 × 91 at x 173, y 39: the top of the 133 × 113 map picture). Keep x within 186–293 and y within 52–109 so the button and the level bar under it stay on the map. | [x, y] | required |
 | `icon` | The button's picture: a PNG in your `sprites/` folder, either one 27 × 27 frame or two side by side (normal, pointed at), or a number 0–4 to reuse that vanilla stage's button ([27.3](#273-naming-stages)). One frame is lightened when pointed at. | text or number | `0` (the Village's) |
+| `map` | The maps this stage is on: one map ID or a list, as the manifest's `map` ([21.1](#211-map)). For a mod that loads on several maps, e.g. a stage only on your own map while the rest of the mod also loads in the village. | text or list | every map the mod loads on |
 | `unlock` | A quest condition, or a list that must all hold ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). GNX checks it every second; the first time it holds, the stage is discovered. Without `unlock` the stage is there from the start, without a popup. `state_*` conditions read your mod's own state. | object or list | none |
 | `on_discover` | A quest event of your mod fired once, when the stage is discovered (an intro dialog, a side effect). | text | none |
 | `raid_time` | Frames from the nest to the stage at normal speed; the way back takes as long. Vanilla's own values run from 2760 (Village) to 5100 (Castle). The raid panel shows the trip time. | number, at least 60 | `3600` |
 | `path`, `curve`, `cart` | The cart's route on the raid map and its picture ([27.4](#274-cart-routes)). | | straight line, vanilla cart |
 | `levels` | One entry per level the player can pick ([27.2](#272-levels)): 1 to 9 (more is a mod error, and the rest are left out). | list | required |
 
-- **Where a stage exists.** A mod without `"map"` adds its stages to the village; a map mod adds them to its own map only ([21.1](#211-map)). Each map keeps its own progress on each stage.
+- **Where a stage exists.** A mod without `"map"` adds its stages to the village; a map mod adds them to its own map only ([21.1](#211-map)). A stage's own `map` narrows that down, stage by stage. Each map keeps its own progress on each stage.
 - **Saves.** A save stores the stages by name. Removing the mod keeps their progress in the save (the stages are gone from the map), and reinstalling it brings them back as they were. The save keeps the game's own five-stage layout and stores mod stages apart, by name.
 - **Discovery** works like the vanilla stages: the first level opens, its encounter is rolled, and the button appears on the raid map. The tool action `unlock_stage_next` also discovers it ([27.3](#273-naming-stages)).
 

@@ -1,0 +1,129 @@
+{
+  "about": "raids.json per-stage \"map\" (F33): a mod loaded on several maps puts each stage only on the maps it names; <icon>_sel.png is the hover outline (F35); the stage whose name shows is drawn in front of the other buttons (F36).",
+  "mods": [
+    "tools/scenarios/mods/harness_map",
+    "tools/scenarios/mods/harness_raid_twomaps"
+  ],
+  "check_boot_suite": false,
+  "timeout": 90,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_here",
+      "args": [
+        "harness_raid_twomaps.VILLAGE_ONLY"
+      ],
+      "is": 1,
+      "why": "its map is vanilla"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_here",
+      "args": [
+        "harness_raid_twomaps.OUTPOST_TOWER"
+      ],
+      "is": 0,
+      "why": "only on harness_map, although the mod loads in the village too"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_here",
+      "args": [
+        "harness_raid_twomaps.BOTH"
+      ],
+      "is": 1,
+      "why": "no map key: every map the mod loads on"
+    },
+    {
+      "travel": "harness_map"
+    },
+    {
+      "wait": 40
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_here",
+      "args": [
+        "harness_raid_twomaps.VILLAGE_ONLY"
+      ],
+      "is": 0
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_here",
+      "args": [
+        "harness_raid_twomaps.OUTPOST_TOWER"
+      ],
+      "is": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_here",
+      "args": [
+        "harness_raid_twomaps.BOTH"
+      ],
+      "is": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_has_sel",
+      "args": [
+        "harness_raid_twomaps.OUTPOST_TOWER"
+      ],
+      "is": 1,
+      "why": "tower_sel.png next to tower.png"
+    },
+    {
+      "call": "gnx_scn_stage_open",
+      "args": [
+        "harness_raid_twomaps.OUTPOST_TOWER",
+        0
+      ]
+    },
+    {
+      "call": "gnx_scn_set_stage_sel",
+      "args": [
+        "harness_raid_twomaps.OUTPOST_TOWER",
+        0
+      ]
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 10
+    },
+    {
+      "raid_stage": 5
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "raid",
+      "stage": 5
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_stage_button_front",
+      "args": [
+        5
+      ],
+      "is": 1,
+      "why": "the selected stage shows its name, in front of the other buttons"
+    },
+    {
+      "screenshot": "outpost"
+    },
+    {
+      "open_raid": false
+    }
+  ]
+}
