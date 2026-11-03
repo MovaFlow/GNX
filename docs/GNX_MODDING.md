@@ -544,7 +544,6 @@ What this example does:
 | `mod_id` | A second name for other mods' `requires`, usually the folder name. References always use the folder name. `build_mod.py` deploys the mod into `GNX_mods/<mod_id>/` (the source folder's name without it): that folder name is what your class and cell IDs and references are made from, so keep it fixed once players have saves. | text | the folder name |
 | `requires` | Mods this one needs, by folder name or `mod_id` ([4.5](#45-requires-and-the-mods-menu)). | list | — |
 | `sprite_replace` | Your art in place of game sprites, by name: a file name or the object itself ([5.9](#59-replacing-game-sprites-sprite_replace)). | text or object | — |
-| `active_dates` | `["MM-DD", "MM-DD"]`: `sprite_replace` only applies between these dates ([5.9](#59-replacing-game-sprites-sprite_replace)). | list | — |
 | `min_gnx_version` | The oldest GNX your mod works with, for example `"1.5.0"` when it uses keys new in 1.5 ([4.2](#42-the-version-check)). | text | — |
 | `map`, `map_info`, `map_start` | Which map(s) the mod belongs to, and your own map for multi-map travel ([§21](#21-multi-map-travel)). `map_info` was called `map_button` before 1.4.9; the old name is still read. | — | — |
 
@@ -931,14 +930,13 @@ frame number = skin × (frames ÷ 3) + pose
 
 ### 5.9 Replacing game sprites (sprite_replace)
 
-**In short:** `sprite_replace` puts your art in place of game sprites, by their names. Every cell, phase and screen that draws that sprite then draws yours, with no cell or class setup. Use it for re-skins: an outfit for a vanilla girl, a seasonal look for a cell.
+**In short:** `sprite_replace` puts your art in place of game sprites, by their names. Every cell, phase and screen that draws that sprite then draws yours, with no cell or class setup. Use it for re-skins: an outfit for a vanilla girl, a new look for a cell.
 
 ```json
 {
-  "name": "Christmas",
+  "name": "Lilith Outfit",
   "version": "1.0.0",
   "compatible_game_versions": ["1.40"],
-  "active_dates": ["12-01", "01-06"],
   "sprite_replace": "sprite_replace.json"
 }
 ```
@@ -948,7 +946,7 @@ frame number = skin × (frames ÷ 3) + pose
 ```json
 {
   "spr_h_lilith_hand_c": "lilith/spr_h_lilith_hand_c",
-  "spr_slot_giant_pillar": "selene/tree_pillar.png"
+  "spr_h_lilith_big_idle_head": "lilith/big_idle_head.png"
 }
 ```
 
@@ -962,9 +960,8 @@ frame number = skin × (frames ÷ 3) + pose
 - Each frame must have the game sprite's size. Otherwise it is a mod error and the game sprite stays as it is.
 - Another frame count is allowed but logged: the game plays the frames it counts, so frames past the game's count are never shown.
 - Names: UndertaleModTool shows every game sprite's name; [Appendix A](#appendix-a-vanilla-ids-and-cell-list) lists the cells.
-- `active_dates` (manifest, optional): `["MM-DD", "MM-DD"]`. Outside those dates the mod's sprites are not replaced (the rest of the mod still loads). A window may cross the new year.
-- In the MODS menu a mod with `active_dates` shows **SEASON** instead of ON; clicking it cycles SEASON → **ALL YEAR** (its sprites replaced whatever the date) → OFF. The choice is game-wide, like ON/OFF (save folder, `gnx_mods_all_year.json`).
-- Turning the mod off in the MODS menu, a date window ending or a travel to a map where the mod is not loaded puts the game's own art back, without a restart.
+- New in 1.5.2. Set `"min_gnx_version": "1.5.2"` in the manifest ([4.2](#42-the-version-check)): an older GNX does not know `sprite_replace` and would load the mod with no visible change.
+- Turning the mod off in the MODS menu or a travel to a map where the mod is not loaded puts the game's own art back, without a restart.
 
 > **When** two mods replace the same game sprite, the one loaded last wins.
 
@@ -4934,8 +4931,8 @@ New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest, so an older GNX 
 | `id` | The stage's name in your mod. Other mods, quests and saves refer to it as `"<mod folder>.<id>"` (`"my_mod.CRYPT"`), your own files as just `"CRYPT"`. | text | required |
 | `label` | The name the player sees: next to the button while it is pointed at or selected (above it, or under its level bar near the top of the map), and in the discovery popup. Translated by your `lang` files ([4.6](#46-translations-lang)). | text | the `id` |
 | `pos` | `[x, y]` of the button's centre on the raid map, in the map's pixels (the map shows 133 × 91 at x 173, y 39: the top of the 133 × 113 map picture). Keep x within 186–293 and y within 52–109 so the button and the level bar under it stay on the map. | [x, y] | required |
-| `icon` | The button's picture: a PNG in your `sprites/` folder, either one 27 × 27 frame or two side by side (normal, pointed at), or a number 0–4 to reuse that vanilla stage's button ([27.3](#273-naming-stages)). One frame is lightened when pointed at. | text or number | `0` (the Village's) |
-| `map` | The maps this stage is on: one map ID or a list, as the manifest's `map` ([21.1](#211-map)). For a mod that loads on several maps, e.g. a stage only on your own map while the rest of the mod also loads in the village. | text or list | every map the mod loads on |
+| `icon` | The button's picture: a PNG in your `sprites/` folder, either one 27 × 27 frame or two side by side (normal, pointed at), or a number 0–4 to reuse that vanilla stage's button ([27.3](#273-naming-stages)). One frame is lightened when pointed at, unless a `<icon>_sel.png` sits next to it: that picture is drawn on top, centred on the button, while it is pointed at (an outline like the vanilla buttons; new in 1.5.2). | text or number | `0` (the Village's) |
+| `map` | The maps this stage is on: one map ID or a list, as the manifest's `map` ([21.1](#211-map)). For a mod that loads on several maps, e.g. a stage only on your own map while the rest of the mod also loads in the village. New in 1.5.2: an older GNX ignores it and puts the stage on every map the mod loads on. | text or list | every map the mod loads on |
 | `unlock` | A quest condition, or a list that must all hold ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). GNX checks it every second; the first time it holds, the stage is discovered. Without `unlock` the stage is there from the start, without a popup. `state_*` conditions read your mod's own state. | object or list | none |
 | `on_discover` | A quest event of your mod fired once, when the stage is discovered (an intro dialog, a side effect). | text | none |
 | `raid_time` | Frames from the nest to the stage at normal speed; the way back takes as long. Vanilla's own values run from 2760 (Village) to 5100 (Castle). The raid panel shows the trip time. | number, at least 60 | `3600` |

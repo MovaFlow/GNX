@@ -1,13 +1,12 @@
 # Changelog
 
-## Unreleased
+## v1.5.2
 
 **Game version:** 1.40
 
 ### New Features
 
-- **Replacing game sprites** (`sprite_replace`): a mod puts its own art in place of game sprites by name (a folder of frames, a strip or a sprite entry), and every cell, phase and screen that draws them draws the mod's art. The game's own art comes back when the mod is turned off. `active_dates` limits it to a date window, for seasonal looks; in the MODS menu such a mod cycles SEASON / ALL YEAR / OFF, so players can keep it outside its dates (modding guide 5.9).
-
+- **Replacing game sprites** (`sprite_replace`): a mod puts its own art in place of game sprites by name (a folder of frames, a strip or a sprite entry), and every cell, phase and screen that draws them draws the mod's art. The game's own art comes back when the mod is turned off (modding guide 5.9).
 - **Raid stages per map** (`raids.json` stage `map`): a mod that loads on several maps can put each stage on some of them only, e.g. its own map, while the rest of the mod also loads in the village (modding guide 27.1).
 - **Hover outline for stage icons**: an icon `crypt.png` with a `crypt_sel.png` next to it gets that outline while pointed at, like the vanilla buttons.
 
