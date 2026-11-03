@@ -21,7 +21,8 @@ def main():
     for f in sorted(gml.glob("*.gml")):
         # run from GNX/ so the headers read gml_138/<file> and gml/<file>
         rel_base, rel_new = f"gml_138/{f.name}", f"gml/{f.name}"
-        r = subprocess.run(["diff", "-uN", rel_base, rel_new], cwd=GNX, capture_output=True)
+        # fixed labels (no file dates): a patch only changes when the code does
+        r = subprocess.run(["diff", "-uN", "--label", rel_base, "--label", rel_new, rel_base, rel_new], cwd=GNX, capture_output=True)
         if r.returncode == 0:
             continue  # identical to vanilla: no patch
         if r.returncode != 1:
