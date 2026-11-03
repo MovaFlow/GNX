@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_nest.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,760 @@
+@@ -0,0 +1,825 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -206,144 +206,209 @@
 +    var _src = global.slot_list[arg0];
 +    var _dst = global.slot_list[_t];
 +
-+    // the floor below must be a new one: entrance, start slot without a cell, passage
++    // the floor below must hold no cell and no captive. A floor whose cells were removed keeps its empty slots:
++    // GNX-FIX: those were refused with "not empty". A new floor (entrance, start slot, passage) gets the whole
++    // layout built; empty slots that match this floor's layout one by one get its cells; empty slots in another
++    // layout are refused with a word on what to do
++    var _same = ds_list_size(_dst) == ds_list_size(_src);
++
++    for (var i = 0; i < ds_list_size(_dst); i++)
++    {
++        var _ds = ds_list_find_value(_dst, i);
++
++        // != -1: a cell; is_struct: a captive
++        if (gnx_opt(_ds.slot_data, "h_type", -1) != -1 || is_struct(_ds.unit_data))
++            return "Copy impossible: the floor below is not empty. Remove its cells first.";
++
++        if (_same && _ds.slot_data.slot_type != ds_list_find_value(_src, i).slot_data.slot_type)
++            _same = false;
++    }
++
 +    var _fresh = ds_list_size(_dst) == 3;
 +    var _new_floor = [4, 3, 5];
 +
 +    for (var i = 0; _fresh && i < 3; i++)
-+    {
-+        var _d = ds_list_find_value(_dst, i).slot_data;
-+        _fresh = _d.slot_type == _new_floor[i] && (!variable_struct_exists(_d, "h_type") || _d.h_type == -1);
-+    }
++        _fresh = ds_list_find_value(_dst, i).slot_data.slot_type == _new_floor[i];
 +
-+    if (!_fresh)
-+        return "Copy impossible: the floor below is not empty.";
++    // ! = not, && = and
++    if (!_fresh && !_same)
++        return "Copy impossible: the floor below has empty slots in another layout than this floor. Remove them, or build the same slots, then copy.";
 +
-+    // the slots to build, passages left out (each slot is built with its passage): left of the entrance, then right
-+    var _left = [];
-+    var _right = [];
-+    var _past = false;
-+    var _cost = 0;
-+    var _start_used = false;
-+
-+    for (var i = 0; i < ds_list_size(_src); i++)
-+    {
-+        var _s = ds_list_find_value(_src, i);
-+        var _ty = _s.slot_data.slot_type;
-+
-+        if (_ty == 4)
-+            _past = true;
-+
-+        if (_ty == 4 || _ty == 5)
-+            continue;
-+
-+        var _h = gnx_opt(_s.slot_data, "h_type", -1);
-+        var _reuse = _past && _ty == 3 && !_start_used;  // the floor below's start slot
-+
-+        if (_reuse)
-+            _start_used = true;
-+        else
-+            _cost += max(0, scr_slot_type_price_data(_ty).price);
-+
-+        if (_h != -1)
-+            _cost += max(0, scr_h_slot_text_data(_h).price);
-+
-+        array_push(_past ? _right : _left, { type: _ty, h: _h, reuse: _reuse });
-+    }
-+
-+    var _n = array_length(_left) + array_length(_right);
-+
-+    if (_n == 0)
-+        return "Nothing to copy: this floor has no cells.";
-+
-+    if (global.gnx_free_floor_copy)
-+        _cost = 0;
-+
-+    if (global.val.money < _cost)
-+        return "Not enough gold to copy this floor: " + string(_cost) + " needed.";
-+
-+    // GNX-FIX: the gold is taken at the end, only for what was really built (each slot, each cell set);
-+    // before, all of it was taken first and no result was checked, so a copy that stopped half way still
-+    // cost the whole floor. Every step is checked and a partial copy says what is missing.
 +    var _paid = 0;
 +    var _built = 0;
 +    var _cells_set = 0;
 +    var _cells_want = 0;
++    var _n = 0;
 +    var _side = global.build_side;
-+    var _list = _dst;
 +
-+    for (var i = 0; i < _n; i++)
++    if (!_fresh)
 +    {
-+        var _c = (i < array_length(_left)) ? _left[i] : _right[i - array_length(_left)];
-+        var _slot = noone;
-+        var _e = 0;
++        // the same slots below, all empty: only the cells are set, and only they are paid for
++        var _cost = 0;
 +
-+        while (ds_list_find_value(_list, _e).slot_data.slot_type != 4)
-+            _e++;
-+
-+        if (_c.reuse)
++        for (var i = 0; i < ds_list_size(_src); i++)
 +        {
-+            // right of the entrance, after the slots built so far (2 list entries each)
-+            _slot = ds_list_find_value(_list, _e + 1 + (2 * (i - array_length(_left))));
-+        }
-+        else
-+        {
-+            var _before = [];
++            var _h = gnx_opt(ds_list_find_value(_src, i).slot_data, "h_type", -1);
 +
-+            for (var k = 0; k < ds_list_size(_list); k++)
-+                array_push(_before, ds_list_find_value(_list, k));
-+
-+            if (i < array_length(_left))
++            if (_h != -1)
 +            {
-+                // as NEW on the entrance with the build side on the left: just left of the entrance
-+                global.build_side = true;
-+                scr_create_slot(_c.type, _t, _e + 1, true);
++                _n++;
++                _cost += max(0, scr_h_slot_text_data(_h).price);
 +            }
-+            else
-+            {
-+                // as NEW on the passage before it with the build side on the right
-+                global.build_side = false;
-+                scr_create_slot(_c.type, _t, _e + 1 + (2 * (i - array_length(_left))), true);
-+            }
-+
-+            for (var k = 0; k < ds_list_size(_list); k++)
-+            {
-+                var _new = ds_list_find_value(_list, k);
-+
-+                if (!array_contains(_before, _new) && _new.slot_data.slot_type == _c.type)
-+                {
-+                    _slot = _new;
-+                    break;
-+                }
-+            }
-+
-+            if (_slot != noone)
-+                _paid += max(0, scr_slot_type_price_data(_c.type).price);
 +        }
 +
-+        if (_slot == noone)
-+            continue;
++        if (_n == 0)
++            return "Nothing to copy: this floor has no cells.";
 +
-+        _built++;
++        if (global.gnx_free_floor_copy)
++            _cost = 0;
 +
-+        if (_c.h != -1)
++        if (global.val.money < _cost)
++            return "Not enough gold to copy this floor: " + string(_cost) + " needed.";
++
++        for (var i = 0; i < ds_list_size(_src); i++)
 +        {
++            var _h = gnx_opt(ds_list_find_value(_src, i).slot_data, "h_type", -1);
++
++            if (_h == -1)
++                continue;
++
++            var _slot = ds_list_find_value(_dst, i);
++            _built++;
 +            _cells_want++;
-+            scr_set_slot_h_data(_slot, _c.h);
++            scr_set_slot_h_data(_slot, _h);
 +
-+            // the cell is set when the slot now has that type
-+            if (variable_struct_exists(_slot.slot_data, "h_type") && _slot.slot_data.h_type == _c.h)
++            if (gnx_opt(_slot.slot_data, "h_type", -1) == _h)
 +            {
 +                _cells_set++;
-+                _paid += max(0, scr_h_slot_text_data(_c.h).price);
-+                // once per cell, as building it by hand does (quests counting built cells see each one);
-+                // GNX-BUILD: gnx_cell_built also counts it for build_count quests
-+                gnx_cell_built(_c.h);
++                _paid += max(0, scr_h_slot_text_data(_h).price);
++                gnx_cell_built(_h);
 +            }
 +        }
 +    }
++    else
++    {
++        // the slots to build, passages left out (each slot is built with its passage): left of the entrance, then right
++        var _left = [];
++        var _right = [];
++        var _past = false;
++        var _cost = 0;
++        var _start_used = false;
 +
-+    global.build_side = _side;
++        for (var i = 0; i < ds_list_size(_src); i++)
++        {
++            var _s = ds_list_find_value(_src, i);
++            var _ty = _s.slot_data.slot_type;
++
++            if (_ty == 4)
++                _past = true;
++
++            if (_ty == 4 || _ty == 5)
++                continue;
++
++            var _h = gnx_opt(_s.slot_data, "h_type", -1);
++            var _reuse = _past && _ty == 3 && !_start_used;  // the floor below's start slot
++
++            if (_reuse)
++                _start_used = true;
++            else
++                _cost += max(0, scr_slot_type_price_data(_ty).price);
++
++            if (_h != -1)
++                _cost += max(0, scr_h_slot_text_data(_h).price);
++
++            array_push(_past ? _right : _left, { type: _ty, h: _h, reuse: _reuse });
++        }
++
++        _n = array_length(_left) + array_length(_right);
++
++        if (_n == 0)
++            return "Nothing to copy: this floor has no cells.";
++
++        if (global.gnx_free_floor_copy)
++            _cost = 0;
++
++        if (global.val.money < _cost)
++            return "Not enough gold to copy this floor: " + string(_cost) + " needed.";
++
++        // GNX-FIX: the gold is taken at the end, only for what was really built (each slot, each cell set);
++        // before, all of it was taken first and no result was checked, so a copy that stopped half way still
++        // cost the whole floor. Every step is checked and a partial copy says what is missing.
++        var _list = _dst;
++
++        for (var i = 0; i < _n; i++)
++        {
++            var _c = (i < array_length(_left)) ? _left[i] : _right[i - array_length(_left)];
++            var _slot = noone;
++            var _e = 0;
++
++            while (ds_list_find_value(_list, _e).slot_data.slot_type != 4)
++                _e++;
++
++            if (_c.reuse)
++            {
++                // right of the entrance, after the slots built so far (2 list entries each)
++                _slot = ds_list_find_value(_list, _e + 1 + (2 * (i - array_length(_left))));
++            }
++            else
++            {
++                var _before = [];
++
++                for (var k = 0; k < ds_list_size(_list); k++)
++                    array_push(_before, ds_list_find_value(_list, k));
++
++                if (i < array_length(_left))
++                {
++                    // as NEW on the entrance with the build side on the left: just left of the entrance
++                    global.build_side = true;
++                    scr_create_slot(_c.type, _t, _e + 1, true);
++                }
++                else
++                {
++                    // as NEW on the passage before it with the build side on the right
++                    global.build_side = false;
++                    scr_create_slot(_c.type, _t, _e + 1 + (2 * (i - array_length(_left))), true);
++                }
++
++                for (var k = 0; k < ds_list_size(_list); k++)
++                {
++                    var _new = ds_list_find_value(_list, k);
++
++                    if (!array_contains(_before, _new) && _new.slot_data.slot_type == _c.type)
++                    {
++                        _slot = _new;
++                        break;
++                    }
++                }
++
++                if (_slot != noone)
++                    _paid += max(0, scr_slot_type_price_data(_c.type).price);
++            }
++
++            if (_slot == noone)
++                continue;
++
++            _built++;
++
++            if (_c.h != -1)
++            {
++                _cells_want++;
++                scr_set_slot_h_data(_slot, _c.h);
++
++                // the cell is set when the slot now has that type
++                if (variable_struct_exists(_slot.slot_data, "h_type") && _slot.slot_data.h_type == _c.h)
++                {
++                    _cells_set++;
++                    _paid += max(0, scr_h_slot_text_data(_c.h).price);
++                    // once per cell, as building it by hand does (quests counting built cells see each one);
++                    // GNX-BUILD: gnx_cell_built also counts it for build_count quests
++                    gnx_cell_built(_c.h);
++                }
++            }
++        }
++
++        global.build_side = _side;
++    }
 +
 +    // passages and entrance: the same style and props, slot by slot (the layouts now line up). The styles
 +    // go through gnx_between_apply (narrower first, each result checked); props right after.

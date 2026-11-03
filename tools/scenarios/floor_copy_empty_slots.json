@@ -1,0 +1,120 @@
+{
+  "about": "COPY DOWN onto a floor whose cells were removed: its empty slots stay, so it was refused with 'the floor below is not empty'. An empty floor with the same slots now gets the cells; empty slots in another layout get a message saying so; a floor with a cell is still refused. Fresh game; add_floor makes the floors.",
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "call": "gnx_scn_set_gold",
+      "args": [
+        100000
+      ]
+    },
+    {
+      "do": {
+        "type": "add_floor"
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "call": "gnx_scn_build_left",
+      "args": [
+        0,
+        1
+      ],
+      "why": "source floor: a WALL 1 left of the entrance"
+    },
+    {
+      "call": "gnx_scn_build_on_last",
+      "args": [
+        0
+      ],
+      "why": "and an empty small slot on the right"
+    },
+    {
+      "do": {
+        "type": "add_floor"
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "call": "gnx_scn_build_left",
+      "args": [
+        0,
+        -1
+      ],
+      "why": "the floor below: the same slots, no cells (cells removed)"
+    },
+    {
+      "call": "gnx_scn_build_on_last",
+      "args": [
+        0
+      ]
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_floor_copy_down",
+      "args": [
+        1
+      ],
+      "is": "",
+      "why": "an empty floor with the same slots: copied (it said 'not empty')"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_floor_copy_same",
+      "args": [],
+      "is": "same"
+    },
+    {
+      "do": {
+        "type": "add_floor"
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "call": "gnx_scn_build_on_last",
+      "args": [
+        1
+      ],
+      "why": "the next floor: an empty big slot, another layout"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_copy_down_msg",
+      "args": [
+        2
+      ],
+      "is": "other layout",
+      "why": "empty slots in another layout: a message that says so"
+    },
+    {
+      "call": "gnx_scn_build_on_last",
+      "args": [
+        0
+      ]
+    },
+    {
+      "call": "gnx_scn_set_last_cell",
+      "args": [
+        1
+      ]
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_copy_down_msg",
+      "args": [
+        2
+      ],
+      "is": "not empty",
+      "why": "a floor below with a cell is still refused"
+    }
+  ]
+}

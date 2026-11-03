@@ -8,6 +8,10 @@
 
 - **Replacing game sprites** (`sprite_replace`): a mod puts its own art in place of game sprites by name (a folder of frames, a strip or a sprite entry), and every cell, phase and screen that draws them draws the mod's art. The game's own art comes back when the mod is turned off. `active_dates` limits it to a date window, for seasonal looks; in the MODS menu such a mod cycles SEASON / ALL YEAR / OFF, so players can keep it outside its dates (modding guide 5.9).
 
+### Bug Fixes
+
+- COPY DOWN refused a floor whose cells had been removed ("the floor below is not empty"): removing a cell leaves its empty slot. Empty slots in the same layout as the floor above now get its cells (only the cells are paid for); empty slots in another layout get a message saying so.
+
 ## v1.5.1
 
 **Game version:** 1.40

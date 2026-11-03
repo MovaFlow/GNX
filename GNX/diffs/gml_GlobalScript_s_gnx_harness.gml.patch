@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
 +++ gml/gml_GlobalScript_s_gnx_harness.gml	1970-01-01 01:00:00.000000000 +0100
-@@ -0,0 +1,5531 @@
+@@ -0,0 +1,5568 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2597,6 +2597,43 @@
 +function gnx_scn_build_on_last(arg0)
 +{
 +    scr_create_slot(arg0, global.val.floor, ds_list_size(global.slot_list[global.val.floor]), true);
++}
++
++
++// for {"assert": "fn"}: COPY DOWN of floor arg0, its answer in short: "" done, "not empty" (a cell below), "other
++// layout" (empty slots below in another layout), else the message itself
++function gnx_scn_copy_down_msg(arg0)
++{
++    var _m = gnx_floor_copy_down(arg0);
++
++    if (_m == "")
++        return "";
++
++    if (string_pos("not empty", _m) > 0)
++        return "not empty";
++
++    if (string_pos("another layout", _m) > 0)
++        return "other layout";
++
++    return _m;
++}
++
++
++// {"call": "gnx_scn_set_last_cell", "args": [h]}: puts cell h in the last slot of the deepest floor that can hold one
++function gnx_scn_set_last_cell(arg0)
++{
++    var _list = global.slot_list[global.val.floor];
++
++    for (var i = ds_list_size(_list) - 1; i >= 0; i--)
++    {
++        var _s = ds_list_find_value(_list, i);
++
++        if (_s.slot_data.slot_type != 4 && _s.slot_data.slot_type != 5)
++        {
++            scr_set_slot_h_data(_s, arg0);
++            break;
++        }
++    }
 +}
 +
 +
