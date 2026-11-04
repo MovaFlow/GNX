@@ -764,6 +764,12 @@ def boot(box, timeout, keep_open, scenario=None, expect_dialog=None):
             for f in shots:
                 shutil.move(str(f), out / f.name[len("gnx_shot_"):])
             r["screens"] = [str(out / f.name[len("gnx_shot_"):]) for f in shots]
+        dumps = sorted(box.save_dir.glob("gnx_art_*.txt"))
+        if dumps:  # files written by the scenario's "mon_art_dump" and "art_probe" steps
+            out = game_dir / "mon_art"
+            out.mkdir(parents=True, exist_ok=True)
+            for f in dumps:
+                shutil.move(str(f), out / f.name[len("gnx_art_"):])
         if not r["scn"]["done"]:  # keep evidence of incomplete runs; later runs overwrite last_*.log
             stamp = time.strftime("%Y%m%d_%H%M%S")
             (game_dir / f"incomplete_{scenario}_{stamp}.log").write_text(text + "\n\n" + stext, encoding="utf-8")
@@ -894,6 +900,17 @@ def capture_fixture(game_dir, slot, name, strip=False):
     else:
         shutil.copy2(src, dest)
     print(f"captured {src.name} -> {dest}{' (mods stripped)' if strip else ''}", file=sys.stderr)
+
+
+def clear_dumps(scns, game_dir):
+    """Removes the files these scenarios' mon_art_dump and art_probe steps write, so a run that writes none
+    (no cell, skipped, crashed) cannot leave an old file for tools/mon_art_diff.py to pass."""
+    for scn in scns.values():
+        for st in scn.get("steps", []):
+            if "mon_art_dump" in st:
+                (game_dir / "mon_art" / f"{st['mon_art_dump']['file']}.txt").unlink(missing_ok=True)
+            elif "art_probe" in st:
+                (game_dir / "mon_art" / f"probe_{st['art_probe']}.txt").unlink(missing_ok=True)
 
 
 def load_scenario(name):
@@ -1040,12 +1057,13 @@ def main(argv=None):
 
         # runs: None = plain boot test, else a scenario name
         if a.all:
-            runs = [None] + sorted(p.stem for p in SCENARIOS.glob("*.json"))
+            runs = [None] + sorted(p.stem for p in SCENARIOS.glob("*.json") if not json.loads(p.read_text(encoding="utf-8")).get("manual"))
         elif a.scenario:
             runs = [s.strip() for s in a.scenario.split(",")]
         else:
             runs = [None]
         scns = {name: load_scenario(name) for name in runs if name}  # validate all before launching
+        clear_dumps(scns, a.game_dir)
         if a.quick:
             slow = [n for n in runs if n and scns[n].get("slow")]
             runs = [n for n in runs if n not in slow]

@@ -1,5 +1,5 @@
 """Self-check for the gnx_test.py log parser. Run: python tools/test_gnx_test.py"""
-from gnx_test import parse_log, verdict, EXIT_PASS, EXIT_FAIL, EXIT_TIMEOUT
+from gnx_test import clear_dumps, parse_log, verdict, EXIT_PASS, EXIT_FAIL, EXIT_TIMEOUT
 
 GOOD = """[GNX] loader start
 [GNX] loading: GNX Example Mod v1.0.0
@@ -141,3 +141,14 @@ try:
 finally:
     _g.time.sleep = _sleep
 print("ok")
+
+# A dump from an earlier run must not survive a run that writes none: comparing it would be a false pass
+import tempfile
+from pathlib import Path
+_g = Path(tempfile.mkdtemp())
+(_g / "mon_art").mkdir()
+for _n in ("real.txt", "real.base.txt", "probe_world.txt", "other.txt"):
+    (_g / "mon_art" / _n).write_text("x", encoding="utf-8")
+clear_dumps({"s1": {"steps": [{"wait": 1}, {"mon_art_dump": {"file": "real"}}]}, "s2": {"steps": [{"art_probe": "world"}]}, "s3": {"steps": [{"wait": 1}]}}, _g)
+assert sorted(f.name for f in (_g / "mon_art").iterdir()) == ["other.txt", "real.base.txt"]
+clear_dumps({"s1": {"steps": [{"mon_art_dump": {"file": "real"}}]}}, Path(tempfile.mkdtemp()))  # no folder yet: no error
