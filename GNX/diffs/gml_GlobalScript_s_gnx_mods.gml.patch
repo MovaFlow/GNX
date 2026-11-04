@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2777 @@
+@@ -0,0 +1,2868 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1273,6 +1273,11 @@
 +    draw_set_halign(fa_left);
 +    draw_set_color(c_white);
 +    draw_text(_px + 10, _py + 6, "MODS");
++    // GNX-FRAMES: how close the loaded mods are to what the game can show (red over it, amber from 90 %)
++    var _fr = global.gnx_frames_used;
++    draw_set_color((_fr > global.gnx_frame_limit) ? _red : ((_fr >= (global.gnx_frame_limit * 0.9)) ? _amber : c_white));
++    draw_text(_px + 10, (_py + _ph) - 16, "SPRITE FRAMES " + string(_fr) + " / " + string(global.gnx_frame_limit));
++    draw_set_color(c_white);
 +    var _on_n = 0;
 +    var _inst = 0;
 +
@@ -1592,7 +1597,20 @@
 +    global.gnx_loop_strips = {};
 +    // GNX-FIX: which sprites already had their loop set (gnx_loop_mark), so a clash can be reported
 +    global.gnx_loop_seen = {};
-+    global.gnx_runtime_sprites = [];
++    // GNX-FIX: the list stays across loads, like the sprite cache: the sprites are still alive, and the frame and
++    // memory counts need them (reset here, a reload counted 0)
++    if (!variable_global_exists("gnx_runtime_sprites"))
++        global.gnx_runtime_sprites = [];
++
++    // GNX-FRAMES: see gnx_frames_check
++    if (!variable_global_exists("gnx_frame_limit"))
++    {
++        global.gnx_frame_limit = 32740;
++        global.gnx_frames_used = 0;
++        global.gnx_frames_noted = 0;
++        global.gnx_mod_frames = {};
++    }
++
 +    // GNX-PROP: baked ring glows are runtime sprites too: forget them (and their memory count) with the list
 +    global.gnx_glow_bake_cache = {};
 +    global.gnx_glow_bake_bytes = 0;
@@ -1785,6 +1803,7 @@
 +    }
 +    
 +    ds_map_destroy(_seen_tex);
++    gnx_frames_check();
 +    var _log_vr = gnx_log_open();
 +    gnx_log_write(_log_vr, "[GNX-PERF] VRAM (GNX runtime): " + string(_uniq_tex) + " unique texture pages, ~" + string(_vram_bytes / 1024 / 1024) + " MB RGBA uncompressed\n");
 +    gnx_log_close(_log_vr);
@@ -2100,6 +2119,76 @@
 +}
 +
 +
++// GNX-FRAMES: credits the runtime sprites added since the last call to mod folder arg0
++function gnx_frames_note(arg0)
++{
++    var _l = global.gnx_runtime_sprites;
++    var _n = 0;
++
++    for (var _i = global.gnx_frames_noted; _i < array_length(_l); _i++)
++    {
++        if (sprite_exists(_l[_i]))
++            _n += sprite_get_number(_l[_i]);
++    }
++
++    global.gnx_frames_noted = array_length(_l);
++
++    if (_n > 0 && is_string(arg0) && arg0 != "")
++    {
++        var _had = variable_struct_exists(global.gnx_mod_frames, arg0) ? variable_struct_get(global.gnx_mod_frames, arg0) : 0;
++        variable_struct_set(global.gnx_mod_frames, arg0, _had + _n);
++    }
++}
++
++
++// GNX-FRAMES: the runtime gives every sprite frame a texture slot, and past about 32768 of them (measured: 32740 frames
++// added to a vanilla game) sprite_add still succeeds but the new frames draw nothing: invisible cells and characters,
++// with no error. An atlas page is one frame. So the loader counts the frames and says so.
++// ponytail: sprite_replace's backups are not in the list, a few hundred frames at most
++function gnx_frames_check()
++{
++    gnx_frames_note(global.gnx_current_loading_mod);
++    var _l = global.gnx_runtime_sprites;
++    var _used = 0;
++
++    for (var _i = 0; _i < array_length(_l); _i++)
++    {
++        if (sprite_exists(_l[_i]))
++            _used += sprite_get_number(_l[_i]);
++    }
++
++    global.gnx_frames_used = _used;
++    var _log = gnx_log_open();
++    gnx_log_write(_log, "[GNX-PERF] sprite frames: " + string(_used) + " of " + string(global.gnx_frame_limit) + "\n");
++    gnx_log_close(_log);
++
++    if (_used <= global.gnx_frame_limit)
++        exit;
++
++    // the three mods with the most frames
++    var _names = variable_struct_get_names(global.gnx_mod_frames);
++    var _top = "";
++
++    for (var _k = 0; _k < min(3, array_length(_names)); _k++)
++    {
++        var _best = _k;
++
++        for (var _i = _k + 1; _i < array_length(_names); _i++)
++        {
++            if (variable_struct_get(global.gnx_mod_frames, _names[_i]) > variable_struct_get(global.gnx_mod_frames, _names[_best]))
++                _best = _i;
++        }
++
++        var _tmp = _names[_k];
++        _names[_k] = _names[_best];
++        _names[_best] = _tmp;
++        _top += ((_k > 0) ? ", " : "") + _names[_k] + " (" + string(variable_struct_get(global.gnx_mod_frames, _names[_k])) + ")";
++    }
++
++    gnx_report_mod_error("Too many sprite frames: " + string(_used) + " loaded, the game can show " + string(global.gnx_frame_limit) + ". The rest draw nothing (invisible cells and characters). Turn some mods off in MODS, or ask their authors for an atlas build. Most frames: " + _top);
++}
++
++
 +function scr_gnx_cleanup_sprites()
 +{
 +    if (!variable_global_exists("gnx_runtime_sprites"))
@@ -2316,6 +2405,7 @@
 +    gnx_log_close(_log);
 +    gnx_load_translations(arg0);
 +    scr_gnx_init_mod_state(arg0, _manifest);
++    gnx_frames_note(global.gnx_current_loading_mod);
 +    global.gnx_current_loading_mod = arg0;
 +    global.gnx_loading_manifest = _manifest;
 +    var _atlas_root = global.gnx_mods_root + arg0 + "/atlas/";
@@ -2495,6 +2585,7 @@
 +    var _tmp_t0 = get_timer();
 +    var _tmp_lg, _log;
 +    // sprites and the atlas look in the "currently loading" mod: set it again for each phase
++    gnx_frames_note(global.gnx_current_loading_mod);
 +    global.gnx_current_loading_mod = arg0;
 +    global.gnx_loading_manifest = _manifest;
 +    if (arg2 == 2)

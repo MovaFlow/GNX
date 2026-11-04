@@ -13,6 +13,8 @@
 ### Bug Fixes
 
 - A stage's name on the raid map, shown while it is pointed at or selected, could be covered by the other stage buttons; that button is now drawn in front.
+- Too many mods turned cells and characters invisible with no error: the game can show about 32,700 sprite frames from mods, and past that sprites load but draw nothing. Every frame of a strip counts, an atlas page counts as one. GNX now reports going over as a mod error naming the mods with the most frames, and the MODS page shows the count.
+- The sprite and memory counts in the log and the perf HUD read 0 after a save was loaded or a map changed.
 - A mod installed by dragging its zip onto the installer got a folder named after its `mod_id`, not the zip's own folder as with a manual extract. Class and cell references written with the folder name (`"MyMod.GIRL"` in a folder `mymod`) then matched nothing, so quests never finished, with no error. The installer now uses the zip's folder and replaces an installed copy of the same mod; references also accept the mod's `mod_id` or `name`, so mods already installed that way work as they are.
 - A class named in a quest or trigger condition that an installed mod does not have is now a mod error, as cells already were (a class of a mod that is not installed is only logged).
 - A cell named in a class's condition (`raid_spawns`, `cage_escape`) was reported as not found while classes loaded, before any cell existed.

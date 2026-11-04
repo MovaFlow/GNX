@@ -925,6 +925,7 @@ frame number = skin × (frames ÷ 3) + pose
 - GNX loads per-frame PNGs directly with `folder` or a `frames` list, so packing strips is optional.
 - The Python script `gnx_pack_strips.py` turns per-frame folders into strips: `python gnx_pack_strips.py path/to/my_mod --force`, with files named `<strip name>/<strip name>_<i>.png`.
 - For many sprites, an atlas loads faster than separate strips ([§20](#20-atlas-packing)).
+- **The game can show about 32,700 sprite frames loaded from mods, across all mods together.** Past that, sprites still load without an error but draw nothing: cells and characters turn invisible. Every frame of a strip or a folder counts as one; a whole atlas page counts as one, however many frames it holds. Since 1.5.2 GNX reports going over as a mod error naming the mods with the most frames, and the MODS page shows the count (`SPRITE FRAMES`, amber from 90 %). If your mod has many frames, ship an atlas. An atlas page costs memory instead: a 4096 x 4096 page took about 160 MB of RAM in a test.
 
 > **When** `frames` does not match the picture (a 90-frame strip declared with `"frames": 30`), every frame is three times too wide and the animation shows the wrong poses.
 

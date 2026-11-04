@@ -1,0 +1,54 @@
+{
+  "about": "The game cannot show more than about 32740 sprite frames: past that sprite_add works but the frames draw nothing. The loader counts them across reloads and reports going over as a mod error naming the biggest mods. Measured with a scratch stress run; here the limit is lowered.",
+  "mods": [
+    "tools/scenarios/mods/harness_atlas"
+  ],
+  "steps": [
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_frames_ok",
+      "args": [
+        false
+      ],
+      "is": true,
+      "why": "the mod's frames are counted"
+    },
+    {
+      "call": "gnx_scn_set_frame_limit",
+      "args": [
+        1
+      ]
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_frames_ok",
+      "args": [
+        false
+      ],
+      "is": true,
+      "why": "still counted after a reload (the sprites stay alive)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_frames_ok",
+      "args": [
+        true
+      ],
+      "is": true,
+      "why": "over the limit"
+    }
+  ],
+  "expect_dialog": "Too many sprite frames"
+}
