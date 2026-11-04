@@ -1,0 +1,113 @@
+{
+  "about": "A community quest mod installed the way the installer's drag and drop did: folder ophelia, references written Ophelia.Ophelia. Capturing her finishes the quest line and stops her spawn. The post-raid hooks are called directly, no raid is played. Local copy in harness_game/test_mods (skipped when absent).",
+  "mods": [
+    "harness_game/test_mods/ophelia"
+  ],
+  "timeout": 60,
+  "steps": [
+    {
+      "wait": 5
+    },
+    {
+      "call": "scr_gnx_set_state",
+      "args": [
+        "ophelia",
+        "quest_progress",
+        9
+      ]
+    },
+    {
+      "do": {
+        "type": "fire_event",
+        "event_id": "ophelia.ophelia_quest_9"
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "ophelia",
+        "ophelia_boss_state"
+      ],
+      "is": 0,
+      "why": "control: not captured yet"
+    },
+    {
+      "call": "scr_gnx_check_triggers",
+      "args": [
+        "post_raid"
+      ]
+    },
+    {
+      "call": "scr_gnx_check_quest_completion",
+      "args": [
+        "post_raid"
+      ]
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "ophelia",
+        "quest_progress"
+      ],
+      "is": 9,
+      "why": "control: a raid without her changes nothing"
+    },
+    {
+      "do": {
+        "type": "create_unit_cage",
+        "class_id": "Ophelia.Ophelia",
+        "level": 5
+      },
+      "why": "a captured unit in the raid cage"
+    },
+    {
+      "call": "scr_gnx_check_triggers",
+      "args": [
+        "post_raid"
+      ]
+    },
+    {
+      "call": "scr_gnx_check_quest_completion",
+      "args": [
+        "post_raid"
+      ]
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "ophelia",
+        "ophelia_boss_state"
+      ],
+      "is": 1,
+      "why": "capture seen (the mod writes \"Ophelia.Ophelia\", its folder here is ophelia)"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "ophelia",
+        "quest_progress"
+      ],
+      "is": 10,
+      "why": "her raid spawn needs quest_progress 9: she stops coming"
+    },
+    {
+      "assert": "quest",
+      "event": "ophelia.ophelia_quest_9",
+      "is": "clear",
+      "why": "her quest is done"
+    }
+  ]
+}

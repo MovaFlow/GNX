@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2868 @@
+@@ -0,0 +1,2874 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1619,6 +1619,7 @@
 +    global.gnx_glow_bake_skipped = 0;
 +    global.gnx_mod_errors = [];
 +    global.gnx_loading_manifest = undefined;
++    global.gnx_atlas_bad_frames = {};
 +    global.gnx_loading_classes = false;
 +    // Mav (1.4.7.5): destroy the name maps left by a previous load first, so they do not leak
 +    if (variable_global_exists("gnx_class_name_to_id") && ds_exists(global.gnx_class_name_to_id, ds_type_map))
@@ -2148,6 +2149,11 @@
 +function gnx_frames_check()
 +{
 +    gnx_frames_note(global.gnx_current_loading_mod);
++    var _bad = variable_struct_get_names(global.gnx_atlas_bad_frames);
++
++    for (var _b = 0; _b < array_length(_bad); _b++)
++        gnx_report_mod_error("Mod '" + _bad[_b] + "': its atlas has other frame counts than its JSON (first: " + variable_struct_get(global.gnx_atlas_bad_frames, _bad[_b]) + "; list in gnx_debug.txt), so those sprites play wrong frames. Pack the atlas again with a current gnx_atlas_pack.");
++
 +    var _l = global.gnx_runtime_sprites;
 +    var _used = 0;
 +

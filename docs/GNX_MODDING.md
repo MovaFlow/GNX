@@ -4160,6 +4160,8 @@ The boot test checks every prop: `[GNX-TEST] PASS  T59 prop_registry valid`, or 
 
 ## 20. Atlas packing
 
+> **Pack again if you packed before 1.5.2.** The packer lost a strip's `frames` when the JSON and the file name differed in capitals (`spr_h_Damona_x.png` in the JSON, `spr_h_damona_x.png` on disk) and guessed the count: a 30-frame strip of 45 x 90 became 15 frames of 90 x 90, so the animation played wrong. Since 1.5.2 the packer matches names without regard to capitals and prints a `[WARN]` for every count it has to guess. GNX compares the atlas with your JSON: if they differ it uses the strip when the mod still ships it, and otherwise shows a mod error asking you to pack again.
+
 **In short:** an atlas is a few large PNG images (*pages*) that hold all sprite frames of a mod, plus `atlas/uv.json`, which says where each frame sits. GNX then loads one texture per page instead of one per [strip](#2-glossary), so booting is faster and uses fewer textures. It is optional: a mod works the same without `atlas/`.
 
 Minimal `atlas/uv.json`:

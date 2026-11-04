@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,4124 @@
+@@ -0,0 +1,4140 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -108,7 +108,23 @@
 +    if (variable_global_exists("gnx_current_loading_mod") && global.gnx_current_loading_mod != "" && ds_map_exists(global.gnx_mod_atlases, global.gnx_current_loading_mod))
 +    {
 +        var _atref = gnx_atlas_resolve_ref(global.gnx_current_loading_mod, _s);
-+        
++
++        // GNX-FIX: an atlas packed with another frame count than the JSON declares plays wrong frames or stands still
++        // (the packer lost the count when the JSON and the file name differed in case). The strip is right, if the
++        // mod still ships it; else the mod is told to pack again (&& = and)
++        if (_atref != undefined && is_struct(_s) && variable_struct_exists(_s, "frames") && is_numeric(_s.frames) && variable_struct_exists(_atref, "frames") && array_length(_atref.frames) != _s.frames)
++        {
++            var _bad_strip = variable_struct_exists(_s, "strip") && file_exists(arg2 + _s.strip);
++            var _bad_log = gnx_log_open();
++            gnx_log_write(_bad_log, "[GNX-WARN] " + global.gnx_current_loading_mod + ": " + arg1 + " has " + string(array_length(_atref.frames)) + " frames in the atlas, the JSON says " + string(_s.frames) + (_bad_strip ? ": using the strip\n" : "\n"));
++            gnx_log_close(_bad_log);
++
++            if (_bad_strip)
++                _atref = undefined;
++            else
++                variable_struct_set(global.gnx_atlas_bad_frames, global.gnx_current_loading_mod, arg1);
++        }
++
 +        if (_atref != undefined)
 +        {
 +            // Mav (1.4.7.5): the JSON origin (origin_from or a non-zero xorig/yorig) wins over uv.json.

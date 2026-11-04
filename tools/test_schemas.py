@@ -25,6 +25,7 @@ import check_mod  # noqa: E402
 
 # deliberately broken test-mod entries: (mod folder name, file name, path) -> they must be reported
 EXPECTED = {
+    ("ophelia", "quests.json", "triggers[1]"),  # a community mod writes a key GNX ignores
     ("harness_lang", "de.json", "LANG CELL"),
     ("harness_map_nocap", "manifest.json", "map_info.no_capture[3].stage"),
     ("harness_map_start", "manifest.json", "map_start.troops[3].type"),

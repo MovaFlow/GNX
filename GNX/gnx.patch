@@ -6985,7 +6985,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,4124 @@
+@@ -0,0 +1,4140 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -7093,7 +7093,23 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    if (variable_global_exists("gnx_current_loading_mod") && global.gnx_current_loading_mod != "" && ds_map_exists(global.gnx_mod_atlases, global.gnx_current_loading_mod))
 +    {
 +        var _atref = gnx_atlas_resolve_ref(global.gnx_current_loading_mod, _s);
-+        
++
++        // GNX-FIX: an atlas packed with another frame count than the JSON declares plays wrong frames or stands still
++        // (the packer lost the count when the JSON and the file name differed in case). The strip is right, if the
++        // mod still ships it; else the mod is told to pack again (&& = and)
++        if (_atref != undefined && is_struct(_s) && variable_struct_exists(_s, "frames") && is_numeric(_s.frames) && variable_struct_exists(_atref, "frames") && array_length(_atref.frames) != _s.frames)
++        {
++            var _bad_strip = variable_struct_exists(_s, "strip") && file_exists(arg2 + _s.strip);
++            var _bad_log = gnx_log_open();
++            gnx_log_write(_bad_log, "[GNX-WARN] " + global.gnx_current_loading_mod + ": " + arg1 + " has " + string(array_length(_atref.frames)) + " frames in the atlas, the JSON says " + string(_s.frames) + (_bad_strip ? ": using the strip\n" : "\n"));
++            gnx_log_close(_bad_log);
++
++            if (_bad_strip)
++                _atref = undefined;
++            else
++                variable_struct_set(global.gnx_atlas_bad_frames, global.gnx_current_loading_mod, arg1);
++        }
++
 +        if (_atref != undefined)
 +        {
 +            // Mav (1.4.7.5): the JSON origin (origin_from or a non-zero xorig/yorig) wins over uv.json.
@@ -12349,7 +12365,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,5662 @@
+@@ -0,0 +1,5670 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -14369,6 +14385,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +function gnx_scn_set_frame_limit(arg0)
 +{
 +    global.gnx_frame_limit = arg0;
++}
++
++
++// for {"assert": "fn"}: frames of override key arg1 of class arg0 (a class ref "folder.NAME")
++function gnx_scn_mso_frames(arg0, arg1)
++{
++    var _m = gnx_get_mso(ds_map_find_value(global.gnx_class_name_to_id, arg0));
++    return gnx_sprite_get_number(variable_struct_get(_m, arg1));
 +}
 +
 +
@@ -18320,7 +18344,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2868 @@
+@@ -0,0 +1,2874 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -19939,6 +19963,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    global.gnx_glow_bake_skipped = 0;
 +    global.gnx_mod_errors = [];
 +    global.gnx_loading_manifest = undefined;
++    global.gnx_atlas_bad_frames = {};
 +    global.gnx_loading_classes = false;
 +    // Mav (1.4.7.5): destroy the name maps left by a previous load first, so they do not leak
 +    if (variable_global_exists("gnx_class_name_to_id") && ds_exists(global.gnx_class_name_to_id, ds_type_map))
@@ -20468,6 +20493,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +function gnx_frames_check()
 +{
 +    gnx_frames_note(global.gnx_current_loading_mod);
++    var _bad = variable_struct_get_names(global.gnx_atlas_bad_frames);
++
++    for (var _b = 0; _b < array_length(_bad); _b++)
++        gnx_report_mod_error("Mod '" + _bad[_b] + "': its atlas has other frame counts than its JSON (first: " + variable_struct_get(global.gnx_atlas_bad_frames, _bad[_b]) + "; list in gnx_debug.txt), so those sprites play wrong frames. Pack the atlas again with a current gnx_atlas_pack.");
++
 +    var _l = global.gnx_runtime_sprites;
 +    var _used = 0;
 +
@@ -30043,7 +30073,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_tools.gml
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml
 +++ gml/gml_GlobalScript_s_gnx_tools.gml
-@@ -0,0 +1,1791 @@
+@@ -0,0 +1,1803 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -30477,6 +30507,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +{
 +    if (is_string(arg0))
 +    {
++        // GNX-FIX: the name map also knows a class by its mod's mod_id or manifest name (gnx_name_map_add)
++        var _named = ds_map_find_value(global.gnx_class_name_to_id, arg0);
++
++        if (_named != undefined)
++            return _named;
++
 +        var _dot = string_pos(".", arg0);
 +        var _cname = (_dot > 0) ? string_copy(arg0, _dot + 1, string_length(arg0) - _dot) : arg0;
 +        var _k = ds_map_find_first(global.class_registry);
@@ -30511,6 +30547,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +{
 +    if (is_string(arg0))
 +    {
++        // GNX-FIX: the name map also knows a cell by its mod's mod_id or manifest name (gnx_name_map_add)
++        var _named = ds_map_find_value(global.gnx_cell_name_to_id, arg0);
++
++        if (_named != undefined)
++            return _named;
++
 +        var _dot = string_pos(".", arg0);
 +        var _cname = (_dot > 0) ? string_copy(arg0, _dot + 1, string_length(arg0) - _dot) : arg0;
 +        var _k = ds_map_find_first(global.cell_registry);
