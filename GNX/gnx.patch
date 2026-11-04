@@ -6985,7 +6985,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,4108 @@
+@@ -0,0 +1,4124 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -7324,6 +7324,22 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +}
 +
 +
++// GNX-FIX: adds "folder.NAME" to a class or cell name map, plus "<mod_id>.NAME" and "<manifest name>.NAME" of the mod being
++// loaded: a mod's folder depends on how it was installed, and a reference written with its other name must still
++// resolve. A real folder name wins over another mod's alias (ds_map_set / ds_map_add).
++function gnx_name_map_add(arg0, arg1, arg2, arg3)
++{
++    ds_map_set(arg0, arg1 + "." + arg2, arg3);
++    var _m = global.gnx_loading_manifest;
++    
++    if (is_struct(_m) && variable_struct_exists(_m, "mod_id") && is_string(_m.mod_id))
++        ds_map_add(arg0, _m.mod_id + "." + arg2, arg3);
++    
++    if (is_struct(_m) && variable_struct_exists(_m, "name") && is_string(_m.name))
++        ds_map_add(arg0, _m.name + "." + arg2, arg3);
++}
++
++
 +function gnx_report_mod_error(arg0)
 +{
 +    if (!variable_global_exists("gnx_mod_errors") || !is_array(global.gnx_mod_errors))
@@ -7549,7 +7565,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    }
 +
 +    if (variable_struct_exists(arg0, "name"))
-+        ds_map_add(global.gnx_cell_name_to_id, arg1 + "." + arg0.name, _h);
++        gnx_name_map_add(global.gnx_cell_name_to_id, arg1, arg0.name, _h);
 +
 +    var _phys = arg0.physical;
 +    var _sprites_dict = gnx_opt(arg0, "sprites", undefined);
@@ -9838,7 +9854,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    else
 +        _class_id = gnx_hash_class_id(arg1, _class_name);
 +    
-+    ds_map_add(global.gnx_class_name_to_id, arg1 + "." + _class_name, _class_id);
++    gnx_name_map_add(global.gnx_class_name_to_id, arg1, _class_name, _class_id);
 +    
 +    if (ds_map_exists(global.class_registry, _class_id) && !_allow_override)
 +    {
@@ -12333,7 +12349,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,5599 @@
+@@ -0,0 +1,5649 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -14290,6 +14306,56 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        x = _c.x - 300;
 +        y = _c.y - 100;
 +    }
++}
++
++
++// for {"assert": "fn"}: quest event arg0's completion key arg1 ("class", "h_type") was resolved to an ID
++function gnx_scn_quest_ref_ok(arg0, arg1)
++{
++    var _e = ds_map_find_value(global.gnx_quest_events, arg0);
++    return _e != undefined && is_numeric(variable_struct_get(_e.completion, arg1));
++}
++
++
++// {"call": "gnx_scn_places_drip_watch"}: looks at every cell with independent places: monsters inside after one left and
++// the captive's idle drip showing (sp_state != -1) counts as bad; it must still show once the cell is empty. gnx_scn_places_drip_ok is the assert
++function gnx_scn_places_drip_watch()
++{
++    if (!variable_global_exists("gnx_scn_drip"))
++        global.gnx_scn_drip = [0, 0, 0];
++
++    with (obj_slot)
++    {
++        if (variable_struct_exists(slot_data, "gnx_pl") && is_array(slot_data.gnx_pl))
++        {
++            var _in = 0;
++
++            for (var p = 0; p < array_length(slot_data.gnx_pl); p++)
++            {
++                if (slot_data.gnx_pl[p].st != 0)
++                    _in++;
++            }
++
++            if (_in > 0 && variable_struct_exists(slot_data, "gnx_pl_cloop") && slot_data.gnx_pl_cloop)
++            {
++                global.gnx_scn_drip[1]++;
++
++                if (slot_data.anim_struct.sp_state != -1)
++                    global.gnx_scn_drip[0]++;
++            }
++            else if (_in == 0 && slot_data.anim_struct.sp_state != -1)
++            {
++                global.gnx_scn_drip[2]++;
++            }
++        }
++    }
++}
++
++function gnx_scn_places_drip_ok()
++{
++    var _d = variable_global_exists("gnx_scn_drip") ? global.gnx_scn_drip : [0, 0, 0];
++    gnx_scn_log("places drip: " + string(_d[0]) + " bad of " + string(_d[1]) + " looks, idle drip seen " + string(_d[2]));
++    return _d[1] > 0 && _d[0] == 0 && _d[2] > 0;
 +}
 +
 +
@@ -18241,7 +18307,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2769 @@
+@@ -0,0 +1,2777 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -19841,6 +19907,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    global.gnx_glow_bake_ms = 0;
 +    global.gnx_glow_bake_skipped = 0;
 +    global.gnx_mod_errors = [];
++    global.gnx_loading_manifest = undefined;
++    global.gnx_loading_classes = false;
 +    // Mav (1.4.7.5): destroy the name maps left by a previous load first, so they do not leak
 +    if (variable_global_exists("gnx_class_name_to_id") && ds_exists(global.gnx_class_name_to_id, ds_type_map))
 +        ds_map_destroy(global.gnx_class_name_to_id);
@@ -20556,6 +20624,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    gnx_load_translations(arg0);
 +    scr_gnx_init_mod_state(arg0, _manifest);
 +    global.gnx_current_loading_mod = arg0;
++    global.gnx_loading_manifest = _manifest;
 +    var _atlas_root = global.gnx_mods_root + arg0 + "/atlas/";
 +    
 +    if (file_exists(_atlas_root + "uv.json") && !ds_map_exists(global.gnx_mod_atlases, arg0))
@@ -20702,7 +20771,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    var _tmp_t0 = get_timer();
 +    
 +    if (variable_struct_exists(_manifest, "classes"))
++    {
++        global.gnx_loading_classes = true;
 +        scr_gnx_load_classes(arg0, _manifest.classes);
++        global.gnx_loading_classes = false;
++    }
 +    
 +    var _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " classes = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
@@ -20730,6 +20803,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    var _tmp_lg, _log;
 +    // sprites and the atlas look in the "currently loading" mod: set it again for each phase
 +    global.gnx_current_loading_mod = arg0;
++    global.gnx_loading_manifest = _manifest;
 +    if (arg2 == 2)
 +    {
 +        if (variable_struct_exists(_manifest, "cells"))
@@ -24187,7 +24261,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1194 @@
+@@ -0,0 +1,1198 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -24465,6 +24539,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        
 +        if (_cid != undefined)
 +            arg0.class = _cid;
++        else if (!global.gnx_loading_classes)
++            gnx_ref_missing("class", _ref, arg1);
 +    }
 +    
 +    if (variable_struct_exists(arg0, "h_type") && is_string(arg0.h_type))
@@ -24478,28 +24554,30 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        
 +        if (_hid != undefined)
 +            arg0.h_type = _hid;
-+        else
-+            gnx_cell_ref_missing(_ref, arg1);
++        else if (!global.gnx_loading_classes)
++            gnx_ref_missing("cell", _ref, arg1);
 +    }
 +}
 +
 +
-+// GNX-FIX: a cell reference arg0 ("folder.NAME") of mod arg1 that names no loaded cell. It stays text, so the condition
-+// never matches: before, without a word. A mod that is installed but has no such cell (or the mod's own cell
-+// written without its folder, e.g. "MILK BAR" from another mod) is a mod error; a mod that is not installed is only
-+// logged, so a quest can name an optional mod's cells and simply never match without it.
-+function gnx_cell_ref_missing(arg0, arg1)
++// GNX-FIX: a reference arg1 ("folder.NAME") in a condition of mod arg2 that names no loaded class or cell (arg0). It
++// stays text, so the condition never matches: before, without a word. A mod that is installed but has no such
++// name (or the mod's own cell written without its folder, e.g. "MILK BAR" from another mod) is a mod error; a mod
++// that is not installed is only logged, so a quest can name an optional mod's content and never match without it.
++// Not while classes load: no cell exists yet, nor the classes of later mods (scr_gnx_reresolve_class_conditions
++// asks again).
++function gnx_ref_missing(arg0, arg1, arg2)
 +{
-+    var _folder = string_copy(arg0, 1, string_pos(".", arg0) - 1);
++    var _folder = string_copy(arg1, 1, string_pos(".", arg1) - 1);
 +    
 +    if (array_contains(global.gnx_indexed_mods, _folder))
 +    {
-+        gnx_report_mod_error("Mod '" + string(arg1) + "': cell \"" + arg0 + "\" not found, so it never matches. Name a mod's cell as \"<its folder>.<its name>\" (e.g. \"py_more_cells_mod.MILK BAR\"), a vanilla cell by its number (guide, Appendix A)");
++        gnx_report_mod_error("Mod '" + string(arg2) + "': " + arg0 + " \"" + arg1 + "\" not found, so it never matches. Name a mod's " + arg0 + " as \"<its folder>.<its name>\" (e.g. \"py_more_cells_mod.MILK BAR\"), a vanilla one by its number (guide, Appendix A)");
 +    }
 +    else
 +    {
 +        var _l = gnx_log_open();
-+        gnx_log_write(_l, "[GNX] Mod '" + string(arg1) + "': cell \"" + arg0 + "\" belongs to mod '" + _folder + "', which is not installed: it never matches\n");
++        gnx_log_write(_l, "[GNX] Mod '" + string(arg2) + "': " + arg0 + " \"" + arg1 + "\" belongs to mod '" + _folder + "', which is not installed: it never matches\n");
 +        gnx_log_close(_l);
 +    }
 +}
@@ -24519,7 +24597,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        if (_hid != undefined)
 +            arg0.h_type = _hid;
 +        else
-+            gnx_cell_ref_missing(_ref, arg1);
++            gnx_ref_missing("cell", _ref, arg1);
 +    }
 +    
 +    if (variable_struct_exists(arg0, "class") && is_string(arg0.class))
@@ -42665,7 +42743,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_head_draw.gml gml/gml_GlobalScript_s_mon
 diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_remove.gml
 --- gml_138/gml_GlobalScript_s_mon_remove.gml
 +++ gml/gml_GlobalScript_s_mon_remove.gml
-@@ -5,18 +5,33 @@
+@@ -5,18 +5,36 @@
      var _unit = -1;
      var _remove = true;
      
@@ -42685,12 +42763,15 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
      }
 -    
 +
++    var _gnx_place_left = false;
++
 +    // GNX-PLACES: a cell with independent places names the one monster that leaves (scr_slot_h_gnx_places);
 +    // arg4 stays -1, so what vanilla does after a monster leaves (a goblin going on to a DRINK cell) still runs
 +    // (&& = and: only once, the name is cleared right away)
 +    if (arg4 == -1 && variable_struct_exists(slot_data, "gnx_leave_place") && slot_data.gnx_leave_place >= 0)
 +    {
 +        _placement = slot_data.gnx_leave_place;
++        _gnx_place_left = true;
 +        slot_data.gnx_leave_place = -1;
 +    }
 +
@@ -42701,7 +42782,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              for (var i = 0; i < slot_data.max_mon_num; i++)
              {
                  if (slot_data.mon_timer[i] == -1)
-@@ -29,7 +44,7 @@
+@@ -29,7 +47,7 @@
              {
                  var _lvl = unit_data.lvl;
                  
@@ -42710,7 +42791,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                      _lvl = 2;
                  
                  var _icon_x;
-@@ -41,20 +56,26 @@
+@@ -41,20 +59,26 @@
                  
                  var _milk_num = 1 * min(5, _lvl + 1);
                  global.val.food += _milk_num;
@@ -42742,7 +42823,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              }
              
              if (slot_data.mon_placement[1] != -1)
-@@ -62,7 +83,7 @@
+@@ -62,7 +86,7 @@
              
              break;
          
@@ -42751,7 +42832,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              if (!arg1)
              {
                  if (arg4 == -1)
-@@ -86,7 +107,7 @@
+@@ -86,7 +110,7 @@
              
              break;
          
@@ -42760,7 +42841,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              if (!arg1)
              {
                  if (arg4 == -1)
-@@ -107,7 +128,7 @@
+@@ -107,7 +131,7 @@
              
              break;
          
@@ -42769,7 +42850,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              if (!arg1)
              {
                  if (arg4 == -1)
-@@ -128,7 +149,7 @@
+@@ -128,7 +152,7 @@
              
              break;
          
@@ -42778,7 +42859,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              if (!arg1)
              {
                  if (arg4 == -1)
-@@ -151,7 +172,7 @@
+@@ -151,7 +175,7 @@
              
              break;
          
@@ -42787,7 +42868,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              if (array_length(h_unit_list) > 0)
                  h_unit_list[0].scr_mon_begin_step = -1;
              
-@@ -164,21 +185,39 @@
+@@ -164,21 +188,39 @@
          {
              if (!slot_data.anal)
              {
@@ -42832,7 +42913,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                      unit_data.preg = _type;
                      unit_data.preg_prd = 25;
                  }
-@@ -193,10 +232,10 @@
+@@ -193,10 +235,25 @@
              }
          }
          
@@ -42841,11 +42922,26 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              slot_data.slot_dirt = min(slot_data.slot_dirt + 1, 3);
          
 -        slot_data.anim_struct.sp_state = UnknownEnum.Value_0;
-+        slot_data.anim_struct.sp_state = 0;
++        // GNX-FIX: the idle drip starts once the cell is empty. With independent places the others go on, and its first
++        // frame stayed on screen: nothing advances it before idle (!= -1: another monster has a place)
++        var _gnx_stay = false;
++        
++        if (_gnx_place_left)
++        {
++            for (var _gp = 0; _gp < array_length(slot_data.mon_placement); _gp++)
++            {
++                if (_gp != _placement && slot_data.mon_placement[_gp] != -1)
++                    _gnx_stay = true;
++            }
++        }
++        
++        if (!_gnx_stay)
++            slot_data.anim_struct.sp_state = 0;
++        
          scr_slot_get_coin_data(slot_data.h_type, unit_data);
      }
      else if (arg3)
-@@ -204,7 +243,7 @@
+@@ -204,7 +261,7 @@
          scr_mood_value_set(-0.35);
      }
      
@@ -42854,7 +42950,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
      {
          if (_remove)
          {
-@@ -221,17 +260,93 @@
+@@ -221,17 +278,93 @@
              {
                  while (array_length(h_unit_list) > 0)
                  {
@@ -42948,7 +43044,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
              }
          }
          else
-@@ -245,12 +360,12 @@
+@@ -245,12 +378,12 @@
          
          if (slot_data.anim_struct != -1)
          {
@@ -42963,7 +43059,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
          {
              var _floor = slot_data.slot_floor;
              var _pos = ds_list_find_index(global.slot_list[_floor], id);
-@@ -285,12 +400,12 @@
+@@ -285,12 +418,12 @@
          
          switch (slot_data.h_type)
          {
@@ -42978,7 +43074,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                      }
                      else
                      {
-@@ -305,43 +420,43 @@
+@@ -305,43 +438,43 @@
                  
                  break;
              
@@ -43033,7 +43129,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                  if (arg4 != -1)
                  {
                      if (array_length(h_unit_list) == 1)
-@@ -352,7 +467,7 @@
+@@ -352,7 +485,7 @@
                          {
                              visible = true;
                              mon_data.ff = true;
@@ -43042,7 +43138,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                              mon_data.slot_id = scr_find_nearest_door(x, y, mon_data.mon_floor);
                          }
                          
-@@ -363,19 +478,34 @@
+@@ -363,19 +496,34 @@
                  
                  break;
              
@@ -43080,7 +43176,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                                  
                                  if (_ar != -1)
                                  {
-@@ -390,39 +520,87 @@
+@@ -390,39 +538,87 @@
                              
                              if (_place != -1)
                              {
@@ -43173,7 +43269,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
      }
      else
      {
-@@ -448,7 +626,8 @@
+@@ -448,7 +644,8 @@
  function scr_remove_mon(arg0, arg1, arg2, arg3)
  {
      var _h_num = array_length(h_unit_list);
@@ -43183,7 +43279,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
      
      for (var i = 0; i < _h_num; i++)
      {
-@@ -461,53 +640,57 @@
+@@ -461,53 +658,57 @@
                  var _old_placement_num = mon_data.placement_num;
                  visible = true;
                  scr_mon_draw = -1;
@@ -43252,7 +43348,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                          
                          if (arg3 == -1)
                              arg3 = scr_find_nearest_door(x, y, mon_data.mon_floor);
-@@ -515,7 +698,7 @@
+@@ -515,7 +716,7 @@
                          mon_data.slot_id = arg3;
                          break;
                      
@@ -43261,7 +43357,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                          with (_old_slot_id)
                          {
                              slot_data.mod_index[0] = 0;
-@@ -547,15 +730,15 @@
+@@ -547,15 +748,15 @@
                          {
                              with (_id)
                              {
@@ -43280,7 +43376,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                                  {
                                      mon_data.carry_end_id.slot_data.load = false;
                                      mon_data.carry_end_id.slot_data.carry = false;
-@@ -564,12 +747,12 @@
+@@ -564,12 +765,12 @@
                                  }
                                  
                                  _old_slot_id.scr_slot_step = scr_slot_state;
@@ -43295,7 +43391,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                          
                          if (carry_emitter != -1)
                          {
-@@ -580,53 +763,66 @@
+@@ -580,53 +781,66 @@
                          
                          break;
                      
@@ -43376,7 +43472,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                          mon_data.mood_timer = 180;
                          scr_mood_value_set(-0.7);
                          break;
-@@ -644,30 +840,15 @@
+@@ -644,30 +858,15 @@
          }
      }
      

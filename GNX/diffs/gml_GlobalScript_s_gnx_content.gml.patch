@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,4108 @@
+@@ -0,0 +1,4124 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -339,6 +339,22 @@
 +}
 +
 +
++// GNX-FIX: adds "folder.NAME" to a class or cell name map, plus "<mod_id>.NAME" and "<manifest name>.NAME" of the mod being
++// loaded: a mod's folder depends on how it was installed, and a reference written with its other name must still
++// resolve. A real folder name wins over another mod's alias (ds_map_set / ds_map_add).
++function gnx_name_map_add(arg0, arg1, arg2, arg3)
++{
++    ds_map_set(arg0, arg1 + "." + arg2, arg3);
++    var _m = global.gnx_loading_manifest;
++    
++    if (is_struct(_m) && variable_struct_exists(_m, "mod_id") && is_string(_m.mod_id))
++        ds_map_add(arg0, _m.mod_id + "." + arg2, arg3);
++    
++    if (is_struct(_m) && variable_struct_exists(_m, "name") && is_string(_m.name))
++        ds_map_add(arg0, _m.name + "." + arg2, arg3);
++}
++
++
 +function gnx_report_mod_error(arg0)
 +{
 +    if (!variable_global_exists("gnx_mod_errors") || !is_array(global.gnx_mod_errors))
@@ -564,7 +580,7 @@
 +    }
 +
 +    if (variable_struct_exists(arg0, "name"))
-+        ds_map_add(global.gnx_cell_name_to_id, arg1 + "." + arg0.name, _h);
++        gnx_name_map_add(global.gnx_cell_name_to_id, arg1, arg0.name, _h);
 +
 +    var _phys = arg0.physical;
 +    var _sprites_dict = gnx_opt(arg0, "sprites", undefined);
@@ -2853,7 +2869,7 @@
 +    else
 +        _class_id = gnx_hash_class_id(arg1, _class_name);
 +    
-+    ds_map_add(global.gnx_class_name_to_id, arg1 + "." + _class_name, _class_id);
++    gnx_name_map_add(global.gnx_class_name_to_id, arg1, _class_name, _class_id);
 +    
 +    if (ds_map_exists(global.class_registry, _class_id) && !_allow_override)
 +    {

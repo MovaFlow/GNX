@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,5599 @@
+@@ -0,0 +1,5649 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1957,6 +1957,56 @@
 +        x = _c.x - 300;
 +        y = _c.y - 100;
 +    }
++}
++
++
++// for {"assert": "fn"}: quest event arg0's completion key arg1 ("class", "h_type") was resolved to an ID
++function gnx_scn_quest_ref_ok(arg0, arg1)
++{
++    var _e = ds_map_find_value(global.gnx_quest_events, arg0);
++    return _e != undefined && is_numeric(variable_struct_get(_e.completion, arg1));
++}
++
++
++// {"call": "gnx_scn_places_drip_watch"}: looks at every cell with independent places: monsters inside after one left and
++// the captive's idle drip showing (sp_state != -1) counts as bad; it must still show once the cell is empty. gnx_scn_places_drip_ok is the assert
++function gnx_scn_places_drip_watch()
++{
++    if (!variable_global_exists("gnx_scn_drip"))
++        global.gnx_scn_drip = [0, 0, 0];
++
++    with (obj_slot)
++    {
++        if (variable_struct_exists(slot_data, "gnx_pl") && is_array(slot_data.gnx_pl))
++        {
++            var _in = 0;
++
++            for (var p = 0; p < array_length(slot_data.gnx_pl); p++)
++            {
++                if (slot_data.gnx_pl[p].st != 0)
++                    _in++;
++            }
++
++            if (_in > 0 && variable_struct_exists(slot_data, "gnx_pl_cloop") && slot_data.gnx_pl_cloop)
++            {
++                global.gnx_scn_drip[1]++;
++
++                if (slot_data.anim_struct.sp_state != -1)
++                    global.gnx_scn_drip[0]++;
++            }
++            else if (_in == 0 && slot_data.anim_struct.sp_state != -1)
++            {
++                global.gnx_scn_drip[2]++;
++            }
++        }
++    }
++}
++
++function gnx_scn_places_drip_ok()
++{
++    var _d = variable_global_exists("gnx_scn_drip") ? global.gnx_scn_drip : [0, 0, 0];
++    gnx_scn_log("places drip: " + string(_d[0]) + " bad of " + string(_d[1]) + " looks, idle drip seen " + string(_d[2]));
++    return _d[1] > 0 && _d[0] == 0 && _d[2] > 0;
 +}
 +
 +

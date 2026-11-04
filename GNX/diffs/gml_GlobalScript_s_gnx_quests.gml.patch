@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1194 @@
+@@ -0,0 +1,1198 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -278,6 +278,8 @@
 +        
 +        if (_cid != undefined)
 +            arg0.class = _cid;
++        else if (!global.gnx_loading_classes)
++            gnx_ref_missing("class", _ref, arg1);
 +    }
 +    
 +    if (variable_struct_exists(arg0, "h_type") && is_string(arg0.h_type))
@@ -291,28 +293,30 @@
 +        
 +        if (_hid != undefined)
 +            arg0.h_type = _hid;
-+        else
-+            gnx_cell_ref_missing(_ref, arg1);
++        else if (!global.gnx_loading_classes)
++            gnx_ref_missing("cell", _ref, arg1);
 +    }
 +}
 +
 +
-+// GNX-FIX: a cell reference arg0 ("folder.NAME") of mod arg1 that names no loaded cell. It stays text, so the condition
-+// never matches: before, without a word. A mod that is installed but has no such cell (or the mod's own cell
-+// written without its folder, e.g. "MILK BAR" from another mod) is a mod error; a mod that is not installed is only
-+// logged, so a quest can name an optional mod's cells and simply never match without it.
-+function gnx_cell_ref_missing(arg0, arg1)
++// GNX-FIX: a reference arg1 ("folder.NAME") in a condition of mod arg2 that names no loaded class or cell (arg0). It
++// stays text, so the condition never matches: before, without a word. A mod that is installed but has no such
++// name (or the mod's own cell written without its folder, e.g. "MILK BAR" from another mod) is a mod error; a mod
++// that is not installed is only logged, so a quest can name an optional mod's content and never match without it.
++// Not while classes load: no cell exists yet, nor the classes of later mods (scr_gnx_reresolve_class_conditions
++// asks again).
++function gnx_ref_missing(arg0, arg1, arg2)
 +{
-+    var _folder = string_copy(arg0, 1, string_pos(".", arg0) - 1);
++    var _folder = string_copy(arg1, 1, string_pos(".", arg1) - 1);
 +    
 +    if (array_contains(global.gnx_indexed_mods, _folder))
 +    {
-+        gnx_report_mod_error("Mod '" + string(arg1) + "': cell \"" + arg0 + "\" not found, so it never matches. Name a mod's cell as \"<its folder>.<its name>\" (e.g. \"py_more_cells_mod.MILK BAR\"), a vanilla cell by its number (guide, Appendix A)");
++        gnx_report_mod_error("Mod '" + string(arg2) + "': " + arg0 + " \"" + arg1 + "\" not found, so it never matches. Name a mod's " + arg0 + " as \"<its folder>.<its name>\" (e.g. \"py_more_cells_mod.MILK BAR\"), a vanilla one by its number (guide, Appendix A)");
 +    }
 +    else
 +    {
 +        var _l = gnx_log_open();
-+        gnx_log_write(_l, "[GNX] Mod '" + string(arg1) + "': cell \"" + arg0 + "\" belongs to mod '" + _folder + "', which is not installed: it never matches\n");
++        gnx_log_write(_l, "[GNX] Mod '" + string(arg2) + "': " + arg0 + " \"" + arg1 + "\" belongs to mod '" + _folder + "', which is not installed: it never matches\n");
 +        gnx_log_close(_l);
 +    }
 +}
@@ -332,7 +336,7 @@
 +        if (_hid != undefined)
 +            arg0.h_type = _hid;
 +        else
-+            gnx_cell_ref_missing(_ref, arg1);
++            gnx_ref_missing("cell", _ref, arg1);
 +    }
 +    
 +    if (variable_struct_exists(arg0, "class") && is_string(arg0.class))

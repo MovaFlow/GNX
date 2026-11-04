@@ -13,6 +13,10 @@
 ### Bug Fixes
 
 - A stage's name on the raid map, shown while it is pointed at or selected, could be covered by the other stage buttons; that button is now drawn in front.
+- A mod installed by dragging its zip onto the installer got a folder named after its `mod_id`, not the zip's own folder as with a manual extract. Class and cell references written with the folder name (`"MyMod.GIRL"` in a folder `mymod`) then matched nothing, so quests never finished, with no error. The installer now uses the zip's folder and replaces an installed copy of the same mod; references also accept the mod's `mod_id` or `name`, so mods already installed that way work as they are.
+- A class named in a quest or trigger condition that an installed mod does not have is now a mod error, as cells already were (a class of a mod that is not installed is only logged).
+- A cell named in a class's condition (`raid_spawns`, `cage_escape`) was reported as not found while classes loaded, before any cell existed.
+- In cells with independent places, the first frame of the captive's idle drip showed when one monster left and others stayed. It now plays only once the cell is empty.
 - COPY DOWN refused a floor whose cells had been removed ("the floor below is not empty"): removing a cell leaves its empty slot. Empty slots in the same layout as the floor above now get its cells (only the cells are paid for); empty slots in another layout get a message saying so.
 
 ## v1.5.1

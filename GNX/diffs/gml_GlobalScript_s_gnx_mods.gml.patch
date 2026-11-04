@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2769 @@
+@@ -0,0 +1,2777 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1600,6 +1600,8 @@
 +    global.gnx_glow_bake_ms = 0;
 +    global.gnx_glow_bake_skipped = 0;
 +    global.gnx_mod_errors = [];
++    global.gnx_loading_manifest = undefined;
++    global.gnx_loading_classes = false;
 +    // Mav (1.4.7.5): destroy the name maps left by a previous load first, so they do not leak
 +    if (variable_global_exists("gnx_class_name_to_id") && ds_exists(global.gnx_class_name_to_id, ds_type_map))
 +        ds_map_destroy(global.gnx_class_name_to_id);
@@ -2315,6 +2317,7 @@
 +    gnx_load_translations(arg0);
 +    scr_gnx_init_mod_state(arg0, _manifest);
 +    global.gnx_current_loading_mod = arg0;
++    global.gnx_loading_manifest = _manifest;
 +    var _atlas_root = global.gnx_mods_root + arg0 + "/atlas/";
 +    
 +    if (file_exists(_atlas_root + "uv.json") && !ds_map_exists(global.gnx_mod_atlases, arg0))
@@ -2461,7 +2464,11 @@
 +    var _tmp_t0 = get_timer();
 +    
 +    if (variable_struct_exists(_manifest, "classes"))
++    {
++        global.gnx_loading_classes = true;
 +        scr_gnx_load_classes(arg0, _manifest.classes);
++        global.gnx_loading_classes = false;
++    }
 +    
 +    var _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " classes = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
@@ -2489,6 +2496,7 @@
 +    var _tmp_lg, _log;
 +    // sprites and the atlas look in the "currently loading" mod: set it again for each phase
 +    global.gnx_current_loading_mod = arg0;
++    global.gnx_loading_manifest = _manifest;
 +    if (arg2 == 2)
 +    {
 +        if (variable_struct_exists(_manifest, "cells"))
