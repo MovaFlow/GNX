@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,5670 @@
+@@ -0,0 +1,5785 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -5645,6 +5645,121 @@
 +    var _i = scr_gnx_read_save_mod_info(_f);
 +    file_delete(_f);
 +    return _i.menu_bad;
++}
++
++
++// Scenario atlas_async_pages: atlas pages loading in the background (gnx_atlas_page_add).
++function gnx_scn_atlas_pages_left()
++{
++    return variable_struct_names_count(global.gnx_atlas_pages);
++}
++
++
++// {"call": "gnx_scn_atlas_timeout", "args": [ms]}
++function gnx_scn_atlas_timeout(arg0)
++{
++    global.gnx_atlas_page_timeout = arg0 * 1000;
++}
++
++
++function gnx_scn_atlas_failed_pages(arg0)
++{
++    return ds_map_find_value(global.gnx_mod_atlases, arg0).failed_pages;
++}
++
++
++function gnx_scn_atlas_entries(arg0)
++{
++    return array_length(variable_struct_get_names(ds_map_find_value(global.gnx_mod_atlases, arg0).sprrefs));
++}
++
++
++// Loads page file arg1 of mod arg0 again and, in the same frame, checks the rectangle 0,0 arg2 x arg3 and bakes it.
++// 1 = the page was still loading, the rectangle counted as inside it and the bake worked.
++function gnx_scn_atlas_bake_loading(arg0, arg1, arg2, arg3)
++{
++    var _spr = gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
++    var _pages = [_spr];
++    var _frames = [{ atlas: 0, x: 0, y: 0, w: arg2, h: arg3 }];
++    var _loading = sprite_get_width(_spr) != gnx_atlas_page_w(_spr);
++    var _inside = gnx_atlas_frames_bad(_pages, _frames) == "";
++    var _bk = gnx_sprref_bake(sprref_atlas_multi(_pages, _frames, 0, 0));
++    global.gnx_scn_bake_probe = { page: _spr, baked: _bk, x: 0, y: 0, w: arg2, h: arg3 };
++    return (_loading && _inside && _bk != -1) ? 1 : 0;
++}
++
++
++// After gnx_scn_atlas_bake_loading, once the page is ready: 1 = the bake holds the page's pixels, and they are not blank.
++function gnx_scn_atlas_bake_same()
++{
++    var _p = global.gnx_scn_bake_probe;
++    var _n = _p.w * _p.h * 4;
++    var _bufs = [];
++    gpu_push_state();
++    gpu_set_blendmode_ext(bm_one, bm_zero);
++
++    for (var _pass = 0; _pass < 2; _pass++)
++    {
++        var _sf = surface_create(_p.w, _p.h);
++        surface_set_target(_sf);
++        draw_clear_alpha(c_black, 0);
++
++        if (_pass == 0)
++            draw_sprite_part_ext(_p.page, 0, _p.x, _p.y, _p.w, _p.h, 0, 0, 1, 1, c_white, 1);
++        else
++            draw_sprite_ext(_p.baked, 0, 0, 0, 1, 1, 0, c_white, 1);
++
++        surface_reset_target();
++        var _bf = buffer_create(_n, buffer_fixed, 1);
++        buffer_get_surface(_bf, _sf, 0);
++        surface_free(_sf);
++        array_push(_bufs, _bf);
++    }
++
++    gpu_pop_state();
++    var _same = buffer_md5(_bufs[0], 0, _n) == buffer_md5(_bufs[1], 0, _n);
++    var _blank = true;
++
++    for (var _i = 0; _i < _n && _blank; _i++)
++    {
++        if (buffer_peek(_bufs[0], _i, buffer_u8) != 0)
++            _blank = false;
++    }
++
++    buffer_delete(_bufs[0]);
++    buffer_delete(_bufs[1]);
++    return (_same && !_blank) ? 1 : 0;
++}
++
++
++// A new page left loading (for the report of a page taking too long).
++function gnx_scn_atlas_add_loading(arg0, arg1)
++{
++    gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
++}
++
++
++// A page deleted while loading, with a temporary copy waiting too. 1 = it was still loading.
++function gnx_scn_atlas_delete_loading(arg0, arg1)
++{
++    var _spr = gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
++    var _pages = [_spr];
++    var _loading = sprite_get_width(_spr) != gnx_atlas_page_w(_spr);
++    gnx_atlas_page_now(_spr);
++    sprite_delete(_spr);
++    return _loading ? 1 : 0;
++}
++
++
++// A page still loading when every runtime sprite is deleted (leaving the game). 1 = it was still loading.
++function gnx_scn_atlas_cleanup_loading(arg0, arg1)
++{
++    var _spr = gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
++    var _pages = [_spr];
++    array_push(global.gnx_runtime_sprites, _spr);
++    var _loading = sprite_get_width(_spr) != gnx_atlas_page_w(_spr);
++    scr_gnx_cleanup_sprites();
++    return _loading ? 1 : 0;
 +}
 +
 +
