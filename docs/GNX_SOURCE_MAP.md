@@ -10,10 +10,10 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 |---|---|---|---|
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 63 | 2542 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 75 | 4141 |
-| `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 34 | 1233 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 247 | 5671 |
+| `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 44 | 1412 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 256 | 5786 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 302 |
-| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 57 | 2875 |
+| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 57 | 2891 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 27 | 826 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2341 |
 | `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 23 | 1199 |
@@ -35,7 +35,15 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_array_without` | `s_gnx_util.gml` |
 | `gnx_atlas_check` | `s_gnx_draw.gml` |
 | `gnx_atlas_frames_bad` | `s_gnx_draw.gml` |
+| `gnx_atlas_page_add` | `s_gnx_draw.gml` |
+| `gnx_atlas_page_done` | `s_gnx_draw.gml` |
+| `gnx_atlas_page_h` | `s_gnx_draw.gml` |
+| `gnx_atlas_page_now` | `s_gnx_draw.gml` |
+| `gnx_atlas_page_w` | `s_gnx_draw.gml` |
+| `gnx_atlas_pages_forget` | `s_gnx_draw.gml` |
+| `gnx_atlas_pages_step` | `s_gnx_draw.gml` |
 | `gnx_atlas_resolve_ref` | `s_gnx_draw.gml` |
+| `gnx_be32` | `s_gnx_draw.gml` |
 | `gnx_between_apply` | `s_gnx_nest.gml` |
 | `gnx_between_spr` | `s_gnx_nest.gml` |
 | `gnx_between_width` | `s_gnx_nest.gml` |
@@ -251,6 +259,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_places_spd` | `s_gnx_cells.gml` |
 | `gnx_places_speed_parse` | `s_gnx_cells.gml` |
 | `gnx_places_taken` | `s_gnx_cells.gml` |
+| `gnx_png_intact` | `s_gnx_draw.gml` |
 | `gnx_png_size` | `s_gnx_draw.gml` |
 | `gnx_pool_add` | `s_gnx_raid.gml` |
 | `gnx_pool_pick` | `s_gnx_raid.gml` |
@@ -305,6 +314,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_resolve_sprite` | `s_gnx_content.gml` |
 | `gnx_resolve_sprite_raw` | `s_gnx_content.gml` |
 | `gnx_route_at` | `s_gnx_raid.gml` |
+| `gnx_runtime_frames` | `s_gnx_draw.gml` |
 | `gnx_same_set` | `s_gnx_mods.gml` |
 | `gnx_save_cache_clear` | `s_gnx_mods.gml` |
 | `gnx_save_file` | `s_gnx_nest.gml` |
@@ -359,6 +369,15 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_as_travel_menu` | `s_gnx_harness.gml` |
 | `gnx_scn_as_unlocked` | `s_gnx_harness.gml` |
 | `gnx_scn_as_val` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_add_loading` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_bake_loading` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_bake_same` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_cleanup_loading` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_delete_loading` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_entries` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_failed_pages` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_pages_left` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_timeout` | `s_gnx_harness.gml` |
 | `gnx_scn_bgm` | `s_gnx_harness.gml` |
 | `gnx_scn_bgm_pool` | `s_gnx_harness.gml` |
 | `gnx_scn_birth` | `s_gnx_harness.gml` |
