@@ -12,6 +12,7 @@
 
 ### Bug Fixes
 
+- Raid units on the first three stages came at higher levels than in the base game, which made early raids harder and captives worth more: GNX picked each level evenly where the game favours the lower one. They now have the game's odds. A mod's `raid_spawns` entries still pick any level from `min_lvl` to `max_lvl` evenly.
 - A stage's name on the raid map, shown while it is pointed at or selected, could be covered by the other stage buttons; that button is now drawn in front.
 - Atlas packing: when a mod's JSON and a strip's file name differed in capitals, `gnx_atlas_pack` ignored the declared `frames` and guessed, so birth, DAIRY and idle sprites could play wrong frames (a 30-frame strip of 45 x 90 cut into 15 frames of 90 x 90). The packer now ignores capitals and warns about every guess. GNX compares an atlas with the JSON: it uses the strip if the mod still ships it, otherwise a mod error asks the author to pack again.
 - Too many mods turned cells and characters invisible with no error: the game can show about 32,700 sprite frames from mods, and past that sprites load but draw nothing. Every frame of a strip counts, an atlas page counts as one. GNX now reports going over as a mod error naming the mods with the most frames, and the MODS page shows how full it is, as a percentage with the count.
