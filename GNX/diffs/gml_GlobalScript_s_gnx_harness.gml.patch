@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7309 @@
+@@ -0,0 +1,7344 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2175,6 +2175,41 @@
 +        scr_set_slot_h_data(_c, arg0);
 +
 +    gnx_scn_log("make_cell h=" + string(arg0) + ((_c != -1) ? " done" : " no empty cell of types " + json_stringify(arg1)));
++}
++
++
++// {"call": "gnx_scn_cage_to_cell", "args": [h_type, cage slot]}: the drop of a cage head on the first empty cell of that
++// type (s_mouse_action): the captive leaves the cage and goes into the cell
++function gnx_scn_cage_to_cell(arg0, arg1)
++{
++    var _c = -1;
++
++    with (obj_slot)
++    {
++        if (_c == -1 && slot_data.anim_struct != -1 && !is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg0)
++            _c = id;
++    }
++
++    var _u = global.val.cage[arg1];
++
++    if (_c == -1 || !is_struct(_u))
++    {
++        scr_gnx_scn_check("cage_to_cell", false, "no empty cell h=" + string(arg0) + " or nothing in cage slot " + string(arg1));
++        exit;
++    }
++
++    global.val.cage[arg1] = -1;
++
++    with (obj_button)
++    {
++        if (interact_type == 20 && drag_type == 5 && button_num == arg1)
++            instance_destroy();
++    }
++
++    scr_occupy_slot(_c, _u, false, 1);
++    global.gnx_scn_occupied = _c;  // as the occupy step, for camera_on_occupied
++    global.gnx_scn_occupied_pos = [_c.slot_data.slot_floor, ds_list_find_index(global.slot_list[_c.slot_data.slot_floor], _c)];
++    gnx_scn_log("cage_to_cell class=" + string(_u.class) + " cell " + string(_c));
 +}
 +
 +

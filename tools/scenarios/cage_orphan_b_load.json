@@ -1,0 +1,32 @@
+{
+  "about": "Load a save with two captives of a removed mod in the cage (fixture cage_orphan, made by cage_orphan_a_setup) with no mods installed. They must be replaced, not dropped, like the prison's and the cells' orphans, and then work: the cage heads draw, one goes by hand onto a cell, the other is collected to the prison, the daily boss check and a save/reload still pass.",
+  "fixture": "cage_orphan",
+  "mods": [],
+  "timeout": 120,
+  "steps": [
+    {"wait": 60},
+    {"assert": "registry_ok", "why": "no captive of the removed class is left in the cage"},
+    {"assert": "raid", "cage": 2, "why": "the captives are replaced, not dropped"},
+    {"call": "scr_check_all_boss_exists"},
+    {"open_raid": true},
+    {"wait": 10},
+    {"screenshot": "cage"},
+    {"call": "gnx_scn_cage_to_cell", "args": [12, 4]},
+    {"open_raid": false},
+    {"call": "gnx_scn_camera_on_occupied", "why": "an off-screen cell is frozen"},
+    {"wait": 300, "why": "the captive plays in the cell"},
+    {"screenshot": "cell"},
+    {"assert": "registry_ok"},
+    {"open_raid": true},
+    {"wait": 5},
+    {"press": {"type": 47, "num": 1}},
+    {"wait": 5},
+    {"assert": "raid", "cage": 0},
+    {"assert": "min", "key": "prisoners", "value": 17, "why": "the fixture's 16 and the collected captive"},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 60},
+    {"assert": "registry_ok"},
+    {"assert": "min", "key": "prisoners", "value": 17}
+  ]
+}
