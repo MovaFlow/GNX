@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2874 @@
+@@ -0,0 +1,2888 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2145,7 +2145,8 @@
 +// GNX-FRAMES: the runtime gives every sprite frame a texture slot, and past about 32768 of them (measured: 32740 frames
 +// added to a vanilla game) sprite_add still succeeds but the new frames draw nothing: invisible cells and characters,
 +// with no error. An atlas page is one frame. So the loader counts the frames and says so.
-+// ponytail: sprite_replace's backups are not in the list, a few hundred frames at most
++// The game sprites that sprite_replace and world art overwrite cost frames too: sprite_assign's copy and the backup of the game's own
++// art are counted below, kept out of gnx_runtime_sprites (scr_gnx_cleanup_sprites deletes everything in that list).
 +function gnx_frames_check()
 +{
 +    gnx_frames_note(global.gnx_current_loading_mod);
@@ -2161,6 +2162,16 @@
 +    {
 +        if (sprite_exists(_l[_i]))
 +            _used += sprite_get_number(_l[_i]);
++    }
++
++    // GNX-ART: assigned art is counted though unmeasured (the runtime may share it with its source), which is the safe side
++    _used += global.gnx_assign_frames;
++    var _bk_k = ds_map_find_first(global.gnx_sprite_backup);
++
++    while (_bk_k != undefined)
++    {
++        _used += sprite_get_number(ds_map_find_value(global.gnx_sprite_backup, _bk_k));
++        _bk_k = ds_map_find_next(global.gnx_sprite_backup, _bk_k);
 +    }
 +
 +    global.gnx_frames_used = _used;
@@ -2642,6 +2653,9 @@
 +    
 +    if (variable_struct_exists(_manifest, "sprite_replace"))
 +        scr_gnx_load_sprite_replace(arg0, _manifest.sprite_replace, _manifest);  // GNX-REPLACE
++
++    if (variable_struct_exists(_manifest, "monster_art"))
++        scr_gnx_load_monster_art(arg0, _manifest.monster_art, _manifest);  // GNX-ART
 +    
 +    _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");

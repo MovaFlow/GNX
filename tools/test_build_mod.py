@@ -63,3 +63,83 @@ with tempfile.TemporaryDirectory() as tmp:
 print("deploy ok")
 assert not errs({"map": "m", "map_info": {"travel_cost": {"gold": 50, "food": 10, "days": 1}}})
 assert errs({"map": "m", "map_info": {"travel_cost": {"gold": -5}}}) and errs({"map": "m", "map_info": {"travel_cost": 50}})
+
+
+# monster_art and sprite_replace art lives in free folders: the deploy must copy it, for a file name or an inline object, and for every
+# value form the loader reads (gnx_resolve_sprite_raw): a file, a folder, strip, path, folder, a frames list of files
+from build_mod import art_paths
+
+with tempfile.TemporaryDirectory() as tmp:
+    d = Path(tmp) / "mod"  # outside.png below lands in tmp, not in the system temp folder
+    d.mkdir()
+    for rel in ("world/walk.png", "world/idle.png", "world/p.png", "world/f1.png", "world/f2.png", "art/x.png", "art/frames/1.png", "art/frames/2.png",
+                "art/s.png", "art/y1.png", "fold/0.png", "fold/1.png", "unrelated/other.png"):
+        (d / rel).parent.mkdir(parents=True, exist_ok=True)
+        (d / rel).write_bytes(b"x")
+    (d.parent / "outside.png").write_bytes(b"x")
+    (d / "ma.json").write_text(json.dumps({
+        "_note": "x",
+        "sprites": {"s1": {"strip": "art/s.png", "frames": 2}, "s2": {"frames": ["art/y1.png"]}},
+        "goblin": {"world": {"walk": "world/walk.png", "idle": {"strip": "world/idle.png", "frames": 8}, "walk_back": {"path": "world/p.png"},
+                             "milk_walk_empty": {"frames": ["world/f1.png", "world/f2.png"]}, "milk_walk_full": {"folder": "fold"}}},
+        "ogre": {"world": {"walk": "world/walk.png", "idle": "world/missing.png", "walk_carry": "../outside.png"}}}), encoding="utf-8")
+    rel = lambda ps: sorted(str(p.relative_to(d)).replace("\\", "/") for p in ps)
+    m = {"monster_art": "ma.json", "sprite_replace": {"spr_a": "art/x.png", "spr_b": "art/frames", "_c": "art/s.png", "spr_d": {"strip": "art/x.png"}}}
+    got = rel(art_paths(m, d))
+    want = ["art/frames/1.png", "art/frames/2.png", "art/s.png", "art/x.png", "art/y1.png", "fold/0.png", "fold/1.png", "ma.json", "world/f1.png",
+            "world/f2.png", "world/idle.png", "world/p.png", "world/walk.png"]
+    assert got == want, got
+    # inline object: no ma.json; a sprite_replace file name that holds the object
+    assert art_paths({"monster_art": {"goblin": {"world": {"walk": "world/walk.png"}}}}, d) == [d / "world" / "walk.png"]
+    (d / "sr.json").write_text(json.dumps({"spr_a": "art/x.png", "spr_z": {"folder": "art/frames"}}), encoding="utf-8")
+    assert rel(art_paths({"sprite_replace": "sr.json"}, d)) == ["art/frames/1.png", "art/frames/2.png", "art/x.png", "sr.json"]
+    # nothing, a missing file, a file that is not JSON, wrong types: no files and no crash
+    assert art_paths({}, d) == []
+    assert art_paths({"monster_art": "nope.json", "sprite_replace": 5}, d) == []
+    (d / "bad.json").write_text("{not json", encoding="utf-8")
+    assert rel(art_paths({"monster_art": "bad.json"}, d)) == ["bad.json"]
+    assert art_paths({"monster_art": {"goblin": 5, "ogre": {"world": 5}, "sprites": 5}}, d) == []
+print("art_paths ok")
+
+# the deploy itself, on real test mods: every art file the manifest names is in GNX_mods/<mod>/ with the same bytes, and a file nothing
+# names is not. (harness_replace: sprite_replace from a JSON file, folder and strip forms; the others: monster_art inline, world files)
+DEPLOY_ART = {
+    "harness_replace": ["sprite_replace.json", "art/red_birth.png", "art/pillar/spr_slot_giant_pillar_1.png", "art/giant_head/spr_giant_idle_head_4.png",
+                        "art/small.png", "art/box_same.png", "art/idle_half.png"],
+    "harness_art_world": ["world/walk.png", "world/ogre.png", "world/log2.png"],
+    "harness_art_world_folder": ["art/walk_same.png", "world/frames/0.png", "world/frames/1.png"],
+    "harness_art_world_forms": ["world/walk_same.png", "world/big.png"],
+}
+for mod, files in DEPLOY_ART.items():
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / "src" / mod
+        shutil.copytree(ROOT / "tools/scenarios/mods" / mod, src)
+        (src / "notes_not_art.png").write_bytes(b"x")  # in no manifest entry: stays behind
+        game = Path(tmp) / "game"
+        game.mkdir()
+        r = subprocess.run([sys.executable, str(ROOT / "tools/build_mod.py"), str(src), str(game), "--skip-pack", "--deploy-anyway"], capture_output=True, text=True)
+        assert r.returncode == 0, r.stdout + r.stderr
+        dep = game / "GNX_mods" / mod
+        for f in files:
+            assert (dep / f).is_file(), f"build_mod did not deploy {mod}/{f}"
+            assert (dep / f).read_bytes() == (src / f).read_bytes(), f"{mod}/{f} differs"
+        assert not (dep / "notes_not_art.png").exists(), f"{mod}: a file no manifest entry names was deployed"
+print("art deploy ok")
+
+# an inline object where a role names a file (classes, cells, quests...): the packer and the verify step skip it, no crash
+try:
+    import gnx_pack_strips  # exits when Pillow is missing (python without it: that one check is skipped, run with py)
+    assert gnx_pack_strips.find_json_files(ROOT, {"classes": {"inline": 1}, "cells": ["x"]}) == {}
+except SystemExit as e:
+    print("skipped the packer check:", e)
+with tempfile.TemporaryDirectory() as tmp:
+    src = Path(tmp) / "src" / "inline_roles"
+    src.mkdir(parents=True)
+    (src / "manifest.json").write_text(json.dumps({"mod_id": "inline_roles", "name": "x", "version": "1", "compatible_game_versions": ["1.40"],
+                                                   "quests": {"events": {}}, "props": {"props": []}}), encoding="utf-8")
+    game = Path(tmp) / "game"
+    game.mkdir()
+    r = subprocess.run([sys.executable, str(ROOT / "tools/build_mod.py"), str(src), str(game), "--skip-pack", "--deploy-anyway"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (game / "GNX_mods" / "inline_roles" / "manifest.json").is_file()
+print("inline roles ok")

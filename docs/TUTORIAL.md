@@ -423,7 +423,7 @@ quick confirmation the menu is dispatching your clicks.
 
 Once the basics above work, GNX_MODDING.md covers the rest:
 
-- [§10 Cell sprites](GNX_MODDING.md#10-cell-sprites-human_spr-and-mon_spr)  - three cell
+- [§10 Cell sprites](GNX_MODDING.md#10-cell-sprites-human_spr-and-monster_art)  - three cell
   dispatch modes: `base+class` (default, class clothing system), `fixed`
   (cell-controlled sprites, all classes render the same), and `class_map`
   (per-class sprites with a default fallback, solves multi-mod sprite

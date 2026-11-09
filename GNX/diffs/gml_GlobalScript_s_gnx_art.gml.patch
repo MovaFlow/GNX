@@ -1,0 +1,2208 @@
+--- gml_138/gml_GlobalScript_s_gnx_art.gml
++++ gml/gml_GlobalScript_s_gnx_art.gml
+@@ -0,0 +1,2205 @@
++// GNX: monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper
++// (the functions are global, callable from any script)
++
++
++// old mon_spr sets: the first of key + suffix found under prefix pfx, then under its fallback fb. Missing and -1 count
++// as not found. Returns the sprite or -1; global.gnx_ms_pick_i = which suffix matched, -1 for none
++function gnx_ms_pick(arg0, arg1, arg2, arg3, arg4)
++{
++    for (var _i = 0; _i < array_length(arg4); _i++)
++    {
++        var _v = variable_struct_get(arg0, arg1 + arg3 + arg4[_i]);
++
++        if ((_v == undefined || _v == -1) && arg1 != arg2)
++            _v = variable_struct_get(arg0, arg2 + arg3 + arg4[_i]);
++
++        if (_v != undefined && _v != -1)
++        {
++            global.gnx_ms_pick_i = _i;
++            return _v;
++        }
++    }
++
++    global.gnx_ms_pick_i = -1;
++    return -1;
++}
++
++
++function gnx_art_is_comment(arg0)
++{
++    return string_char_at(arg0, 1) == "_" || string_copy(arg0, 1, 2) == "//";
++}
++
++
++function gnx_art_monster_id(arg0)
++{
++    switch (arg0)
++    {
++        case "goblin": return 0;
++        case "hobgoblin": return 1;
++        case "ogre": return 3;
++    }
++
++    return -1;
++}
++
++
++function gnx_art_variant_keys()
++{
++    return ["leg_0", "leg_1", "leg_2", "any", "cow", "lilith", "nyx", "morrigan", "cat"];
++}
++
++
++function gnx_art_part_of(arg0)
++{
++    var _p = string_last_pos(".", arg0);
++    return string_copy(arg0, _p + 1, string_length(arg0) - _p);
++}
++
++
++// one value into a list of picks { f: fill, l: line, auto: keep the sprite's automatic line }; [] after a mod error.
++// arg4 = part takes a pair, arg5 = "none" allowed
++function gnx_art_picks(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    if (is_string(arg0) && arg0 == "none")
++    {
++        if (arg5)
++            return [{ f: spr_empty, l: -1, auto: false }];
++
++        gnx_report_mod_error(arg3 + ": \"none\" is not allowed here");
++        return [];
++    }
++
++    if (is_array(arg0))
++    {
++        if (array_length(arg0) == 0)
++        {
++            gnx_report_mod_error(arg3 + ": empty list");
++            return [];
++        }
++
++        var _out = [];
++
++        for (var _i = 0; _i < array_length(arg0); _i++)
++        {
++            if (is_string(arg0[_i]) && arg0[_i] == "none")
++            {
++                gnx_report_mod_error(arg3 + ": \"none\" inside a list");
++                return [];
++            }
++
++            if (is_array(arg0[_i]))
++            {
++                gnx_report_mod_error(arg3 + ": a list inside a list");
++                return [];
++            }
++
++            var _one = gnx_art_picks(arg0[_i], arg1, arg2, arg3, arg4, false);
++
++            if (array_length(_one) == 0)
++                return [];
++
++            array_push(_out, _one[0]);
++        }
++
++        return _out;
++    }
++
++    if (is_struct(arg0))
++    {
++        if (!arg4)
++        {
++            gnx_report_mod_error(arg3 + ": " + gnx_art_part_of(arg3) + " takes no pair");
++            return [];
++        }
++
++        if (!variable_struct_exists(arg0, "fill") || !is_string(arg0.fill))
++        {
++            gnx_report_mod_error(arg3 + ": a pair needs fill");
++            return [];
++        }
++
++        if (variable_struct_exists(arg0, "line") && !is_string(arg0.line))
++        {
++            gnx_report_mod_error(arg3 + ": a sprite must be a name, not " + string(arg0.line));
++            return [];
++        }
++
++        var _f = gnx_resolve_layer_sprite(arg0.fill, arg1, arg2);
++        var _l = variable_struct_exists(arg0, "line") ? gnx_resolve_layer_sprite(arg0.line, arg1, arg2) : -1;
++
++        if (_f == -1 || (variable_struct_exists(arg0, "line") && _l == -1))
++        {
++            gnx_report_mod_error(arg3 + ": sprite not found: " + string(arg0));
++            return [];
++        }
++
++        return [{ f: _f, l: _l, auto: false }];
++    }
++
++    if (!is_string(arg0))
++    {
++        gnx_report_mod_error(arg3 + ": a sprite must be a name, not " + string(arg0));
++        return [];
++    }
++
++    var _s = gnx_resolve_layer_sprite(arg0, arg1, arg2);
++
++    if (_s == -1)
++    {
++        gnx_report_mod_error(arg3 + ": sprite not found: " + string(arg0));
++        return [];
++    }
++
++    return [{ f: _s, l: -1, auto: true }];
++}
++
++
++// a part's value into { variant: [picks] }, or undefined after a mod error
++function gnx_art_part(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    var _out = {};
++
++    if (is_struct(arg0) && !variable_struct_exists(arg0, "fill") && !variable_struct_exists(arg0, "line"))
++    {
++        var _k = variable_struct_get_names(arg0);
++
++        for (var _i = 0; _i < array_length(_k); _i++)
++        {
++            if (gnx_art_is_comment(_k[_i]))
++                continue;
++
++            if (!array_contains(gnx_art_variant_keys(), _k[_i]))
++            {
++                gnx_report_mod_error(arg3 + ": unknown variant '" + _k[_i] + "'");
++                return undefined;
++            }
++
++            var _p = gnx_art_picks(variable_struct_get(arg0, _k[_i]), arg1, arg2, arg3, arg4, arg5);
++
++            if (array_length(_p) == 0)
++                return undefined;
++
++            variable_struct_set(_out, _k[_i], _p);
++        }
++
++        if (variable_struct_names_count(_out) == 0)
++        {
++            gnx_report_mod_error(arg3 + ": empty part");
++            return undefined;
++        }
++
++        return _out;
++    }
++
++    if (is_struct(arg0))
++    {
++        var _vk = gnx_art_variant_keys();
++
++        for (var _i = 0; _i < array_length(_vk); _i++)
++        {
++            if (variable_struct_exists(arg0, _vk[_i]))
++            {
++                gnx_report_mod_error(arg3 + ": mixes fill and variants");
++                return undefined;
++            }
++        }
++    }
++
++    var _p = gnx_art_picks(arg0, arg1, arg2, arg3, arg4, arg5);
++
++    if (array_length(_p) == 0)
++        return undefined;
++
++    _out.any = _p;
++    return _out;
++}
++
++
++// a phase block into { hand_random, parts }, or undefined after a mod error
++function gnx_art_phase(arg0, arg1, arg2, arg3, arg4)
++{
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error(arg3 + ": must be an object");
++        return undefined;
++    }
++
++    var _out = { hand_random: false, parts: {} };
++    var _k = variable_struct_get_names(arg0);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _n = _k[_i];
++
++        if (gnx_art_is_comment(_n))
++            continue;
++
++        if (_n == "hand_xscale")
++        {
++            var _hx = variable_struct_get(arg0, _n);
++
++            if ((arg4 != "start" && arg4 != "loop") || !is_string(_hx) || _hx != "random")
++            {
++                gnx_report_mod_error(arg3 + ": hand_xscale is \"random\", on start or loop only");
++                return undefined;
++            }
++
++            _out.hand_random = true;
++            continue;
++        }
++
++        if (_n != "body" && _n != "hand" && _n != "head" && _n != "pen" && _n != "touch" && _n != "enter")
++        {
++            gnx_report_mod_error(arg3 + ": unknown part '" + _n + "'");
++            return undefined;
++        }
++
++        if (arg4 == "start" && (_n == "head" || _n == "enter"))
++        {
++            gnx_report_mod_error(arg3 + ": start has no " + _n);
++            return undefined;
++        }
++
++        var _pair = _n == "body" || _n == "hand" || _n == "head";
++        var _p = gnx_art_part(variable_struct_get(arg0, _n), arg1, arg2, arg3 + "." + _n, _pair, _n != "body");
++
++        if (_p == undefined)
++            return undefined;
++
++        variable_struct_set(_out.parts, _n, _p);
++    }
++
++    if ((arg4 == "start" || arg4 == "loop") && !variable_struct_exists(_out.parts, "body"))
++    {
++        gnx_report_mod_error(arg3 + ": " + arg4 + " needs a body");
++        return undefined;
++    }
++
++    return _out;
++}
++
++
++function gnx_art_phase_names()
++{
++    return ["start", "loop", "ej", "idle_start", "start_loop", "loop_ej", "ej_birth", "ej_end"];
++}
++
++
++// the phases and anal block of a monster or placement block. arg3 = its label, arg4 = keys the caller handles itself ("!anal" = inside an anal block).
++// Returns { phases, anal } or undefined after a mod error
++function gnx_art_phases(arg0, arg1, arg2, arg3, arg4)
++{
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error(arg3 + ": must be an object");
++        return undefined;
++    }
++
++    var _out = { phases: {}, anal: undefined };
++    var _k = variable_struct_get_names(arg0);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _n = _k[_i];
++
++        if (gnx_art_is_comment(_n) || array_contains(arg4, _n))
++            continue;
++
++        if (_n == "anal")
++        {
++            if (array_contains(arg4, "!anal"))
++            {
++                gnx_report_mod_error(arg3 + ": anal is not allowed inside anal");
++                return undefined;
++            }
++
++            var _an = gnx_art_phases(variable_struct_get(arg0, _n), arg1, arg2, arg3 + ".anal", ["!anal"]);
++
++            if (_an == undefined)
++                return undefined;
++
++            _out.anal = _an.phases;
++            continue;
++        }
++
++        if (!array_contains(gnx_art_phase_names(), _n))
++        {
++            gnx_report_mod_error(arg3 + ": unknown key '" + _n + "'");
++            return undefined;
++        }
++
++        var _p = gnx_art_phase(variable_struct_get(arg0, _n), arg1, arg2, arg3 + "." + _n, _n);
++
++        if (_p == undefined)
++            return undefined;
++
++        variable_struct_set(_out.phases, _n, _p);
++    }
++
++    return _out;
++}
++
++
++// ogres draw hand, head and pen only with a line on every body (scr_draw_mon_slot)
++function gnx_art_ogre_ok(arg0, arg1)
++{
++    var _ph = variable_struct_get_names(arg0);
++
++    for (var _i = 0; _i < array_length(_ph); _i++)
++    {
++        var _parts = variable_struct_get(arg0, _ph[_i]).parts;
++
++        if (!variable_struct_exists(_parts, "hand") && !variable_struct_exists(_parts, "head") && !variable_struct_exists(_parts, "pen"))
++            continue;
++
++        // a phase without a body (ej and intermission blocks) draws the same block's loop body
++        var _body = undefined;
++
++        if (variable_struct_exists(_parts, "body"))
++            _body = _parts.body;
++        else if (variable_struct_exists(arg0, "loop") && variable_struct_exists(arg0.loop.parts, "body"))
++            _body = arg0.loop.parts.body;
++
++        var _lines = _body != undefined;
++
++        if (_lines)
++        {
++            var _v = variable_struct_get_names(_body);
++
++            for (var _j = 0; _j < array_length(_v); _j++)
++            {
++                var _p = variable_struct_get(_body, _v[_j]);
++
++                for (var _m = 0; _m < array_length(_p); _m++)
++                    _lines = _lines && _p[_m].l != -1;
++            }
++        }
++
++        if (!_lines)
++        {
++            gnx_report_mod_error(arg1 + "." + _ph[_i] + ": an ogre's hand, head and pen needs a line on every body" + ((_body == undefined) ? ", and no loop body to fall back on" : ""));
++            return false;
++        }
++    }
++
++    return true;
++}
++
++
++// can the game call monster arg2 (0 goblin, 1 hobgoblin, 3 ogre) into cell arg1? arg0 = its registry entry. As
++// scr_mon_find_placement (s_slot_function L2502-2700) picks: the vanilla cells with a case of their own, else the cell's
++// mon_placements, else its mon_types, else goblins and hobgoblins. Vanilla cells whose states never call monsters (birth,
++// display, drink, tentacle, milk 2, recover, clean, clone, shrines) are not judged: monsters reach them another way
++function gnx_art_called(arg0, arg1, arg2)
++{
++    switch (arg1)
++    {
++        case 4: case 19: return arg2 == 0;
++        case 17: return arg2 == 1;
++        case 20: case 21: case 22: case 24: case 38: return arg2 == 3;
++        case 18: case 36: return arg2 != 3;
++        case 23: case 37: case 39: return true;
++        case 5: case 10: case 11: case 12: case 25: case 27: case 28: case 29: case 30: case 31: case 32: case 33: case 34: case 40: case 41: case 42:
++            return true;
++    }
++
++    if (!is_struct(arg0))
++        return arg2 != 3;
++
++    if (variable_struct_exists(arg0, "physical") && is_struct(arg0.physical) && variable_struct_exists(arg0.physical, "mon_placements") && is_array(arg0.physical.mon_placements))
++    {
++        for (var _i = 0; _i < array_length(arg0.physical.mon_placements); _i++)
++        {
++            if (is_array(arg0.physical.mon_placements[_i]) && array_contains(arg0.physical.mon_placements[_i], arg2))
++                return true;
++        }
++
++        return false;
++    }
++
++    if (variable_struct_exists(arg0, "mon_types") && is_array(arg0.mon_types))
++        return array_contains(arg0.mon_types, arg2);
++
++    return arg2 != 3;
++}
++
++
++// vanilla cells where a part of a monster_art set would not be drawn. "all" = the whole monster: the switch overwrites its
++// art, or the monster is hidden and the cell draws it (s_mon_function L394-396, L474-512; cell 24 never calls the function).
++// Not here: cell 23 hides only its first monster (place 0): the second is drawn (art_marker at placement 1), so
++// gnx_art_parse_cell refuses a placement 0 block there. Ogres never stand in cell 36 (s_slot_function L2519 calls
++// goblins and hobgoblins, and a patched vanilla cell keeps its own rules), so their art is refused with the rest.
++// Class and global art still reach them through swaps.
++function gnx_art_limit(arg0, arg1, arg2)
++{
++    if (arg0 >= 100)
++        return false;
++
++    if (arg0 == 18 || arg0 == 24)
++        return true;
++
++    // a monster the game never calls into this cell is never there to draw
++    if (!gnx_art_called(ds_map_find_value(global.cell_registry, arg0), arg0, arg1))
++        return true;
++
++    switch (arg1)
++    {
++        case 0:
++            if (arg0 == 4 || arg0 == 11 || arg0 == 21 || arg0 == 22 || arg0 == 36 || arg0 == 37 || arg0 == 38 || arg0 == 39)
++                return true;
++            break;
++
++        case 1:
++            if (arg0 == 21 || arg0 == 22 || arg0 == 36 || arg0 == 37 || arg0 == 38 || arg0 == 39)
++                return true;
++            break;
++
++        case 3:
++            if (arg0 == 36 || arg0 == 37 || arg0 == 38 || arg0 == 39)
++                return true;
++
++            // the cell draws only the ogre's body fill (21 and 22: s_slot_draw L2146-2158, 23: scr_draw_slot_gb_3 draws body_b)
++            if ((arg0 == 21 || arg0 == 22 || arg0 == 23) && arg2 != "body")
++                return true;
++            break;
++    }
++
++    return false;
++}
++
++
++// parts of phases arg0 that cell arg1, monster arg2, would not draw. Reports them; true when any
++function gnx_art_limits_hit(arg0, arg1, arg2, arg3)
++{
++    var _ph = variable_struct_get_names(arg0);
++    var _hit = false;
++
++    for (var _i = 0; _i < array_length(_ph); _i++)
++    {
++        var _parts = variable_struct_get(arg0, _ph[_i]).parts;
++        var _pn = variable_struct_get_names(_parts);
++
++        for (var _j = 0; _j < array_length(_pn); _j++)
++        {
++            if (gnx_art_limit(arg1, arg2, _pn[_j]))
++            {
++                gnx_report_mod_error(arg3 + "." + _ph[_i] + "." + _pn[_j] + ": not drawn on this cell");
++                _hit = true;
++            }
++
++            if (arg2 == 3 && (arg1 == 21 || arg1 == 22 || arg1 == 23) && _pn[_j] == "body")
++            {
++                var _v = variable_struct_get_names(variable_struct_get(_parts, "body"));
++
++                for (var _k = 0; _k < array_length(_v); _k++)
++                {
++                    var _picks = variable_struct_get(variable_struct_get(_parts, "body"), _v[_k]);
++                    var _lined = false;
++
++                    for (var _n = 0; _n < array_length(_picks); _n++)
++                        _lined = _lined || _picks[_n].l != -1;
++
++                    if (_lined)
++                    {
++                        gnx_report_mod_error(arg3 + "." + _ph[_i] + ".body: line is not drawn on this cell");
++                        _hit = true;
++                    }
++                }
++            }
++        }
++    }
++
++    return _hit;
++}
++
++
++function gnx_art_monster_name(arg0)
++{
++    return (arg0 == 0) ? "goblin" : ((arg0 == 1) ? "hobgoblin" : ((arg0 == 3) ? "ogre" : ""));
++}
++
++
++// the raw monster_art block of monster type arg1 in cell JSON arg0, or undefined
++function gnx_art_json_block(arg0, arg1)
++{
++    if (!variable_struct_exists(arg0, "monster_art") || !is_struct(arg0.monster_art))
++        return undefined;
++
++    var _n = gnx_art_monster_name(arg1);
++
++    if (_n == "" || !variable_struct_exists(arg0.monster_art, _n))
++        return undefined;
++
++    var _b = variable_struct_get(arg0.monster_art, _n);
++    return is_struct(_b) ? _b : undefined;
++}
++
++
++// every raw block of monster arg1's art that holds phases, as { label, set }: the monster's, its anal block, each placement's
++// and each placement's anal block. Labels are paths below monster_art
++function gnx_art_json_blocks(arg0, arg1)
++{
++    var _out = [];
++    var _m = gnx_art_json_block(arg0, arg1);
++
++    if (!is_struct(_m))
++        return _out;
++
++    var _n = gnx_art_monster_name(arg1);
++    array_push(_out, { label: _n, set: _m });
++
++    if (variable_struct_exists(_m, "anal") && is_struct(_m.anal))
++        array_push(_out, { label: _n + ".anal", set: _m.anal });
++
++    if (variable_struct_exists(_m, "placement") && is_struct(_m.placement))
++    {
++        var _pk = variable_struct_get_names(_m.placement);
++
++        for (var _i = 0; _i < array_length(_pk); _i++)
++        {
++            var _pb = variable_struct_get(_m.placement, _pk[_i]);
++
++            if (!is_struct(_pb))
++                continue;
++
++            array_push(_out, { label: _n + ".placement." + _pk[_i], set: _pb });
++
++            if (variable_struct_exists(_pb, "anal") && is_struct(_pb.anal))
++                array_push(_out, { label: _n + ".placement." + _pk[_i] + ".anal", set: _pb.anal });
++        }
++    }
++
++    return _out;
++}
++
++
++// the raw phase blocks that place arg2 of monster arg1 reads: per phase the placement's, else the monster's (gnx_art_block_of).
++// arg3 = an anal scene, which reads the anal blocks only. Returns { vals: { phase: raw block }, src: { phase: its label } }
++function gnx_art_json_eff(arg0, arg1, arg2, arg3)
++{
++    var _out = { vals: {}, src: {} };
++    var _m = gnx_art_json_block(arg0, arg1);
++
++    if (!is_struct(_m))
++        return _out;
++
++    var _n = gnx_art_monster_name(arg1);
++    var _cand = [];
++
++    if (variable_struct_exists(_m, "placement") && is_struct(_m.placement) && variable_struct_exists(_m.placement, string(arg2)) && is_struct(variable_struct_get(_m.placement, string(arg2))))
++    {
++        var _pb = variable_struct_get(_m.placement, string(arg2));
++        var _pl = _n + ".placement." + string(arg2);
++
++        if (!arg3)
++            array_push(_cand, { label: _pl, set: _pb });
++        else if (variable_struct_exists(_pb, "anal") && is_struct(_pb.anal))
++            array_push(_cand, { label: _pl + ".anal", set: _pb.anal });
++    }
++
++    if (!arg3)
++        array_push(_cand, { label: _n, set: _m });
++    else if (variable_struct_exists(_m, "anal") && is_struct(_m.anal))
++        array_push(_cand, { label: _n + ".anal", set: _m.anal });
++
++    var _ph = gnx_art_phase_names();
++
++    for (var _i = 0; _i < array_length(_ph); _i++)
++    {
++        for (var _j = 0; _j < array_length(_cand); _j++)
++        {
++            if (variable_struct_exists(_cand[_j].set, _ph[_i]))
++            {
++                variable_struct_set(_out.vals, _ph[_i], variable_struct_get(_cand[_j].set, _ph[_i]));
++                variable_struct_set(_out.src, _ph[_i], _cand[_j].label + "." + _ph[_i]);
++                break;
++            }
++        }
++    }
++
++    return _out;
++}
++
++
++// the species 0-3 in list arg0, or undefined when it holds none (entries that are no species are skipped, as gnx_cell_mon_check does)
++function gnx_art_species_list(arg0)
++{
++    if (!is_array(arg0))
++        return undefined;
++
++    var _out = [];
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        var _v = gnx_json_num(arg0[_i], -1);
++
++        if (_v >= 0 && _v <= 3 && _v == floor(_v))
++            array_push(_out, _v);
++    }
++
++    return (array_length(_out) > 0) ? _out : undefined;
++}
++
++
++// the species that can stand at place arg1 of a cell (its JSON or its registry entry arg0): physical.mon_placements[place] when it
++// lists some, else mon_types, else any
++function gnx_art_species_at(arg0, arg1)
++{
++    var _l = undefined;
++
++    if (variable_struct_exists(arg0, "physical") && is_struct(arg0.physical) && variable_struct_exists(arg0.physical, "mon_placements") && is_array(arg0.physical.mon_placements) && arg1 < array_length(arg0.physical.mon_placements))
++        _l = gnx_art_species_list(arg0.physical.mon_placements[arg1]);
++
++    if (_l == undefined && variable_struct_exists(arg0, "mon_types"))
++        _l = gnx_art_species_list(arg0.mon_types);
++
++    return (_l != undefined) ? _l : [0, 1, 2, 3];
++}
++
++
++// does monster arg1's art have a block for phase arg2 at every place of the cell (arg3 places) that the monster can stand at?
++function gnx_art_json_covers(arg0, arg1, arg2, arg3)
++{
++    if (!is_struct(gnx_art_json_block(arg0, arg1)))
++        return false;
++
++    for (var _i = 0; _i < max(1, arg3); _i++)
++    {
++        if (!array_contains(gnx_art_species_at(arg0, _i), arg1))
++            continue;
++
++        if (!variable_struct_exists(gnx_art_json_eff(arg0, arg1, _i, false).vals, arg2))
++            return false;
++    }
++
++    return true;
++}
++
++
++// has the cell JSON arg0 a monster_art block for any monster?
++function gnx_art_json_has_any(arg0)
++{
++    return is_struct(gnx_art_json_block(arg0, 0)) || is_struct(gnx_art_json_block(arg0, 1)) || is_struct(gnx_art_json_block(arg0, 3));
++}
++
++
++// the blocks that place arg2 of monster arg1 plays phase arg4 from, in the order of gnx_art_chain: [{ phase, src, set }] with the raw
++// block and its label. arg3 = an anal scene
++function gnx_art_json_chain(arg0, arg1, arg2, arg3, arg4)
++{
++    var _e = gnx_art_json_eff(arg0, arg1, arg2, arg3);
++    var _names;
++
++    switch (arg4)
++    {
++        case "idle_start": _names = ["idle_start", variable_struct_exists(_e.vals, "start") ? "start" : "loop"]; break;
++        case "start_loop": _names = ["start_loop", "loop"]; break;
++        case "loop_ej": _names = ["loop_ej", "ej", "loop"]; break;
++        case "ej_birth": _names = ["ej_birth", "ej", "loop"]; break;
++        default: _names = ["ej_end", "ej", "loop"]; break;
++    }
++
++    var _out = [];
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++    {
++        if (variable_struct_exists(_e.vals, _names[_i]))
++            array_push(_out, { phase: _names[_i], src: variable_struct_get(_e.src, _names[_i]), set: variable_struct_get(_e.vals, _names[_i]) });
++    }
++
++    return _out;
++}
++
++
++// does a chain (gnx_art_json_chain) have a body? Without one the game draws no art for the call (gnx_art_for)
++function gnx_art_chain_has_body(arg0)
++{
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        if (variable_struct_exists(arg0[_i].set, "body"))
++            return true;
++    }
++
++    return false;
++}
++
++
++// checks the parts of chain arg0 at arg1 frames, each part from the first block that has it (gnx_art_part_in): a block that gives the head
++// does not give the body. arg2 = leave out the parts of the block named like the phase played (the caller checked every such block).
++// arg3 = cell name, arg4 = "sprites" block, arg5 = the phase played, arg6 = the problems already reported (one problem once).
++// Returns the number of strips with too few frames
++function gnx_art_check_chain(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
++{
++    var _bad = 0;
++    var _done = {};
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        var _own = arg0[_i].phase == arg5;
++        var _pk = variable_struct_get_names(arg0[_i].set);
++
++        for (var _j = 0; _j < array_length(_pk); _j++)
++        {
++            if (variable_struct_exists(_done, _pk[_j]))
++                continue;
++
++            variable_struct_set(_done, _pk[_j], true);
++
++            if (_own && arg2)
++                continue;
++
++            var _id = arg0[_i].src + "." + _pk[_j];
++
++            if (variable_struct_exists(arg6, _id))
++                continue;
++
++            variable_struct_set(arg6, _id, true);
++            _bad += gnx_frames_check_refs(variable_struct_get(arg0[_i].set, _pk[_j]), arg1, arg3, "monster_art." + arg0[_i].src + (_own ? "" : ("." + _pk[_j] + " (played for " + arg5 + ")")), arg4, false);
++        }
++    }
++
++    return _bad;
++}
++
++
++// the frame count of a sprite or an atlas sprite
++function gnx_art_frames_of(arg0)
++{
++    return gnx_sprite_exists(arg0) ? gnx_sprite_get_number(arg0) : 0;
++}
++
++
++// on a vanilla cell the frame index holds the cell's row, and a strip of exactly one row wraps onto every row: start 2 frames, the
++// others 5; a single frame is a still. Every pick of a list and every line counts. A multiple is only logged: it shows the wrong row past row 0.
++// arg0 = a phases struct (gnx_art_phases), arg1 = its label. False after a mod error
++function gnx_art_vanilla_frames(arg0, arg1)
++{
++    var _ok = true;
++    var _ph = variable_struct_get_names(arg0);
++
++    for (var _i = 0; _i < array_length(_ph); _i++)
++    {
++        var _need = (_ph[_i] == "start") ? 2 : 5;
++        var _parts = variable_struct_get(arg0, _ph[_i]).parts;
++        var _pn = variable_struct_get_names(_parts);
++
++        for (var _j = 0; _j < array_length(_pn); _j++)
++        {
++            var _part = variable_struct_get(_parts, _pn[_j]);
++            var _v = variable_struct_get_names(_part);
++
++            for (var _k = 0; _k < array_length(_v); _k++)
++            {
++                var _picks = variable_struct_get(_part, _v[_k]);
++
++                for (var _m = 0; _m < array_length(_picks); _m++)
++                {
++                    for (var _s = 0; _s < 2; _s++)
++                    {
++                        var _spr = (_s == 0) ? _picks[_m].f : _picks[_m].l;
++
++                        // -1 = no line; spr_empty is "none"
++                        if (_spr == -1 || _spr == spr_empty)
++                            continue;
++
++                        var _n = gnx_art_frames_of(_spr);
++
++                        // one frame is a still image: it fits every row and every phase, as in the checker for mod cells
++                        if (_n == _need || _n == 1)
++                            continue;
++
++                        var _at = arg1 + "." + _ph[_i] + "." + _pn[_j] + ((_s == 1) ? " line" : "");
++
++                        if (_n > _need && (_n % _need) == 0)
++                        {
++                            var _l = gnx_log_open();
++                            gnx_log_write(_l, "[GNX-WARN] " + _at + ": has " + string(_n) + " frames; past the first row of cells it shows the wrong row\n");
++                            gnx_log_close(_l);
++                        }
++                        else
++                        {
++                            gnx_report_mod_error(_at + ": has " + string(_n) + " frames, one row here is " + string(_need));
++                            _ok = false;
++                        }
++                    }
++                }
++            }
++        }
++    }
++
++    return _ok;
++}
++
++
++// intermission phases play only on a mod cell that declares that intermission (gnx_inter_step, gnx_places_inters), and ej_end only in
++// a cell with independent places and an ej_end table. A vanilla cell never has either, and a patch cannot add physical.intermissions.
++// arg0 = a block's phases, arg1 = h_type, arg2 = the cell's registry entry, arg3 = the block's label. Reports each phase that would never
++// play; true when any
++function gnx_art_inter_hits(arg0, arg1, arg2, arg3)
++{
++    var _names = gnx_inter_names();
++    var _hit = false;
++    var _ph = (arg1 >= 100 && variable_struct_exists(arg2, "physical") && is_struct(arg2.physical)) ? arg2.physical : undefined;
++
++    for (var _i = 0; _i < 5; _i++)
++    {
++        var _n = (_i < 4) ? _names[_i] : "ej_end";
++
++        if (!variable_struct_exists(arg0, _n))
++            continue;
++
++        var _played = false;
++
++        if (_ph != undefined && _n == "ej_end")
++            _played = variable_struct_exists(_ph, "gnx_places") && _ph.gnx_places && variable_struct_exists(_ph, "gnx_inter_end") && is_struct(_ph.gnx_inter_end);
++        else if (_ph != undefined)
++            _played = variable_struct_exists(_ph, "gnx_inter") && is_struct(_ph.gnx_inter[_i]);
++
++        if (_played)
++            continue;
++
++        gnx_report_mod_error(arg3 + "." + _n + ": not played on this cell" + ((arg1 < 100) ? " (a vanilla cell has no intermissions)" : " (needs physical.intermissions." + _n + ((_n == "ej_end") ? " and independent places" : ((_n == "ej_birth") ? ", which only a cell with a birth scene plays" : "")) + ")"));
++        _hit = true;
++    }
++
++    return _hit;
++}
++
++
++// a cell's "monster_art" (arg0) into arg5.gnx_art. arg1 = its sprites, arg2 = mod folder, arg3 = label, arg4 = h_type.
++// The last one loaded replaces a monster type's whole block, as old patches do
++function gnx_art_parse_cell(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    if (!is_struct(arg0))
++    {
++        gnx_report_mod_error(arg3 + ": monster_art must be an object");
++        return;
++    }
++
++    var _mk = variable_struct_get_names(arg0);
++
++    for (var _i = 0; _i < array_length(_mk); _i++)
++    {
++        var _mn = _mk[_i];
++
++        if (gnx_art_is_comment(_mn))
++            continue;
++
++        var _id = gnx_art_monster_id(_mn);
++        var _who = arg3 + " monster_art." + _mn;
++
++        if (_id < 0)
++        {
++            gnx_report_mod_error(arg3 + " monster_art: unknown monster '" + _mn + "'");
++            continue;
++        }
++
++        var _src = variable_struct_get(arg0, _mn);
++        var _b = gnx_art_phases(_src, arg1, arg2, _who, ["placement"]);
++
++        if (_b == undefined)
++            continue;
++
++        _b.placement = {};
++        var _ok = _id != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
++
++        if (gnx_art_limit(arg4, _id, "body"))
++        {
++            gnx_report_mod_error(_who + ": not drawn on this cell");
++            continue;
++        }
++
++        if (variable_struct_exists(arg5, "mon_types") && is_array(arg5.mon_types) && !array_contains(arg5.mon_types, _id))
++        {
++            gnx_report_mod_error(_who + ": this monster is not in the cell's mon_types");
++            continue;
++        }
++
++        if (arg4 >= 100 && !gnx_art_called(arg5, arg4, _id))
++        {
++            gnx_report_mod_error(_who + ": the game never calls this monster to this cell");
++            continue;
++        }
++
++        if (gnx_art_limits_hit(_b.phases, arg4, _id, _who))
++            _ok = false;
++
++        if (_b.anal != undefined && gnx_art_limits_hit(_b.anal, arg4, _id, _who + ".anal"))
++            _ok = false;
++
++        if (gnx_art_inter_hits(_b.phases, arg4, arg5, _who))
++            _ok = false;
++
++        if (_b.anal != undefined && gnx_art_inter_hits(_b.anal, arg4, arg5, _who + ".anal"))
++            _ok = false;
++
++        // a vanilla cell takes one row of the phase's frames (the frame index holds the cell's row)
++        if (arg4 < 100 && !gnx_art_vanilla_frames(_b.phases, _who))
++            _ok = false;
++
++        if (arg4 < 100 && _b.anal != undefined && !gnx_art_vanilla_frames(_b.anal, _who + ".anal"))
++            _ok = false;
++
++        if (variable_struct_exists(_src, "placement") && !is_struct(_src.placement))
++        {
++            gnx_report_mod_error(_who + ".placement: must be an object");
++            _ok = false;
++        }
++        else if (variable_struct_exists(_src, "placement"))
++        {
++            var _pk = variable_struct_get_names(_src.placement);
++
++            for (var _j = 0; _j < array_length(_pk); _j++)
++            {
++                if (gnx_art_is_comment(_pk[_j]))
++                    continue;
++
++                if (_pk[_j] != "0" && _pk[_j] != "1" && _pk[_j] != "2")
++                {
++                    gnx_report_mod_error(_who + ": placement must be 0, 1 or 2, not '" + _pk[_j] + "'");
++                    _ok = false;
++                    continue;
++                }
++
++                // cell 23: an ogre stands at place 0 (the cell draws its body), the others at place 1, because place 0 is hidden
++                if (arg4 == 23 && _pk[_j] == ((_id == 3) ? "1" : "0"))
++                {
++                    gnx_report_mod_error(_who + ".placement." + _pk[_j] + ": not drawn on this cell");
++                    _ok = false;
++                    continue;
++                }
++
++                // a placement inherits per phase, so a block here may omit its body only when the monster block has one
++                var _pb = gnx_art_phases(variable_struct_get(_src.placement, _pk[_j]), arg1, arg2, _who + ".placement." + _pk[_j], []);
++
++                if (_pb == undefined)
++                    _ok = false;
++                else
++                {
++                    variable_struct_set(_b.placement, _pk[_j], _pb);
++                    var _pw = _who + ".placement." + _pk[_j];
++
++                    if (gnx_art_limits_hit(_pb.phases, arg4, _id, _pw))
++                        _ok = false;
++
++                    if (_pb.anal != undefined && gnx_art_limits_hit(_pb.anal, arg4, _id, _pw + ".anal"))
++                        _ok = false;
++
++                    if (gnx_art_inter_hits(_pb.phases, arg4, arg5, _pw))
++                        _ok = false;
++
++                    if (_pb.anal != undefined && gnx_art_inter_hits(_pb.anal, arg4, arg5, _pw + ".anal"))
++                        _ok = false;
++
++                    if (arg4 < 100 && !gnx_art_vanilla_frames(_pb.phases, _pw))
++                        _ok = false;
++
++                    if (arg4 < 100 && _pb.anal != undefined && !gnx_art_vanilla_frames(_pb.anal, _pw + ".anal"))
++                        _ok = false;
++
++                    // each block on its own: a placement's phases never merge with the parent's
++                    if (_id == 3 && !(gnx_art_ogre_ok(_pb.phases, _pw) && (_pb.anal == undefined || gnx_art_ogre_ok(_pb.anal, _pw + ".anal"))))
++                        _ok = false;
++                }
++            }
++        }
++
++        if (!_ok)
++            continue;
++
++        if (!variable_struct_exists(arg5, "gnx_art"))
++            arg5.gnx_art = {};
++
++        variable_struct_set(arg5.gnx_art, string(_id), _b);
++    }
++}
++
++
++// the monster's one random number for lists: set once on its spr_data, so it holds for a scene and through a save.
++// spr_data is new at each contact (s_mon_function L534), which starts a new pick
++function gnx_art_roll(arg0)
++{
++    if (!variable_struct_exists(arg0, "art_roll"))
++        arg0.art_roll = irandom(65535);
++
++    return arg0.art_roll;
++}
++
++
++function gnx_art_class_key(arg0)
++{
++    switch (arg0)
++    {
++        case 8: return "lilith";
++        case 9: return "cow";
++        case 10: return "nyx";
++        case 12: return "morrigan";
++        case 13: return "cat";
++    }
++
++    return "";
++}
++
++
++// the phase blocks to read, in order, for a call's phase (arg1); the first one with a part gives it. [] = no art set
++function gnx_art_chain(arg0, arg1, arg2, arg3)
++{
++    var _names;
++
++    switch (arg1)
++    {
++        case 0: _names = ["start"]; break;
++        case 1: case 2: _names = ["loop"]; break;
++        case 3: _names = ["ej", "loop"]; break;
++        case 6: _names = ["idle_start", gnx_art_has_phase(arg0, arg2, "start", arg3) ? "start" : "loop"]; break;
++        case 7: _names = ["start_loop", "loop"]; break;
++        case 8: _names = ["loop_ej", "ej", "loop"]; break;
++        case 9: _names = ["ej_birth", "ej", "loop"]; break;
++        case 10: _names = ["ej_end", "ej", "loop"]; break;
++        default: _names = ["loop"]; break;  // phase -1, cells of ID 100 or more
++    }
++
++    var _out = [];
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++    {
++        var _b = gnx_art_block_of(arg0, arg2, _names[_i], arg3);
++
++        if (_b != undefined)
++            array_push(_out, _b);
++    }
++
++    return _out;
++}
++
++
++function gnx_art_has_phase(arg0, arg1, arg2, arg3)
++{
++    return gnx_art_block_of(arg0, arg1, arg2, arg3) != undefined;
++}
++
++
++// phase block arg2: placement arg1's, then the monster's. arg3 = read the anal blocks
++function gnx_art_block_of(arg0, arg1, arg2, arg3)
++{
++    var _pk = string(arg1);
++
++    if (variable_struct_exists(arg0.placement, _pk))
++    {
++        var _pb = variable_struct_get(arg0.placement, _pk);
++        var _src = arg3 ? _pb.anal : _pb.phases;
++
++        if (is_struct(_src) && variable_struct_exists(_src, arg2))
++            return variable_struct_get(_src, arg2);
++    }
++
++    var _src2 = arg3 ? arg0.anal : arg0.phases;
++    return (is_struct(_src2) && variable_struct_exists(_src2, arg2)) ? variable_struct_get(_src2, arg2) : undefined;
++}
++
++
++// has this monster block an anal block for placement arg1: its own or the monster's? Another placement's does not count
++function gnx_art_has_anal(arg0, arg1)
++{
++    var _pk = string(arg1);
++
++    if (variable_struct_exists(arg0.placement, _pk) && is_struct(variable_struct_get(arg0.placement, _pk).anal))
++        return true;
++
++    return is_struct(arg0.anal);
++}
++
++
++// the part from the first block in chain arg0 that has it
++function gnx_art_part_in(arg0, arg1)
++{
++    for (var _i = 0; _i < array_length(arg0); _i++)
++    {
++        if (variable_struct_exists(arg0[_i].parts, arg1))
++            return variable_struct_get(arg0[_i].parts, arg1);
++    }
++
++    return undefined;
++}
++
++
++function gnx_art_pick(arg0, arg1)
++{
++    return (array_length(arg0) == 1) ? arg0[0] : arg0[gnx_art_roll(arg1) % array_length(arg0)];
++}
++
++
++// the art set for one call, or undefined for today's behaviour. arg5 = phase before remapping (gnx_inter_ph)
++function gnx_art_for(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
++{
++    if (arg0 == undefined || !variable_struct_exists(arg0, "gnx_art"))
++        return undefined;
++
++    var _mk = string(arg2);
++
++    if (!variable_struct_exists(arg0.gnx_art, _mk))
++        return undefined;
++
++    var _m = variable_struct_get(arg0.gnx_art, _mk);
++
++    if (arg5 == -1 && arg1 < 100)
++        return undefined;
++
++    // an anal scene reads anal blocks. With none: a mod cell plays its normal art, a vanilla cell stays as today
++    var _anal = arg4 == 1 && gnx_art_has_anal(_m, arg3);
++
++    if (arg4 == 1 && !_anal && arg1 < 100)
++        return undefined;
++
++    var _chain = gnx_art_chain(_m, arg5, arg3, _anal);
++    var _body = gnx_art_part_in(_chain, "body");
++
++    if (_body == undefined)
++        return undefined;
++
++    var _cls = gnx_art_class_key(arg6);
++    var _leg = (arg7 == 2) ? "leg_2" : ((arg7 == 0) ? "leg_0" : "leg_1");
++    var _bk = "";
++
++    if (_cls != "" && variable_struct_exists(_body, _cls))
++        _bk = _cls;
++    else if (variable_struct_exists(_body, _leg))
++        _bk = _leg;
++    else if (variable_struct_exists(_body, "any"))
++        _bk = "any";
++    else if (variable_struct_exists(_body, "leg_1"))
++        _bk = "leg_1";
++    else if (variable_struct_exists(_body, "leg_2"))
++        _bk = "leg_2";
++    else if (variable_struct_exists(_body, "leg_0"))
++        _bk = "leg_0";
++
++    // a body for other classes only: no art for this captive
++    if (_bk == "")
++        return undefined;
++
++    var _chosen = (string_copy(_bk, 1, 4) == "leg_") ? _bk : _leg;
++    var _bp = gnx_art_pick(variable_struct_get(_body, _bk), arg8);
++    var _out = { body: _bp.f, body_l: _bp.l, body_auto: _bp.auto, hand: -1, hand_l: -1, hand_auto: false, head: -1, head_l: -1, head_auto: false, pen: -1, touch: -1, enter: -1, hand_random: false, from_anal: _anal };
++    var _names = ["hand", "head", "pen", "touch", "enter"];
++
++    for (var _i = 0; _i < 5; _i++)
++    {
++        var _n = _names[_i];
++        var _part = gnx_art_part_in(_chain, _n);
++        var _key = "";
++
++        if (_part != undefined)
++        {
++            if (_cls != "" && variable_struct_exists(_part, _cls))
++                _key = _cls;
++            else if (variable_struct_exists(_part, _chosen))
++                _key = _chosen;
++            else if (variable_struct_exists(_part, "any"))
++                _key = "any";
++        }
++
++        if (_key == "")
++            continue;
++
++        var _p = gnx_art_pick(variable_struct_get(_part, _key), arg8);
++        variable_struct_set(_out, _n, _p.f);
++
++        if (_n == "hand" || _n == "head")
++        {
++            variable_struct_set(_out, _n + "_l", _p.l);
++            variable_struct_set(_out, _n + "_auto", _p.auto);
++        }
++    }
++
++    // the slot's touch and enter: placement 0 clears them when it lists none (-1 would keep the last phase's),
++    // the others write only what they list, because the slot is shared
++    if (arg3 == 0)
++    {
++        if (_out.touch == -1)
++            _out.touch = spr_empty;
++
++        if (_out.enter == -1)
++            _out.enter = spr_empty;
++    }
++
++    for (var _i = 0; _i < array_length(_chain); _i++)
++        _out.hand_random = _out.hand_random || _chain[_i].hand_random;
++
++    return _out;
++}
++
++
++// GENERATED aliases begin
++// GENERATED by tools/mon_art_alias_gen.py from tools/mon_art_aliases.json: edit that file
++function gnx_art_aliases_build()
++{
++    var _t = {};
++    variable_struct_set(_t, "goblin.dairy.loop.body.any", ["spr_h_goblin_dairy_loop_alpha"]);
++    variable_struct_set(_t, "goblin.dairy.loop.touch.any", ["spr_h_goblin_dairy_loop_touch"]);
++    variable_struct_set(_t, "goblin.drink.loop.body.any", ["spr_h_goblin_drink_base", "spr_h_goblin_drink_loop_alpha"]);
++    variable_struct_set(_t, "goblin.drink.loop.body.cat", ["spr_h_goblin_drink_cat"]);
++    variable_struct_set(_t, "goblin.drink.loop.body.cow", ["spr_h_goblin_drink_cow"]);
++    variable_struct_set(_t, "goblin.drink.loop.body.lilith", ["spr_h_goblin_drink_lilith"]);
++    variable_struct_set(_t, "goblin.drink.loop.body.morrigan", ["spr_h_goblin_drink_morrigan"]);
++    variable_struct_set(_t, "goblin.drink.loop.body.nyx", ["spr_h_goblin_drink_nyx"]);
++    variable_struct_set(_t, "goblin.drink.loop.touch.any", ["spr_h_goblin_drink_loop_touch"]);
++    variable_struct_set(_t, "goblin.drink.loop.touch.cat", ["spr_h_goblin_drink_loop_touch_cat"]);
++    variable_struct_set(_t, "goblin.drink.loop.touch.lilith", ["spr_h_goblin_drink_loop_touch_lilith"]);
++    variable_struct_set(_t, "goblin.drink.loop.touch.morrigan", ["spr_h_goblin_drink_loop_touch_morrigan"]);
++    variable_struct_set(_t, "goblin.drink.loop.touch.nyx", ["spr_h_goblin_drink_loop_touch_nyx"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.body.any", ["spr_h_goblin_gb_1_loop_alpha", "spr_h_goblin_gb_1_v3_loop_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.body.cow", ["spr_h_goblin_gb_1_cow_loop_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.body.leg_0", ["spr_h_goblin_gb_1_v3_loop_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.body.lilith", ["spr_h_goblin_gb_1_lilith_loop_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.touch.any", ["spr_h_ogre_touch_loop"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.touch.cat", ["spr_h_ogre_touch_loop_cat"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.touch.cow", ["spr_h_ogre_touch_loop_cow"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.touch.lilith", ["spr_h_ogre_touch_loop_lilith"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.touch.morrigan", ["spr_h_ogre_touch_loop_morrigan"]);
++    variable_struct_set(_t, "goblin.gbang_1.loop.touch.nyx", ["spr_h_ogre_touch_loop_nyx"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.body.any", ["spr_h_goblin_gb_2_loop_alpha", "spr_h_goblin_gb_2_v3_loop_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.body.cow", ["spr_h_goblin_gb_2_cow_loop_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.body.leg_0", ["spr_h_goblin_gb_2_v3_loop_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.enter.any", ["spr_h_goblin_gb_2_loop_enter"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.enter.cat", ["spr_h_goblin_gb_2_loop_enter_cat"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.enter.cow", ["spr_h_goblin_gb_2_loop_enter_cow"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.enter.lilith", ["spr_h_goblin_gb_2_loop_enter_lilith"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.enter.morrigan", ["spr_h_goblin_gb_2_loop_enter_morrigan"]);
++    variable_struct_set(_t, "goblin.gbang_2.loop.enter.nyx", ["spr_h_goblin_gb_2_loop_enter_nyx"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.body.any", ["spr_h_goblin_gb_3_loop_body_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.enter.any", ["spr_h_goblin_gb_3_loop_enter"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.enter.cat", ["spr_h_goblin_gb_3_cat_loop_enter"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.enter.cow", ["spr_h_goblin_gb_3_cow_loop_enter"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.enter.lilith", ["spr_h_goblin_gb_3_lilith_loop_enter"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.enter.morrigan", ["spr_h_goblin_gb_3_morrigan_loop_enter"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.enter.nyx", ["spr_h_goblin_gb_3_nyx_loop_enter"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.hand.any", ["spr_h_goblin_gb_3_loop_hand_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.hand.cow", ["spr_h_goblin_gb_3_cow_loop_hand_alpha"]);
++    variable_struct_set(_t, "goblin.gbang_3.loop.hand.lilith", ["spr_h_goblin_gb_3_lilith_loop_hand_alpha"]);
++    variable_struct_set(_t, "goblin.giant.loop.body.any", ["spr_h_goblin_body_alpha_giant"]);
++    variable_struct_set(_t, "goblin.giant.loop.enter.any", ["spr_h_goblin_enter_giant"]);
++    variable_struct_set(_t, "goblin.giant.loop.head", ["spr_h_goblin_head_alpha_giant"]);
++    variable_struct_set(_t, "goblin.giant.loop.pen", ["spr_h_goblin_pen_giant"]);
++    variable_struct_set(_t, "goblin.giant.loop.touch.any", ["spr_h_goblin_touch_giant"]);
++    variable_struct_set(_t, "goblin.giant.start.body.any", ["spr_h_goblin_body_start_alpha_giant"]);
++    variable_struct_set(_t, "goblin.giant.start.pen", ["spr_h_goblin_body_start_pen_giant"]);
++    variable_struct_set(_t, "goblin.shrine.loop.body.any", ["spr_h_goblin_shrine_alpha"]);
++    variable_struct_set(_t, "goblin.shrine.loop.enter.any", ["spr_h_goblin_shrine_enter"]);
++    variable_struct_set(_t, "goblin.shrine.loop.touch.any", ["spr_h_goblin_shrine_touch"]);
++    variable_struct_set(_t, "goblin.shrine.start.body.any", ["spr_h_goblin_shrine_start_body_alpha"]);
++    variable_struct_set(_t, "goblin.shrine.start.hand.any", ["spr_h_goblin_shrine_start_hand_alpha"]);
++    variable_struct_set(_t, "goblin.shrine.start.pen", ["spr_h_goblin_shrine_start_pen"]);
++    variable_struct_set(_t, "goblin.standard.anal.ej.body.any", ["spr_h_goblin_body_ej_alpha_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.ej.body.cow", ["spr_h_goblin_body_ej_alpha_anal_cow"]);
++    variable_struct_set(_t, "goblin.standard.anal.ej.body.lilith", ["spr_h_goblin_body_ej_alpha_anal_lilith"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.body.any", ["spr_h_goblin_body_loop_alpha_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.body.cow", ["spr_h_goblin_body_loop_alpha_anal_cow"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.body.lilith", ["spr_h_goblin_body_loop_alpha_anal_lilith"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.enter.any", ["spr_h_goblin_enter_loop_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.enter.cat", ["spr_h_goblin_enter_loop_anal_cat"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.enter.cow", ["spr_h_goblin_enter_loop_anal_cow"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.enter.lilith", ["spr_h_goblin_enter_loop_anal_lilith"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.enter.morrigan", ["spr_h_goblin_enter_loop_anal_morrigan"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.enter.nyx", ["spr_h_goblin_enter_loop_anal_nyx"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.hand.any", ["spr_h_goblin_hand_loop_alpha_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.head", ["spr_h_goblin_head_loop_alpha_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.pen", ["spr_h_goblin_pen_loop_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.touch.any", ["spr_h_goblin_touch_loop_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.touch.cat", ["spr_h_goblin_touch_loop_anal_cat"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.touch.cow", ["spr_h_goblin_touch_loop_anal_cow"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.touch.lilith", ["spr_h_goblin_touch_loop_anal_lilith"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.touch.morrigan", ["spr_h_goblin_touch_loop_anal_morrigan"]);
++    variable_struct_set(_t, "goblin.standard.anal.loop.touch.nyx", ["spr_h_goblin_touch_loop_anal_nyx"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.body.any", ["spr_h_goblin_body_start_alpha_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.body.cow", ["spr_h_goblin_body_start_alpha_anal_cow"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.body.lilith", ["spr_h_goblin_body_start_alpha_anal_lilith"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.hand.any", ["spr_h_goblin_hand_start_alpha_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.pen", ["spr_h_goblin_pen_start_anal"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.touch.any", ["spr_h_goblin_touch_start_anal_v1", "spr_h_goblin_touch_start_anal_v2"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.touch.cat", ["spr_h_goblin_touch_start_anal_cat"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.touch.cow", ["spr_h_goblin_touch_start_anal_cow"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.touch.leg_1", ["spr_h_goblin_touch_start_anal_v1"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.touch.leg_2", ["spr_h_goblin_touch_start_anal_v2"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.touch.lilith", ["spr_h_goblin_touch_start_anal_lilith"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.touch.morrigan", ["spr_h_goblin_touch_start_anal_morrigan"]);
++    variable_struct_set(_t, "goblin.standard.anal.start.touch.nyx", ["spr_h_goblin_touch_start_anal_nyx"]);
++    variable_struct_set(_t, "goblin.standard.ej.body.any", ["spr_h_goblin_body_ej_alpha"]);
++    variable_struct_set(_t, "goblin.standard.ej.body.cow", ["spr_h_goblin_body_ej_cow_alpha"]);
++    variable_struct_set(_t, "goblin.standard.ej.touch.any", ["spr_h_goblin_touch_ej"]);
++    variable_struct_set(_t, "goblin.standard.ej.touch.cat", ["spr_h_goblin_touch_ej_cat"]);
++    variable_struct_set(_t, "goblin.standard.ej.touch.cow", ["spr_h_goblin_touch_ej_cow"]);
++    variable_struct_set(_t, "goblin.standard.ej.touch.lilith", ["spr_h_goblin_touch_ej_lilith"]);
++    variable_struct_set(_t, "goblin.standard.ej.touch.morrigan", ["spr_h_goblin_touch_ej_morrigan"]);
++    variable_struct_set(_t, "goblin.standard.ej.touch.nyx", ["spr_h_goblin_touch_ej_nyx"]);
++    variable_struct_set(_t, "goblin.standard.loop.body.any", ["spr_h_goblin_body_loop_v1_alpha", "spr_h_goblin_body_loop_v2_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.body.cow", ["spr_h_goblin_body_loop_cow_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.body.leg_1", ["spr_h_goblin_body_loop_v1_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.body.leg_2", ["spr_h_goblin_body_loop_v2_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.enter.any", ["spr_h_goblin_enter_loop"]);
++    variable_struct_set(_t, "goblin.standard.loop.enter.cat", ["spr_h_goblin_enter_loop_cat"]);
++    variable_struct_set(_t, "goblin.standard.loop.enter.cow", ["spr_h_goblin_enter_loop_cow"]);
++    variable_struct_set(_t, "goblin.standard.loop.enter.lilith", ["spr_h_goblin_enter_loop_lilith"]);
++    variable_struct_set(_t, "goblin.standard.loop.enter.morrigan", ["spr_h_goblin_enter_loop_morrigan"]);
++    variable_struct_set(_t, "goblin.standard.loop.enter.nyx", ["spr_h_goblin_enter_loop_nyx"]);
++    variable_struct_set(_t, "goblin.standard.loop.hand.any", ["spr_h_goblin_hand_loop_v1_alpha", "spr_h_goblin_hand_loop_v2_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.hand.cow", ["spr_h_goblin_hand_loop_cow_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.hand.leg_1", ["spr_h_goblin_hand_loop_v1_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.hand.leg_2", ["spr_h_goblin_hand_loop_v2_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.head", ["spr_h_goblin_head_loop_d1_alpha", "spr_h_goblin_head_loop_d2_alpha"]);
++    variable_struct_set(_t, "goblin.standard.loop.pen", ["spr_h_goblin_pen_loop"]);
++    variable_struct_set(_t, "goblin.standard.loop.touch.any", ["spr_h_goblin_touch_loop_v1", "spr_h_goblin_touch_loop_v2"]);
++    variable_struct_set(_t, "goblin.standard.loop.touch.cat", ["spr_h_goblin_touch_loop_cat"]);
++    variable_struct_set(_t, "goblin.standard.loop.touch.cow", ["spr_h_goblin_touch_loop_cow"]);
++    variable_struct_set(_t, "goblin.standard.loop.touch.leg_1", ["spr_h_goblin_touch_loop_v1"]);
++    variable_struct_set(_t, "goblin.standard.loop.touch.leg_2", ["spr_h_goblin_touch_loop_v2"]);
++    variable_struct_set(_t, "goblin.standard.loop.touch.lilith", ["spr_h_goblin_touch_loop_lilith"]);
++    variable_struct_set(_t, "goblin.standard.loop.touch.morrigan", ["spr_h_goblin_touch_loop_morrigan"]);
++    variable_struct_set(_t, "goblin.standard.loop.touch.nyx", ["spr_h_goblin_touch_loop_nyx"]);
++    variable_struct_set(_t, "goblin.standard.start.body.any", ["spr_h_goblin_body_start_v1_alpha", "spr_h_goblin_body_start_v2_alpha"]);
++    variable_struct_set(_t, "goblin.standard.start.body.cow", ["spr_h_goblin_body_start_cow_alpha"]);
++    variable_struct_set(_t, "goblin.standard.start.body.leg_1", ["spr_h_goblin_body_start_v1_alpha"]);
++    variable_struct_set(_t, "goblin.standard.start.body.leg_2", ["spr_h_goblin_body_start_v2_alpha"]);
++    variable_struct_set(_t, "goblin.standard.start.hand.any", ["spr_h_goblin_hand_start_alpha"]);
++    variable_struct_set(_t, "goblin.standard.start.pen", ["spr_h_goblin_pen_start"]);
++    variable_struct_set(_t, "goblin.standard.start.touch.any", ["spr_h_goblin_touch_start"]);
++    variable_struct_set(_t, "goblin.standard.start.touch.cat", ["spr_h_goblin_touch_start_cat"]);
++    variable_struct_set(_t, "goblin.standard.start.touch.cow", ["spr_h_goblin_touch_start_cow"]);
++    variable_struct_set(_t, "goblin.standard.start.touch.lilith", ["spr_h_goblin_touch_start_lilith"]);
++    variable_struct_set(_t, "goblin.standard.start.touch.morrigan", ["spr_h_goblin_touch_start_morrigan"]);
++    variable_struct_set(_t, "goblin.standard.start.touch.nyx", ["spr_h_goblin_touch_start_nyx"]);
++    variable_struct_set(_t, "hobgoblin.dairy.loop.body.any", ["spr_h_hobgoblin_dairy_loop_alpha"]);
++    variable_struct_set(_t, "hobgoblin.dairy.loop.touch.any", ["spr_h_hobgoblin_dairy_loop_touch"]);
++    variable_struct_set(_t, "hobgoblin.gbang_1.loop.body.any", ["spr_h_hobgoblin_gb_1_loop_alpha", "spr_h_hobgoblin_gb_1_v3_loop_alpha"]);
++    variable_struct_set(_t, "hobgoblin.gbang_1.loop.body.leg_0", ["spr_h_hobgoblin_gb_1_v3_loop_alpha"]);
++    variable_struct_set(_t, "hobgoblin.gbang_1.loop.body.lilith", ["spr_h_hobgoblin_gb_1_lilith_loop_alpha"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.body.any", ["spr_h_hobgoblin_gb_3_loop_body_alpha"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.enter.any", ["spr_h_hobgoblin_gb_3_loop_enter"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.enter.cat", ["spr_h_hobgoblin_gb_3_cat_loop_enter"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.enter.cow", ["spr_h_hobgoblin_gb_3_cow_loop_enter"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.enter.lilith", ["spr_h_hobgoblin_gb_3_lilith_loop_enter"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.enter.morrigan", ["spr_h_hobgoblin_gb_3_morrigan_loop_enter"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.enter.nyx", ["spr_h_hobgoblin_gb_3_nyx_loop_enter"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.hand.any", ["spr_h_hobgoblin_gb_3_loop_hand_alpha"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.hand.cow", ["spr_h_hobgoblin_gb_3_cow_loop_hand_alpha"]);
++    variable_struct_set(_t, "hobgoblin.gbang_3.loop.hand.lilith", ["spr_h_hobgoblin_gb_3_lilith_loop_hand_alpha"]);
++    variable_struct_set(_t, "hobgoblin.giant.loop.body.any", ["spr_h_hobgoblin_body_alpha_giant"]);
++    variable_struct_set(_t, "hobgoblin.giant.loop.enter.any", ["spr_h_hobgoblin_enter_giant"]);
++    variable_struct_set(_t, "hobgoblin.giant.loop.head", ["spr_h_hobgoblin_head_alpha_giant"]);
++    variable_struct_set(_t, "hobgoblin.giant.loop.pen", ["spr_h_hobgoblin_pen_giant"]);
++    variable_struct_set(_t, "hobgoblin.giant.loop.touch.any", ["spr_h_hobgoblin_touch_giant"]);
++    variable_struct_set(_t, "hobgoblin.giant.start.body.any", ["spr_h_hobgoblin_body_start_alpha_giant"]);
++    variable_struct_set(_t, "hobgoblin.giant.start.pen", ["spr_h_hobgoblin_body_start_pen_giant"]);
++    variable_struct_set(_t, "hobgoblin.shrine.loop.body.any", ["spr_h_hobgoblin_shrine_alpha"]);
++    variable_struct_set(_t, "hobgoblin.shrine.loop.enter.any", ["spr_h_hobgoblin_shrine_enter"]);
++    variable_struct_set(_t, "hobgoblin.shrine.loop.touch.any", ["spr_h_hobgoblin_shrine_touch"]);
++    variable_struct_set(_t, "hobgoblin.shrine.start.body.any", ["spr_hobgoblin_shrine_start_body_alpha"]);
++    variable_struct_set(_t, "hobgoblin.shrine.start.hand.any", ["spr_hobgoblin_shrine_start_hand_alpha"]);
++    variable_struct_set(_t, "hobgoblin.shrine.start.pen", ["spr_hobgoblin_shrine_start_pen"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.body.any", ["spr_h_hobgoblin_body_loop_alpha_anal"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.enter.cat", ["spr_h_hobgoblin_enter_loop_anal_cat"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.enter.cow", ["spr_h_hobgoblin_enter_loop_anal_cow"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.enter.lilith", ["spr_h_hobgoblin_enter_loop_anal_lilith"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.enter.morrigan", ["spr_h_hobgoblin_enter_loop_anal_morrigan"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.enter.nyx", ["spr_h_hobgoblin_enter_loop_anal_nyx"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.hand.any", ["spr_h_hobgoblin_hand_loop_alpha_anal"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.head", ["spr_h_hobgoblin_head_loop_alpha_anal"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.pen", ["spr_h_hobgoblin_pen_loop_anal"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.touch.any", ["spr_h_hobgoblin_touch_loop_anal"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.touch.cat", ["spr_h_hobgoblin_touch_loop_anal_cat"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.touch.cow", ["spr_h_hobgoblin_touch_loop_anal_cow"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.touch.morrigan", ["spr_h_hobgoblin_touch_loop_anal_morrigan"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.loop.touch.nyx", ["spr_h_hobgoblin_touch_loop_anal_nyx"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.start.body.any", ["spr_h_hobgoblin_body_start_alpha_anal"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.start.hand.any", ["spr_h_hobgoblin_hand_start_alpha_anal"]);
++    variable_struct_set(_t, "hobgoblin.standard.anal.start.pen", ["spr_h_hobgoblin_pen_start_anal"]);
++    variable_struct_set(_t, "hobgoblin.standard.ej.body.any", ["spr_h_hobgoblin_body_ej_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.ej.hand.any", ["spr_h_hobgoblin_hand_ej_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.body.any", ["spr_h_hobgoblin_body_loop_v1_alpha", "spr_h_hobgoblin_body_loop_v2_alpha", "spr_h_hobgoblin_body_loop_v3_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.body.cow", ["spr_h_hobgoblin_body_loop_cow_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.body.leg_0", ["spr_h_hobgoblin_body_loop_v3_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.body.leg_1", ["spr_h_hobgoblin_body_loop_v1_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.body.leg_2", ["spr_h_hobgoblin_body_loop_v2_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.enter.any", ["spr_h_hobgoblin_enter_loop"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.enter.cat", ["spr_h_hobgoblin_enter_loop_cat"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.enter.cow", ["spr_h_hobgoblin_enter_loop_cow"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.enter.lilith", ["spr_h_hobgoblin_enter_loop_lilith"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.enter.morrigan", ["spr_h_hobgoblin_enter_loop_morrigan"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.enter.nyx", ["spr_h_hobgoblin_enter_loop_nyx"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.hand.any", ["spr_h_hobgoblin_hand_loop_v1_alpha", "spr_h_hobgoblin_hand_loop_v1_d1_alpha", "spr_h_hobgoblin_hand_loop_v2_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.hand.leg_1", ["spr_h_hobgoblin_hand_loop_v1_alpha", "spr_h_hobgoblin_hand_loop_v1_d1_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.hand.leg_2", ["spr_h_hobgoblin_hand_loop_v2_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.head", ["spr_h_hobgoblin_head_loop_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.pen", ["spr_h_hobgoblin_pen_loop"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.touch.any", ["spr_h_hobgoblin_touch_loop"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.touch.cat", ["spr_h_hobgoblin_touch_loop_cat"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.touch.cow", ["spr_h_hobgoblin_touch_loop_cow"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.touch.lilith", ["spr_h_hobgoblin_touch_loop_lilith"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.touch.morrigan", ["spr_h_hobgoblin_touch_loop_morrigan"]);
++    variable_struct_set(_t, "hobgoblin.standard.loop.touch.nyx", ["spr_h_hobgoblin_touch_loop_nyx"]);
++    variable_struct_set(_t, "hobgoblin.standard.start.body.any", ["spr_h_hobgoblin_body_start_v1_alpha", "spr_h_hobgoblin_body_start_v2_alpha", "spr_h_hobgoblin_body_start_v3_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.start.body.cow", ["spr_h_hobgoblin_body_start_cow_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.start.body.leg_0", ["spr_h_hobgoblin_body_start_v3_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.start.body.leg_1", ["spr_h_hobgoblin_body_start_v1_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.start.body.leg_2", ["spr_h_hobgoblin_body_start_v2_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.start.hand.any", ["spr_h_hobgoblin_hand_start_d1_alpha", "spr_h_hobgoblin_hand_start_d2_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.start.hand.cow", ["spr_h_hobgoblin_hand_start_cow_alpha"]);
++    variable_struct_set(_t, "hobgoblin.standard.start.pen", ["spr_h_hobgoblin_pen_start"]);
++    variable_struct_set(_t, "ogre.carry.walk", ["spr_ogre_walk_carry"]);
++    variable_struct_set(_t, "ogre.giant.loop.body.any", ["spr_h_ogre_giant_loop_alpha"]);
++    variable_struct_set(_t, "ogre.giant.loop.pen", ["spr_h_ogre_giant_loop_pen"]);
++    variable_struct_set(_t, "ogre.giant.loop.touch.any", ["spr_h_ogre_giant_loop_touch"]);
++    variable_struct_set(_t, "ogre.giant.start.body.any", ["spr_h_ogre_giant_start_alpha"]);
++    variable_struct_set(_t, "ogre.giant.start.pen", ["spr_h_ogre_giant_start_pen"]);
++    variable_struct_set(_t, "ogre.shrine.loop.body.any", ["spr_h_ogre_shrine_loop_alpha"]);
++    variable_struct_set(_t, "ogre.shrine.loop.enter.any", ["spr_h_ogre_shrine_loop_enter"]);
++    variable_struct_set(_t, "ogre.shrine.start.body.any", ["spr_h_ogre_shrine_start_alpha"]);
++    variable_struct_set(_t, "ogre.shrine.start.pen", ["spr_h_ogre_shrine_start_enter"]);
++    variable_struct_set(_t, "ogre.standard.loop.body.any", ["spr_h_ogre_body_loop", "spr_h_ogre_body_loop_v3"]);
++    variable_struct_set(_t, "ogre.standard.loop.body.cow", ["spr_h_ogre_body_loop_cow"]);
++    variable_struct_set(_t, "ogre.standard.loop.body.leg_0", ["spr_h_ogre_body_loop_v3"]);
++    variable_struct_set(_t, "ogre.standard.loop.body.lilith", ["spr_h_ogre_body_loop_lilith"]);
++    variable_struct_set(_t, "ogre.standard.start.body.any", ["spr_h_ogre_body_start", "spr_h_ogre_body_start_v3"]);
++    variable_struct_set(_t, "ogre.standard.start.body.cow", ["spr_h_ogre_body_start_cow"]);
++    variable_struct_set(_t, "ogre.standard.start.body.leg_0", ["spr_h_ogre_body_start_v3"]);
++    return _t;
++}
++
++
++// GENERATED from OLD_KEYS in tools/mon_art_alias_gen.py: edit it there
++// the old mon_spr_overrides key that replaces vanilla sprite arg0, or ""
++function gnx_art_old_key(arg0)
++{
++    switch (arg0)
++    {
++        case "spr_h_goblin_body_alpha_giant": return "goblin_giant_body_alpha";
++        case "spr_h_goblin_body_start_alpha_giant": return "goblin_giant_start_body_alpha";
++        case "spr_h_goblin_body_start_pen_giant": return "goblin_giant_start_pen";
++        case "spr_h_goblin_dairy_loop_alpha": return "goblin_dairy_body_alpha";
++        case "spr_h_goblin_dairy_loop_touch": return "goblin_dairy_touch";
++        case "spr_h_goblin_drink_base": return "goblin_drink_draw";
++        case "spr_h_goblin_drink_loop_touch": return "goblin_drink_touch";
++        case "spr_h_goblin_enter_giant": return "goblin_giant_enter";
++        case "spr_h_goblin_gb_1_loop_alpha": return "goblin_gb1_draw_body_b";
++        case "spr_h_goblin_pen_giant": return "goblin_giant_pen";
++        case "spr_h_goblin_shrine_alpha": return "goblin_shrine_body_alpha";
++        case "spr_h_goblin_shrine_enter": return "goblin_shrine_enter";
++        case "spr_h_goblin_shrine_start_body_alpha": return "goblin_shrine_start_body_alpha";
++        case "spr_h_goblin_shrine_start_hand_alpha": return "goblin_shrine_start_hand_alpha";
++        case "spr_h_goblin_shrine_start_pen": return "goblin_shrine_start_pen";
++        case "spr_h_goblin_shrine_touch": return "goblin_shrine_touch";
++        case "spr_h_goblin_touch_giant": return "goblin_giant_touch";
++        case "spr_h_hobgoblin_body_alpha_giant": return "hobgoblin_giant_body_alpha";
++        case "spr_h_hobgoblin_body_start_alpha_giant": return "hobgoblin_giant_start_body_alpha";
++        case "spr_h_hobgoblin_body_start_pen_giant": return "hobgoblin_giant_start_pen";
++        case "spr_h_hobgoblin_dairy_loop_alpha": return "hobgoblin_dairy_body_alpha";
++        case "spr_h_hobgoblin_dairy_loop_touch": return "hobgoblin_dairy_touch";
++        case "spr_h_hobgoblin_enter_giant": return "hobgoblin_giant_enter";
++        case "spr_h_hobgoblin_pen_giant": return "hobgoblin_giant_pen";
++        case "spr_h_hobgoblin_shrine_alpha": return "hobgoblin_shrine_body_alpha";
++        case "spr_h_hobgoblin_shrine_enter": return "hobgoblin_shrine_enter";
++        case "spr_h_hobgoblin_shrine_touch": return "hobgoblin_shrine_touch";
++        case "spr_h_hobgoblin_touch_giant": return "hobgoblin_giant_touch";
++        case "spr_h_ogre_giant_loop_alpha": return "ogre_giant_loop_alpha";
++        case "spr_h_ogre_giant_loop_pen": return "ogre_giant_loop_pen";
++        case "spr_h_ogre_giant_loop_touch": return "ogre_giant_loop_touch";
++        case "spr_h_ogre_giant_start_alpha": return "ogre_giant_start_alpha";
++        case "spr_h_ogre_giant_start_pen": return "ogre_giant_start_pen";
++        case "spr_h_ogre_shrine_loop_alpha": return "ogre_shrine_loop_alpha";
++        case "spr_h_ogre_shrine_loop_enter": return "ogre_shrine_loop_enter";
++        case "spr_h_ogre_shrine_start_alpha": return "ogre_shrine_start_alpha";
++        case "spr_h_ogre_shrine_start_enter": return "ogre_shrine_start_pen";
++        case "spr_h_ogre_touch_loop": return "ogre_touch";
++        case "spr_hobgoblin_shrine_start_body_alpha": return "hobgoblin_shrine_start_body_alpha";
++        case "spr_hobgoblin_shrine_start_hand_alpha": return "hobgoblin_shrine_start_hand_alpha";
++        case "spr_hobgoblin_shrine_start_pen": return "hobgoblin_shrine_start_pen";
++    }
++
++    return "";
++}
++
++
++// GENERATED from OLD_KEYS and NON_MONSTER_KEYS in tools/mon_art_alias_gen.py: edit them there
++// true for a mon_spr_overrides key that is in the table above, or that replaces no monster sprite; any other key gets the general log line
++function gnx_art_old_key_known(arg0)
++{
++    switch (arg0)
++    {
++        case "dairy_blink": return true;
++        case "giant_cloth": return true;
++        case "goblin_dairy_body_alpha": return true;
++        case "goblin_dairy_touch": return true;
++        case "goblin_drink_draw": return true;
++        case "goblin_drink_touch": return true;
++        case "goblin_gb1_draw_body_b": return true;
++        case "goblin_giant_body_alpha": return true;
++        case "goblin_giant_enter": return true;
++        case "goblin_giant_pen": return true;
++        case "goblin_giant_start_body_alpha": return true;
++        case "goblin_giant_start_pen": return true;
++        case "goblin_giant_touch": return true;
++        case "goblin_shrine_body_alpha": return true;
++        case "goblin_shrine_enter": return true;
++        case "goblin_shrine_start_body_alpha": return true;
++        case "goblin_shrine_start_hand_alpha": return true;
++        case "goblin_shrine_start_pen": return true;
++        case "goblin_shrine_touch": return true;
++        case "hobgoblin_dairy_body_alpha": return true;
++        case "hobgoblin_dairy_touch": return true;
++        case "hobgoblin_giant_body_alpha": return true;
++        case "hobgoblin_giant_enter": return true;
++        case "hobgoblin_giant_pen": return true;
++        case "hobgoblin_giant_start_body_alpha": return true;
++        case "hobgoblin_giant_start_pen": return true;
++        case "hobgoblin_giant_touch": return true;
++        case "hobgoblin_shrine_body_alpha": return true;
++        case "hobgoblin_shrine_enter": return true;
++        case "hobgoblin_shrine_start_body_alpha": return true;
++        case "hobgoblin_shrine_start_hand_alpha": return true;
++        case "hobgoblin_shrine_start_pen": return true;
++        case "hobgoblin_shrine_touch": return true;
++        case "ogre_giant_loop_alpha": return true;
++        case "ogre_giant_loop_pen": return true;
++        case "ogre_giant_loop_touch": return true;
++        case "ogre_giant_start_alpha": return true;
++        case "ogre_giant_start_pen": return true;
++        case "ogre_shrine_loop_alpha": return true;
++        case "ogre_shrine_loop_enter": return true;
++        case "ogre_shrine_start_alpha": return true;
++        case "ogre_shrine_start_pen": return true;
++        case "ogre_touch": return true;
++        case "shrine_bg": return true;
++        case "shrine_dirt": return true;
++        case "shrine_loop_hand": return true;
++        case "shrine_loop_hand_c": return true;
++        case "shrine_sign": return true;
++    }
++
++    return false;
++}
++// GENERATED aliases end
++
++
++// class and global monster_art: addresses (monster.family[.anal].phase.part[.variant]) to vanilla sprite names, compiled to a
++// swap map (vanilla sprite name -> art) that gnx_mon_swap_one reads
++function gnx_art_aliases()
++{
++    if (!variable_global_exists("gnx_art_alias"))
++        global.gnx_art_alias = gnx_art_aliases_build();
++
++    return global.gnx_art_alias;
++}
++
++
++// the line sprite's name for a fill's name, or ""
++function gnx_art_line_name(arg0)
++{
++    switch (arg0)
++    {
++        case "spr_crate": return "spr_crate_l";
++        case "spr_low_crate": return "spr_low_crate_l";
++        case "spr_fence": return "spr_fence_l";
++        case "spr_plank": return "spr_plank_l";
++        case "spr_small_step_1": return "spr_small_step_l_1";
++        case "spr_small_step_2": return "spr_small_step_l_2";
++        case "spr_small_step_3": return "spr_small_step_l_3";
++    }
++
++    if (string_pos("_alpha", arg0) == 0)
++        return "";
++
++    var _l = string_replace(arg0, "_alpha", "_line");
++    return (asset_get_index(_l) >= 0) ? _l : "";
++}
++
++
++// a plain game sprite keeps its automatic line, as in cell sets
++function gnx_art_line_of(arg0)
++{
++    if (!arg0.auto)
++        return arg0.l;
++
++    if (is_struct(arg0.f) || !sprite_exists(arg0.f))
++        return -1;
++
++    var _n = gnx_art_line_name(sprite_get_name(arg0.f));
++    return (_n != "") ? asset_get_index(_n) : -1;
++}
++
++
++// the art's line, or nothing: a pair is one unit, so a fill never keeps the vanilla line by accident
++function gnx_art_swap_line(arg0)
++{
++    var _l = gnx_art_line_of(arg0);
++    return (_l == -1) ? spr_empty : _l;
++}
++
++
++// a pick list as a swap value: one sprite, or a list read by the monster's roll (fill or line)
++function gnx_art_swap_value(arg0, arg1)
++{
++    if (array_length(arg0) == 1)
++        return arg1 ? arg0[0].f : gnx_art_swap_line(arg0[0]);
++
++    var _out = [];
++
++    for (var _i = 0; _i < array_length(arg0); _i++)
++        array_push(_out, arg1 ? arg0[_i].f : gnx_art_swap_line(arg0[_i]));
++
++    return _out;
++}
++
++
++// swap art (one sprite, or a list of them) that is a skin-3 overlay: gnx_mon_frame keeps indexing its 3 rows per cell. The marks
++// are rebuilt with every mod load (gnx_sprite_replace_restore). A struct (atlas entry) carries the flag itself; the atlas data
++// outlives a load, so the flagged structs are listed in gnx_skin3_structs and the restore takes the flag off again
++function gnx_art_skin3_mark(arg0)
++{
++    var _vals = is_array(arg0) ? arg0 : [arg0];
++
++    for (var _i = 0; _i < array_length(_vals); _i++)
++    {
++        if (is_struct(_vals[_i]))
++        {
++            _vals[_i].gnx_skin3 = true;
++            array_push(global.gnx_skin3_structs, _vals[_i]);
++        }
++        else if (!array_contains(global.gnx_skin3_marks, _vals[_i]))
++            array_push(global.gnx_skin3_marks, _vals[_i]);
++    }
++}
++
++
++// every sprite of a swap value (a sprite or a list) is "none" or has arg1 frames. Reports the first that has not, with arg2 = what it replaces
++function gnx_art_swap_frames_ok(arg0, arg1, arg2, arg3)
++{
++    var _vals = is_array(arg0) ? arg0 : [arg0];
++
++    for (var _j = 0; _j < array_length(_vals); _j++)
++    {
++        if (!is_struct(_vals[_j]) && _vals[_j] == spr_empty)
++            continue;
++
++        if (gnx_art_frames_of(_vals[_j]) != arg1)
++        {
++            gnx_report_mod_error(arg3 + ": art for " + arg2 + " has " + string(gnx_art_frames_of(_vals[_j])) + " frames, the game sprite " + string(arg1));
++            return false;
++        }
++    }
++
++    return true;
++}
++
++
++// one address's art into map arg0. arg3 = the part's own address, so two parts giving one sprite different art is a mod
++// error, while a specific variant may override "any" in the same part
++function gnx_art_swap_address(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    // the carrying ogre's walk is read with no monster roll (gnx_patrol_swap), so a list there would always show its first entry
++    if (arg1 == "ogre.carry.walk" && array_length(arg2) > 1)
++    {
++        gnx_report_mod_error(arg4 + ": ogre.carry.walk takes one sprite, not a list");
++        return;
++    }
++
++    var _names = variable_struct_get(gnx_art_aliases(), arg1);
++    var _has_line = false;
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++    {
++        if (gnx_art_line_name(_names[_i]) != "")
++            _has_line = true;
++    }
++
++    // a line given where no sprite of this address has a line sprite would never draw
++    if (!_has_line)
++    {
++        for (var _i = 0; _i < array_length(arg2); _i++)
++        {
++            if (!arg2[_i].auto && arg2[_i].l != -1)
++            {
++                gnx_report_mod_error(arg4 + ": a line is given, but " + arg1 + " has no line sprite");
++                return;
++            }
++        }
++    }
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++    {
++        var _name = _names[_i];
++        var _game = asset_get_index(_name);
++
++        if (_game < 0)
++        {
++            gnx_report_mod_error(arg4 + ": alias table names '" + _name + "', not a game sprite");
++            continue;
++        }
++
++        var _fill = gnx_art_swap_value(arg2, true);
++        var _ln = gnx_art_line_name(_name);
++        var _line = gnx_art_swap_value(arg2, false);
++
++        if (!gnx_art_swap_frames_ok(_fill, sprite_get_number(_game), _name, arg4))
++            continue;
++
++        // the line is checked against the line sprite it replaces, when there is one
++        if (_ln != "" && !gnx_art_swap_frames_ok(_line, sprite_get_number(asset_get_index(_ln)), _ln, arg4))
++            continue;
++
++        if (variable_struct_exists(arg5, _name) && variable_struct_get(arg5, _name) != arg3)
++        {
++            gnx_report_mod_error(arg4 + ": two addresses give " + _name + " different art");
++            continue;
++        }
++
++        variable_struct_set(arg5, _name, arg3);
++        variable_struct_set(arg0, _name, _fill);
++
++        if (is_array(_fill))
++            variable_struct_set(arg0, "gnx_lists", true);
++
++        if (gnx_is_skin3_overlay(_game))
++            gnx_art_skin3_mark(_fill);
++
++        if (_ln != "")
++            variable_struct_set(arg0, _ln, _line);
++    }
++}
++
++
++// the class-shaped variant's class id, or -1
++function gnx_art_shape_class(arg0)
++{
++    switch (arg0)
++    {
++        case "lilith": return 8;
++        case "cow": return 9;
++        case "nyx": return 10;
++        case "morrigan": return 12;
++        case "cat": return 13;
++    }
++
++    return -1;
++}
++
++
++// true for the shrine's loop touch and enter: the switch leaves them at -1 for an is_special captive, and a swap of -1 does nothing
++function gnx_art_shrine_loop_overlay(arg0)
++{
++    var _p = string_pos(".shrine.loop.", arg0);
++
++    if (_p == 0)
++        return false;
++
++    var _part = string_delete(arg0, 1, _p + 12);
++    return string_copy(_part, 1, 5) == "touch" || string_copy(_part, 1, 5) == "enter";
++}
++
++
++// arg0 = the part's address without the part (monster.family.phase), arg1 = its value, arg2 = the part name, arg3 = sprites,
++// arg4 = their folder, arg5 = label for errors, arg6 = class id or -1, arg7 = the compile state
++function gnx_art_swap_part(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
++{
++    // any first, so a specific variant overrides it whatever the JSON order
++    var _pair = arg2 == "body" || arg2 == "hand" || arg2 == "head";
++    var _part = gnx_art_part(arg1, arg3, arg4, arg5 + "." + arg2, _pair, true);
++
++    if (_part == undefined)
++        exit;
++
++    var _addr = arg0 + "." + arg2;
++    var _aliases = gnx_art_aliases();
++    var _names = variable_struct_get_names(_part);
++    var _keys = variable_struct_exists(_part, "any") ? ["any"] : [];
++
++    for (var _ni = 0; _ni < array_length(_names); _ni++)
++    {
++        if (_names[_ni] != "any")
++            array_push(_keys, _names[_ni]);
++    }
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        var _k = _keys[_i];
++        var _full = _addr + "." + _k;
++
++        // parts with no leg sprites end at the part
++        if (_k == "any" && !variable_struct_exists(_aliases, _full) && variable_struct_exists(_aliases, _addr))
++            _full = _addr;
++
++        if (!variable_struct_exists(_aliases, _full))
++        {
++            gnx_report_mod_error(arg5 + "." + arg2 + ": no address " + _full);
++            continue;
++        }
++
++        var _shape = gnx_art_shape_class(_k);
++
++        if (_shape >= 0 && arg6 >= 0 && arg6 != _shape)
++        {
++            gnx_report_mod_error(arg5 + "." + arg2 + ": " + _k + " art on another class would never show");
++            continue;
++        }
++
++        if (arg7.special && gnx_art_shrine_loop_overlay(_full))
++        {
++            gnx_report_mod_error(arg5 + "." + arg2 + ": " + _full + " never shows on a special class (the shrine draws no touch or enter for it); use mon_spr_overrides goblin_shrine_touch");
++            continue;
++        }
++
++        gnx_art_swap_address(arg7.map, _full, variable_struct_get(_part, _k), _addr, arg5 + "." + arg2, arg7.seen);
++    }
++}
++
++
++function gnx_art_family_known(arg0, arg1)
++{
++    var _pre = arg0 + "." + arg1 + ".";
++    var _n = variable_struct_get_names(gnx_art_aliases());
++
++    for (var _i = 0; _i < array_length(_n); _i++)
++    {
++        if (string_copy(_n[_i], 1, string_length(_pre)) == _pre)
++            return true;
++    }
++
++    return false;
++}
++
++
++// class or global monster_art into a swap map (sprite name -> art). arg0 = the monster_art object, arg1 = its sprites, arg2 = their
++// folder, arg3 = label for errors, arg4 = class id, or -1 for global, arg5 = the class is_special. "world" and "sprites" are the caller's
++function gnx_art_compile_swaps(arg0, arg1, arg2, arg3, arg4, arg5 = false)
++{
++    var _st = { map: {}, seen: {}, special: arg5 };
++    var _mk = variable_struct_get_names(arg0);
++
++    for (var _i = 0; _i < array_length(_mk); _i++)
++    {
++        var _mn = _mk[_i];
++
++        if (gnx_art_is_comment(_mn) || _mn == "sprites")
++            continue;
++
++        if (_mn == "birth")
++        {
++            gnx_report_mod_error(arg3 + " monster_art.birth: not available in this version");
++            continue;
++        }
++
++        if (gnx_art_monster_id(_mn) < 0)
++        {
++            gnx_report_mod_error(arg3 + " monster_art: unknown monster '" + _mn + "'");
++            continue;
++        }
++
++        var _fam = variable_struct_get(arg0, _mn);
++
++        if (!is_struct(_fam))
++        {
++            gnx_report_mod_error(arg3 + " monster_art." + _mn + ": must be an object");
++            continue;
++        }
++
++        var _fk = variable_struct_get_names(_fam);
++
++        for (var _j = 0; _j < array_length(_fk); _j++)
++        {
++            var _fn = _fk[_j];
++
++            if (gnx_art_is_comment(_fn) || (_fn == "world" && arg4 < 0))
++                continue;
++
++            if (_fn == "world" || !gnx_art_family_known(_mn, _fn))
++            {
++                gnx_report_mod_error(arg3 + " monster_art." + _mn + ": unknown family '" + _fn + "'");
++                continue;
++            }
++
++            var _ph = variable_struct_get(_fam, _fn);
++
++            if (!is_struct(_ph))
++            {
++                gnx_report_mod_error(arg3 + " monster_art." + _mn + "." + _fn + ": must be an object");
++                continue;
++            }
++
++            var _pk = variable_struct_get_names(_ph);
++
++            for (var _k = 0; _k < array_length(_pk); _k++)
++            {
++                if (gnx_art_is_comment(_pk[_k]))
++                    continue;
++
++                var _anal = _pk[_k] == "anal";
++                var _sets = _anal ? variable_struct_get(_ph, "anal") : _ph;
++                var _names = [_pk[_k]];
++
++                if (_anal)
++                {
++                    if (!is_struct(_sets))
++                    {
++                        gnx_report_mod_error(arg3 + " monster_art." + _mn + "." + _fn + ".anal: must be an object");
++                        continue;
++                    }
++
++                    _names = variable_struct_get_names(_sets);
++                }
++
++                for (var _a = 0; _a < array_length(_names); _a++)
++                {
++                    var _phn = _names[_a];
++
++                    if (gnx_art_is_comment(_phn))
++                        continue;
++
++                    var _who = arg3 + " monster_art." + _mn + "." + _fn + (_anal ? ".anal." : ".") + _phn;
++                    var _addr = _mn + "." + _fn + (_anal ? ".anal." : ".") + _phn;
++
++                    if (!array_contains(gnx_art_phase_names(), _phn))
++                    {
++                        // a part that belongs to no phase (the carrying ogre's walk) is an address of its own
++                        if (!_anal && variable_struct_exists(gnx_art_aliases(), _mn + "." + _fn + "." + _phn))
++                            gnx_art_swap_part(_mn + "." + _fn, variable_struct_get(_sets, _phn), _phn, arg1, arg2, arg3 + " monster_art." + _mn + "." + _fn, arg4, _st);
++                        else
++                            gnx_report_mod_error(_who + ": unknown phase");
++
++                        continue;
++                    }
++
++                    var _parts = variable_struct_get(_sets, _phn);
++
++                    if (!is_struct(_parts))
++                    {
++                        gnx_report_mod_error(_who + ": must be an object");
++                        continue;
++                    }
++
++                    var _pn = variable_struct_get_names(_parts);
++
++                    for (var _m = 0; _m < array_length(_pn); _m++)
++                    {
++                        if (gnx_art_is_comment(_pn[_m]))
++                            continue;
++
++                        if (_pn[_m] != "body" && _pn[_m] != "hand" && _pn[_m] != "head" && _pn[_m] != "pen" && _pn[_m] != "touch" && _pn[_m] != "enter" && _pn[_m] != "prop")
++                        {
++                            gnx_report_mod_error(_who + ": unknown part '" + _pn[_m] + "'");
++                            continue;
++                        }
++
++                        gnx_art_swap_part(_addr, variable_struct_get(_parts, _pn[_m]), _pn[_m], arg1, arg2, _who, arg4, _st);
++                    }
++                }
++            }
++        }
++    }
++
++    return _st.map;
++}
++
++
++// a class with both mon_spr_overrides and monster_art (arg1 = the class, arg2 = its swap map from monster_art): the old key replaces the
++// sprite first, so the swap never sees the vanilla name and the old key wins. One log line per sprite, naming both. Classes below ID 14 ignore mon_spr_overrides.
++// An old key with no sprite name in the table (WALL, G.BANG, giant heads) gets a general line, since the log cannot tell which of the class's
++// swaps it beats; over-logging is harmless. arg0 = label, arg1 = class id, arg2 = the class, arg3 = its swap map from monster_art
++function gnx_art_old_key_log(arg0, arg1, arg2, arg3)
++{
++    if (arg1 < 14 || !variable_struct_exists(arg2, "mon_spr_overrides") || !is_struct(arg2.mon_spr_overrides))
++        return;
++
++    var _ok = variable_struct_get_names(arg2.mon_spr_overrides);
++
++    for (var _j = 0; _j < array_length(_ok); _j++)
++    {
++        if (!gnx_art_old_key_known(_ok[_j]))
++        {
++            var _lg2 = gnx_log_open();
++            gnx_log_write(_lg2, "[GNX] " + arg0 + ": mon_spr_overrides '" + _ok[_j] + "' beats monster_art for the sprite it replaces\n");
++            gnx_log_close(_lg2);
++        }
++    }
++
++    var _k = variable_struct_get_names(arg3);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _old = gnx_art_old_key(_k[_i]);
++
++        if (_old != "" && variable_struct_exists(arg2.mon_spr_overrides, _old))
++        {
++            var _lg = gnx_log_open();
++            gnx_log_write(_lg, "[GNX] " + arg0 + ": mon_spr_overrides '" + _old + "' wins over monster_art for " + _k[_i] + "\n");
++            gnx_log_close(_lg);
++        }
++    }
++}
++
++
++// a manifest value: the object itself, or a file name in folder arg2. undefined after a mod error
++function gnx_art_load_file(arg0, arg1, arg2, arg3)
++{
++    if (is_struct(arg1))
++        return arg1;
++
++    if (is_string(arg1) && file_exists(arg2 + arg1))
++    {
++        var _buf = buffer_load(arg2 + arg1);
++        var _raw = buffer_read(_buf, buffer_text);
++        buffer_delete(_buf);
++
++        try
++        {
++            var _m = json_parse(_raw);
++
++            if (is_struct(_m))
++                return _m;
++        }
++        catch (_e)
++        {
++        }
++    }
++
++    gnx_report_mod_error(arg0 + ": " + arg3 + " must be an object, or the name of a JSON object file");
++    return undefined;
++}
++
++
++// the manifest key "monster_art": global swaps, merged per sprite name (the last mod loaded wins)
++function scr_gnx_load_monster_art(arg0, arg1, arg2)
++{
++    var _who = "Mod '" + arg0 + "'";
++
++    if (gnx_mod_dates_off(_who, arg2, "monster_art"))
++        return;
++
++    var _dir = global.gnx_mods_root + arg0 + "/";
++    var _art = gnx_art_load_file(_who, arg1, _dir, "monster_art");
++
++    if (_art == undefined)
++        return;
++
++    var _spr = (variable_struct_exists(_art, "sprites") && is_struct(_art.sprites)) ? _art.sprites : {};
++    var _map = gnx_art_compile_swaps(_art, _spr, _dir, _who, -1);
++    var _k = variable_struct_get_names(_map);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        variable_struct_set(global.gnx_mon_swap_global, _k[_i], variable_struct_get(_map, _k[_i]));
++        global.gnx_mon_swap_global_n++;
++    }
++
++    // world art goes through the shared sprite_replace code, after the swaps
++    var _mons = variable_struct_get_names(_art);
++
++    for (var _wi = 0; _wi < array_length(_mons); _wi++)
++    {
++        var _block = variable_struct_get(_art, _mons[_wi]);
++
++        if (gnx_art_monster_id(_mons[_wi]) >= 0 && is_struct(_block) && variable_struct_exists(_block, "world"))
++            gnx_art_load_world(_who, _mons[_wi], _block.world, _dir);
++    }
++}
++
++
++// the game sprites of a monster's world parts: [part, game sprite, fixed frame count, (only walk_carry) swap only]. The carrying ogre's
++// walk keeps its game sprite: that sprite's box reaches 470 px, and the runtime cuts a box to the image, so assigning art would lose
++// it. The art goes in the global swap store instead (what scr_draw_orgre_patrol draws), the game sprite stays the mask
++function gnx_art_world_table(arg0)
++{
++    switch (arg0)
++    {
++        case "goblin":
++            return [["idle", "spr_goblin_idle", false], ["walk", "spr_goblin_walk", false], ["walk_back", "spr_goblin_b_walk", false], ["milk_walk_empty", "spr_goblin_milk_walk_e", false], ["milk_walk_full", "spr_goblin_milk_walk_f", false]];
++        case "hobgoblin":
++            return [["idle", "spr_hobgoblin_idle", false], ["walk", "spr_hobgoblin_walk", false], ["walk_back", "spr_hobgoblin_b_walk", false], ["carry", "spr_hobgoblin_carry", true], ["log", "spr_hobgoblin_log", true]];
++        case "ogre":
++            return [["idle", "spr_ogre_idle", false], ["walk", "spr_ogre_walk", false], ["walk_carry", "spr_ogre_walk_carry", true, true]];
++    }
++
++    return [];
++}
++
++
++// arg0 = "Mod 'folder'", arg1 = monster name, arg2 = its "world" object, arg3 = the mod folder
++function gnx_art_load_world(arg0, arg1, arg2, arg3)
++{
++    if (!is_struct(arg2))
++    {
++        gnx_report_mod_error(arg0 + " monster_art." + arg1 + ".world must be an object of part -> art");
++        return;
++    }
++
++    var _k = variable_struct_get_names(arg2);
++    var _tbl = gnx_art_world_table(arg1);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        if (gnx_art_is_comment(_k[_i]))
++            continue;
++
++        var _row = undefined;
++
++        for (var _j = 0; _j < array_length(_tbl); _j++)
++        {
++            if (_tbl[_j][0] == _k[_i])
++                _row = _tbl[_j];
++        }
++
++        var _label = arg0 + " monster_art." + arg1 + ".world." + _k[_i];
++
++        if (_row == undefined)
++        {
++            gnx_report_mod_error(arg0 + " monster_art." + arg1 + ".world: unknown part '" + _k[_i] + "'");
++            continue;
++        }
++
++        var _v = variable_struct_get(arg2, _k[_i]);
++
++        // a list picks nothing here: the game sprite is one sprite
++        if (!is_string(_v) && !is_struct(_v))
++        {
++            gnx_report_mod_error(_label + " must be a file, a folder or an object");
++            continue;
++        }
++
++        if (is_string(_v) && (string_copy(_v, 1, 4) == "gnx:" || asset_get_index(_v) >= 0))
++        {
++            gnx_report_mod_error(_label + ": world art is a file, folder or object, not a sprite name");
++            continue;
++        }
++
++        gnx_replace_one(arg0, _row[1], _v, arg3, { allow_size: true, fixed_frames: _row[2], label: _label, swap_only: array_length(_row) > 3 });
++    }
++}
++
++
++// for draw sites with no monster of their own: the spr_data of this cell's monster at place 0, or undefined (first entry).
++// A draw site never rolls: it reads a roll the monster already made, so it cannot flicker
++function gnx_art_slot_roll_src()
++{
++    var _m = slot_data.mon_placement[0];
++
++    if (_m == -1 || !instance_exists(_m) || !variable_struct_exists(_m.mon_data, "spr_data"))
++        return undefined;
++
++    var _sd = _m.mon_data.spr_data;
++    return (is_struct(_sd) && variable_struct_exists(_sd, "art_roll")) ? _sd : undefined;
++}
++
++
++enum UnknownEnum
++{
++    Value_0,
++    Value_1,
++    Value_2,
++    Value_3,
++    Value_4,
++    Value_5,
++    Value_7 = 7,
++    Value_12 = 12,
++    Value_33 = 33,
++    Value_40 = 40,
++    Value_56 = 56
++}

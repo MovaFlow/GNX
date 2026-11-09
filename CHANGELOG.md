@@ -9,6 +9,7 @@
 - **Replacing game sprites** (`sprite_replace`): a mod puts its own art in place of game sprites by name (a folder of frames, a strip or a sprite entry), and every cell, phase and screen that draws them draws the mod's art. The game's own art comes back when the mod is turned off (modding guide 5.9).
 - **Raid stages per map** (`raids.json` stage `map`): a mod that loads on several maps can put each stage on some of them only, e.g. its own map, while the rest of the mod also loads in the village (modding guide 27.1).
 - **Hover outline for stage icons**: an icon `crypt.png` with a `crypt_sel.png` next to it gets that outline while pointed at, like the vanilla buttons.
+- **Monster sprites with `monster_art`**: one key, with the same rules everywhere, for the sprites of goblins, hobgoblins and ogres. In a cell it gives each monster its own parts per phase (body, hand, head, pen, touch, enter) with leg and class variants, random lists, outline pairs, `"none"`, anal blocks and per-place blocks, and it works on vanilla cells too (one row per phase). In a class or in the manifest it swaps vanilla monster sprites by address, on the captives of that class or on every captive; the manifest's `world` block replaces how goblins, hobgoblins and ogres stand, walk and carry, at any size. Wrong shapes, unknown addresses and art that a cell would not draw are mod errors, not silent. The old `mon_spr` keys keep working and moved to an appendix; the guide has a new "which key do I use" table and the list of every address with the other places each sprite is drawn (modding guide 10.8, 16.7 to 16.9, Appendix C). Set `min_gnx_version` to `1.5.2` for a mod that uses it.
 
 ### Bug Fixes
 
@@ -21,6 +22,12 @@
 - A cell named in a class's condition (`raid_spawns`, `cage_escape`) was reported as not found while classes loaded, before any cell existed.
 - In cells with independent places, the first frame of the captive's idle drip showed when one monster left and others stayed. It now plays only once the cell is empty.
 - COPY DOWN refused a floor whose cells had been removed ("the floor below is not empty"): removing a cell leaves its empty slot. Empty slots in the same layout as the floor above now get its cells (only the cells are paid for); empty slots in another layout get a message saying so.
+- A mod patching an existing cell (`h_type` of a cell that is already registered) could not give it its own ej art: `human_spr.phase_3` was ignored in a patch and the ej kept the loop pictures. It is now read, as it already was for a new cell.
+- Raid skills: the same skill twice in one row counted only once, and a second back-row skill 1 replaced the first instead of adding to it. No raid result changes in this version, for vanilla or modded troops: each troop has its own skill, and a row merges stacks of one troop, so no formation holds a skill twice. It only matters for a future troop type that shares a skill.
+- `sprite_replace` in a mod that has an atlas, with a file name that matches an atlas entry, gave a wrong size error, or could assign wrong art when the sizes matched. The art is now baked from the atlas first.
+- `build_mod.py` did not copy the art that `sprite_replace` names, so a deployed mod lost it. It now copies the files that the manifest's `sprite_replace` and `monster_art` name, from any folder.
+- A `sprite_replace` after another mod's replacement of the same sprite compared size, origin and frame count with the earlier mod's art; it now compares with the game's own sprite.
+- A carrying ogre with its own walk art (an old `patrol` override, or a `mon_sprite_swap` of the carry walk) got that art's collision box and frame count after a save was loaded. After loading it now keeps the game's, the same as when the ogre starts carrying in play.
 
 ## v1.5.1
 

@@ -23,19 +23,33 @@ def line_name(fill):
     return fill.replace("_alpha", "_line")
 
 
+# vanilla names that are scene art without the usual spr_h_ prefix, and sprites drawn as another part than their name says
+UNPREFIXED = r"spr_(hobgoblin)_(shrine_.+)"
+DRAWN_AS = {"spr_h_ogre_shrine_start_enter": "pen", "spr_h_goblin_body_start_pen_giant": "pen", "spr_h_hobgoblin_body_start_pen_giant": "pen"}  # s_mon_data: case 39 and the GIANT cell draw these as the pen
+FAMILY_OF = {"spr_h_ogre_body_loop_morrigan": "chains", "spr_h_ogre_body_loop_morrigan_extra": "chains"}  # drawn by the chain cell, s_slot_draw
+# the ogre touch art is picked only in the goblin G.BANG 1 branch (s_mon_data, placement 0), so the address names the goblin that draws it
+TOUCHED_BY_GOBLIN = {"spr_h_ogre_touch_loop" + s for s in ("", "_cow", "_nyx", "_lilith", "_morrigan", "_cat")}
+
+
+def is_scene_art(name):
+    return name.startswith("spr_h_") or re.fullmatch(UNPREFIXED, name) is not None
+
+
 def address_of(name):
-    m = re.fullmatch(r"spr_h_(goblin|hobgoblin|ogre)_(.+)", name)
+    m = re.fullmatch(r"spr_h_(goblin|hobgoblin|ogre)_(.+)", name) or re.fullmatch(UNPREFIXED, name)
     if not m or name.endswith("_line") or "_line_" in name:
         return None
     monster, rest = m.groups()
     toks = rest.split("_")
-    family = "standard"
+    if name in TOUCHED_BY_GOBLIN:
+        monster = "goblin"
+    family = "gbang_1" if name in TOUCHED_BY_GOBLIN else FAMILY_OF.get(name, "standard")
     for key, fam in FAMILIES:
         if key in rest:
             family = fam
             break
     phase = "start" if "start" in toks else ("ej" if "ej" in toks else "loop")
-    part = next((p for p in PARTS if p in toks), "body")
+    part = DRAWN_AS.get(name) or next((p for p in PARTS if p in toks), "body")
     cls = next((c for c in CLASSES if c in toks), None)
     if cls:
         variant = cls
@@ -65,7 +79,7 @@ def observed_uses(dump):
                 if "=" not in part or part.startswith(("sd.", "depth", "xscale", "sx", "sy", "mx", "my", "oa", "draw")):
                     continue
                 field, val = part.split("=", 1)
-                if val.startswith("spr_h_"):
+                if is_scene_art(val):
                     uses.setdefault(val, set()).add(f"{mons[m]}.{PHASE_NAMES[ph]}.{field}")
     return uses
 
@@ -85,7 +99,7 @@ def main():
         a = address_of(n)
         if a:
             addresses.setdefault(a, []).append(n)
-        elif n.startswith("spr_h_") and not n.endswith("_line") and "_line_" not in n:
+        elif is_scene_art(n) and not n.endswith("_line") and "_line_" not in n:
             unaddressed.append(n)
     for a in list(addresses):
         parts = a.split(".")

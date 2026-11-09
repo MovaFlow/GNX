@@ -15,12 +15,15 @@ classes.json    3 classes demonstrating all variants:
                   carry_base_spr (per-leg struct form), raid_spawns, birth_class,
                   icon + icon_hair, fap_mul/bap_mul, preg_c_override, "folder" field,
                   voice (fixed moan bank + pitch)
+                  and a class monster_art swap (1.5.2, guide 16.7)
                 - SIREN: special (is_special:true), gb1_breast_d2, cage_escape,
                   mon_spr_overrides (patrol + ogre_touch + shrine_bg/dirt/sign +
                   ogre_chain_body), spr_array/spr_c_array clothing_big, "max_row" field
                 - PEASANT override: override:true with class_id:0, partial clothing
 cells.json      8 cells demonstrating all slot types, dispatch modes, and v1.4.5+ features:
                 - HEX ROOM: standard (slot_type 0), base+class mode, full goblin sprites
+                  and a monster_art block (1.5.2; game sprite names, as this mod ships no strips;
+                  guide 10.8)
                 - RITUAL: standard (slot_type 0), fixed mode, spr_array/spr_c_array,
                   sfx_type:"bj" (marks it an oral cell for the BJ sound pools)
                 - ARENA: standard (slot_type 0), class_map mode, per-class sprite dispatch

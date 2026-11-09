@@ -1,5 +1,5 @@
 """Self-check for the gnx_test.py log parser. Run: python tools/test_gnx_test.py"""
-from gnx_test import clear_dumps, parse_log, verdict, EXIT_PASS, EXIT_FAIL, EXIT_TIMEOUT
+from gnx_test import clear_dumps, parse_log, unexpected_dialog_errors, verdict, EXIT_PASS, EXIT_FAIL, EXIT_TIMEOUT
 
 GOOD = """[GNX] loader start
 [GNX] loading: GNX Example Mod v1.0.0
@@ -152,3 +152,10 @@ for _n in ("real.txt", "real.base.txt", "probe_world.txt", "other.txt"):
 clear_dumps({"s1": {"steps": [{"wait": 1}, {"mon_art_dump": {"file": "real"}}]}, "s2": {"steps": [{"art_probe": "world"}]}, "s3": {"steps": [{"wait": 1}]}}, _g)
 assert sorted(f.name for f in (_g / "mon_art").iterdir()) == ["other.txt", "real.base.txt"]
 clear_dumps({"s1": {"steps": [{"mon_art_dump": {"file": "real"}}]}}, Path(tempfile.mkdtemp()))  # no folder yet: no error
+
+# expect_dialog + expect_mod_errors: a dialog-matching error that no expected string matches is reported, one that does is not
+sc = {"expect_dialog": "monster_art", "expect_mod_errors": ["Cell 4 monster_art.ogre: not drawn"]}
+errs = ["Cell 4 monster_art.ogre: not drawn on this cell", "Cell 5 monster_art.ogre: extra", "Mod 'x': something else"]
+assert unexpected_dialog_errors(sc, errs) == ["Cell 5 monster_art.ogre: extra"]
+assert unexpected_dialog_errors({"expect_dialog": "monster_art"}, errs) == []  # only with both keys
+assert unexpected_dialog_errors({"expect_mod_errors": ["a"]}, errs) == []

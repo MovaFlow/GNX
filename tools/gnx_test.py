@@ -902,6 +902,14 @@ def capture_fixture(game_dir, slot, name, strip=False):
     print(f"captured {src.name} -> {dest}{' (mods stripped)' if strip else ''}", file=sys.stderr)
 
 
+def unexpected_dialog_errors(sc, mod_errors):
+    """With both expect_dialog and expect_mod_errors, the errors that contain the dialog text and match no expected
+    string. The dialog text alone would hide an extra error of that kind."""
+    if not (sc.get("expect_dialog") and sc.get("expect_mod_errors")):
+        return []
+    return [m for m in mod_errors if sc["expect_dialog"] in m and not any(w in m for w in sc["expect_mod_errors"])]
+
+
 def clear_dumps(scns, game_dir):
     """Removes the files these scenarios' mon_art_dump and art_probe steps write, so a run that writes none
     (no cell, skipped, crashed) cannot leave an old file for tools/mon_art_diff.py to pass."""
@@ -911,6 +919,8 @@ def clear_dumps(scns, game_dir):
                 (game_dir / "mon_art" / f"{st['mon_art_dump']['file']}.txt").unlink(missing_ok=True)
             elif "art_probe" in st:
                 (game_dir / "mon_art" / f"probe_{st['art_probe']}.txt").unlink(missing_ok=True)
+            elif "art_marker" in st:
+                (game_dir / "mon_art" / "marker.txt").unlink(missing_ok=True)
 
 
 def load_scenario(name):
@@ -1145,13 +1155,17 @@ def main(argv=None):
             if sc.get("expect_dialog") and not r["dismissed_dialogs"] and r.get("scn"):
                 # the scenario relies on that popup appearing: missing it is a failure
                 r["scn"]["fails"].append("FAIL  expected dialog containing '" + sc["expect_dialog"] + "' never appeared")
-            if sc.get("expect_dialog"):  # the expected problem is also logged as a mod error
-                r["mod_errors"] = [m for m in r["mod_errors"] if sc["expect_dialog"] not in m]
+            if sc.get("expect_dialog") and sc.get("expect_mod_errors") and r.get("scn") is not None:
+                # with both keys the dialog text would hide any extra error of that kind: each one must match an expected string
+                for m in unexpected_dialog_errors(sc, r["mod_errors"]):
+                    r["scn"]["fails"].append("FAIL  unexpected mod error (not in expect_mod_errors): " + m)
             for want in sc.get("expect_mod_errors", []):
                 # mod errors the scenario provokes on purpose (runtime ones show no dialog): each must be logged
                 if r.get("scn") is not None and not any(want in m for m in r["mod_errors"]):
                     r["scn"]["fails"].append("FAIL  expected mod error containing '" + want + "' was not logged")
                 r["mod_errors"] = [m for m in r["mod_errors"] if want not in m]
+            if sc.get("expect_dialog"):  # the expected problem is also logged as a mod error
+                r["mod_errors"] = [m for m in r["mod_errors"] if sc["expect_dialog"] not in m]
             if len(r["dismissed_dialogs"]) > 1 and r.get("scn"):
                 r["scn"]["fails"].append(f"FAIL  expected dialog appeared {len(r['dismissed_dialogs'])} times (should show once per session)")
             r["suite_ignored"] = sc.get("check_boot_suite", True) is False

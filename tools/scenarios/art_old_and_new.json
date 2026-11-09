@@ -1,0 +1,169 @@
+{
+  "about": "Old and new keys. One mod cell (9073) has monster_art and old mon_spr: the art wins what it lists, the old key gives what it does not list (a phase it has no block for, a monster type it has no block for). Across mods: harness_own_art (old keys only) still gives spr_sp_drip_1 in the same run, and an old mon_spr patch of a vanilla cell loses to a monster_art patch of it whichever loads first (a_old < art_cell < old_late by folder name: cell 2 gets the old patch first, cell 1 gets it last). Spec: a cell's monster_art beats its old mon_spr whatever the load order.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_art_cell",
+    "tools/scenarios/mods/harness_art_a_old",
+    "tools/scenarios/mods/harness_art_old_late",
+    "tools/scenarios/mods/harness_art_old_new",
+    "tools/scenarios/mods/harness_own_art"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        9073,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "mod:gb_loop",
+      "why": "one cell, both keys: the art's strip, by name"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_is_mod",
+      "args": [
+        9073,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": 1,
+      "why": "and it is a mod sprite"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        9073,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "spr_sp_drip_1",
+      "why": "no start block in the art: the old key's start"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        9073,
+        1,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "spr_sp_drip_1",
+      "why": "a hobgoblin: the art has a goblin block only, so today's behaviour, the old key"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        9040,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "spr_sp_drip_1",
+      "why": "across two mods: harness_own_art keeps its old keys in the same run"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        1,
+        0,
+        2,
+        1,
+        {
+          "class": "harness_art_old_new.PLAIN"
+        },
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "mod:c1_loop",
+      "why": "cell 1, a mod class: the art patch loaded first, the old mon_spr patch of a later mod does not win"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        1,
+        0,
+        2,
+        1,
+        {
+          "class": "harness_art_old_new.PLAIN"
+        },
+        1,
+        0,
+        "body_b"
+      ],
+      "is": "spr_sp_drip_1",
+      "why": "control: the old patch of cell 1 is live for this class (an anal scene, where the art has no block and the vanilla cell keeps today's path)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        2,
+        0,
+        2,
+        1,
+        {
+          "class": "harness_art_old_new.PLAIN"
+        },
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "mod:c2_loop",
+      "why": "cell 2, a mod class: the old patch loaded first, the art patch after it wins"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        2,
+        0,
+        0,
+        1,
+        {
+          "class": "harness_art_old_new.PLAIN"
+        },
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "spr_sp_drip_1",
+      "why": "control: the old patch of cell 2 is live too (its start, where the art has no start block)"
+    }
+  ]
+}

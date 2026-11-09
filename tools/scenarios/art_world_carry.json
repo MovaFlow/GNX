@@ -1,0 +1,51 @@
+{
+  "about": "The carrying ogre's walk is one entry of the global swap store. harness_art_world's world.walk_carry (128 x 128) is overwritten by a LATER mod's ogre.carry.walk swap (36 x 52, last loaded wins), and a class's own ogre.carry.walk swap (24 x 40) beats the global entry whichever wrote it. Mods load by folder name: world < world_carry < world_class. The other order (world after a swap) is in art_world_forms.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_art_world",
+    "tools/scenarios/mods/harness_art_world_carry",
+    "tools/scenarios/mods/harness_art_world_class"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "world",
+  "expect_mod_errors": [
+    "no art found",
+    "spr_hobgoblin_carry has 10 frames, it must keep 8",
+    "at another size xorig and yorig are required",
+    "spr_hobgoblin_log has 2 frames, it must keep 1"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_patrol_art",
+      "args": [
+        0
+      ],
+      "is": "36x52 n8",
+      "why": "a Peasant's carrying ogre draws the later mod's swap, not the world entry (128x128)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_patrol_art",
+      "args": [
+        {
+          "class": "harness_art_world_class.CARRY"
+        }
+      ],
+      "is": "24x40 n8",
+      "why": "the class's own swap beats the global entry"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_ogre_walk_carry"
+      ],
+      "is": "115x115 n8 o55,114",
+      "why": "the game sprite stays: it is the mask"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,4140 @@
+@@ -0,0 +1,4215 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1045,6 +1045,10 @@
 +    // GNX-FIX: monster species and places checked once (audit P5)
 +    gnx_cell_mon_check(_cell, _cn, arg1);
 +    
++    // GNX-ART: after the check, which cleans mon_types, so the art sees the list the cell will keep
++    if (variable_struct_exists(arg0, "monster_art"))
++        gnx_art_parse_cell(arg0.monster_art, _sprites_dict, _base_dir, "Cell '" + string(_cn) + "'", _h, _cell);
++    
 +    // GNX-PLACES-INTER: ej_end's strip rule, now that the species are cleaned (a cell with independent
 +    // places and an ej_end table; && = and)
 +    if (variable_struct_exists(_cp, "gnx_places") && _cp.gnx_places && variable_struct_exists(_cp, "gnx_inter_end") && is_struct(_cp.gnx_inter_end))
@@ -1187,6 +1191,8 @@
 +            _inx = [_has_start ? _pc[0] : _pc[2], _pc[2], _pc[2], _pc[4]];
 +        }
 +        
++        // kept for the strip rules of a patch's monster_art (gnx_frames_check_art_patch)
++        _cp.gnx_inter_inx = _inx;
 +        _cp.gnx_inter = gnx_inter_parse(_phys.intermissions, _inx, _cn);
 +        
 +        // GNX-PLACES-INTER: a cell with independent places plays idle_start, start_loop and loop_ej for each
@@ -1579,6 +1585,10 @@
 +        if (variable_struct_exists(_hs, "phase_2"))
 +            gnx_merge_patch_phase(_cell.human_spr, "phase_2", _hs.phase_2, _sprites_dict, _base_dir);
 +        
++        // GNX-EJ: own ej art in a patch (gnx_ej_own_art)
++        if (variable_struct_exists(_hs, "phase_3"))
++            gnx_merge_patch_phase(_cell.human_spr, "phase_3", _hs.phase_3, _sprites_dict, _base_dir);
++        
 +        if (variable_struct_exists(_hs, "phase_4"))
 +            gnx_merge_patch_phase(_cell.human_spr, "phase_4", _hs.phase_4, _sprites_dict, _base_dir);
 +        
@@ -1783,6 +1793,14 @@
 +    // GNX-FIX: a patch that changes the monster rules gets the same check as a new cell (audit P5)
 +    if (variable_struct_exists(arg1, "mon_types") || (variable_struct_exists(arg1, "physical") && is_struct(arg1.physical) && variable_struct_exists(arg1.physical, "mon_placements")))
 +        gnx_cell_mon_check(_cell, "h_type " + string(arg0), arg2);
++    
++    // GNX-ART: after the check, which cleans mon_types, so the art sees the list the cell will keep
++    if (variable_struct_exists(arg1, "monster_art"))
++        gnx_art_parse_cell(arg1.monster_art, _sprites_dict, _base_dir, "Cell " + string(arg0), arg0, _cell);
++    
++    // GNX-ART: a patch of a mod cell gets the frame rules its own art got at registration (a vanilla cell's are in gnx_art_parse_cell)
++    if (arg0 >= 100 && variable_struct_exists(arg1, "monster_art") && is_struct(arg1.monster_art))
++        gnx_frames_check_art_patch(arg1, _cell, _sprites_dict);
 +    
 +    if (variable_struct_exists(arg1, "sfx_type"))
 +        _cell.sfx_type = arg1.sfx_type;
@@ -2728,26 +2746,51 @@
 +}
 +
 +
-+// a class's mon_sprite_swap struct (vanilla monster sprite name -> replacement), or undefined
++// a class's mon_sprite_swap struct (vanilla monster sprite name -> replacement), else the mods' global swap map
++// (GNX-ART: monster_art in a manifest), or undefined when there is none
 +function gnx_get_mon_swap(arg0)
 +{
 +    var _rc = ds_map_find_value(global.class_registry, arg0);
 +    
-+    if (_rc == undefined || !variable_struct_exists(_rc, "mon_sprite_swap"))
-+        return undefined;
++    if (_rc != undefined && variable_struct_exists(_rc, "mon_sprite_swap"))
++        return _rc.mon_sprite_swap;
 +    
-+    return _rc.mon_sprite_swap;
++    return (global.gnx_mon_swap_global_n > 0) ? global.gnx_mon_swap_global : undefined;
 +}
 +
 +
-+// arg0 swapped through the swap struct arg1 when arg0 is a game sprite listed there, else arg0
-+function gnx_mon_swap_one(arg0, arg1)
++// true when swap map arg0 (a class's or the global one) or the global map holds a list. The compile marks such a map with the key
++// "gnx_lists" (never a sprite name). A monster whose map has a list rolls once in scr_set_mon_spr_data, so draw sites that pick from
++// a list (GIANT head, DRINK goblin, second G.BANG goblin) find the roll made and never roll themselves. Maps with no list draw no random number
++function gnx_swap_has_list(arg0)
++{
++    return variable_struct_exists(arg0, "gnx_lists") || (global.gnx_mon_swap_global_n > 0 && variable_struct_exists(global.gnx_mon_swap_global, "gnx_lists"));
++}
++
++
++// arg0 swapped through the swap struct arg1 (a class's, or the global one) when arg0 is a game sprite listed there, else through
++// the global map, else arg0. A hit is not swapped again. A list reads the roll of arg2 (a monster's spr_data), else its first entry
++function gnx_mon_swap_one(arg0, arg1, arg2 = undefined)
 +{
 +    if (is_struct(arg0) || is_undefined(arg0) || is_string(arg0) || is_array(arg0) || !sprite_exists(arg0))
 +        return arg0;
 +    
 +    var _n = sprite_get_name(arg0);
-+    return variable_struct_exists(arg1, _n) ? variable_struct_get(arg1, _n) : arg0;
++    var _v = undefined;
++    
++    if (variable_struct_exists(arg1, _n))
++        _v = variable_struct_get(arg1, _n);
++    // != : arg1 is the global map itself for a class without a map, which the line above has just looked in
++    else if (arg1 != global.gnx_mon_swap_global && global.gnx_mon_swap_global_n > 0 && variable_struct_exists(global.gnx_mon_swap_global, _n))
++        _v = variable_struct_get(global.gnx_mon_swap_global, _n);
++    
++    if (_v == undefined)
++        return arg0;
++    
++    if (is_array(_v))
++        return _v[is_struct(arg2) ? (gnx_art_roll(arg2) % array_length(_v)) : 0];
++    
++    return _v;
 +}
 +
 +
@@ -2951,7 +2994,7 @@
 +
 +    // POPRAWKA (GNX): "only_listed_cells": true = klasa wchodzi tylko do cel, ktorych required_class ja wymienia
 +    _rclass.only_listed_cells = variable_struct_exists(arg0, "only_listed_cells") && arg0.only_listed_cells == true;
-+    gnx_class_resolve_body_sprites(arg0, _base_dir, _rclass, _sprites);
++    gnx_class_resolve_body_sprites(arg0, _base_dir, _rclass, _sprites, _class_id);
 +    gnx_class_parse_options(arg0, arg1, _base_dir, _class_id, _class_name, _rclass, _sprites);
 +    gnx_class_parse_raid_spawns(arg0, arg1, _class_id, _log);
 +    
@@ -3108,7 +3151,7 @@
 +
 +
 +// naked_*, carry_base_spr, gb1_breast_d2 and mon_sprite_swap sprite sets (part of gnx_resolve_class)
-+function gnx_class_resolve_body_sprites(arg0, _base_dir, _rclass, _sprites)
++function gnx_class_resolve_body_sprites(arg0, _base_dir, _rclass, _sprites, _class_id)
 +{
 +    if (variable_struct_exists(arg0, "naked_standard"))
 +    {
@@ -3251,6 +3294,34 @@
 +        }
 +
 +        _rclass.mon_sprite_swap = _msw;
++    }
++
++    // GNX-ART: a class's monster_art compiles to the same map; its entries win over mon_sprite_swap's, and the log says so
++    if (variable_struct_exists(arg0, "monster_art") && is_struct(arg0.monster_art))
++    {
++        var _ms_who = "class '" + string(_rclass.name) + "'";
++        var _art_map = gnx_art_compile_swaps(arg0.monster_art, _sprites, _base_dir, _ms_who, _class_id, _rclass.is_special);
++        var _am_k = variable_struct_get_names(_art_map);
++
++        if (array_length(_am_k) > 0)
++        {
++            var _old_map = variable_struct_exists(_rclass, "mon_sprite_swap") ? _rclass.mon_sprite_swap : {};
++
++            for (var _ami = 0; _ami < array_length(_am_k); _ami++)
++            {
++                if (variable_struct_exists(_old_map, _am_k[_ami]))
++                {
++                    var _aml = gnx_log_open();
++                    gnx_log_write(_aml, "[GNX] " + _ms_who + ": monster_art wins over mon_sprite_swap for " + _am_k[_ami] + "\n");
++                    gnx_log_close(_aml);
++                }
++
++                variable_struct_set(_old_map, _am_k[_ami], variable_struct_get(_art_map, _am_k[_ami]));
++            }
++
++            _rclass.mon_sprite_swap = _old_map;
++            gnx_art_old_key_log(_ms_who, _class_id, _rclass, _art_map);
++        }
 +    }
 +}
 +
@@ -3503,6 +3574,10 @@
 +        // the copy below put the earlier definition's level back over it
 +        if (variable_struct_exists(arg0, "milk_lvl"))
 +            _prov.gnx_milk_lvl = true;
++
++        // GNX-ART: _condk tests JSON keys, and monster_art lands in this field: without this the base's map would overwrite it
++        if (variable_struct_exists(arg0, "monster_art") && variable_struct_exists(_rclass, "mon_sprite_swap"))
++            _prov.mon_sprite_swap = true;
 +
 +        var _condk = ["clothing_standard", "clothing_big", "clothing_tent", "clothing_giant", "only_listed_cells", "naked_standard", "naked_big", "naked_tent", "carry_base_spr", "gb1_breast_d2", "mon_spr_overrides", "mon_sprite_swap", "preg_mon_type_override", "birth_classes", "birth_class", "default_leg", "birth_spr", "post_raid", "scr_unit", "tower_boss_condition"];
 +        
