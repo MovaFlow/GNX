@@ -1,0 +1,271 @@
+{
+  "about": "A map excludes a mod: harness_art_global (map vanilla, the default) loads on the village only, harness_art_travel (map harness_art_tmap) on its map only; each trip runs the mod loader again. Village: the global art (picked through the real picker). On the map: the swap store holds the map mod's art, not the boot mod's (read with gnx_scn_swap_to: a fresh map has no occupied cell to pick on). Back in the village: the global art again and the map mod's art gone. Resized world art goes with the maps too: the village has the boot mod's 64 x 80 goblin walk, the map the map mod's 48 x 60, and the hobgoblin walk only the map mod resizes is the game's own again after the trip back (nothing else replaces it, so only the restore can bring it back). The travel menu and the walk frames are art_world_travel's.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_art_global",
+    "tools/scenarios/mods/harness_art_travel"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        3,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "spr_h_goblin_body_ej_alpha",
+      "why": "village: the boot mod's art"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        3,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "pen"
+      ],
+      "is": "mod:g_pen",
+      "why": "village: its strip"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        3,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "hand_b"
+      ],
+      "is": "spr_h_goblin_hand_loop_v1_alpha",
+      "why": "village: the leg 1 hand is vanilla, the map mod's swap is not loaded"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_to",
+      "args": [
+        0,
+        "spr_h_goblin_body_loop_v2_alpha"
+      ],
+      "is": "spr_h_goblin_body_ej_alpha",
+      "why": "village: the boot mod's any covers leg 2's body name too"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "64x80 n10 o32,72",
+      "why": "village: the boot mod's world walk"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_hobgoblin_walk"
+      ],
+      "is": 1,
+      "why": "village: the hobgoblin's walk is the game's own"
+    },
+    {
+      "travel": "harness_art_tmap"
+    },
+    {
+      "wait": 40
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_art_tmap"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_to",
+      "args": [
+        0,
+        "spr_h_goblin_body_loop_v1_alpha"
+      ],
+      "is": "spr_h_goblin_body_loop_v2_alpha",
+      "why": "on the map: the map mod's art for leg 1"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_to",
+      "args": [
+        0,
+        "spr_h_goblin_hand_loop_v1_alpha"
+      ],
+      "is": "spr_h_goblin_hand_loop_v2_alpha",
+      "why": "on the map: the map mod's hand swap"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "48x60 n6 o24,56",
+      "why": "on the map: the map mod's world walk, the boot mod's is gone"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_box_same",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 1,
+      "why": "on the map: the original collision box"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_hobgoblin_walk"
+      ],
+      "is": "40x60 n4 o20,56",
+      "why": "on the map: the map mod's hobgoblin walk"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_to",
+      "args": [
+        0,
+        "spr_h_goblin_body_loop_v2_alpha"
+      ],
+      "is": "-",
+      "why": "on the map: the boot mod is not loaded (it would have swapped leg 2's body name, which the map mod does not touch)"
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 40
+    },
+    {
+      "assert": "active_map",
+      "is": "vanilla"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_to",
+      "args": [
+        0,
+        "spr_h_goblin_body_loop_v1_alpha"
+      ],
+      "is": "spr_h_goblin_body_ej_alpha",
+      "why": "back in the village: the boot mod's art again, the map mod's gone"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        3,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "spr_h_goblin_body_ej_alpha",
+      "why": "and the real picker agrees"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        3,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "pen"
+      ],
+      "is": "mod:g_pen",
+      "why": "and its strip"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_to",
+      "args": [
+        0,
+        "spr_h_goblin_hand_loop_v1_alpha"
+      ],
+      "is": "-",
+      "why": "and nothing of the map mod is left in the store (the hand swap)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "64x80 n10 o32,72",
+      "why": "back in the village: the boot mod's world walk again, not the map's"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_box_same",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 1,
+      "why": "back in the village: the original collision box"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_hobgoblin_walk"
+      ],
+      "is": 1,
+      "why": "back in the village: the hobgoblin walk the map mod resized is the game's own again (nothing else replaces it, only the restore)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_box_same",
+      "args": [
+        "spr_hobgoblin_walk"
+      ],
+      "is": 1,
+      "why": "and its collision box"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        3,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "hand_b"
+      ],
+      "is": "spr_h_goblin_hand_loop_v1_alpha",
+      "why": "the real picker: the vanilla hand"
+    }
+  ]
+}

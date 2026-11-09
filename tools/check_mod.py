@@ -19,7 +19,7 @@ Needs the jsonschema package (pip install jsonschema); without it the check is s
 import argparse
 import json
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
 
@@ -102,6 +102,42 @@ def message(err) -> str:
     return f"unknown key{'s' if len(unknown) > 1 else ''} {', '.join(repr(k) for k in unknown)}: GNX ignores it{hint}"
 
 
+def art_file_name(v):
+    """The file or folder a sprite entry names, looked up in the order GNX does it for an atlas (gnx_atlas_resolve_ref)."""
+    if isinstance(v, str):
+        return v
+    if isinstance(v, dict):
+        for k in ("strip", "path"):
+            if isinstance(v.get(k), str):
+                return v[k]
+        if isinstance(v.get("frames"), list) and v["frames"] and isinstance(v["frames"][0], str):
+            return v["frames"][0]
+        if isinstance(v.get("folder"), str):
+            return v["folder"]
+    return None
+
+
+def world_atlas_clashes(art, mod_dir: Path):
+    """[(path, file name, atlas entry)] for every monster_art world file whose base name is an entry of the mod's atlas.
+    GNX looks a sprite up in the atlas by base name first, so the atlas art is drawn and the file is never read."""
+    try:
+        entries = load_json(mod_dir / "atlas" / "uv.json").get("entries")
+    except (OSError, ValueError, AttributeError):
+        return []
+    if not isinstance(entries, dict) or not isinstance(art, dict):
+        return []
+    atlas = {k.lower(): k for k in entries}  # file names ignore case on Windows, GNX compares both ways
+    out = []
+    for mon, block in art.items():
+        world = block.get("world") if isinstance(block, dict) and mon != "sprites" else None
+        for part, v in (world.items() if isinstance(world, dict) else []):
+            name = None if part.startswith(("_", "//")) else art_file_name(v)
+            entry = atlas.get(PurePosixPath(name.replace("\\", "/")).stem.lower()) if name else None
+            if entry:
+                out.append((f"monster_art.{mon}.world.{part}", name, entry))
+    return out
+
+
 def check_mod(mod_dir: Path, jsonschema, report):
     manifest = mod_dir / "manifest.json"
     if not manifest.exists():
@@ -120,6 +156,23 @@ def check_mod(mod_dir: Path, jsonschema, report):
                 check_file(p, key, jsonschema, report)
             else:
                 report(manifest, key, f"names '{rel}', which does not exist (GNX logs a mod error and loads the rest)", False)
+    art, art_src = (m.get("monster_art") if isinstance(m, dict) else None), manifest
+    if isinstance(art, str):
+        art_src = mod_dir / art
+        if art_src.exists():
+            try:
+                art = load_json(art_src)
+            except (OSError, ValueError) as e:
+                report(art_src, "(file)", f"cannot be read as JSON: {e}", True)
+                art = None
+            if art is not None and not isinstance(art, dict):
+                report(art_src, "(top)", "monster_art must be a JSON object of monster -> art (GNX logs a mod error and loads the art of nothing)", True)
+                art = None
+        else:
+            report(manifest, "monster_art", f"names '{art}', which does not exist (GNX logs a mod error and loads the rest)", False)
+            art = None
+    for where, name, entry in world_atlas_clashes(art, mod_dir):
+        report(art_src, where, f"'{name}' has the base name of atlas entry '{entry}': GNX takes the atlas art, and the file is only a fallback when the atlas has another frame count (rename one of them)", False)
     for p in sorted((mod_dir / "lang").glob("*.json")):
         check_file(p, "lang", jsonschema, report)
 

@@ -1,0 +1,44 @@
+{
+  "about": "The shared loader with an atlas mod: sprite_replace naming an atlas entry is baked first, so the size error names the entry (4 x 8), not the last strip loaded; world takes the baked entry. An atlas entry the size of a game sprite with origin 0,0 keeps that origin (the entry's xo/yo are not used).",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_art_replace_atlas"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "harness_art_replace_atlas",
+  "expect_mod_errors": [
+    "is 4 x 8, the game sprite"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "4x8 n1 o2,7",
+      "why": "world takes the baked atlas entry, with the origin the JSON gave (2,7, not the atlas's 1,6)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_idle"
+      ],
+      "is": "4x8 n1 o0,0",
+      "why": "an explicit origin 0,0 wins over the atlas entry's (the resolver only lets a non-zero one win)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_infinity"
+      ],
+      "is": "7x3 n1 o0,0",
+      "why": "M4: a sprite_replace atlas entry of the game sprite's size, uv.json origin 2,3, no origin in the JSON entry: the game's origin 0,0 stays"
+    }
+  ]
+}

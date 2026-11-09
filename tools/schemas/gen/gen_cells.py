@@ -58,23 +58,25 @@ human_spr = {
     "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}},
     "additionalProperties": False,
 }
-PAIR = {"description": "A sprite, or a pair { alpha (fill), line (outline, optional) } (guide 10.9).",
+PAIR = {"description": "A sprite, or a pair { alpha (fill), line (outline, optional) } (guide C.2).",
         "if": {"type": "object"}, "then": obj({"alpha": SPR, "line": SPR}), "else": SPR}
 VARIANTS = obj({k: PAIR for k in ("leg_any", "leg_1", "leg_2", "cow", "lilith")},
-               "Variants: the class (cow, lilith), then the captive's leg (leg_1, leg_2), then leg_any (guide 10.9). A pair directly here is ignored.")
+               "Variants: the class (cow, lilith), then the captive's leg (leg_1, leg_2), then leg_any (guide C.2). A pair directly here is ignored.")
 HEAD = {"description": "One pair, or a list of which the first two are used 50/50.",
         "if": {"type": "array"}, "then": {"items": PAIR}, "else": PAIR}
-CLASS_V = {"description": "One sprite, or class variants default / cow / nyx / lilith / morrigan / cat (guide 10.9).",
+CLASS_V = {"description": "One sprite, or class variants default / cow / nyx / lilith / morrigan / cat (guide C.2).",
            "if": {"type": "object"}, "then": obj({k: SPR for k in ("default", "cow", "nyx", "lilith", "morrigan", "cat")}), "else": SPR}
 mon_start = obj({"body": VARIANTS, "hand": PAIR, "pen": SPR, "touch": CLASS_V,
                  "hand_xscale": {"const": "random", "description": "Mirror the hand at random (start only)."}},
-                "Monster sprites of the start step (guide 10.9): no head or enter here.")
+                "Monster sprites of the start step (guide C.2): no head or enter here.")
 mon_phase = obj({"head": HEAD, "body": VARIANTS, "hand": VARIANTS, "pen": SPR, "touch": CLASS_V, "enter": CLASS_V},
-                "Monster sprites of a loop / ej / intermission phase (guide 10.9).")
-mon_spr = {"type": "object", "description": "Monster sprites per phase (guide 10.8).",
+                "Monster sprites of a loop / ej / intermission phase (guide C.2).")
+mon_spr = {"type": "object", "description": "Monster sprites per phase (guide C.1).",
            "properties": dict({"start": {"$ref": "#/definitions/mon_start"}},
                               **{k: {"$ref": "#/definitions/mon_phase"} for k in ("loop", "ej", "idle_start", "start_loop", "loop_ej", "ej_birth", "ej_end")}),
            **OPEN}
+
+monster_art = {"type": "object", "description": "This cell's monster sprites, per monster and phase (guide 10.8 and 10.9)."}
 
 physical = obj({
     "allow_preg": d(B, "Captives can get pregnant here."),
@@ -129,6 +131,7 @@ cell = obj({
     "physical": physical,
     "human_spr": human_spr,
     "mon_spr": mon_spr, "mon_spr_hob": mon_spr, "mon_spr_ogr": mon_spr,
+    "monster_art": monster_art,
     "sfx_type": d(S, "Sound set (guide 18.5)."),
     "tent_spr": ART, "milk_spr": ART, "infant_spr": ART, "band_spr": ART,
     "sprites": {"$ref": C + "sprites"},

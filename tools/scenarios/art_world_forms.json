@@ -1,0 +1,245 @@
+{
+  "about": "monster_art world value forms: path, frames folder, object with origin; a gnx: key, a game sprite name, a number, a list, an unknown part, world as a string, a half origin, a frames list with a non-string or nothing in it are errors with no crash; comment keys are ignored; class scope refuses world; swaps in the same file still load.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_art_world_forms",
+    "tools/scenarios/mods/harness_art_world_objs",
+    "tools/scenarios/mods/harness_art_world_list"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "world",
+  "expect_mod_errors": [
+    "world art is a file, folder or object",
+    "must be a file, a folder or an object",
+    "unknown part 'bogus'",
+    "world must be an object",
+    "at another size xorig and yorig are required",
+    "unknown family 'world'",
+    "strip must be a file or folder name",
+    "path must be a file or folder name",
+    "folder must be a file or folder name",
+    "or a list of file names",
+    "frames must be a whole number of 1 or more",
+    "ogre.carry.walk takes one sprite, not a list"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "29x45 n8 o14,45",
+      "why": "the .png form: the game sprite's size, count and origin"
+    },
+    {
+      "screenshot": "world_same"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 1
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_goblin_idle"
+      ],
+      "is": 1,
+      "why": "a gnx: key is an error"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_goblin_b_walk"
+      ],
+      "is": 1,
+      "why": "a game sprite name is an error"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_goblin_milk_walk_e"
+      ],
+      "is": 0,
+      "why": "a number is an error"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_goblin_milk_walk_f"
+      ],
+      "is": 0,
+      "why": "a list is an error"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_hobgoblin_walk"
+      ],
+      "is": 0,
+      "why": "world as a string"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_ogre_walk"
+      ],
+      "is": 1,
+      "why": "xorig without yorig at another size"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_ogre_idle"
+      ],
+      "is": "40x60 n8 o20,55",
+      "why": "the object form"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_ogre_walk_carry"
+      ],
+      "is": "115x115 n8 o55,114",
+      "why": "world walk_carry leaves the game sprite alone"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_box",
+      "args": [
+        "spr_ogre_walk_carry"
+      ],
+      "is": "-176,10 to 293,114"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_patrol_art",
+      "args": [
+        0
+      ],
+      "is": "30x50 n8",
+      "why": "a fixed count met: the carrying ogre draws the last world art loaded (the list mod's 30 x 50)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_log_has",
+      "args": [
+        "replaces art that an earlier swap gave spr_ogre_walk_carry"
+      ],
+      "is": 1,
+      "why": "the world entry came after the mod's own ogre.carry.walk swap and won, with a warning"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_hobgoblin_idle"
+      ],
+      "is": "39x69 n4 o19,69",
+      "why": "a strip with no frames takes the game sprite's count"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_hobgoblin_b_walk"
+      ],
+      "is": 0,
+      "why": "strip that is not a string"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_hobgoblin_carry"
+      ],
+      "is": 0,
+      "why": "frames 0"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_hobgoblin_log"
+      ],
+      "is": 0,
+      "why": "frames given as text"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_ogre_walk"
+      ],
+      "is": "51x104 n8 o25,103",
+      "why": "frames 2.5: left out; path that is not a string: left out"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        1,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "spr_h_goblin_body_ej_alpha",
+      "why": "the swap of the same file loads"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_patrol_walk",
+      "args": [
+        0
+      ],
+      "is": "swapped",
+      "why": "the swap store has the last world art for the carrying ogre's walk (the mod's own ogre.carry.walk was overwritten, with a warning)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_log_has",
+      "args": [
+        "Mod 'harness_art_world_list' monster_art.ogre.world.walk_carry: replaces art"
+      ],
+      "is": 1,
+      "why": "the list mod's world.walk_carry replaces the forms mod's art in the store: last loaded wins, warned. Its ogre.carry.walk list was refused (error above), so the store never holds a list: the is_array guard in gnx_replace_one is defensive"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_goblin_b_walk"
+      ],
+      "is": 1,
+      "why": "frames [] is a mod error, not art"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_goblin_idle"
+      ],
+      "is": 1,
+      "why": "frames [1, 2] is a mod error, not a boot crash"
+    }
+  ]
+}

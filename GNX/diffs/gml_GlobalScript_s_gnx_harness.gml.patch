@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,5714 @@
+@@ -0,0 +1,7309 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1052,7 +1052,12 @@
 +            case 3: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2]); break;
 +            case 4: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3]); break;
 +            case 5: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3], _fn_a[4]); break;
-+            default: _fn_i = -1; break;  // more than 5 args: the assert fails instead of dropping some
++            case 6: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3], _fn_a[4], _fn_a[5]); break;
++            case 7: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3], _fn_a[4], _fn_a[5], _fn_a[6]); break;
++            case 8: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3], _fn_a[4], _fn_a[5], _fn_a[6], _fn_a[7]); break;
++            case 9: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3], _fn_a[4], _fn_a[5], _fn_a[6], _fn_a[7], _fn_a[8]); break;
++            case 10: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3], _fn_a[4], _fn_a[5], _fn_a[6], _fn_a[7], _fn_a[8], _fn_a[9]); break;
++            default: _fn_i = -1; break;  // more than 10 args: the assert fails instead of dropping some
 +        }
 +    }
 +
@@ -1615,6 +1620,118 @@
 +}
 +
 +
++// for {"assert": "fn"}: scr_check_skill_data(arg0) in the raid window, on its rows as they are
++function gnx_scn_skill_now(arg0)
++{
++    var _r = 0;
++
++    with (obj_np.obj_raid)
++        _r = scr_check_skill_data(arg0);
++
++    return _r;
++}
++
++
++// for {"assert": "fn"}: scr_check_skill_data(arg0) on made-up rows, arg1 front and arg2 back, each a list of
++// [skill, level]; the raid window's real rows are put back
++function gnx_scn_skill_rows(arg0, arg1, arg2)
++{
++    var _r = 0;
++    var _rows = [arg1, arg2];
++
++    with (obj_np.obj_raid)
++    {
++        var _old_t = raid_data.skill_type;
++        var _old_n = raid_data.skill_num;
++        raid_data.skill_type = [[-1, -1, -1, -1, -1], [-1, -1, -1, -1, -1]];
++        raid_data.skill_num = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
++
++        for (var _i = 0; _i < 2; _i++)
++        {
++            for (var _k = 0; _k < array_length(_rows[_i]); _k++)
++            {
++                raid_data.skill_type[_i][_k] = _rows[_i][_k][0];
++                raid_data.skill_num[_i][_k] = _rows[_i][_k][1];
++            }
++        }
++
++        _r = scr_check_skill_data(arg0);
++        raid_data.skill_type = _old_t;
++        raid_data.skill_num = _old_n;
++    }
++
++    return _r;
++}
++
++
++// for {"assert": "fn"}: the value x 100 of each of the 16 skills at level 3 in row arg0 (0 front, 1 back), the
++// skill last in a full row of other skills: what every formation of today's troops reduces to
++function gnx_scn_skill_table(arg0)
++{
++    var _out = "";
++
++    for (var _s = 0; _s < 16; _s++)
++    {
++        var _row = [];
++
++        for (var _k = 1; _k < 5; _k++)
++            array_push(_row, [(_s + _k) % 16, 9]);
++
++        array_push(_row, [_s, 3]);
++        _out += ((_s > 0) ? " " : "") + string(round(100 * gnx_scn_skill_rows(_s, (arg0 == 0) ? _row : [], (arg0 == 1) ? _row : [])));
++    }
++
++    return _out;
++}
++
++
++// for {"assert": "fn"}: how many times a skill is held twice: by two of the 4 troop types' classes in
++// global.mon_skill (arg0 = 0), or by two stacks of one troop in a real row (arg0 = 1)
++function gnx_scn_skill_dups(arg0)
++{
++    var _dups = 0;
++
++    if (arg0 == 0)
++    {
++        var _seen = array_create(16, 0);
++
++        for (var _t = 0; _t < 4; _t++)
++        {
++            for (var _c = 0; _c < 4; _c++)
++            {
++                var _id = global.mon_skill[_t][_c];
++
++                if (_seen[_id] > 0)
++                    _dups++;
++
++                _seen[_id] = 1;
++            }
++        }
++
++        return _dups;
++    }
++
++    var _lists = [global.front_row, global.back_row];
++
++    for (var _l = 0; _l < 2; _l++)
++    {
++        for (var _a = 0; _a < ds_list_size(_lists[_l]); _a++)
++        {
++            for (var _b = 0; _b < _a; _b++)
++            {
++                var _ua = ds_list_find_value(_lists[_l], _a).unit_data;
++                var _ub = ds_list_find_value(_lists[_l], _b).unit_data;
++
++                if (_ua.mon_type == _ub.mon_type && _ua.class == _ub.class)
++                    _dups++;
++            }
++        }
++    }
++
++    return _dups;
++}
++
++
 +// the human_spr table the captive of the first occupied cell of type arg0 is drawn with right now: "phase_N"
 +// of the fixed table or of a class_map entry (matched on the body sprite, spr_array[1]), else "none"
 +function gnx_scn_captive_table(arg0)
@@ -1968,6 +2085,77 @@
 +    }
 +
 +    return 1;
++}
++
++
++// for {"assert": "fn"}: game sprite arg0's width; 0 when GNX left it as it was (the Hobgoblin carry check)
++function gnx_scn_sprite_width(arg0)
++{
++    var _s = asset_get_index(arg0);
++    return array_contains(global.gnx_sprite_replaced, arg0) ? sprite_get_width(_s) : 0;
++}
++
++
++function gnx_scn_sprite_frames(arg0)
++{
++    return sprite_get_number(asset_get_index(arg0));
++}
++
++
++// for {"assert": "fn"}: game sprite arg0's size, frame count and origin as text "WxH nN oX,Y"
++function gnx_scn_sprite_geom(arg0)
++{
++    var _s = asset_get_index(arg0);
++    return string(sprite_get_width(_s)) + "x" + string(sprite_get_height(_s)) + " n" + string(sprite_get_number(_s)) + " o" + string(sprite_get_xoffset(_s)) + "," + string(sprite_get_yoffset(_s));
++}
++
++
++// for {"assert": "fn"}: 1 when game sprite arg0 has the size, frame count, origin and collision box of the copy GNX kept (1 too when
++// it was never replaced)
++function gnx_scn_sprite_geom_is_original(arg0)
++{
++    var _g = asset_get_index(arg0);
++
++    if (!ds_map_exists(global.gnx_sprite_backup, _g))
++        return 1;
++
++    var _o = ds_map_find_value(global.gnx_sprite_backup, _g);
++    return (sprite_get_width(_g) == sprite_get_width(_o) && sprite_get_height(_g) == sprite_get_height(_o) && sprite_get_number(_g) == sprite_get_number(_o)
++        && sprite_get_xoffset(_g) == sprite_get_xoffset(_o) && sprite_get_yoffset(_g) == sprite_get_yoffset(_o)
++        && sprite_get_bbox_left(_g) == sprite_get_bbox_left(_o) && sprite_get_bbox_top(_g) == sprite_get_bbox_top(_o)
++        && sprite_get_bbox_right(_g) == sprite_get_bbox_right(_o) && sprite_get_bbox_bottom(_g) == sprite_get_bbox_bottom(_o)) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when game sprite arg0's box, measured from its origin, equals the copy GNX kept before replacing it, on all
++// four sides (0 too when it was never replaced). The runtime cuts a box to the image, so a box outside it cannot be kept
++function gnx_scn_box_same(arg0)
++{
++    var _g = asset_get_index(arg0);
++    var _o = ds_map_find_value(global.gnx_sprite_backup, _g);
++
++    if (_o == undefined)
++        return 0;
++
++    return ((sprite_get_bbox_left(_g) - sprite_get_xoffset(_g)) == (sprite_get_bbox_left(_o) - sprite_get_xoffset(_o))
++        && (sprite_get_bbox_top(_g) - sprite_get_yoffset(_g)) == (sprite_get_bbox_top(_o) - sprite_get_yoffset(_o))
++        && (sprite_get_bbox_right(_g) - sprite_get_xoffset(_g)) == (sprite_get_bbox_right(_o) - sprite_get_xoffset(_o))
++        && (sprite_get_bbox_bottom(_g) - sprite_get_yoffset(_g)) == (sprite_get_bbox_bottom(_o) - sprite_get_yoffset(_o))) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when a point arg1, arg2 pixels from the origin of an instance that uses game sprite arg0 as its mask is
++// inside that mask (a precise mask looks at the art's pixels, a rectangle at the box only)
++function gnx_scn_mask_hit(arg0, arg1, arg2)
++{
++    var _s = asset_get_index(arg0);
++    var _i = instance_create_depth(2000, 2000, 0, obj_empty);
++    _i.sprite_index = _s;
++    _i.mask_index = _s;
++    _i.image_index = 0;
++    var _r = (collision_point(2000 + arg1, 2000 + arg2, _i, true, false) == _i) ? 1 : 0;
++    instance_destroy(_i);
++    return _r;
 +}
 +
 +
@@ -2973,6 +3161,52 @@
 +}
 +
 +
++// the frame gnx_mon_frame gives the art that class arg0's swap map (or the global one) puts in place of overlay arg1 (a game sprite
++// name), at frame arg2 in the first occupied WALL 3, for a captive with skin arg3. A name nothing swaps stays itself. "" with no such cell
++function gnx_scn_mon_frame_swapped(arg0, arg1, arg2, arg3)
++{
++    var _sw = gnx_get_mon_swap(arg0);
++    var _v = gnx_mon_swap_one(asset_get_index(arg1), is_struct(_sw) ? _sw : {});
++    var _r = "";
++
++    with (obj_slot)
++    {
++        if (_r == "" && unit_data != -1 && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == 7)
++        {
++            var _old = unit_data.skin;
++            unit_data.skin = arg3;
++            slot_data.anim_struct.frame_c = 5;
++            _r = gnx_mon_frame(_v, arg2);
++            unit_data.skin = _old;
++        }
++    }
++
++    return _r;
++}
++
++
++// the struct branch of gnx_mon_frame (atlas art): a struct with the flag gnx_skin3 (arg0 = 1) or without (0), frame arg1, skin arg2
++function gnx_scn_mon_frame_struct(arg0, arg1, arg2)
++{
++    var _r = "";
++    var _s = (arg0 == 1) ? { gnx_skin3: true } : {};
++
++    with (obj_slot)
++    {
++        if (_r == "" && unit_data != -1 && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == 7)
++        {
++            var _old = unit_data.skin;
++            unit_data.skin = arg2;
++            slot_data.anim_struct.frame_c = 5;
++            _r = gnx_mon_frame(_s, arg1);
++            unit_data.skin = _old;
++        }
++    }
++
++    return _r;
++}
++
++
 +// renames mod item arg0 ("folder.NAME") in memory only: a reload must bring the name from items.json back
 +function gnx_scn_tamper_item(arg0)
 +{
@@ -3619,6 +3853,10 @@
 +            ["mon_spr_probe", "gnx_scn_st_mon_spr_probe"],
 +            ["shrine_hand_probe", "gnx_scn_st_shrine_hand_probe"],
 +            ["draw_probe", "gnx_scn_st_draw_probe"],
++            ["site_list_probe", "gnx_scn_st_site_list_probe"],
++            ["mon_art_dump", "gnx_scn_st_mon_art_dump"],
++            ["art_probe", "gnx_scn_st_art_probe"],
++            ["art_marker", "gnx_scn_st_art_marker"],
 +            ["moan_probe", "gnx_scn_st_moan_probe"],
 +            ["transfer_probe", "gnx_scn_st_transfer_probe"],
 +            ["spr_part_probe", "gnx_scn_st_spr_part_probe"],
@@ -4174,6 +4412,201 @@
 +}
 +
 +
++function gnx_scn_st_site_list_probe(_s, _st)
++{
++    // {"site_list_probe": {"h_type": 37, "class": {...}, "names": ["spr_a", "spr_b"], "frames": 120}}: lists in a class's swap map at a
++    // draw site that picks its own sprite (GIANT head, DRINK goblin, second G.BANG goblin). The first frame gives the first occupied
++    // cell of that h_type the class and runs the real scr_set_mon_spr_data on the monster at place 0 (a temporary one for "tmp_mon": type, or when
++    // the cell has none), which must roll when the swap map holds a list. Every frame runs the cell's real draw (scr_slot_draw_special)
++    // with the draw spy. Passes when exactly one of "names" is drawn in all frames and it is names[art_roll mod length].
++    // Optional: "roll": n sets art_roll after the hook; "slot_set", "anim_set" as in draw_probe; "keep": true leaves the class and the roll
++    // (for a save), and stores the roll in global.gnx_scn_site_roll; "after_reload": true changes nothing and expects that stored roll;
++    // "pick_only": "spr_vanilla" swaps that sprite as the site does instead of drawing
++    var _sp = _st.site_list_probe;
++    var _dc = gnx_scn_occupied_cell(gnx_scn_ref(_sp.h_type));
++    var _reload = variable_struct_exists(_sp, "after_reload");
++    var _keep = variable_struct_exists(_sp, "keep");
++
++    // after a reload the cells are new instances in another order: find the one that was given the class
++    if (_reload)
++    {
++        var _want_h = gnx_scn_ref(_sp.h_type);
++        var _want_c = gnx_scn_ref(_sp.class);
++        _dc = -1;
++
++        with (obj_slot)
++        {
++            if (_dc == -1 && is_struct(unit_data) && slot_data.anim_struct != -1 && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == _want_h && unit_data.class == _want_c)
++                _dc = id;
++        }
++    }
++
++    if (_dc == -1)
++    {
++        scr_gnx_scn_check("site_list_probe", false, "no occupied cell of h_type " + string(_sp.h_type));
++        _s.until_left = -1;
++        return false;
++    }
++
++    if (_s.until_left == -1)
++    {
++        _s.until_left = _sp.frames;
++        var _w = { seen: [], rolled: true, tmp: -1, old_class: _dc.unit_data.class, mon: _dc.slot_data.mon_placement[0], had_roll: false, ph: 2 };
++
++        if (_reload)
++        {
++            // the reload re-seats monsters later, so take the one of this cell that kept the stored roll
++            _w.mon = -1;
++
++            with (obj_mon)
++            {
++                if (_w.mon == -1 && mon_data.slot_id == _dc && is_struct(mon_data.spr_data) && variable_struct_exists(mon_data.spr_data, "art_roll") && mon_data.spr_data.art_roll == global.gnx_scn_site_roll)
++                    _w.mon = id;
++            }
++
++            if (_w.mon == -1)
++            {
++                scr_gnx_scn_check("site_list_probe", false, "after the reload no monster of the cell has the stored roll " + string(global.gnx_scn_site_roll));
++                _s.until_left = -1;
++                return false;
++            }
++
++            _w.tmp = _w.mon;
++        }
++        else
++        {
++            _dc.unit_data.class = gnx_scn_ref(_sp.class);
++
++            if (variable_struct_exists(_sp, "tmp_mon") || _w.mon == -1)
++            {
++                _w.tmp = scr_create_mon(variable_struct_exists(_sp, "tmp_mon") ? _sp.tmp_mon : 0, _dc.x, _dc.y, _dc.slot_data.slot_floor, -1, 0);
++                _w.tmp.mon_data.slot_id = _dc;
++                _w.tmp.mon_data.mon_state = 1;
++                _w.mon = _w.tmp;
++            }
++
++            var _sd0 = _w.mon.mon_data.spr_data;
++            _w.had_roll = is_struct(_sd0) && variable_struct_exists(_sd0, "art_roll");
++
++            if (is_struct(_sd0) && variable_struct_exists(_sd0, "spr_type") && _sd0.spr_type >= 0)
++                _w.ph = _sd0.spr_type;
++
++            with (_w.mon)
++                scr_set_mon_spr_data(_dc, _w.ph);
++
++            _w.rolled = variable_struct_exists(_w.mon.mon_data.spr_data, "art_roll");
++
++            if (variable_struct_exists(_sp, "roll"))
++                _w.mon.mon_data.spr_data.art_roll = _sp.roll;
++        }
++
++        _s.site = _w;
++    }
++
++    var _w2 = _s.site;
++    var _d_pl = _dc.slot_data.mon_placement[0];
++    var _d_keys = variable_struct_exists(_sp, "slot_set") ? variable_struct_get_names(_sp.slot_set) : [];
++    var _a_keys = variable_struct_exists(_sp, "anim_set") ? variable_struct_get_names(_sp.anim_set) : [];
++    var _d_old = [];
++    var _a_old = [];
++
++    for (var _k = 0; _k < array_length(_d_keys); _k++)
++    {
++        array_push(_d_old, variable_struct_get(_dc.slot_data, _d_keys[_k]));
++        variable_struct_set(_dc.slot_data, _d_keys[_k], variable_struct_get(_sp.slot_set, _d_keys[_k]));
++    }
++
++    for (var _k = 0; _k < array_length(_a_keys); _k++)
++    {
++        array_push(_a_old, variable_struct_get(_dc.slot_data.anim_struct, _a_keys[_k]));
++        variable_struct_set(_dc.slot_data.anim_struct, _a_keys[_k], variable_struct_get(_sp.anim_set, _a_keys[_k]));
++    }
++
++    if (_w2.tmp != -1)
++        _dc.slot_data.mon_placement[0] = _w2.tmp;
++
++    global.gnx_draw_spy = [];
++
++    if (variable_struct_exists(_sp, "pick_only"))
++    {
++        // the site's own call, with the roll source the site finds, instead of the draw (a reloaded cell does not draw until its scene restarts)
++        var _src = undefined;
++
++        with (_dc)
++            _src = gnx_art_slot_roll_src();
++
++        array_push(global.gnx_draw_spy, gnx_mon_swap_one(asset_get_index(_sp.pick_only), gnx_get_mon_swap(_dc.unit_data.class), _src));
++    }
++    else
++    {
++        with (_dc)
++            scr_slot_draw_special();
++    }
++
++    _dc.slot_data.mon_placement[0] = _d_pl;
++
++    for (var _k = 0; _k < array_length(_sp.names); _k++)
++    {
++        if (array_contains(global.gnx_draw_spy, asset_get_index(_sp.names[_k])) && !array_contains(_w2.seen, _sp.names[_k]))
++            array_push(_w2.seen, _sp.names[_k]);
++    }
++
++    global.gnx_draw_spy = -1;
++
++    for (var _k = 0; _k < array_length(_d_keys); _k++)
++        variable_struct_set(_dc.slot_data, _d_keys[_k], _d_old[_k]);
++
++    for (var _k = 0; _k < array_length(_a_keys); _k++)
++        variable_struct_set(_dc.slot_data.anim_struct, _a_keys[_k], _a_old[_k]);
++
++    _s.until_left--;
++
++    if (_s.until_left > 0)
++    {
++        _s.idx--;  // the next frame draws again
++        return true;
++    }
++
++    var _sdn = _w2.mon.mon_data.spr_data;
++    var _roll = (is_struct(_sdn) && variable_struct_exists(_sdn, "art_roll")) ? _sdn.art_roll : -1;
++    var _want = (_roll >= 0) ? _sp.names[_roll % array_length(_sp.names)] : "(no roll)";
++    var _ok = array_length(_w2.seen) == 1 && _w2.seen[0] == _want && (_reload || _w2.rolled);
++    var _msg = "h_type " + string(_sp.h_type) + ": drawn " + string(_w2.seen) + ", roll " + string(_roll) + " wants " + _want + ", the hook " + (_w2.rolled ? "rolled" : "did not roll");
++
++    if (_keep)
++        global.gnx_scn_site_roll = _roll;
++
++    if (_reload)
++    {
++        _ok = _ok && _roll == global.gnx_scn_site_roll;
++        _msg += ", stored roll " + string(global.gnx_scn_site_roll);
++    }
++
++    scr_gnx_scn_check("site_list_probe", _ok, _msg);
++
++    if (!_reload && !_keep)
++    {
++        _dc.unit_data.class = _w2.old_class;
++
++        if (_w2.tmp != -1)
++        {
++            instance_destroy(_w2.tmp);
++        }
++        else
++        {
++            with (_w2.mon)
++                scr_set_mon_spr_data(_dc, _w2.ph);
++
++            if (!_w2.had_roll)
++                variable_struct_remove(_w2.mon.mon_data.spr_data, "art_roll");
++        }
++    }
++
++    _s.until_left = -1;
++    return false;
++}
++
++
 +function gnx_scn_st_moan_probe(_s, _st)
 +{
 +    // {"moan_probe": {"class": {...}, "mon_type": 1, "bank": "mod.bank" | "usual"}}: run the real scr_play_moan_sfx
@@ -4365,11 +4798,15 @@
 +        var _og = scr_create_mon(3, _og_c.x, _og_c.y, _og_c.slot_data.slot_floor, -1, 0);
 +        var _hb = scr_create_mon(1, _og_c.x, _og_c.y, _og_c.slot_data.slot_floor, -1, 0);
 +
-+        _og.mask_index = spr_button_guide;  // new monsters have no mask before their first step
++        // {"ogre_spd_probe": {"mask": "spr_ogre_walk_carry", "dx": 200}}: the ogre carries (its mask is that sprite's) and the hobgoblin stands dx pixels
++        // away; the check is that the hobgoblin is overlapped there, and not once it is moved far away
++        var _opt = is_struct(_st.ogre_spd_probe) ? _st.ogre_spd_probe : undefined;
++        var _dx = (_opt != undefined) ? _opt.dx : 0;
++        _og.mask_index = (_opt != undefined) ? asset_get_index(_opt.mask) : spr_button_guide;  // new monsters have no mask before their first step
 +        with (_hb)
 +        {
 +            mask_index = spr_button_guide;
-+            x = _og.x;
++            x = _og.x + _dx;
 +            y = _og.y;
 +            mon_data.task = 3;
 +            mon_data.placement_num = 0;
@@ -4390,9 +4827,27 @@
 +        with (_og)
 +            scr_ogre_spd_b();
 +
++        var _og_n0 = 0;
++
++        if (_opt != undefined)
++        {
++            _hb.x += 5000;
++
++            with (_og)
++            {
++                var _ogl0 = ds_list_create();
++                _og_n0 = instance_place_list(x, y, obj_mon, _ogl0, false);
++                ds_list_destroy(_ogl0);
++            }
++        }
++
 +        instance_destroy(_hb);
 +        instance_destroy(_og);
-+        scr_gnx_scn_check("ogre_spd_probe", _og_n > 0, "monsters overlapping the ogre: " + string(_og_n) + " (the hobgoblin must be one), no crash");
++
++        if (_opt != undefined)
++            scr_gnx_scn_check("ogre_spd_probe", _og_n - _og_n0 == 1, "the hobgoblin at " + string(_dx) + " px is overlapped by mask " + _opt.mask + ": " + string(_og_n) + " with it, " + string(_og_n0) + " without; no crash");
++        else
++            scr_gnx_scn_check("ogre_spd_probe", _og_n > 0, "monsters overlapping the ogre: " + string(_og_n) + " (the hobgoblin must be one), no crash");
 +    }
 +
 +    return false;
@@ -5692,12 +6147,1152 @@
 +}
 +
 +
++// Scenario atlas_async_pages: atlas pages loading in the background (gnx_atlas_page_add).
++function gnx_scn_atlas_pages_left()
++{
++    return variable_struct_names_count(global.gnx_atlas_pages);
++}
++
++
++// {"call": "gnx_scn_atlas_timeout", "args": [ms]}
++function gnx_scn_atlas_timeout(arg0)
++{
++    global.gnx_atlas_page_timeout = arg0 * 1000;
++}
++
++
++function gnx_scn_atlas_failed_pages(arg0)
++{
++    return ds_map_find_value(global.gnx_mod_atlases, arg0).failed_pages;
++}
++
++
++function gnx_scn_atlas_entries(arg0)
++{
++    return array_length(variable_struct_get_names(ds_map_find_value(global.gnx_mod_atlases, arg0).sprrefs));
++}
++
++
++// Loads page file arg1 of mod arg0 again and, in the same frame, checks the rectangle 0,0 arg2 x arg3 and bakes it.
++// 1 = the page was still loading, the rectangle counted as inside it and the bake worked.
++function gnx_scn_atlas_bake_loading(arg0, arg1, arg2, arg3)
++{
++    var _spr = gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
++    var _pages = [_spr];
++    var _frames = [{ atlas: 0, x: 0, y: 0, w: arg2, h: arg3 }];
++    var _loading = sprite_get_width(_spr) != gnx_atlas_page_w(_spr);
++    var _inside = gnx_atlas_frames_bad(_pages, _frames) == "";
++    var _bk = gnx_sprref_bake(sprref_atlas_multi(_pages, _frames, 0, 0));
++    global.gnx_scn_bake_probe = { page: _spr, baked: _bk, x: 0, y: 0, w: arg2, h: arg3 };
++    return (_loading && _inside && _bk != -1) ? 1 : 0;
++}
++
++
++// After gnx_scn_atlas_bake_loading, once the page is ready: 1 = the bake holds the page's pixels, and they are not blank.
++function gnx_scn_atlas_bake_same()
++{
++    var _p = global.gnx_scn_bake_probe;
++    var _n = _p.w * _p.h * 4;
++    var _bufs = [];
++    gpu_push_state();
++    gpu_set_blendmode_ext(bm_one, bm_zero);
++
++    for (var _pass = 0; _pass < 2; _pass++)
++    {
++        var _sf = surface_create(_p.w, _p.h);
++        surface_set_target(_sf);
++        draw_clear_alpha(c_black, 0);
++
++        if (_pass == 0)
++            draw_sprite_part_ext(_p.page, 0, _p.x, _p.y, _p.w, _p.h, 0, 0, 1, 1, c_white, 1);
++        else
++            draw_sprite_ext(_p.baked, 0, 0, 0, 1, 1, 0, c_white, 1);
++
++        surface_reset_target();
++        var _bf = buffer_create(_n, buffer_fixed, 1);
++        buffer_get_surface(_bf, _sf, 0);
++        surface_free(_sf);
++        array_push(_bufs, _bf);
++    }
++
++    gpu_pop_state();
++    var _same = buffer_md5(_bufs[0], 0, _n) == buffer_md5(_bufs[1], 0, _n);
++    var _blank = true;
++
++    for (var _i = 0; _i < _n && _blank; _i++)
++    {
++        if (buffer_peek(_bufs[0], _i, buffer_u8) != 0)
++            _blank = false;
++    }
++
++    buffer_delete(_bufs[0]);
++    buffer_delete(_bufs[1]);
++    return (_same && !_blank) ? 1 : 0;
++}
++
++
++// A new page, checked at once with the per-frame step: it cannot be ready in the frame it was added, so with a timeout
++// below 0 the report of a page taking too long always fires (a check in a later frame could find a small page ready).
++function gnx_scn_atlas_add_loading(arg0, arg1)
++{
++    gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
++    gnx_atlas_pages_step();
++}
++
++
++// A page deleted while loading, with a temporary copy waiting too. 1 = it was still loading.
++function gnx_scn_atlas_delete_loading(arg0, arg1)
++{
++    var _spr = gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
++    var _pages = [_spr];
++    var _loading = sprite_get_width(_spr) != gnx_atlas_page_w(_spr);
++    gnx_atlas_page_now(_spr);
++    sprite_delete(_spr);
++    return _loading ? 1 : 0;
++}
++
++
++// A page still loading when every runtime sprite is deleted (leaving the game). 1 = it was still loading.
++function gnx_scn_atlas_cleanup_loading(arg0, arg1)
++{
++    var _spr = gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
++    var _pages = [_spr];
++    array_push(global.gnx_runtime_sprites, _spr);
++    var _loading = sprite_get_width(_spr) != gnx_atlas_page_w(_spr);
++    scr_gnx_cleanup_sprites();
++    return _loading ? 1 : 0;
++}
++
++
 +// true when the cell range of the cell the last occupy step filled picks a BIRTH 1 / BIRTH 2 cell
 +// (as for a goblin leaving a DRINK cell: scr_unit_removal asks scr_check_empty_cell_range)
 +function gnx_scn_range_hits_birth()
 +{
 +    var _t = scr_check_empty_cell_range(global.gnx_scn_occupied, 3, 0);
 +    return _t != -1 && (_t.slot_data.h_type == 5 || _t.slot_data.h_type == 12);
++}
++
++
++// for {"assert": "fn"}: how many of the 2 gnx_draw_* entry points put their sprite in the draw spy (gnx_draw_sprite and gnx_draw_sprite_clip go through gnx_draw_sprite_ext)
++function gnx_scn_spy_wrappers()
++{
++    var _n = 0;
++    global.gnx_draw_spy = [];
++    gnx_draw_sprite_ext(spr_title_top, 0, -5000, -5000, 1, 1, 0, c_white, 1);
++    _n += array_length(global.gnx_draw_spy);
++    global.gnx_draw_spy = [];
++    gnx_draw_sprite_part_ext(spr_title_top, 0, 0, 0, 1, 1, -5000, -5000, 1, 1, c_white, 1);
++    _n += array_length(global.gnx_draw_spy);
++    global.gnx_draw_spy = -1;
++    return _n;
++}
++
++
++// GNX-ART: monster art rework. {"mon_art_dump": {"file": "name", "repeats": 12, "cells": [h_types]}}: every output of
++// the real scr_set_mon_spr_data per combination, on a borrowed occupied cell, into gnx_art_<name>.txt (format and
++// compare: tools/mon_art_diff.py). Runs in batches across frames. Each repeat has its own fixed seed; results are a set.
++function gnx_scn_st_mon_art_dump(_s, _st)
++{
++    var _d = _st.mon_art_dump;
++
++    if (!variable_struct_exists(_s, "art"))
++        _s.art = gnx_art_begin(_d);
++
++    var _a = _s.art;
++
++    if (!gnx_art_borrow(_a))
++    {
++        file_text_close(_a.fh);
++        file_delete(_a.path);
++        gnx_art_free(_a);
++        variable_struct_remove(_s, "art");
++        scr_gnx_scn_check("mon_art_dump", false, "no occupied small cell to borrow");
++        return false;
++    }
++
++    var _t0 = get_timer();
++
++    while (!_a.done && (get_timer() - _t0) < 100000)
++        gnx_art_next(_a);
++
++    var _back = gnx_art_release(_a);
++
++    if (!_a.done)
++    {
++        _s.idx--;  // next batch next frame
++        return true;
++    }
++
++    file_text_write_string(_a.fh, "E\t" + string(_a.count));
++    file_text_writeln(_a.fh);
++    file_text_close(_a.fh);
++    gnx_art_free(_a);
++    variable_struct_remove(_s, "art");
++    randomize();
++    scr_gnx_scn_check("mon_art_dump", _a.count > 0 && _back, string(_d.file) + ": " + string(_a.count) + " records, borrowed cell restored=" + string(_back));
++    return false;
++}
++
++
++// sprite id (as text) -> "mod:<path from GNX_mods>" for every mod sprite in the cache, so a dump and the asserts name them the same way
++function gnx_art_rev_make()
++{
++    var _m = ds_map_create();
++    var _k = ds_map_find_first(global.gnx_sprite_cache);
++
++    while (_k != undefined)
++    {
++        var _p = string_pos("GNX_mods", _k);
++        ds_map_replace(_m, string(ds_map_find_value(global.gnx_sprite_cache, _k)), "mod:" + string_delete(_k, 1, max(0, _p - 1)));
++        _k = ds_map_find_next(global.gnx_sprite_cache, _k);
++    }
++
++    return _m;
++}
++
++
++function gnx_art_begin(_d)
++{
++    var _a = { d: _d, repeats: gnx_opt(_d, "repeats", 12), ci: 0, pos: 0, combos: [], count: 0, seed: 0, done: false, cell: -1, saved: -1, mons: [], mons2: [] };
++    _a.path = "gnx_art_" + string(_d.file) + ".txt";
++    _a.fh = file_text_open_write(_a.path);
++    _a.dict = ds_map_create();
++    _a.dict_n = 0;
++    _a.cells = variable_struct_exists(_d, "cells") ? _d.cells : ds_map_keys_to_array(global.cell_registry);
++    array_sort(_a.cells, true);
++    _a.classes = ds_map_keys_to_array(global.class_registry);
++    array_sort(_a.classes, true);
++    _a.scene_classes = [0, 9, _a.classes[array_length(_a.classes) - 1]];
++    global.gnx_art_rev = gnx_art_rev_make();
++    file_text_write_string(_a.fh, "H\trepeats=" + string(_a.repeats) + "\tcells=" + gnx_art_join(_a.cells) + "\tclasses=" + gnx_art_join(_a.classes));
++    file_text_writeln(_a.fh);
++    return _a;
++}
++
++
++function gnx_art_free(_a)
++{
++    ds_map_destroy(_a.dict);
++    ds_map_destroy(global.gnx_art_rev);
++}
++
++
++function gnx_art_join(_arr)
++{
++    var _t = "";
++
++    for (var _i = 0; _i < array_length(_arr); _i++)
++        _t += ((_i > 0) ? "," : "") + string(_arr[_i]);
++
++    return _t;
++}
++
++
++// one batch's borrowed cell and monsters: the cell's state is put back before the frame ends, so the game never runs with it
++function gnx_art_borrow(_a)
++{
++    var _c = gnx_scn_occupied_cell(-1);
++
++    if (_c == -1)
++        return false;
++
++    _a.cell = _c;
++    _a.saved = {
++        h: _c.slot_data.h_type, anal: _c.slot_data.anal, row: _c.slot_data.spr_row_pos, mod_i: _c.slot_data.mod_index,
++        touch: _c.slot_data.spr_touch, enter: _c.slot_data.spr_enter, cls: _c.unit_data.class, leg: _c.unit_data.leg,
++        skin: _c.unit_data.skin, fc: _c.slot_data.anim_struct.frame_c
++    };
++    _a.mons = [];
++    _a.mons2 = [];
++
++    for (var _m = 0; _m <= 3; _m++)
++    {
++        array_push(_a.mons, (_m == 2) ? -1 : scr_create_mon(_m, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0));
++        array_push(_a.mons2, (_m == 2) ? -1 : scr_create_mon(_m, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0));
++    }
++
++    return true;
++}
++
++
++// puts the cell back; true when every field is back
++function gnx_art_release(_a)
++{
++    for (var _m = 0; _m <= 3; _m++)
++    {
++        if (_m != 2)
++        {
++            instance_destroy(_a.mons[_m]);
++            instance_destroy(_a.mons2[_m]);
++        }
++    }
++
++    var _c = _a.cell;
++    var _o = _a.saved;
++    _c.slot_data.h_type = _o.h;
++    _c.slot_data.anal = _o.anal;
++    _c.slot_data.spr_row_pos = _o.row;
++    _c.slot_data.mod_index = _o.mod_i;
++    _c.slot_data.spr_touch = _o.touch;
++    _c.slot_data.spr_enter = _o.enter;
++    _c.unit_data.class = _o.cls;
++    _c.unit_data.leg = _o.leg;
++    _c.unit_data.skin = _o.skin;
++    _c.slot_data.anim_struct.frame_c = _o.fc;
++    return _c.slot_data.h_type == _o.h && _c.slot_data.spr_touch == _o.touch && _c.slot_data.spr_enter == _o.enter && _c.unit_data.class == _o.cls;
++}
++
++
++function gnx_art_next(_a)
++{
++    if (_a.ci >= array_length(_a.cells))
++    {
++        _a.done = true;
++        return;
++    }
++
++    var _h = _a.cells[_a.ci];
++
++    if (_a.pos == 0 && array_length(_a.combos) == 0)
++        _a.combos = gnx_art_combos(_a, _h);
++
++    if (_a.pos < array_length(_a.combos))
++    {
++        gnx_art_run_combo(_a, _h, _a.combos[_a.pos]);
++        _a.pos++;
++        return;
++    }
++
++    gnx_art_run_scene(_a, _h);
++    _a.ci++;
++    _a.pos = 0;
++    _a.combos = [];
++}
++
++
++// [mon_type, phase, leg, class, anal, placement, visible, mod, prop]
++function gnx_art_combos(_a, _h)
++{
++    var _rp = ds_map_find_value(global.cell_registry, _h).physical;
++    var _phases = (_h >= 100) ? [-1, 0, 1, 2, 3, 6, 7, 8, 9, 10] : [-1, 0, 1, 2, 3];
++    var _anals = (gnx_opt(_rp, "anal", -1) == -1) ? [-1] : [0, 1];
++    var _places = max(1, min(3, gnx_opt(_rp, "max_mon_num", 1)));
++    var _props = (_h == 1 || _h == 2 || _h == 7 || _h == 8) ? [-1, 0] : [-1];
++    var _vis = (_h == 36) ? [1, 0] : [1];
++    var _mons = [0, 1, 3];
++    var _out = [];
++
++    for (var _mi = 0; _mi < 3; _mi++)
++    for (var _ph = 0; _ph < array_length(_phases); _ph++)
++    for (var _pl = 0; _pl < _places; _pl++)
++    {
++        for (var _leg = 0; _leg <= 2; _leg++)
++        for (var _cl = 0; _cl < array_length(_a.classes); _cl++)
++        for (var _an = 0; _an < array_length(_anals); _an++)
++        for (var _vi = 0; _vi < array_length(_vis); _vi++)
++        for (var _pr = 0; _pr < array_length(_props); _pr++)
++            array_push(_out, [_mons[_mi], _phases[_ph], _leg, _a.classes[_cl], _anals[_an], _pl, _vis[_vi], 0, _props[_pr]]);
++
++        // mod_index sets only image_xscale, with no link to class or leg: one extra combination per monster, phase and place
++        array_push(_out, [_mons[_mi], _phases[_ph], 1, 0, _anals[0], _pl, 1, 1, -1]);
++    }
++
++    return _out;
++}
++
++
++// the cell and monster for one combination, from a clean state (the function keeps state between calls)
++function gnx_art_apply(_a, _h, _cb, _mm)
++{
++    var _c = _a.cell;
++    var _rp = ds_map_find_value(global.cell_registry, _h).physical;
++    var _width = variable_instance_exists(_c, "slot_width") ? _c.slot_width : 0;
++    _c.slot_data.h_type = _h;
++    _c.slot_data.anal = _cb[4];
++    _c.slot_data.spr_row_pos = gnx_opt(_rp, "spr_row_pos", 0);
++    _c.slot_data.mod_index = array_create(8, _cb[7]);
++    _c.slot_data.spr_touch = -1;
++    _c.slot_data.spr_enter = -1;
++    _c.slot_data.anim_struct.frame_c = (_cb[1] == 0) ? 2 : 5;
++    _c.unit_data.class = _cb[3];
++    _c.unit_data.leg = _cb[2];
++    _c.unit_data.skin = 0;
++
++    with (_mm)
++    {
++        mon_data.slot_id = _c;
++        mon_data.placement_num = _cb[5];
++        visible = _cb[6];
++        image_xscale = 1;
++        depth = 0;
++        mon_data.spr_data = { mon_step: 0, spr_type: -1, shift_x: 0, shift_y: 0, hand_xscale: 1, pen_y: 0, prop: _cb[8], prop_shift_x: floor(_width * 0.5), prop_shift_y: 0, mon_frame_c: 0, base_frame_c: 0, start_frame: 0, skin_type: -1, slot_width: _width };
++    }
++}
++
++
++function gnx_art_name(_v)
++{
++    if (is_undefined(_v))
++        return "undef";
++
++    if (is_struct(_v))
++    {
++        if (!is_sprref(_v))
++            return "struct";
++
++        if (_v.kind == "legacy")
++            return gnx_art_name(_v.spr);
++
++        // an atlas entry has no name at this point: its place on the page identifies it across runs
++        var _f = (array_length(_v.frames) > 0) ? _v.frames[0] : { atlas: -1, x: 0, y: 0, w: 0, h: 0 };
++        return "atlas:" + string(array_length(_v.frames)) + ":" + string(_f.atlas) + ":" + string(_f.x) + "," + string(_f.y) + "," + string(_f.w) + "," + string(_f.h);
++    }
++
++    if (is_string(_v) || is_array(_v))
++        return string(_v);
++
++    if (!sprite_exists(_v))
++        return string(_v);
++
++    var _r = ds_map_find_value(global.gnx_art_rev, string(_v));
++    return (_r != undefined) ? _r : sprite_get_name(_v);
++}
++
++
++function gnx_art_result(_c, _mm)
++{
++    var _t = "";
++
++    with (_mm)
++    {
++        var _n = variable_struct_get_names(mon_spr);
++        array_sort(_n, true);
++
++        for (var _i = 0; _i < array_length(_n); _i++)
++            _t += _n[_i] + "=" + gnx_art_name(variable_struct_get(mon_spr, _n[_i])) + ";";
++
++        _n = variable_struct_get_names(mon_data.spr_data);
++        array_sort(_n, true);
++
++        for (var _i = 0; _i < array_length(_n); _i++)
++            _t += "sd." + _n[_i] + "=" + string(variable_struct_get(mon_data.spr_data, _n[_i])) + ";";
++
++        _t += "touch=" + gnx_art_name(_c.slot_data.spr_touch) + ";enter=" + gnx_art_name(_c.slot_data.spr_enter) + ";";
++        _t += "draw=" + ((is_real(scr_mon_draw) && scr_mon_draw == -1) ? "-1" : script_get_name(scr_mon_draw)) + ";";
++        _t += "depth=" + string(depth) + ";xscale=" + string(image_xscale) + ";sx=" + string(mon_data.x_shift) + ";sy=" + string(mon_data.y_shift) + ";";
++        _t += "mx=" + string(mon_data.mood_slot_shift_x) + ";my=" + string(mon_data.mood_slot_shift_y) + ";oa=" + string(gnx_opt(mon_data, "gnx_ogre_alpha", 0)) + ";";
++    }
++
++    return _t;
++}
++
++
++// the id of a value text, written the first time it is seen (most combinations share their result)
++function gnx_art_value_id(_a, _text)
++{
++    var _id = ds_map_find_value(_a.dict, _text);
++
++    if (_id == undefined)
++    {
++        _id = _a.dict_n++;
++        ds_map_add(_a.dict, _text, _id);
++        file_text_write_string(_a.fh, "V\t" + string(_id) + "\t" + _text);
++        file_text_writeln(_a.fh);
++    }
++
++    return _id;
++}
++
++
++function gnx_art_write(_a, _kind, _key, _ids)
++{
++    array_sort(_ids, true);
++    file_text_write_string(_a.fh, _kind + "\t" + _key + "\t" + gnx_art_join(_ids));
++    file_text_writeln(_a.fh);
++    _a.count++;
++}
++
++
++function gnx_art_run_combo(_a, _h, _cb)
++{
++    var _mm = _a.mons[_cb[0]];
++    var _ids = [];
++
++    for (var _r = 0; _r < _a.repeats; _r++)
++    {
++        random_set_seed(1000003 + (_a.seed++ * 7));
++        gnx_art_apply(_a, _h, _cb, _mm);
++        var _c = _a.cell;
++        var _ph = _cb[1];
++
++        with (_mm)
++            scr_set_mon_spr_data(_c, _ph);
++
++        var _id = gnx_art_value_id(_a, gnx_art_result(_c, _mm));
++
++        if (!array_contains(_ids, _id))
++            array_push(_ids, _id);
++    }
++
++    gnx_art_write(_a, "C", string(_h) + "|" + string(_cb[0]) + "|" + string(_cb[1]) + "|" + string(_cb[2]) + "|" + string(_cb[3]) + "|" + string(_cb[4]) + "|" + string(_cb[5]) + "|" + string(_cb[6]) + "|" + string(_cb[7]) + "|" + string(_cb[8]), _ids);
++}
++
++
++// scene order on the same monsters with no reset: state kept between calls, and touch shared across placements
++function gnx_art_run_scene(_a, _h)
++{
++    var _rp = ds_map_find_value(global.cell_registry, _h).physical;
++    var _two = gnx_opt(_rp, "max_mon_num", 1) > 1;
++    var _seq = [-1, 0, 2, 2, 3, 2];
++    var _mons = [0, 1, 3];
++    var _c = _a.cell;
++
++    for (var _ci = 0; _ci < array_length(_a.scene_classes); _ci++)
++    for (var _mi = 0; _mi < 3; _mi++)
++    {
++        var _ids = [];
++
++        for (var _r = 0; _r < _a.repeats; _r++)
++        {
++            random_set_seed(1000003 + (_a.seed++ * 7));
++            var _m1 = _a.mons[_mons[_mi]];
++            var _m2 = _a.mons2[_mons[_mi]];
++            var _anal = (gnx_opt(_rp, "anal", -1) == -1) ? -1 : 0;
++            gnx_art_apply(_a, _h, [_mons[_mi], 0, 1, _a.scene_classes[_ci], _anal, 0, 1, 0, -1], _m1);
++
++            if (_two)
++            {
++                with (_m2)
++                {
++                    mon_data.slot_id = _c;
++                    mon_data.placement_num = 1;
++                    mon_data.spr_data = -1;
++                }
++            }
++
++            var _t = "";
++
++            for (var _p = 0; _p < array_length(_seq); _p++)
++            {
++                var _ph = _seq[_p];
++
++                with (_m1)
++                    scr_set_mon_spr_data(_c, _ph);
++
++                _t += gnx_art_result(_c, _m1) + ">>";
++
++                if (_two)
++                {
++                    with (_m2)
++                        scr_set_mon_spr_data(_c, _ph);
++
++                    _t += gnx_art_result(_c, _m2) + ">>";
++                }
++            }
++
++            var _id = gnx_art_value_id(_a, _t);
++
++            if (!array_contains(_ids, _id))
++                array_push(_ids, _id);
++        }
++
++        gnx_art_write(_a, "S", string(_h) + "|" + string(_mons[_mi]) + "|" + string(_a.scene_classes[_ci]), _ids);
++    }
++}
++
++
++// GNX-ART: {"art_marker": true}: which monster_art parts reach the screen on each vanilla cell. For every cell, monster and
++// part: a marker set (body and that part = spr_title_top), the real function, then the monster's real draw function with
++// the draw spy on. Writes gnx_art_marker.txt: h, monster, phase, part, drawn (1 or 0), overwritten (the function's output
++// lost the marker). Hidden monsters and cell-drawn art do not show here: gnx_art_limit lists those from the code.
++// {"art_marker": {"placement": 1, "file": "marker_p1"}} runs the monsters at that placement into gnx_art_<file>.txt
++function gnx_scn_st_art_marker(_s, _st)
++{
++    var _opt = is_struct(_st.art_marker);
++    var _pl = (_opt && variable_struct_exists(_st.art_marker, "placement")) ? _st.art_marker.placement : 0;
++    var _fh = file_text_open_write("gnx_art_" + ((_opt && variable_struct_exists(_st.art_marker, "file")) ? _st.art_marker.file : "marker") + ".txt");
++    var _a = { cell: -1, saved: -1, mons: [], mons2: [] };
++    global.gnx_art_rev = ds_map_create();
++
++    if (!gnx_art_borrow(_a))
++    {
++        scr_gnx_scn_check("art_marker", false, "no occupied small cell to borrow");
++        file_text_close(_fh);
++        ds_map_destroy(global.gnx_art_rev);
++        return false;
++    }
++
++    var _cells = ds_map_keys_to_array(global.cell_registry);
++    var _mons = [0, 1, 3];
++    var _parts = ["body", "hand", "head", "pen"];
++    var _phases = [0, 2, 3];
++    var _c = _a.cell;
++
++    for (var _ci = 0; _ci < array_length(_cells); _ci++)
++    {
++        var _h = _cells[_ci];
++
++        if (_h >= 100)
++            continue;
++
++        var _rc = ds_map_find_value(global.cell_registry, _h);
++        var _old = variable_struct_exists(_rc, "gnx_art") ? _rc.gnx_art : undefined;
++
++        for (var _mi = 0; _mi < 3; _mi++)
++        for (var _pi = 0; _pi < 4; _pi++)
++        for (var _ph = 0; _ph < 3; _ph++)
++        {
++            var _m = _mons[_mi];
++            var _pname = _parts[_pi];
++            var _pick = [{ f: spr_title_top, l: spr_title_top, auto: false }];
++            var _blk = { hand_random: false, parts: { body: { any: _pick } } };
++            variable_struct_set(_blk.parts, _pname, { any: _pick });
++            var _phs = { start: _blk, loop: _blk, ej: _blk };
++            _rc.gnx_art = {};
++            variable_struct_set(_rc.gnx_art, string(_m), { phases: _phs, anal: undefined, placement: {} });
++            var _mm = _a.mons[_m];
++            gnx_art_apply(_a, _h, [_m, _phases[_ph], 1, 0, 0, _pl, 1, 0, -1], _mm);
++            var _phv = _phases[_ph];
++            var _kept = false;
++            var _seen = false;
++
++            with (_mm)
++            {
++                scr_set_mon_spr_data(_c, _phv);
++                var _fld = (_pname == "pen") ? "pen" : (_pname + "_b");
++                _kept = variable_struct_get(mon_spr, _fld) == spr_title_top;
++                mon_data.mon_state = 1;
++                visible = true;
++                global.gnx_draw_spy = [];
++
++                if (scr_mon_draw != -1)
++                    script_execute(scr_mon_draw, false);
++
++                _seen = array_contains(global.gnx_draw_spy, spr_title_top);
++                global.gnx_draw_spy = -1;
++            }
++
++            file_text_write_string(_fh, string(_h) + "\t" + string(_m) + "\t" + string(_phv) + "\t" + _pname + "\t" + (_seen ? "1" : "0") + "\t" + (_kept ? "0" : "1"));
++            file_text_writeln(_fh);
++        }
++
++        if (_old == undefined)
++            variable_struct_remove(_rc, "gnx_art");
++        else
++            _rc.gnx_art = _old;
++    }
++
++    gnx_art_release(_a);
++    ds_map_destroy(global.gnx_art_rev);
++    file_text_close(_fh);
++    scr_gnx_scn_check("art_marker", true, "written");
++    return false;
++}
++
++
++// for {"assert": "fn"}: how many times a part that gnx_art_limit lets through (cells 4, 11, 18, 36, 37, 38, 39 and the other
++// vanilla cells, every monster, phase, leg, class, anal scene and placement) still came out of the real
++// scr_set_mon_spr_data as something other than the marker art. Must be 0: the art lines would land on a vanilla sprite.
++// The first leaks go to the scenario log. Optional arg0 = one h_type, else every vanilla cell
++function gnx_scn_art_limit_leaks(arg0 = -1)
++{
++    var _a = { cell: -1, saved: -1, mons: [], mons2: [] };
++
++    if (!gnx_art_borrow(_a))
++        return -1;
++
++    var _cells = (arg0 == -1) ? ds_map_keys_to_array(global.cell_registry) : [arg0];
++    var _mons = [0, 1, 3];
++    var _parts = ["body", "hand", "head", "pen", "touch", "enter"];
++    var _fields = ["body_b", "hand_b", "head_b", "pen"];
++    var _phases = [0, 2, 3];
++    var _c = _a.cell;
++    var _leaks = 0;
++    var _checked = 0;
++    var _pick = [{ f: spr_title_top, l: spr_title_top, auto: false }];
++    var _blk = { hand_random: false, parts: { body: { any: _pick }, hand: { any: _pick }, head: { any: _pick }, pen: { any: _pick }, touch: { any: _pick }, enter: { any: _pick } } };
++    var _phs = { start: _blk, loop: _blk, ej: _blk };
++
++    for (var _ci = 0; _ci < array_length(_cells); _ci++)
++    {
++        var _h = _cells[_ci];
++
++        if (_h >= 100 || !ds_map_exists(global.cell_registry, _h))
++            continue;
++
++        var _rc = ds_map_find_value(global.cell_registry, _h);
++        var _old = variable_struct_exists(_rc, "gnx_art") ? _rc.gnx_art : undefined;
++
++        for (var _mi = 0; _mi < 3; _mi++)
++        {
++            var _m = _mons[_mi];
++            var _mm = _a.mons[_m];
++            _rc.gnx_art = {};
++            variable_struct_set(_rc.gnx_art, string(_m), { phases: _phs, anal: _phs, placement: {} });
++
++            for (var _ph = 0; _ph < 3; _ph++)
++            for (var _leg = 0; _leg < 3; _leg++)
++            for (var _cls = 0; _cls < 14; _cls++)
++            for (var _an = 0; _an < 2; _an++)
++            for (var _pl = 0; _pl < 2; _pl++)
++            {
++                gnx_art_apply(_a, _h, [_m, array_get(_phases, _ph), _leg, _cls, _an, _pl, 1, 0, -1], _mm);
++                var _got = [];
++
++                with (_mm)
++                {
++                    scr_set_mon_spr_data(_c, array_get(_phases, _ph));
++
++                    for (var _fi = 0; _fi < 4; _fi++)
++                        array_push(_got, variable_struct_get(mon_spr, array_get(_fields, _fi)));
++                }
++
++                array_push(_got, _c.slot_data.spr_touch);
++                array_push(_got, _c.slot_data.spr_enter);
++
++                for (var _pi = 0; _pi < 6; _pi++)
++                {
++                    if (gnx_art_limit(_h, _m, array_get(_parts, _pi)))
++                        continue;
++
++                    _checked++;
++
++                    if (array_get(_got, _pi) != spr_title_top)
++                    {
++                        _leaks++;
++
++                        if (_leaks <= 12)
++                            gnx_scn_log("art limit leak: cell " + string(_h) + " monster " + string(_m) + " phase " + string(array_get(_phases, _ph)) + " leg " + string(_leg) + " class " + string(_cls) + " anal " + string(_an) + " placement " + string(_pl) + " part " + array_get(_parts, _pi));
++                    }
++                }
++            }
++        }
++
++        if (_old == undefined)
++            variable_struct_remove(_rc, "gnx_art");
++        else
++            _rc.gnx_art = _old;
++    }
++
++    gnx_art_release(_a);
++
++    if (_checked == 0)
++        return -2;
++
++    gnx_scn_log("art limit leaks: " + string(_leaks) + " of " + string(_checked) + " allowed parts");
++    return _leaks;
++}
++
++
++// GNX-ART: engine questions for the monster art rework. Measures and writes gnx_art_probe_<name>.txt; each check puts
++// the game sprite back, so the next one starts clean.
++function gnx_scn_st_art_probe(_s, _st)
++{
++    var _name = string(_st.art_probe);
++    var _fh = file_text_open_write("gnx_art_probe_" + _name + ".txt");
++    var _dir = global.gnx_mods_root + "art_probe/probe/";
++
++    if (_name == "world")
++        gnx_art_probe_world(_fh, _dir);
++    else if (_name == "wrap")
++        gnx_art_probe_wrap(_fh, _dir);
++
++    file_text_close(_fh);
++    scr_gnx_scn_check("art_probe", true, _name);
++    return false;
++}
++
++
++function gnx_art_probe_line(_fh, _text)
++{
++    file_text_write_string(_fh, _text);
++    file_text_writeln(_fh);
++}
++
++
++function gnx_art_sprite_facts(_spr)
++{
++    return "size=" + string(sprite_get_width(_spr)) + "x" + string(sprite_get_height(_spr))
++        + " frames=" + string(sprite_get_number(_spr))
++        + " origin=" + string(sprite_get_xoffset(_spr)) + "," + string(sprite_get_yoffset(_spr))
++        + " bbox=" + string(sprite_get_bbox_left(_spr)) + "," + string(sprite_get_bbox_top(_spr)) + "," + string(sprite_get_bbox_right(_spr)) + "," + string(sprite_get_bbox_bottom(_spr))
++        + " speed=" + string(sprite_get_speed(_spr)) + " speed_type=" + string(sprite_get_speed_type(_spr));
++}
++
++
++function gnx_art_overlap_count(_c)
++{
++    // the same test scr_ogre_spd_b makes: an ogre on top of a hobgoblin whose mask comes from its walk sprite
++    var _og = scr_create_mon(3, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0);
++    var _hb = scr_create_mon(1, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0);
++    _og.sprite_index = spr_ogre_walk;
++    _og.mask_index = spr_ogre_walk;
++    _hb.sprite_index = spr_hobgoblin_walk;
++    _hb.mask_index = spr_hobgoblin_walk;
++    _hb.x = _og.x + 40;
++    _hb.y = _og.y;
++    var _n = 0;
++
++    with (_og)
++    {
++        var _l = ds_list_create();
++        _n = instance_place_list(x, y, obj_mon, _l, false);
++        ds_list_destroy(_l);
++    }
++
++    instance_destroy(_hb);
++    instance_destroy(_og);
++    return _n;
++}
++
++
++function gnx_art_probe_world(_fh, _dir)
++{
++    var _c = gnx_scn_occupied_cell(-1);
++    var _game = spr_goblin_walk;
++    var _game2 = spr_ogre_walk;
++    var _backup = sprite_duplicate(_game);
++    var _backup2 = sprite_duplicate(_game2);
++    gnx_art_probe_line(_fh, "original goblin walk: " + gnx_art_sprite_facts(_game));
++    gnx_art_probe_line(_fh, "original ogre walk: " + gnx_art_sprite_facts(_game2));
++    gnx_art_probe_line(_fh, "overlaps before: " + string(gnx_art_overlap_count(_c)));
++
++    // another size, frame count and origin
++    var _art = sprite_add(_dir + "big_10f.png", 10, false, false, 64, 120);
++    gnx_art_probe_line(_fh, "art as added: " + gnx_art_sprite_facts(_art));
++    sprite_assign(_game, _art);
++    gnx_art_probe_line(_fh, "goblin walk after sprite_assign: " + gnx_art_sprite_facts(_game));
++
++    // the same on the ogre, whose mask drives scr_ogre_spd_b: does a resized sprite change the overlap?
++    var _art2 = sprite_add(_dir + "big_10f.png", 10, false, false, 64, 120);
++    var _l0 = sprite_get_bbox_left(_backup2) - sprite_get_xoffset(_backup2);
++    var _t0 = sprite_get_bbox_top(_backup2) - sprite_get_yoffset(_backup2);
++    var _r0 = sprite_get_bbox_right(_backup2) - sprite_get_xoffset(_backup2);
++    var _b0 = sprite_get_bbox_bottom(_backup2) - sprite_get_yoffset(_backup2);
++    sprite_assign(_game2, _art2);
++    gnx_art_probe_line(_fh, "overlaps after resize, mask from art: " + string(gnx_art_overlap_count(_c)));
++
++    // the original box, shifted by the origin difference
++    sprite_collision_mask(_game2, false, 2, _l0 + 64, _t0 + 120, _r0 + 64, _b0 + 120, 0, 0);
++    gnx_art_probe_line(_fh, "ogre walk after sprite_collision_mask: " + gnx_art_sprite_facts(_game2));
++    gnx_art_probe_line(_fh, "overlaps after resize, mask from original box: " + string(gnx_art_overlap_count(_c)));
++
++    // a live monster keeps playing: frames seen over a stretch of image_index
++    var _gob = scr_create_mon(0, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0);
++    _gob.sprite_index = _game;
++    _gob.image_index = 25;
++    gnx_art_probe_line(_fh, "image_number=" + string(_gob.image_number) + " image_index 25 reads as " + string(_gob.image_index));
++    instance_destroy(_gob);
++
++    // same size as the original, as sprite_replace does today: does the mask change?
++    sprite_assign(_game2, _backup2);
++    var _same = sprite_duplicate(_backup2);
++    sprite_assign(_game2, _same);
++    gnx_art_probe_line(_fh, "ogre walk after same-size sprite_assign of a copy: " + gnx_art_sprite_facts(_game2));
++
++    // back to the originals, so the screenshots of the next step and any later step are clean
++    sprite_assign(_game, _backup);
++    sprite_assign(_game2, _backup2);
++    gnx_art_probe_line(_fh, "restored goblin walk: " + gnx_art_sprite_facts(_game));
++    gnx_art_probe_line(_fh, "restored ogre walk: " + gnx_art_sprite_facts(_game2));
++    sprite_delete(_art);
++    sprite_delete(_art2);
++    sprite_delete(_same);
++    sprite_delete(_backup);
++    sprite_delete(_backup2);
++}
++
++
++function gnx_art_probe_wrap(_fh, _dir)
++{
++    // a 5-frame one-row strip drawn at frame indexes past its count, as a body or overlay on row 2 would be
++    var _art = sprite_add(_dir + "row_5f.png", 5, false, false, 0, 0);
++    var _surf = surface_create(16, 16);
++    surface_set_target(_surf);
++
++    var _idx = [2, 7, 12, 37];
++
++    for (var _i = 0; _i < array_length(_idx); _i++)
++    {
++        draw_clear_alpha(c_black, 0);
++        gnx_draw_sprite_ext(_art, _idx[_i], 0, 0, 1, 1, 0, c_white, 1);
++        var _px = surface_getpixel(_surf, 2, 2);
++        gnx_art_probe_line(_fh, "index " + string(_idx[_i]) + " draws frame with red " + string(colour_get_red(_px)) + " (frame 2 of 5 has red 30)");
++    }
++
++    surface_reset_target();
++    surface_free(_surf);
++    sprite_delete(_art);
++}
++
++
++// for {"assert": "fn"}: how many monster blocks cell arg0's monster_art has; -1 when the cell is not registered
++function gnx_scn_art_blocks(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++
++    if (!is_struct(_c))
++        return -1;
++
++    return variable_struct_exists(_c, "gnx_art") ? array_length(variable_struct_get_names(_c.gnx_art)) : 0;
++}
++
++
++// for {"assert": "fn"}: gnx_art_frames_of on a legacy SprRef of the game sprite named arg0 (an atlas ref and a plain sprite have their own counts)
++function gnx_scn_art_frames_legacy(arg0)
++{
++    return gnx_art_frames_of(sprref_legacy(asset_get_index(arg0)));
++}
++
++
++// for {"assert": "fn"}: the real scr_set_mon_spr_data on a borrowed cell, for one combination; arg7 = a field of the dump's
++// value text ("body_b", "touch", "sd.prop", ...); returns its value as text. arg8, when given, runs that phase first on
++// the same monster, and arg9 = 1 starts from a slot touch already set to spr_title_top; arg9 >= 2 sets the monster's
++// art_roll to arg9 - 2 first (picks a list entry). A mod strip comes back as "mod:<strip name>"
++function gnx_scn_art_pick(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 = -2, arg9 = 0)
++{
++    var _a = { cell: -1, saved: -1, mons: [], mons2: [] };
++    global.gnx_art_rev = gnx_art_rev_make();
++    gnx_art_borrow(_a);
++    var _mm = _a.mons[arg1];
++    gnx_art_apply(_a, arg0, [arg1, arg2, arg3, arg4, arg5, arg6, 1, 0, -1], _mm);
++    var _c = _a.cell;
++
++    if (arg9 == 1)
++        _c.slot_data.spr_touch = spr_title_top;
++    else if (arg9 >= 2)
++        _mm.mon_data.spr_data.art_roll = arg9 - 2;
++
++    with (_mm)
++    {
++        if (arg8 != -2)
++            scr_set_mon_spr_data(_c, arg8);
++
++        scr_set_mon_spr_data(_c, arg2);
++    }
++
++    var _t = gnx_art_result(_c, _mm);
++    gnx_art_release(_a);
++    ds_map_destroy(global.gnx_art_rev);
++    var _p = string_pos(";" + arg7 + "=", ";" + _t);
++    var _last = _p;
++
++    // a field name can appear twice ("touch"): the last one is the slot's
++    while (_p > 0)
++    {
++        _last = _p;
++        var _n = string_pos_ext(";" + arg7 + "=", ";" + _t, _p + 1);
++        _p = _n;
++    }
++
++    if (_last == 0)
++        return "absent";
++
++    var _s = string_delete(_t, 1, _last - 1 + string_length(arg7) + 1);
++    var _v = string_copy(_s, 1, string_pos(";", _s) - 1);
++
++    // "mod:GNX_mods/<mod>/strips/<name>.png#5@0,0" is read as "mod:<name>"
++    if (string_pos("mod:", _v) == 1 && string_pos("/strips/", _v) > 0)
++    {
++        var _sl = string_last_pos("/", _v);
++        return "mod:" + string_copy(_v, _sl + 1, string_pos(".png", _v) - _sl - 1);
++    }
++
++    return _v;
++}
++
++
++// for {"assert": "fn"}: 1 when a listed part keeps one pick across two phases of one monster (arg0 = cell, arg1 = monster type,
++// arg2 = phase, arg3 = leg, arg4 = class, arg5 = the mon_spr field)
++function gnx_scn_art_list_stable(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    var _a = { cell: -1, saved: -1, mons: [], mons2: [] };
++    global.gnx_art_rev = gnx_art_rev_make();
++    gnx_art_borrow(_a);
++    var _mm = _a.mons[arg1];
++    gnx_art_apply(_a, arg0, [arg1, arg2, arg3, arg4, 0, 0, 1, 0, -1], _mm);
++    var _c = _a.cell;
++    var _ok = 1;
++    var _first = undefined;
++
++    with (_mm)
++    {
++        for (var _i = 0; _i < 12; _i++)
++        {
++            scr_set_mon_spr_data(_c, arg2);
++            var _v = variable_struct_get(mon_spr, arg5);
++
++            if (_first == undefined)
++                _first = _v;
++            else if (_v != _first)
++                _ok = 0;
++        }
++    }
++
++    gnx_art_release(_a);
++    ds_map_destroy(global.gnx_art_rev);
++    return _ok;
++}
++
++
++// for {"assert": "fn"}: 1 when class arg0's replacement of overlay arg1 (a game sprite name) is treated as a skin-3 overlay
++function gnx_scn_mon_frame_skin3(arg0, arg1)
++{
++    var _sw = gnx_get_mon_swap(arg0);
++    var _v = gnx_mon_swap_one(asset_get_index(arg1), is_struct(_sw) ? _sw : {});
++    return gnx_is_skin3_overlay(_v) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when the debug log contains text arg0 (the loader's lines are flushed by the time a scenario runs)
++function gnx_scn_log_has(arg0)
++{
++    if (!file_exists("gnx_debug.txt"))
++        return 0;
++
++    var _buf = buffer_load("gnx_debug.txt");
++    var _t = buffer_read(_buf, buffer_text);
++    buffer_delete(_buf);
++    return (string_pos(arg0, _t) > 0) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: the carrying ogre's walk sprite for class arg0 (gnx_patrol_swap): "vanilla" when it stays spr_ogre_walk_carry, else "swapped"
++function gnx_scn_patrol_walk(arg0)
++{
++    var _s = gnx_patrol_swap({ base: -1, head: -1, hand: -1, hair: -1, patrol_spr: -1 }, arg0);
++    return (_s.patrol_spr == -1) ? "vanilla" : "swapped";
++}
++
++
++// for {"assert": "fn"}: what the ogre of class arg0 draws while carrying, as text: "vanilla", or the swap art's "WxH nN"
++function gnx_scn_patrol_art(arg0)
++{
++    var _s = gnx_patrol_swap({ base: -1, head: -1, hand: -1, hair: -1, patrol_spr: -1 }, arg0);
++    return (_s.patrol_spr == -1) ? "vanilla" : (string(sprite_get_width(_s.patrol_spr)) + "x" + string(sprite_get_height(_s.patrol_spr)) + " n" + string(sprite_get_number(_s.patrol_spr)));
++}
++
++
++// for {"assert": "fn"}: game sprite arg0's collision box as text "L,T to R,B" (from the image's corner)
++function gnx_scn_sprite_box(arg0)
++{
++    var _s = asset_get_index(arg0);
++    return string(sprite_get_bbox_left(_s)) + "," + string(sprite_get_bbox_top(_s)) + " to " + string(sprite_get_bbox_right(_s)) + "," + string(sprite_get_bbox_bottom(_s));
++}
++
++
++// for {"assert": "fn"}: 1 when class arg0's swap map (or the global one) has an entry for the game sprite named arg1
++function gnx_scn_swap_has(arg0, arg1)
++{
++    var _sw = gnx_get_mon_swap(arg0);
++    return (is_struct(_sw) && variable_struct_exists(_sw, arg1)) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: where class arg0's swap map (or the global one) sends the game sprite named arg1: that sprite's name, "list" for a
++// list, "struct" for an atlas entry, "-" when there is no entry. Needs no game state, so it reads the menu and a map with no occupied cell
++function gnx_scn_swap_to(arg0, arg1)
++{
++    var _sw = gnx_get_mon_swap(arg0);
++
++    if (!is_struct(_sw) || !variable_struct_exists(_sw, arg1))
++        return "-";
++
++    var _v = variable_struct_get(_sw, arg1);
++
++    if (is_array(_v))
++        return "list";
++
++    if (is_struct(_v))
++        return "struct";
++
++    return sprite_exists(_v) ? sprite_get_name(_v) : "?";
++}
++
++
++// for {"assert": "fn"}: ogres carrying a captive (mon_state 10): arg0 = 0 gives 1 when there are any, 1 counts those whose sprite_index is not the vanilla walk (spr_patrol),
++// as the live path sets it (scr_set_mon_spr_data's caller in s_mon_function), 2 counts those whose mask is gone
++function gnx_scn_carry_ogres(arg0)
++{
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == 3 && mon_data.mon_state == 10)
++        {
++            if (arg0 == 0 || (arg0 == 1 && sprite_index != spr_patrol) || (arg0 == 2 && sprite_get_bbox_right(mask_index >= 0 ? mask_index : sprite_index) <= 0))
++                _n++;
++        }
++    }
++
++    return (arg0 == 0 && _n > 0) ? 1 : _n;
++}
++
++
++// for {"assert": "fn"}: 1 when gnx_scn_art_pick's field holds a mod sprite: "mod:<path>" (gnx_art_rev_make), an atlas entry
++// ("atlas:...") or a runtime sprite no cache entry names ("__newsprite..."). "undef", "struct", "-1" and game assets are 0
++function gnx_scn_art_is_mod(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
++{
++    var _n = gnx_scn_art_pick(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
++    return (string_pos("mod:", _n) == 1 || string_pos("atlas:", _n) == 1 || string_pos("__newsprite", _n) == 1) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when gnx_scn_art_pick's field is set to something (not -1, not missing)
++function gnx_scn_art_has(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
++{
++    var _n = gnx_scn_art_pick(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
++    return (_n != "-1" && _n != "absent") ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when one monster keeps its art_roll and its head pick through three calls of the same phase (a list was read)
++function gnx_scn_art_roll_same(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
++{
++    var _a = { cell: -1, saved: -1, mons: [], mons2: [] };
++    global.gnx_art_rev = gnx_art_rev_make();
++    gnx_art_borrow(_a);
++    var _mm = _a.mons[arg1];
++    gnx_art_apply(_a, arg0, [arg1, arg2, arg3, arg4, arg5, arg6, 1, 0, -1], _mm);
++    var _c = _a.cell;
++    var _rolls = [];
++    var _heads = [];
++
++    for (var _i = 0; _i < 3; _i++)
++    {
++        with (_mm)
++        {
++            scr_set_mon_spr_data(_c, arg2);
++            array_push(_rolls, variable_struct_exists(mon_data.spr_data, "art_roll") ? mon_data.spr_data.art_roll : -1);
++            array_push(_heads, gnx_art_name(mon_spr.head_b));
++        }
++    }
++
++    gnx_art_release(_a);
++    ds_map_destroy(global.gnx_art_rev);
++    return (_rolls[0] != -1 && _rolls[0] == _rolls[1] && _rolls[1] == _rolls[2] && _heads[0] == _heads[1] && _heads[1] == _heads[2]) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: 1 when cell arg0 still holds a mon_spr set
++function gnx_scn_cell_has_table(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++    return (is_struct(_c) && variable_struct_exists(_c, "mon_spr") && is_struct(_c.mon_spr)) ? 1 : 0;
++}
++
++
++// for {"call"} and {"assert": "fn"}: gnx_scn_spr_mark remembers how many runtime sprites the game holds, gnx_scn_spr_growth says
++// how many were added since (a load that bakes the same atlas art again adds them)
++function gnx_scn_spr_mark()
++{
++    global.gnx_scn_spr_mark = array_length(global.gnx_runtime_sprites);
++}
++
++
++function gnx_scn_spr_growth()
++{
++    return array_length(global.gnx_runtime_sprites) - global.gnx_scn_spr_mark;
 +}
 +
 +

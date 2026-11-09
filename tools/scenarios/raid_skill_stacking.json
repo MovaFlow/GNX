@@ -1,0 +1,25 @@
+{
+  "about": "scr_check_skill_data, Mav's 1.4.5 fix. Vanilla part (same result before and after the fix): no skill is shared in global.mon_skill, a row merges a second drop of the same troop, every skill alone in a row gives the old value, real rows too. Fix part: a skill held twice in a row adds up, in both rows, including back-row skill 1 (it used = instead of +=).",
+  "steps": [
+    {"wait": 30},
+    {"do": {"type": "spawn_mon", "species": 0, "amount": 60}},
+    {"assert": "fn", "name": "gnx_scn_skill_dups", "args": [0], "is": 0, "why": "vanilla: 16 troops, 16 different skills"},
+    {"assert": "fn", "name": "gnx_scn_skill_table", "args": [0], "is": "24 0 9 0 15 0 9 0 150 24 0 0 0 300 900 0", "why": "vanilla: front row values, level 3"},
+    {"assert": "fn", "name": "gnx_scn_skill_table", "args": [1], "is": "30 12 0 12 15 9 0 9 0 0 6 9 300 0 0 6", "why": "vanilla: back row values, level 3"},
+    {"assert": "fn", "name": "gnx_scn_skill_rows", "args": [0, [[0, 2]], [[0, 1]]], "is": 0.26, "why": "vanilla: one in each row adds up"},
+    {"open_raid": true},
+    {"wait": 5},
+    {"raid_stage": 0},
+    {"wait": 10},
+    {"raid_clear_formation": true},
+    {"raid_formation": {"front": [[0, 10]]}, "why": "10 is a new nest's troop limit"},
+    {"raid_formation": {"front": [[0, 10]]}, "why": "the same troop again: the row merges it"},
+    {"wait": 5},
+    {"assert": "fn", "name": "gnx_scn_skill_dups", "args": [1], "is": 0, "why": "vanilla: real rows hold no troop twice"},
+    {"assert": "fn", "name": "gnx_scn_skill_now", "args": [0], "is": 0.08, "why": "vanilla: real row, 10 goblins = level 1, 0.08"},
+    {"assert": "fn", "name": "gnx_scn_skill_rows", "args": [0, [[0, 2], [0, 3]], []], "is": 0.4, "why": "fix: front, was 0.16"},
+    {"assert": "fn", "name": "gnx_scn_skill_rows", "args": [0, [], [[0, 2], [0, 3]]], "is": 0.5, "why": "fix: back, was 0.2"},
+    {"assert": "fn", "name": "gnx_scn_skill_rows", "args": [1, [], [[1, 2], [1, 3]]], "is": 0.2, "why": "fix: back skill 1 adds up, was 0.08"},
+    {"assert": "fn", "name": "gnx_scn_skill_now", "args": [0], "is": 0.08, "why": "the made-up rows left the real ones alone"}
+  ]
+}

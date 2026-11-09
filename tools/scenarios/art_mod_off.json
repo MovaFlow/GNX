@@ -1,0 +1,199 @@
+{
+  "about": "MODS page: turning a mod off and pressing APPLY takes its monster_art away, and only that mod's. Before the toggle the global art is in the swap store (read in the menu, no game needed) and the other mod's cell art is registered; after APPLY the swap store has no entry and the cell art is still there; the resized world walk of the global mod is in before and the game's own walk (and box) after; then the save is loaded and the real picker gives the vanilla body and shrine touch, and the other mod's cell art. Steps follow mod_menu_d_states / mod_menu_b_walkthrough.",
+  "start": "menu",
+  "mods": [
+    "tools/scenarios/mods/harness_art_cell",
+    "tools/scenarios/mods/harness_art_global"
+  ],
+  "timeout": 150,
+  "check_boot_suite": false,
+  "player_slots": {
+    "1": {
+      "fixture": "mid"
+    }
+  },
+  "steps": [
+    {
+      "menu_continue": 600
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_to",
+      "args": [
+        0,
+        "spr_h_goblin_body_loop_v1_alpha"
+      ],
+      "is": "spr_h_goblin_body_ej_alpha",
+      "why": "before the toggle: the global art is in the swap store"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_blocks",
+      "args": [
+        9070
+      ],
+      "is": 1,
+      "why": "before the toggle: the other mod's cell art is registered"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "64x80 n10 o32,72",
+      "why": "before the toggle: the global mod's resized world walk is in"
+    },
+    {
+      "press": {
+        "type": 9070
+      }
+    },
+    {
+      "wait": 3
+    },
+    {
+      "mod_toggle": "harness_art_global"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_row_text",
+      "args": [
+        "harness_art_global"
+      ],
+      "is": "OFF",
+      "why": "the row says OFF before APPLY"
+    },
+    {
+      "press": {
+        "type": 9074
+      },
+      "why": "APPLY"
+    },
+    {
+      "wait": 120
+    },
+    {
+      "menu_continue": 600
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_to",
+      "args": [
+        0,
+        "spr_h_goblin_body_loop_v1_alpha"
+      ],
+      "is": "-",
+      "why": "after APPLY: no global art in the swap store"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_blocks",
+      "args": [
+        9070
+      ],
+      "is": 1,
+      "why": "after APPLY: the other mod's cell art is still registered"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 1,
+      "why": "after APPLY: the game's own walk is back (size, frames, origin, box)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_box_same",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 1,
+      "why": "after APPLY: and its collision box"
+    },
+    {
+      "press": {
+        "type": 9075
+      },
+      "why": "BACK (APPLY reopens the mod page)"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "press": {
+        "type": 51,
+        "num": 1
+      },
+      "why": "CONTINUE: the load page"
+    },
+    {
+      "wait": 3
+    },
+    {
+      "load_page_press": 1
+    },
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        3,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "spr_h_goblin_body_loop_v1_alpha",
+      "why": "in the loaded game: the vanilla body, not the global art"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        39,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "touch"
+      ],
+      "is": "spr_h_goblin_shrine_touch",
+      "why": "the vanilla shrine touch"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_pick",
+      "args": [
+        9070,
+        0,
+        2,
+        1,
+        0,
+        0,
+        0,
+        "body_b"
+      ],
+      "is": "mod:lp_fill",
+      "why": "the other mod's cell art still draws"
+    }
+  ]
+}

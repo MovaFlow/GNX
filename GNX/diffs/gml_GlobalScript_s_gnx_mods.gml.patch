@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2874 @@
+@@ -0,0 +1,2904 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1602,6 +1602,13 @@
 +    if (!variable_global_exists("gnx_runtime_sprites"))
 +        global.gnx_runtime_sprites = [];
 +
++    // GNX-RAM: see gnx_atlas_page_add. Stays across loads, like the atlases themselves
++    if (!variable_global_exists("gnx_atlas_pages"))
++    {
++        global.gnx_atlas_pages = {};
++        global.gnx_atlas_page_timeout = 120000000;  // microseconds
++    }
++
 +    // GNX-FRAMES: see gnx_frames_check
 +    if (!variable_global_exists("gnx_frame_limit"))
 +    {
@@ -1753,7 +1760,7 @@
 +            if (_ps != -1 && sprite_exists(_ps))
 +            {
 +                _n++;
-+                _mb += ((sprite_get_width(_ps) * sprite_get_height(_ps) * 4) / 1024 / 1024);
++                _mb += ((gnx_atlas_page_w(_ps) * gnx_atlas_page_h(_ps) * 4) / 1024 / 1024);
 +            }
 +        }
 +        
@@ -1785,6 +1792,14 @@
 +        if (!sprite_exists(_spr))
 +            continue;
 +        
++        // an atlas page still loading has no texture of its real size yet
++        if (variable_struct_exists(global.gnx_atlas_pages, string(_spr)))
++        {
++            _uniq_tex++;
++            _vram_bytes += (gnx_atlas_page_w(_spr) * gnx_atlas_page_h(_spr) * 4);
++            continue;
++        }
++
 +        var _n_sub = sprite_get_number(_spr);
 +        
 +        for (var _sui = 0; _sui < _n_sub; _sui++)
@@ -2129,7 +2144,7 @@
 +    for (var _i = global.gnx_frames_noted; _i < array_length(_l); _i++)
 +    {
 +        if (sprite_exists(_l[_i]))
-+            _n += sprite_get_number(_l[_i]);
++            _n += gnx_runtime_frames(_l[_i]);
 +    }
 +
 +    global.gnx_frames_noted = array_length(_l);
@@ -2145,7 +2160,8 @@
 +// GNX-FRAMES: the runtime gives every sprite frame a texture slot, and past about 32768 of them (measured: 32740 frames
 +// added to a vanilla game) sprite_add still succeeds but the new frames draw nothing: invisible cells and characters,
 +// with no error. An atlas page is one frame. So the loader counts the frames and says so.
-+// ponytail: sprite_replace's backups are not in the list, a few hundred frames at most
++// The game sprites that sprite_replace and world art overwrite cost frames too: sprite_assign's copy and the backup of the game's own
++// art are counted below, kept out of gnx_runtime_sprites (scr_gnx_cleanup_sprites deletes everything in that list).
 +function gnx_frames_check()
 +{
 +    gnx_frames_note(global.gnx_current_loading_mod);
@@ -2160,7 +2176,17 @@
 +    for (var _i = 0; _i < array_length(_l); _i++)
 +    {
 +        if (sprite_exists(_l[_i]))
-+            _used += sprite_get_number(_l[_i]);
++            _used += gnx_runtime_frames(_l[_i]);
++    }
++
++    // GNX-ART: assigned art is counted though unmeasured (the runtime may share it with its source), which is the safe side
++    _used += global.gnx_assign_frames;
++    var _bk_k = ds_map_find_first(global.gnx_sprite_backup);
++
++    while (_bk_k != undefined)
++    {
++        _used += sprite_get_number(ds_map_find_value(global.gnx_sprite_backup, _bk_k));
++        _bk_k = ds_map_find_next(global.gnx_sprite_backup, _bk_k);
 +    }
 +
 +    global.gnx_frames_used = _used;
@@ -2210,6 +2236,7 @@
 +    }
 +    
 +    global.gnx_runtime_sprites = [];
++    gnx_atlas_pages_forget();
 +    // GNX-PROP: baked ring glows are runtime sprites too: forget them (and their memory count) with the list
 +    global.gnx_glow_bake_cache = {};
 +    global.gnx_glow_bake_bytes = 0;
@@ -2642,6 +2669,9 @@
 +    
 +    if (variable_struct_exists(_manifest, "sprite_replace"))
 +        scr_gnx_load_sprite_replace(arg0, _manifest.sprite_replace, _manifest);  // GNX-REPLACE
++
++    if (variable_struct_exists(_manifest, "monster_art"))
++        scr_gnx_load_monster_art(arg0, _manifest.monster_art, _manifest);  // GNX-ART
 +    
 +    _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");

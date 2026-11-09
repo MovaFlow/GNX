@@ -1,0 +1,113 @@
+{
+  "about": "Atlas pages load in the background (sprite_add_ext). While one is loading its frames still pass the bounds check (size from the PNG header) and a bake still gets its pixels; a page deleted while loading, alone or with every runtime sprite, leaves nothing behind.",
+  "mods": [
+    "tools/scenarios/mods/harness_atlas"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_bake_loading",
+      "args": [
+        "harness_atlas",
+        "atlas_0.png",
+        4,
+        8
+      ],
+      "is": 1,
+      "why": "bounds check and bake in the frame the page was added"
+    },
+    {
+      "wait": 300
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_pages_left",
+      "args": [],
+      "is": 0,
+      "why": "the page got ready and left the list"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_bake_same",
+      "args": [],
+      "is": 1,
+      "why": "the bake holds the page's pixels, not an empty rectangle"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_delete_loading",
+      "args": [
+        "harness_atlas",
+        "atlas_0.png"
+      ],
+      "is": 1,
+      "why": "deleted while still loading"
+    },
+    {
+      "wait": 300
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_pages_left",
+      "args": [],
+      "is": 0,
+      "why": "a deleted page leaves the list"
+    },
+    {
+      "call": "gnx_scn_atlas_timeout",
+      "args": [
+        -1
+      ]
+    },
+    {
+      "call": "gnx_scn_atlas_add_loading",
+      "args": [
+        "harness_atlas",
+        "atlas_0.png"
+      ]
+    },
+    {
+      "wait": 2
+    },
+    {
+      "call": "gnx_scn_atlas_timeout",
+      "args": [
+        120000
+      ]
+    },
+    {
+      "wait": 300
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_pages_left",
+      "args": [],
+      "is": 0,
+      "why": "a page reported as late still gets ready"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_cleanup_loading",
+      "args": [
+        "harness_atlas",
+        "atlas_0.png"
+      ],
+      "is": 1,
+      "why": "cleanup while still loading"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_pages_left",
+      "args": [],
+      "is": 0,
+      "why": "cleanup empties the list"
+    },
+    {
+      "wait": 300
+    }
+  ],
+  "expect_mod_errors": [
+    "atlas page atlas_0.png has not loaded yet"
+  ]
+}
