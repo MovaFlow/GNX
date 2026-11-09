@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2888 @@
+@@ -0,0 +1,2904 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1602,6 +1602,13 @@
 +    if (!variable_global_exists("gnx_runtime_sprites"))
 +        global.gnx_runtime_sprites = [];
 +
++    // GNX-RAM: see gnx_atlas_page_add. Stays across loads, like the atlases themselves
++    if (!variable_global_exists("gnx_atlas_pages"))
++    {
++        global.gnx_atlas_pages = {};
++        global.gnx_atlas_page_timeout = 120000000;  // microseconds
++    }
++
 +    // GNX-FRAMES: see gnx_frames_check
 +    if (!variable_global_exists("gnx_frame_limit"))
 +    {
@@ -1753,7 +1760,7 @@
 +            if (_ps != -1 && sprite_exists(_ps))
 +            {
 +                _n++;
-+                _mb += ((sprite_get_width(_ps) * sprite_get_height(_ps) * 4) / 1024 / 1024);
++                _mb += ((gnx_atlas_page_w(_ps) * gnx_atlas_page_h(_ps) * 4) / 1024 / 1024);
 +            }
 +        }
 +        
@@ -1785,6 +1792,14 @@
 +        if (!sprite_exists(_spr))
 +            continue;
 +        
++        // an atlas page still loading has no texture of its real size yet
++        if (variable_struct_exists(global.gnx_atlas_pages, string(_spr)))
++        {
++            _uniq_tex++;
++            _vram_bytes += (gnx_atlas_page_w(_spr) * gnx_atlas_page_h(_spr) * 4);
++            continue;
++        }
++
 +        var _n_sub = sprite_get_number(_spr);
 +        
 +        for (var _sui = 0; _sui < _n_sub; _sui++)
@@ -2129,7 +2144,7 @@
 +    for (var _i = global.gnx_frames_noted; _i < array_length(_l); _i++)
 +    {
 +        if (sprite_exists(_l[_i]))
-+            _n += sprite_get_number(_l[_i]);
++            _n += gnx_runtime_frames(_l[_i]);
 +    }
 +
 +    global.gnx_frames_noted = array_length(_l);
@@ -2161,7 +2176,7 @@
 +    for (var _i = 0; _i < array_length(_l); _i++)
 +    {
 +        if (sprite_exists(_l[_i]))
-+            _used += sprite_get_number(_l[_i]);
++            _used += gnx_runtime_frames(_l[_i]);
 +    }
 +
 +    // GNX-ART: assigned art is counted though unmeasured (the runtime may share it with its source), which is the safe side
@@ -2221,6 +2236,7 @@
 +    }
 +    
 +    global.gnx_runtime_sprites = [];
++    gnx_atlas_pages_forget();
 +    // GNX-PROP: baked ring glows are runtime sprites too: forget them (and their memory count) with the list
 +    global.gnx_glow_bake_cache = {};
 +    global.gnx_glow_bake_bytes = 0;

@@ -4691,7 +4691,7 @@ Measured on one two-mod setup (results depend on the mods and the computer):
 
 ### 20.4 How GNX uses the atlas
 
-1. At the start of your mod's loading, before classes, cells and props, GNX loads `atlas/uv.json` and every page, if the file exists.
+1. At the start of your mod's loading, before classes, cells and props, GNX loads `atlas/uv.json` and starts loading every page, if the file exists. Pages finish in the background within moments of the game starting, and an atlas sprite draws nothing until its page is ready.
 2. For each sprite in a `sprites` block, GNX takes the file name of its `strip` (or `path`, or the first file of a `frames` list) without folder and extension, and looks for that entry in **your own** `uv.json`, ignoring case (`strips/spr_h_Witch_x.png` finds `spr_h_witch_x`). A `"folder"` sprite is looked up by the folder name.
 3. Found: the sprite comes from the atlas and the PNG is not loaded. Not found: the PNG loads normally. Both can be mixed.
 4. The frame count comes from `uv.json`, not from `frames`; with fewer frames there, the animation repeats them.
@@ -4703,7 +4703,8 @@ Useful log lines:
 
 - `[GNX-PERF] mod "my_mod" atlas mode: 1 texture pages (~64.0 MB), 120 sprite refs, 0 page(s) failed to load, 0 entr(y/ies) left out, 2 strip(s) loaded outside the atlas`: the atlas was loaded. The size is the video memory of the pages; every strip loaded outside the atlas is one more texture.
 - `[GNX-ATLAS] ERROR: malformed uv.json for my_mod`: invalid JSON; the mod loads its strips normally.
-- `[GNX-ATLAS] ERROR: my_mod: failed to load atlas_3.png`: one page is missing. Since 1.5 the entries on it are left out, and those sprites load from their strip PNGs instead when the mod still has them; the other pages work.
+- `[GNX-ATLAS] ERROR: my_mod: failed to load atlas_3.png`: one page is missing or damaged (each page's PNG checksums are checked before it loads). Since 1.5 the entries on it are left out, and those sprites load from their strip PNGs instead when the mod still has them; the other pages work.
+- `Mod 'my_mod': atlas page atlas_3.png has not loaded yet, its sprites stay invisible until it does.`: a mod error when a page is still loading after 2 minutes.
 - `[GNX-ATLAS] INVALID: mod=my_mod entry=<name>: <reason>; not used`: an entry has a frame on a page that did not load, or outside its page, or a value that is no number (the first 20 are listed, then a count). That sprite loads from its strip PNG instead (new in 1.5). A frame with `w` or `h` 0 is an empty frame, not an error.
 - `[GNX-ATLAS] ERROR: my_mod: uv.json needs atlas_files (a list of PNGs) and entries; atlas not used, the mod's strips load one by one`
 

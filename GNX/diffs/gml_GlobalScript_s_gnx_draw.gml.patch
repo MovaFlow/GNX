@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1405 @@
+@@ -0,0 +1,1584 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -119,7 +119,7 @@
 +/// missing or its start is no PNG header. Reads only the first 24 bytes (file_bin, not the whole page) and
 +/// checks the full 8-byte PNG signature, the first chunk being IHDR of length 13, and a size of 1-16384 per
 +/// side. Used to check atlas pages before a mod loads, without making a texture: a page whose header is
-+/// right but whose image data is broken is still only found when sprite_add loads it.
++/// right but whose image data is broken is found by gnx_png_intact.
 +function gnx_png_size(arg0)
 +{
 +    if (!file_exists(arg0))
@@ -230,7 +230,7 @@
 +        if (_spr == -1 || !sprite_exists(_spr))
 +            return "frame " + string(i) + " is on page " + string(_p) + ", which did not load";
 +        
-+        if (_f.x < 0 || _f.y < 0 || _f.w <= 0 || _f.h <= 0 || (_f.x + _f.w) > sprite_get_width(_spr) || (_f.y + _f.h) > sprite_get_height(_spr))
++        if (_f.x < 0 || _f.y < 0 || _f.w <= 0 || _f.h <= 0 || (_f.x + _f.w) > gnx_atlas_page_w(_spr) || (_f.y + _f.h) > gnx_atlas_page_h(_spr))
 +            return "frame " + string(i) + " (" + string(_f.x) + "," + string(_f.y) + " " + string(_f.w) + "x" + string(_f.h) + ") lies outside page " + string(_p);
 +    }
 +    
@@ -354,6 +354,7 @@
 +    {
 +        var _f = arg0.frames[_i];
 +        var _aspr = variable_struct_exists(arg0, "multi") ? arg0.atlas_sprites[_f.atlas] : arg0.atlas;
++        _aspr = gnx_atlas_page_now(_aspr);  // a bake is kept for good: it cannot wait for a page still loading
 +        surface_set_target(_surf);
 +        draw_clear_alpha(c_black, 0);
 +        // the _ext version with white and alpha 1, so draw_set_alpha from other events cannot leak in
@@ -768,6 +769,184 @@
 +}
 +
 +
++// GNX-RAM: atlas pages load in the background with sprite_add_ext. sprite_add keeps two more copies of the pixels in
++// RAM for as long as the sprite lives (128 MB for a 4096 x 4096 page, measured); sprite_add_ext keeps neither. The
++// price: a page reads 1 x 1 and draws nothing until it is ready, and it only gets ready between frames, so the loader
++// cannot wait for it. global.gnx_atlas_pages: string(sprite) -> a page still loading (it leaves the list when ready).
++// true when every chunk of PNG file arg0 is complete with a right checksum, up to its end chunk. A damaged PNG can
++// corrupt the game's memory when it is decoded (seen with cut files and with sprite_add_ext: the game crashes, 0xC0000374).
++function gnx_png_intact(arg0)
++{
++    var _b = buffer_load(arg0);
++
++    if (_b == -1)
++        return false;
++
++    var _size = buffer_get_size(_b);
++    var _at = 8;  // after the signature
++    var _ok = false;
++
++    // a chunk: length (4 bytes, big-endian), type (4), data, checksum of type + data (4)
++    while (_at + 12 <= _size)
++    {
++        var _len = gnx_be32(_b, _at);
++
++        if (_at + 12 + _len > _size)
++            break;
++
++        // buffer_crc32 gives the PNG checksum with its bits inverted
++        if (((~buffer_crc32(_b, _at + 4, _len + 4)) & 4294967295) != gnx_be32(_b, _at + 8 + _len))
++            break;
++
++        // "IEND"
++        if (buffer_peek(_b, _at + 4, buffer_u8) == 73 && buffer_peek(_b, _at + 5, buffer_u8) == 69 && buffer_peek(_b, _at + 6, buffer_u8) == 78 && buffer_peek(_b, _at + 7, buffer_u8) == 68)
++        {
++            _ok = true;
++            break;
++        }
++
++        _at += 12 + _len;
++    }
++
++    buffer_delete(_b);
++    return _ok;
++}
++
++
++function gnx_be32(arg0, arg1)
++{
++    // the mask: the sum overflows to a negative number from 2^31 up
++    return ((buffer_peek(arg0, arg1, buffer_u8) * 16777216) + (buffer_peek(arg0, arg1 + 1, buffer_u8) * 65536) + (buffer_peek(arg0, arg1 + 2, buffer_u8) * 256) + buffer_peek(arg0, arg1 + 3, buffer_u8)) & 4294967295;
++}
++
++
++// Adds page file arg0 of mod folder arg1 (file name arg2). -1 when it is missing or damaged, like a failed sprite_add:
++// sprites on the page then fall back to their strips.
++function gnx_atlas_page_add(arg0, arg1, arg2)
++{
++    var _size = gnx_png_size(arg0);
++
++    if (_size == undefined || !gnx_png_intact(arg0))
++        return -1;
++
++    var _spr = sprite_add_ext(arg0, 1, 0, 0, true);
++
++    if (_spr == -1)
++        return -1;
++
++    if (variable_struct_names_count(global.gnx_atlas_pages) == 0)
++        global.gnx_atlas_pages_t0 = get_timer();
++
++    variable_struct_set(global.gnx_atlas_pages, string(_spr),
++    {
++        spr: _spr,
++        path: arg0,
++        folder: arg1,
++        file: arg2,
++        w: _size[0],
++        h: _size[1],
++        temp: -1,
++        t0: get_timer()
++    });
++    return _spr;
++}
++
++
++// Size of atlas page arg0: from its PNG header while it is loading.
++function gnx_atlas_page_w(arg0)
++{
++    var _k = string(arg0);
++    return variable_struct_exists(global.gnx_atlas_pages, _k) ? variable_struct_get(global.gnx_atlas_pages, _k).w : sprite_get_width(arg0);
++}
++
++
++function gnx_atlas_page_h(arg0)
++{
++    var _k = string(arg0);
++    return variable_struct_exists(global.gnx_atlas_pages, _k) ? variable_struct_get(global.gnx_atlas_pages, _k).h : sprite_get_height(arg0);
++}
++
++
++// Frames of runtime sprite arg0: a page still loading reads 0, and a page is one frame.
++function gnx_runtime_frames(arg0)
++{
++    return variable_struct_exists(global.gnx_atlas_pages, string(arg0)) ? 1 : sprite_get_number(arg0);
++}
++
++
++// A sprite with the pixels of atlas page arg0 for a draw that cannot wait: while the page is loading, a temporary copy
++// from sprite_add (kept until the page is ready, so several bakes share it).
++function gnx_atlas_page_now(arg0)
++{
++    var _k = string(arg0);
++
++    if (!variable_struct_exists(global.gnx_atlas_pages, _k))
++        return arg0;
++
++    var _pg = variable_struct_get(global.gnx_atlas_pages, _k);
++
++    if (_pg.temp == -1)
++        _pg.temp = sprite_add(_pg.path, 1, false, false, 0, 0);
++
++    return (_pg.temp != -1) ? _pg.temp : arg0;
++}
++
++
++function gnx_atlas_page_done(arg0)
++{
++    var _pg = variable_struct_get(global.gnx_atlas_pages, arg0);
++
++    if (_pg.temp != -1 && sprite_exists(_pg.temp))
++        sprite_delete(_pg.temp);
++
++    variable_struct_remove(global.gnx_atlas_pages, arg0);
++}
++
++
++// Once per frame while pages are loading. A page that takes far too long is reported, once; nothing else can be done
++// with it, its sprites draw nothing until it is ready.
++function gnx_atlas_pages_step()
++{
++    if (!variable_global_exists("gnx_atlas_pages") || variable_struct_names_count(global.gnx_atlas_pages) == 0)
++        exit;
++
++    var _keys = variable_struct_get_names(global.gnx_atlas_pages);
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        var _pg = variable_struct_get(global.gnx_atlas_pages, _keys[_i]);
++
++        if (!sprite_exists(_pg.spr) || sprite_get_width(_pg.spr) == _pg.w)
++        {
++            gnx_atlas_page_done(_keys[_i]);
++        }
++        else if ((get_timer() - _pg.t0) > global.gnx_atlas_page_timeout)
++        {
++            var _msg = "Mod '" + _pg.folder + "': atlas page " + _pg.file + " has not loaded yet, its sprites stay invisible until it does.";
++            gnx_report_mod_error(_msg);
++            global.gnx_pending_notice = _msg;
++            _pg.t0 = infinity;
++        }
++    }
++
++    if (variable_struct_names_count(global.gnx_atlas_pages) == 0)
++        gnx_time_log("atlas pages ready", global.gnx_atlas_pages_t0);
++}
++
++
++// The sprites are being deleted (scr_gnx_cleanup_sprites): nothing left to wait for.
++function gnx_atlas_pages_forget()
++{
++    if (!variable_global_exists("gnx_atlas_pages"))
++        exit;
++
++    var _keys = variable_struct_get_names(global.gnx_atlas_pages);
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++        gnx_atlas_page_done(_keys[_i]);
++}
++
++
 +function gnx_load_atlas_mod(arg0, arg1)
 +{
 +    var _atlas_dir = arg0 + "atlas/";
@@ -827,7 +1006,7 @@
 +    {
 +        var _atlas_path = _atlas_dir + _files[_i];
 +        var _t_pre_add = get_timer();
-+        var _spr = sprite_add(_atlas_path, 1, false, false, 0, 0);
++        var _spr = gnx_atlas_page_add(_atlas_path, arg1, _files[_i]);
 +        var _t_add_ms = (get_timer() - _t_pre_add) / 1000;
 +        
 +        if (_spr == -1)
@@ -842,7 +1021,7 @@
 +        else
 +        {
 +            var _tl = gnx_log_open();
-+            gnx_log_write(_tl, "[GNX-TIME] sprite_add " + _files[_i] + " = " + string(_t_add_ms) + " ms\n");
++            gnx_log_write(_tl, "[GNX-TIME] sprite_add_ext " + _files[_i] + " = " + string(_t_add_ms) + " ms\n");
 +            gnx_log_close(_tl);
 +            array_push(_atlas_sprites, _spr);
 +            array_push(global.gnx_runtime_sprites, _spr);
