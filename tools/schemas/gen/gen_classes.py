@@ -125,7 +125,8 @@ cls = obj({
     "tower_boss_condition": {"$ref": C + "condition", "description": "The class is a Tower boss only while this holds (guide 15.3)."},
     "gb1_breast_d2": {**SPR, "description": "Second breast sprite in G.BANG 1 (guide 16.3)."},
     "mon_spr_overrides": {"type": "object", "description": "Monster sprites for this class in some vanilla cells, by key (guide 16.4-16.6).", "additionalProperties": SPR},
-    "mon_sprite_swap": {"type": "object", "description": "Vanilla monster sprite name -> replacement, wherever it would be drawn on this class (guide 16.7).", "additionalProperties": SPR},
+    "mon_sprite_swap": {"type": "object", "description": "Vanilla monster sprite name -> replacement, wherever it would be drawn on this class (guide 16.11).", "additionalProperties": SPR},
+    "monster_art": {"type": "object", "description": "Monster sprites on captives of this class, per monster, family and phase (guide 16.7)."},
 }, "One class (guide 6).")
 
 classes = {

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_tests.gml
 +++ gml/gml_GlobalScript_s_gnx_tests.gml
-@@ -0,0 +1,2231 @@
+@@ -0,0 +1,2260 @@
 +// GNX: boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -136,7 +136,8 @@
 +        "scr_gnx_test_t82",
 +        "scr_gnx_test_t83",
 +        "scr_gnx_test_t84",
-+        "scr_gnx_test_t85"
++        "scr_gnx_test_t85",
++        "scr_gnx_test_t86"
 +    ];
 +
 +    // each test function logs its PASS / FAIL lines and counts them in _r
@@ -2006,6 +2007,34 @@
 +    }
 +
 +    gnx_test_check(_r, _log, _bad85 == "", "T85 only_listed_cells constraint valid", "T85 only_listed_cells: " + _bad85);
++}
++
++
++// T86
++function scr_gnx_test_t86(_r, _log)
++{
++    // T86: every sprite name in the monster_art alias table is a game sprite
++    var _bad86 = "";
++    var _al86 = gnx_art_aliases();
++    var _ak86 = variable_struct_get_names(_al86);
++
++    for (var _i86 = 0; _i86 < array_length(_ak86); _i86++)
++    {
++        var _nm86 = variable_struct_get(_al86, _ak86[_i86]);
++
++        if (!is_array(_nm86) || array_length(_nm86) == 0)
++            _bad86 += _ak86[_i86] + " (no names) ";
++        else
++        {
++            for (var _j86 = 0; _j86 < array_length(_nm86); _j86++)
++            {
++                if (asset_get_index(_nm86[_j86]) < 0)
++                    _bad86 += _nm86[_j86] + " ";
++            }
++        }
++    }
++
++    gnx_test_check(_r, _log, _bad86 == "", "T86 monster_art alias names are game sprites", "T86 bad alias names: " + _bad86);
 +}
 +
 +

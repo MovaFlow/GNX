@@ -529,19 +529,18 @@
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +866,11 @@
+@@ -554,6 +866,10 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
 +                        
-+                        // Mav (1.4.7.5): an atlas sprite (a struct) cannot be sprite_index
-+                        if (spr_unit.patrol_spr != -1 && !is_struct(spr_unit.patrol_spr))
-+                            sprite_index = spr_unit.patrol_spr;
-+                        
++                        // GNX: the live path (s_mon_function) keeps the vanilla walk as sprite_index, whose mask and frame count drive
++                        // scr_ogre_spd_b and the carry overlays; spr_unit.patrol_spr only changes what is drawn. A reload must match
++                        // it: a swapped walk, "none" (spr_empty) included, would give the ogre another mask and one frame after a load
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +884,68 @@
+@@ -567,7 +883,68 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -610,7 +609,7 @@
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +984,21 @@
+@@ -606,11 +983,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -633,7 +632,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1022,12 @@
+@@ -634,7 +1021,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -646,7 +645,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1047,395 @@
+@@ -654,8 +1046,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -1042,7 +1041,7 @@
      }
      
      return _load;
-@@ -663,6 +1443,7 @@
+@@ -663,6 +1442,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1050,7 +1049,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1463,25 @@
+@@ -682,33 +1462,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1095,7 +1094,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1506,119 @@
+@@ -733,3 +1505,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

@@ -35,6 +35,66 @@ def load_json_loose(path: Path):
     return check_mod.load_json(path)
 
 
+def art_paths(manifest, mod_dir: Path) -> list[Path]:
+    """Every file the manifest's sprite_replace and monster_art name. They may live in any folder and the key may be a file
+    name or the object itself, so the fixed folders (strips/, atlas/ ...) do not cover them. Reads the value forms the loader
+    reads (gnx_resolve_sprite_raw): a .png or a folder name, or an object with strip, path, folder or a frames list of files.
+    A path that leaves the mod folder, or names nothing, is skipped. In order, once each."""
+    out, seen = [], set()
+    root = mod_dir.resolve()
+
+    def add(rel):
+        p = mod_dir / rel
+        try:
+            if not p.resolve().is_relative_to(root):
+                return
+            found = sorted(q for q in p.rglob("*") if q.is_file()) if p.is_dir() else ([p] if p.is_file() else [])
+        except (OSError, ValueError):  # a text that is no path on this system
+            return
+        for f in found:
+            if f not in seen:
+                seen.add(f)
+                out.append(f)
+
+    def value(v):
+        if isinstance(v, str):
+            add(v)
+        elif isinstance(v, dict):
+            for k in ("strip", "path", "folder"):
+                if isinstance(v.get(k), str):
+                    add(v[k])
+            for f in v.get("frames") if isinstance(v.get("frames"), list) else []:
+                if isinstance(f, str):
+                    add(f)
+
+    def block(key):
+        v = manifest.get(key) if isinstance(manifest, dict) else None
+        if isinstance(v, str):
+            add(v)
+            try:
+                v = load_json_loose(mod_dir / v)
+            except (OSError, ValueError):
+                return {}
+        return v if isinstance(v, dict) else {}
+
+    def entries(node):
+        return [v for k, v in node.items() if not str(k).startswith(("_", "//"))] if isinstance(node, dict) else []
+
+    for name, v in block("sprite_replace").items():
+        if not name.startswith("_"):
+            value(v)
+    for name, mon in block("monster_art").items():
+        if name == "sprites":  # the file's own sprite list: name -> entry
+            todo = entries(mon)
+        elif isinstance(mon, dict) and not name.startswith(("_", "//")):  # a monster: its "world" part -> entry map
+            todo = entries(mon.get("world"))
+        else:
+            todo = []
+        for v in todo:
+            value(v)
+    return out
+
+
 def find_unpacked(data) -> list[tuple[str, str]]:
     """Return [(entry_label, sprite_key), ...] for sprites with no 'strip' key."""
     leftovers = []
@@ -218,7 +278,7 @@ def main():
     json_files = {}
     for role in ("classes", "cells", "quests", "tools", "sounds", "props", "items", "raids"):
         rel = manifest.get(role)
-        if not rel:
+        if not rel or not isinstance(rel, str):  # absent, or the object itself: nothing to look up
             continue
         p = mod_dir / rel
         if not p.exists():
@@ -279,6 +339,8 @@ def main():
             if (mod_dir / folder).is_dir():
                 n = sum(1 for f in (mod_dir / folder).rglob("*") if f.is_file())
                 print(f"[dry] would copy {folder}/ ({n} files)")
+        for src in art_paths(manifest, mod_dir):
+            print(f"[dry] would copy {src.relative_to(mod_dir).as_posix()} (art named in the manifest)")
     else:
         if dest.exists():
             shutil.rmtree(dest)
@@ -301,6 +363,13 @@ def main():
                 shutil.copytree(src_dir, dest / folder)
                 n = sum(1 for f in (dest / folder).rglob("*") if f.is_file())
                 print(f"  copied: {folder}/ ({n} files)")
+        # sprite_replace and monster_art art lives in any folder: copy what the manifest names, unless a folder above had it
+        for src in art_paths(manifest, mod_dir):
+            dst = dest / src.relative_to(mod_dir)
+            if not dst.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+                print(f"  copied: {src.relative_to(mod_dir).as_posix()}")
     print()
 
     compat = manifest.get("compatible_game_versions", [])

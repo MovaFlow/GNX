@@ -1,0 +1,199 @@
+{
+  "about": "monster_art world: another size, frame count and origin on walking monsters; bad entries are errors; the collision box is kept, so patrol overlaps do not change; the originals come back from the backup.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_art_world"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "world",
+  "expect_mod_errors": [
+    "no art found",
+    "spr_hobgoblin_carry has 10 frames, it must keep 8",
+    "at another size xorig and yorig are required",
+    "spr_hobgoblin_log has 2 frames, it must keep 1"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_width",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 64,
+      "why": "another size"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_frames",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 10,
+      "why": "another frame count"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "64x80 n10 o32,72",
+      "why": "size, count and the origin the entry gave"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_ogre_walk"
+      ],
+      "is": "128x128 n8 o64,120",
+      "why": "the ogre's walk at 128 x 128"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_width",
+      "args": [
+        "spr_hobgoblin_carry"
+      ],
+      "is": 0,
+      "why": "left out: not the size given (0 = untouched)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_hobgoblin_carry"
+      ],
+      "is": 1,
+      "why": "the fixed frame count refused the 10-frame strip"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_goblin_b_walk"
+      ],
+      "is": 0,
+      "why": "missing file: the game sprite stays"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_ogre_idle"
+      ],
+      "is": 1,
+      "why": "another size with no origin: the game sprite stays"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_box_same",
+      "args": [
+        "spr_ogre_walk"
+      ],
+      "is": 1,
+      "why": "the original collision box, all four sides, with art at another size"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mask_hit",
+      "args": [
+        "spr_ogre_walk",
+        -24,
+        -102
+      ],
+      "is": 1,
+      "why": "a corner of the original box where the art is transparent still collides (a rectangle, not a precise mask)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mask_hit",
+      "args": [
+        "spr_ogre_walk",
+        0,
+        -60
+      ],
+      "is": 1,
+      "why": "and where the art is opaque"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_replaced",
+      "args": [
+        "spr_ogre_walk_carry"
+      ],
+      "is": 0,
+      "why": "walk_carry is a swap: the game sprite is not replaced"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_ogre_walk_carry"
+      ],
+      "is": "115x115 n8 o55,114",
+      "why": "the carrying ogre's game sprite keeps its size and origin"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_box",
+      "args": [
+        "spr_ogre_walk_carry"
+      ],
+      "is": "-176,10 to 293,114",
+      "why": "and its 470 px box, which sprite_assign would cut to the image"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_patrol_art",
+      "args": [
+        0
+      ],
+      "is": "128x128 n8",
+      "why": "the carrying ogre draws the world art"
+    },
+    {
+      "ogre_spd_probe": {
+        "mask": "spr_ogre_walk_carry",
+        "dx": 200
+      },
+      "why": "the real scr_ogre_spd_b with the carrying ogre's mask: a hobgoblin 200 px away (outside the art, inside the game's box) is still overlapped"
+    },
+    {
+      "screenshot": "world"
+    },
+    {
+      "call": "gnx_sprite_replace_restore"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 1,
+      "why": "turned off: size, count, origin and box come back from the backup"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom_is_original",
+      "args": [
+        "spr_ogre_walk"
+      ],
+      "is": 1,
+      "why": "same for the ogre"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "29x45 n8 o14,45",
+      "why": "the game's own walk"
+    }
+  ]
+}

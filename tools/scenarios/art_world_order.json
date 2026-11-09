@@ -1,0 +1,57 @@
+{
+  "about": "A resized world sprite, then another mod's sprite_replace of it at the original size: the check compares with the original (the backup), and it is not refused.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_art_world",
+    "tools/scenarios/mods/harness_art_world_late"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "world",
+  "expect_mod_errors": [
+    "no art found",
+    "spr_hobgoblin_carry has 10 frames, it must keep 8",
+    "at another size xorig and yorig are required",
+    "spr_hobgoblin_log has 2 frames, it must keep 1"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_width",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 29,
+      "why": "the last mod wins, at the original size"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "29x45 n8 o14,45",
+      "why": "the game's origin, from the backup"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_ogre_walk"
+      ],
+      "is": "128x128 n8 o64,120",
+      "why": "the earlier mod's other world art stays"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_box_same",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 1,
+      "why": "a resized world art, then a same-size sprite_replace in one load: the box is the game's own, not the first art's"
+    }
+  ]
+}

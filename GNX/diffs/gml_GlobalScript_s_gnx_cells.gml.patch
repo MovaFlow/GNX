@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,2541 @@
+@@ -0,0 +1,2704 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -763,6 +763,9 @@
 +        }
 +    }
 +    
++    // GNX-ART: monster_art strips, as the sets above
++    _bad += gnx_frames_check_art_strips(arg0, arg1, arg2, arg3);
++    
 +    // a monster type without its own start or loop strips is drawn from the vanilla sheets (2 / 5 frames)
 +    var _types = variable_struct_exists(arg0, "mon_types") ? arg0.mon_types : [0, 1, 2, 3];
 +    var _tname = ["goblin", "hobgoblin", "tentacle", "ogre"];
@@ -787,7 +790,8 @@
 +            var _need = arg3[_phn[p]];
 +            var _vanilla = (p == 0) ? 2 : 5;
 +            
-+            if (_need != _vanilla && (!is_struct(_set) || !variable_struct_exists(_set, _ph[p])))
++            // GNX-ART: a phase that monster_art has a block for, at every place, has strips (anal scenes without anal art play these)
++            if (_need != _vanilla && (!is_struct(_set) || !variable_struct_exists(_set, _ph[p])) && !gnx_art_json_covers(arg0, _t, _ph[p], _max_mon))
 +            {
 +                gnx_report_mod_error("Cell '" + string(arg1) + "': the " + _ph[p] + " has " + string(_need) + " frames but " + _tname[_t] + "s have no " + _ph[p] + " strips in mon_spr (the vanilla ones have " + string(_vanilla) + ")");
 +                _bad++;
@@ -796,6 +800,34 @@
 +    }
 +    
 +    gnx_frames_report_bad(arg1, _bad);
++}
++
++
++/// GNX-ART: the start, loop and ej strips of monster_art against the frame counts of the phases (arg3 = counts per phase 0-4), as the
++/// mon_spr sets are checked: the monster's block, its anal block, each placement's and each placement's anal block. arg0 = cell JSON
++/// (or the patch's art with the registered cell's monster rules), arg1 = cell name, arg2 = "sprites" block. Returns the problems
++function gnx_frames_check_art_strips(arg0, arg1, arg2, arg3)
++{
++    var _bad = 0;
++    var _ph = ["start", "loop", "ej"];
++    var _phn = [0, 2, 3];
++    var _art_t = [0, 1, 3];
++    
++    for (var s = 0; s < 3; s++)
++    {
++        var _ablk = gnx_art_json_blocks(arg0, _art_t[s]);
++        
++        for (var a = 0; a < array_length(_ablk); a++)
++        {
++            for (var p = 0; p < 3; p++)
++            {
++                if (variable_struct_exists(_ablk[a].set, _ph[p]))
++                    _bad += gnx_frames_check_refs(variable_struct_get(_ablk[a].set, _ph[p]), arg3[_phn[p]], arg1, "monster_art." + _ablk[a].label + "." + _ph[p], arg2, false);
++            }
++        }
++    }
++    
++    return _bad;
 +}
 +
 +
@@ -1375,6 +1407,13 @@
 +            }
 +        }
 +        
++        // GNX-ART: monster_art counts as monster strips
++        if (gnx_art_json_has_any(arg0))
++        {
++            _any = true;
++            _bad += gnx_frames_check_inter_art(arg0, arg1, arg2, _names[k], _f, _mf, _mk[k], _max_mon);
++        }
++        
 +        // no monster strips at all: monsters come from the vanilla sheets of the next phase
 +        if (!_any && _f != ((arg7[k] == 0) ? 2 : 5))
 +        {
@@ -1387,6 +1426,60 @@
 +}
 +
 +
++/// GNX-ART: the strip rule of one intermission (arg3 = its name, arg4 = its frames) for monster_art. Every block named like it has its
++/// own strips checked. Each place then plays the chain of gnx_art_chain (loop_ej: loop_ej, ej, loop) where a part comes from the first
++/// block that has it, so a body that falls back to the loop block is drawn with this intermission's frames too. A place whose chain
++/// has no body draws no art and plays the strips of the phase it leads into (arg5 = their frames, arg6 = their name), so then the
++/// counts must match. arg7 = the cell's places. Returns the problems
++function gnx_frames_check_inter_art(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7)
++{
++    var _bad = 0;
++    var _seen = {};
++    var _art_i = [0, 1, 3];
++    
++    for (var s = 0; s < 3; s++)
++    {
++        var _ablk = gnx_art_json_blocks(arg0, _art_i[s]);
++        
++        if (array_length(_ablk) == 0)
++            continue;
++        
++        for (var a = 0; a < array_length(_ablk); a++)
++        {
++            if (variable_struct_exists(_ablk[a].set, arg3))
++                _bad += gnx_frames_check_refs(variable_struct_get(_ablk[a].set, arg3), arg4, arg1, "monster_art." + _ablk[a].label + "." + arg3, arg2, false);
++        }
++        
++        var _no_body = false;
++        
++        for (var n = 0; n < arg7; n++)
++        {
++            if (!array_contains(gnx_art_species_at(arg0, n), _art_i[s]))
++                continue;
++            
++            // normal scene, then anal scene
++            for (var an = 0; an < 2; an++)
++            {
++                var _ch = gnx_art_json_chain(arg0, _art_i[s], n, an == 1, arg3);
++                
++                if (gnx_art_chain_has_body(_ch))
++                    _bad += gnx_art_check_chain(_ch, arg4, true, arg1, arg2, arg3, _seen);
++                else if (an == 0)
++                    _no_body = true;
++            }
++        }
++        
++        if (_no_body && arg4 != arg5)
++        {
++            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + arg3 + " has " + string(arg4) + " frames but monster_art." + gnx_art_monster_name(_art_i[s]) + " has no body for it at every place (in " + arg3 + " or the ej and loop blocks it falls back on), so the others use their " + arg6 + " art (" + string(arg5) + " frames); give the monster block or every placement one, or give both the same count");
++            _bad++;
++        }
++    }
++    
++    return _bad;
++}
++
++
 +/// GNX-PLACES-INTER: the strip rule for ej_end of a cell with independent places: arg0 = the cell's JSON (its
 +/// mon_spr sets), arg1 = its name, arg2 = its "sprites" block, arg3 = the parsed ej_end table (frames), arg4 = the
 +/// registered cell. Called after gnx_cell_mon_check, so the species come from the cleaned mon_types and
@@ -1396,25 +1489,22 @@
 +/// mon_spr_hob / mon_spr_ogr), its _p<place> variant when there is one, else the goblin set mon_spr, else the
 +/// vanilla sheets. Within the set ej_end plays its ej_end strips, else the ej ones, else the loop ones
 +/// (gnx_resolve_mon_spr); a set with none of them, or no set, plays the vanilla ej sheets (5 frames). The
-+/// captive stays in her loop through it, so only monsters count.
-+function gnx_frames_check_ej_end(arg0, arg1, arg2, arg3, arg4)
++/// captive stays in her loop through it, so only monsters count. arg5 = true for a patch (arg0 has only the patch's monster_art, no
++/// mon_spr sets): only the art is checked
++function gnx_frames_check_ej_end(arg0, arg1, arg2, arg3, arg4, arg5 = false)
 +{
 +    var _bad = 0;
 +    var _ef = arg3.frames;
 +    var _ep = arg4.physical;
 +    var _emax = variable_struct_exists(_ep, "max_mon_num") ? max(0, floor(gnx_json_num(_ep.max_mon_num, 0))) : 0;
-+    // the species of each place: mon_placements[place], else mon_types, else any species (a cell without
-+    // mon_types takes them all)
-+    var _epl = (variable_struct_exists(_ep, "mon_placements") && is_array(_ep.mon_placements)) ? _ep.mon_placements : undefined;
-+    var _emt = (variable_struct_exists(arg4, "mon_types") && is_array(arg4.mon_types)) ? arg4.mon_types : [0, 1, 2, 3];
 +    var _enames = ["goblin", "hobgoblin", "tentacle", "ogre"];
 +    // set + block already checked, so one problem is reported once
 +    var _eseen = {};
 +    
 +    for (var n = 0; n < _emax; n++)
 +    {
-+        // && = and: this place has its own non-empty species list
-+        var _esp = (_epl != undefined && n < array_length(_epl) && is_array(_epl[n]) && array_length(_epl[n]) > 0) ? _epl[n] : _emt;
++        // the species of this place: mon_placements[place], else mon_types, else any species (a cell without mon_types takes them all)
++        var _esp = gnx_art_species_at(arg4, n);
 +        
 +        for (var q = 0; q < array_length(_esp); q++)
 +        {
@@ -1422,6 +1512,25 @@
 +            
 +            // ! = not: species are the numbers 0-3
 +            if (!is_real(_s) || _s < 0 || _s > 3)
++                continue;
++            
++            // GNX-ART: the art this place reads plays ej_end, else ej, else loop (gnx_art_chain), placement block over monster block; an
++            // anal scene reads the anal blocks. Each part comes from the first block that has it. A chain without a body draws no art.
++            // Art for the normal scene replaces the old set
++            var _art_normal = false;
++            
++            for (var an = 0; an < 2; an++)
++            {
++                var _ach = gnx_art_json_chain(arg0, _s, n, an == 1, "ej_end");
++                
++                if (!gnx_art_chain_has_body(_ach))
++                    continue;
++                
++                _art_normal = _art_normal || an == 0;
++                _bad += gnx_art_check_chain(_ach, _ef, false, arg1, arg2, "ej_end", _eseen);
++            }
++            
++            if (_art_normal || arg5)
 +                continue;
 +            
 +            var _key = (_s == 1) ? "mon_spr_hob" : ((_s == 3) ? "mon_spr_ogr" : "mon_spr");
@@ -1461,6 +1570,60 @@
 +    }
 +    
 +    gnx_frames_report_bad(arg1, _bad);
++}
++
++
++/// GNX-ART: the frame rules for the monster_art of a patch of a mod cell (h_type 100 or more), as the cell's own art gets them when it
++/// is registered. The patch has no cell JSON to walk, so the rules read what the registered cell holds: its phase counts
++/// (physical.gnx_phase_frames), intermissions (gnx_inter, gnx_inter_inx, gnx_inter_next), ej_end (gnx_inter_end), places and species.
++/// arg0 = the patch JSON, arg1 = the registered cell (already patched), arg2 = the patch's "sprites" block. The rule that a phase
++/// of another length needs strips for every monster (gnx_frames_check_strips) is not repeated: the cell's registration judged its own strips
++function gnx_frames_check_art_patch(arg0, arg1, arg2)
++{
++    var _cp = arg1.physical;
++    var _max = variable_struct_exists(_cp, "max_mon_num") ? max(0, floor(gnx_json_num(_cp.max_mon_num, 0))) : 0;
++    
++    // underground scenes have no monsters
++    if (_max <= 0 || variable_struct_exists(_cp, "gnx_frames"))
++        exit;
++    
++    var _name = variable_struct_exists(arg1, "name") ? string(arg1.name) : "";
++    // the cell as the rules read it: the patch's art with the registered cell's monster rules
++    var _j = { monster_art: arg0.monster_art, physical: _cp };
++    
++    if (variable_struct_exists(arg1, "mon_types"))
++        _j.mon_types = arg1.mon_types;
++    
++    var _van = [2, 2, 5, 5, 2];
++    var _pf = variable_struct_exists(_cp, "gnx_phase_frames") ? _cp.gnx_phase_frames : [-1, -1, -1, -1, -1, -1];
++    var _eff = [0, 0, 0, 0, 0];
++    
++    for (var i = 0; i < 5; i++)
++        _eff[i] = (_pf[i] >= 1) ? _pf[i] : _van[i];
++    
++    var _bad = gnx_frames_check_art_strips(_j, _name, arg2, _eff);
++    
++    if (variable_struct_exists(_cp, "gnx_inter") && is_array(_cp.gnx_inter) && variable_struct_exists(_cp, "gnx_inter_inx") && variable_struct_exists(_cp, "gnx_inter_next"))
++    {
++        var _names = gnx_inter_names();
++        var _mkp = ["start", "idle", "loop", "ej", "ej"];
++        
++        for (var k = 0; k < 4; k++)
++        {
++            if (!is_struct(_cp.gnx_inter[k]))
++                continue;
++            
++            // as gnx_frames_check_inter: the frames of the strips used instead
++            var _nx = _cp.gnx_inter_next[k];
++            var _mf = (_nx == 0) ? _cp.gnx_inter_inx[k] : _cp.gnx_inter_inx[1];
++            _bad += gnx_frames_check_inter_art(_j, _name, arg2, _names[k], _cp.gnx_inter[k].frames, _mf, _mkp[_nx], _max);
++        }
++    }
++    
++    if (variable_struct_exists(_cp, "gnx_places") && _cp.gnx_places && variable_struct_exists(_cp, "gnx_inter_end") && is_struct(_cp.gnx_inter_end))
++        gnx_frames_check_ej_end(_j, _name, arg2, _cp.gnx_inter_end, arg1, true);
++    
++    gnx_frames_report_bad(_name, _bad);
 +}
 +
 +

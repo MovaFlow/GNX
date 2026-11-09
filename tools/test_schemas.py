@@ -39,6 +39,11 @@ EXPECTED = {
     ("harness_mav1505", "quests.json", "triggers[0].conditions[0]"),
     ("harness_mav1505", "quests.json", "triggers[0].conditions[1]"),
     ("moan_mod", "manifest.json", "(top)"),  # community mod: "display_name", which GNX never reads
+    ("harness_art_atlas_trip", "manifest.json", "monster_art.goblin.world.walk"),  # a world file named like an atlas entry: the warning, on purpose
+    ("harness_art_replace_atlas", "manifest.json", "monster_art.goblin.world.walk"),
+    ("harness_art_replace_atlas", "manifest.json", "monster_art.goblin.world.idle"),
+    ("harness_art_bad", "cells.json", "[16].monster_art"),  # a monster_art that is a number: a mod error on purpose
+    ("harness_art_bad", "cells.json", "[38].mon_types[0]"),  # a mon_types entry that is a text, on purpose
 }
 # real problems found in community mods, reported and waiting for their authors: exact paths, so a new
 # problem in the same files still fails the test
@@ -178,6 +183,70 @@ def test_typos(js):
     return bad
 
 
+def test_art_checks(js):
+    """check_mod: a monster_art file name that names no file; a world file with the name of an atlas entry"""
+    bad = []
+
+    def run(manifest, files=None, atlas=("spr_atlas_case",)):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / "manifest.json").write_text(json.dumps(dict({"name": "t", "version": "1", "compatible_game_versions": ["1.40"]}, **manifest)), encoding="utf-8")
+            for name, data in (files or {}).items():
+                (d / name).write_text(json.dumps(data), encoding="utf-8")
+            if atlas is not None:
+                (d / "atlas").mkdir()
+                (d / "atlas" / "uv.json").write_text(json.dumps({"entries": {n: {} for n in atlas}}), encoding="utf-8")
+            got = []
+            check_mod.check_mod(d, js, lambda p, where, msg, b: got.append((where, msg, b)))
+            return got
+
+    def world(**parts):
+        return {"goblin": {"world": parts}}
+
+    got = run({"monster_art": "nope.json"})
+    if not any(w == "monster_art" and "does not exist" in m and not b for w, m, b in got):
+        bad.append(f"  monster_art naming a missing file not reported: {got}")
+    # a monster_art file that is not JSON, or JSON that is not an object: blocking, as check_file does for the data files
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "manifest.json").write_text(json.dumps({"name": "t", "version": "1", "compatible_game_versions": ["1.40"], "monster_art": "ma.json"}), encoding="utf-8")
+        for label, text, want in (("invalid JSON", "{not json", "cannot be read as JSON"), ("a list", "[1, 2]", "must be a JSON object")):
+            (d / "ma.json").write_text(text, encoding="utf-8")
+            got = []
+            check_mod.check_mod(d, js, lambda p, where, msg, b: got.append((Path(p).name, msg, b)))
+            if not any(n == "ma.json" and want in m and b for n, m, b in got):
+                bad.append(f"  monster_art file with {label} not reported as blocking: {got}")
+        (d / "ma.json").write_text('{"goblin": {"world": {},},}', encoding="utf-8")  # trailing commas are legal
+        got = []
+        check_mod.check_mod(d, js, lambda p, where, msg, b: got.append(msg))
+        if got:
+            bad.append(f"  a monster_art file with trailing commas was reported: {got}")
+    if run({"monster_art": "ma.json"}, {"ma.json": world(walk="x/other.png")}):
+        bad.append("  a monster_art file that exists was reported")
+    forms = {"string": "world/spr_atlas_case.png", "strip": {"strip": "a/SPR_Atlas_Case.png", "frames": 1}, "path": {"path": "spr_atlas_case.png"},
+             "frames": {"frames": ["f/spr_atlas_case.png", "f/b.png"]}, "folder": {"folder": "x/spr_atlas_case"}}
+    for name, v in forms.items():
+        got = run({"monster_art": world(walk=v)})
+        if not any(w == "monster_art.goblin.world.walk" and "spr_atlas_case" in m and "atlas" in m and not b for w, m, b in got):
+            bad.append(f"  world {name} form named like an atlas entry not warned: {got}")
+    got = run({"monster_art": world(walk="world/spr_atlas_case.png")}, atlas=("Spr_Atlas_Case",))  # the atlas entry has capitals, the file does not
+    if not any("atlas" in m for w, m, b in got):
+        bad.append(f"  an atlas entry and a world file that differ only in case not warned: {got}")
+    got = run({"monster_art": "ma.json"}, {"ma.json": world(walk="world/spr_atlas_case.png")})
+    if not any(w == "monster_art.goblin.world.walk" and "atlas" in m for w, m, b in got):
+        bad.append(f"  the atlas clash in a monster_art file not warned: {got}")
+    for label, manifest, atlas in (("another name", {"monster_art": world(walk="world/walk.png")}, ("spr_atlas_case",)),
+                                   ("no atlas", {"monster_art": world(walk="world/spr_atlas_case.png")}, None),
+                                   ("comment key", {"monster_art": world(_note="spr_atlas_case.png")}, ("spr_atlas_case",)),
+                                   ("not world", {"monster_art": {"sprites": {"s": {"strip": "strips/spr_atlas_case.png", "frames": 1}, "world": {"strip": "strips/spr_atlas_case.png", "frames": 1}}}}, ("spr_atlas_case",)),
+                                   ("odd values", {"monster_art": {"goblin": 5, "ogre": {"world": 7}, "hobgoblin": {"world": {"walk": 5, "idle": [1]}}}}, ("spr_atlas_case",))):
+        got = run(manifest, atlas=atlas)
+        if any("atlas" in m for w, m, b in got):
+            bad.append(f"  warned for {label}: {got}")
+    print(f"art checks: {len(bad)} problem(s)")
+    return bad
+
+
 # loader function -> (schema, json pointer of the object schema whose properties must cover the keys read
 # from GML variable `var`)
 SYNC = [
@@ -251,7 +320,7 @@ def test_sync():
 def main():
     os.chdir(ROOT)
     import jsonschema
-    bad = test_corpus(jsonschema) + test_typos(jsonschema) + test_sync()
+    bad = test_corpus(jsonschema) + test_typos(jsonschema) + test_sync() + test_art_checks(jsonschema)
     for b in bad:
         print(b)
     print("test_schemas: " + ("OK" if not bad else f"{len(bad)} FAIL"))

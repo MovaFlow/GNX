@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_travel.gml
 +++ gml/gml_GlobalScript_s_gnx_travel.gml
-@@ -0,0 +1,2302 @@
+@@ -0,0 +1,2310 @@
 +// GNX: multi-map travel: maps, selector, carry, troops
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1613,6 +1613,14 @@
 +}
 +
 +
++// the goblin's walk frame on the travel screen: arg0 = walk counter, arg1 = phase. Stands while loading (phase 1); walks by the
++// sprite's own frame count, since a mod's world art can give spr_goblin_walk more or fewer than the vanilla 8 frames
++function gnx_travel_walk_frame(arg0, arg1)
++{
++    return (arg1 == 0 || arg1 == 2) ? (floor(arg0 / ((arg1 == 2) ? 3 : 5)) mod sprite_get_number(spr_goblin_walk)) : 0;
++}
++
++
 +function scr_gnx_travel_fx_draw()
 +{
 +    var _a = 1;
@@ -1629,7 +1637,7 @@
 +    var _sc = 2;
 +    var _gx = 150 + (walk * 1.2) + ((phase == 2) ? (t * t * 0.2) : 0);  // walks off, speeding up, once there
 +    var _gy = 200;
-+    var _frame = (phase == 0 || phase == 2) ? (floor(walk / ((phase == 2) ? 3 : 5)) mod 8) : 0;  // stands while loading
++    var _frame = gnx_travel_walk_frame(walk, phase);
 +    var _bob = [0, 1, 1, 0, 0, 1, 1, 0];
 +
 +    var _dot = make_color_rgb(255, 209, 34);
@@ -1641,7 +1649,7 @@
 +    var _pack = asset_get_index("spr_gnx_travel_pack");
 +
 +    if (_pack >= 0 && sprite_exists(_pack))
-+        draw_sprite_ext(_pack, 0, _gx + ((-3 - 14) * _sc), _gy + ((18 + _bob[_frame] - 45) * _sc), _sc, _sc, 0, c_white, _a);
++        draw_sprite_ext(_pack, 0, _gx + ((-3 - 14) * _sc), _gy + ((18 + _bob[_frame mod 8] - 45) * _sc), _sc, _sc, 0, c_white, _a);
 +
 +    draw_set_font(fnt_base_font_eng);
 +    draw_set_halign(fa_center);

@@ -1,0 +1,114 @@
+{
+  "about": "The travel transition draws spr_goblin_walk by its own frame count (gnx_travel_walk_frame): with a map mod's world art giving the goblin walk 10 frames, the fade-out and fade-in walk through frames 8 and 9 (the pack overlay's bob table has 8 entries: an unwrapped index would be a runtime error). The frame function is asserted on 10 frames, where the old 'mod 8' gives another answer. Screenshots in harness_game/screens/art_world_travel/.",
+  "draw_always": true,
+  "mods": [
+    "tools/scenarios/mods/harness_art_world_ten"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "add_gold",
+        "amount": 50
+      }
+    },
+    {
+      "open_raid": true
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_hud": true
+    },
+    {
+      "press_travel_menu": "harness_art_ten"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press_travel_button": {
+        "num": 53,
+        "row": 0,
+        "times": 2
+      }
+    },
+    {
+      "press_travel_button": {
+        "num": 21,
+        "no_wait": true
+      }
+    },
+    {
+      "wait": 28
+    },
+    {
+      "screenshot": "fx_walking"
+    },
+    {
+      "await_travel": true
+    },
+    {
+      "wait": 3
+    },
+    {
+      "screenshot": "fx_arriving"
+    },
+    {
+      "wait": 12
+    },
+    {
+      "screenshot": "fx_late"
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_art_ten"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_frames",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": 10,
+      "why": "the world art is in once the map mod is the active map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_travel_walk_frame",
+      "args": [
+        27,
+        2
+      ],
+      "is": 9,
+      "why": "phase 2 (arrival) steps every 3 ticks: 27 / 3 = 9; 'mod 8' would give 1"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_travel_walk_frame",
+      "args": [
+        120,
+        0
+      ],
+      "is": 4,
+      "why": "phase 0 steps every 5 ticks: 24 mod 10 = 4; 'mod 8' would give 0"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_travel_walk_frame",
+      "args": [
+        120,
+        1
+      ],
+      "is": 0,
+      "why": "stands while loading"
+    }
+  ]
+}

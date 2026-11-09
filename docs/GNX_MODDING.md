@@ -4,6 +4,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 
 ## Contents
 
+- [New stuff (GNX 1.5.2)](#new-stuff-gnx-152)
 - [New stuff (GNX 1.5.1)](#new-stuff-gnx-151)
 - [1. How to read this guide](#1-how-to-read-this-guide)
 - [2. Glossary](#2-glossary)
@@ -14,7 +15,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 - [7. Clothing maps: how a class looks in each cell](#7-clothing-maps-how-a-class-looks-in-each-cell)
 - [8. Cells (cells.json)](#8-cells-cellsjson)
 - [9. The physical block: how a cell behaves](#9-the-physical-block-how-a-cell-behaves)
-- [10. Cell sprites: human_spr and mon_spr](#10-cell-sprites-human_spr-and-mon_spr)
+- [10. Cell sprites: human_spr and monster_art](#10-cell-sprites-human_spr-and-monster_art)
 - [11. Multi-monster cells](#11-multi-monster-cells)
 - [12. Patching vanilla cells and classes](#12-patching-vanilla-cells-and-classes)
 - [13. Raid spawns and the trade shop](#13-raid-spawns-and-the-trade-shop)
@@ -34,6 +35,21 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 - [27. Raid stages (raids.json)](#27-raid-stages-raidsjson)
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
+- [Appendix C. Old monster keys](#appendix-c-old-monster-keys)
+
+## New stuff (GNX 1.5.2)
+
+**In short:** what GNX 1.5.2 adds for monster sprites, in one place. Each part links to the section it extends and says what GNX 1.5.1 does with the same JSON, so one mod can work on both. Set `"min_gnx_version": "1.5.2"` in a mod that uses any of this ([4.2](#42-the-version-check)); GNX 1.5.0 and older ignore that key and load the mod without the new art.
+
+| What | Details | GNX 1.5.1 with the same JSON |
+|---|---|---|
+| `monster_art` in a cell: a monster's sprites per phase, with variants, lists, `"none"`, anal blocks and places, for new cells and patches of vanilla cells | [10.8](#108-monster_art-monster-sprites-in-a-cell) to [10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn) | the key is unknown: with min version set, the mod is refused; without it, the cell shows its old `mon_spr` or vanilla monsters |
+| `monster_art` in a class: swap a vanilla monster sprite on the captives of that class, by address | [16.7](#167-monster_art-by-class-and-for-all-monsters) | unknown, as above |
+| `monster_art` in the manifest: the same for every class, and `world` art for how goblins, hobgoblins and ogres stand, walk and carry, at any size | [16.7](#167-monster_art-by-class-and-for-all-monsters), [16.8](#168-world-art-how-monsters-stand-walk-and-carry) | unknown, as above |
+| The list of every address, and which other phases and monsters draw the same game sprites | [16.9](#169-address-list) | not available |
+| "Which key do I use": `sprite_replace` or `monster_art` | [§10](#10-cell-sprites-human_spr-and-monster_art) | not available |
+| The old monster keys (`mon_spr`, `mon_spr_hob`, `mon_spr_ogr`, `_pN`) moved to an appendix; they work as before | [Appendix C](#appendix-c-old-monster-keys) | works |
+| Fixes: `sprite_replace` in a mod that has an atlas, with a file named like an atlas entry; `build_mod.py` deploys the art that `sprite_replace` and `monster_art` name; a `sprite_replace` after another mod's resized sprite compares with the game's own sprite; the frame count of the MODS page includes backups of replaced sprites | [5.9](#59-replacing-game-sprites-sprite_replace), [5.8](#58-packing-tool-and-atlas) | the old behaviour |
 
 ## New stuff (GNX 1.5.1)
 
@@ -303,7 +319,8 @@ In GNX files `-1` almost always means **"none" or "not used"**: `"icon_hair": -1
 | Write `manifest.json` or save my own variables | [4. manifest.json](#4-manifestjson) |
 | Add images | [5. Sprites](#5-sprites) |
 | Add a new captive class | [6. Classes](#6-classes-classesjson), [7. Clothing maps](#7-clothing-maps-how-a-class-looks-in-each-cell) |
-| Add a new cell | [8. Cells](#8-cells-cellsjson), [9. The physical block](#9-the-physical-block-how-a-cell-behaves), [10. Cell sprites](#10-cell-sprites-human_spr-and-mon_spr), [11. Multi-monster cells](#11-multi-monster-cells) |
+| Change how monsters look (in a cell, for a class, for all) | [10.8](#108-monster_art-monster-sprites-in-a-cell), [16.7](#167-monster_art-by-class-and-for-all-monsters), [16.8](#168-world-art-how-monsters-stand-walk-and-carry) |
+| Add a new cell | [8. Cells](#8-cells-cellsjson), [9. The physical block](#9-the-physical-block-how-a-cell-behaves), [10. Cell sprites](#10-cell-sprites-human_spr-and-monster_art), [11. Multi-monster cells](#11-multi-monster-cells) |
 | Change a vanilla cell or class | [12. Patching](#12-patching-vanilla-cells-and-classes) |
 | Make my class appear in raids or the shop | [13. Raid spawns and the trade shop](#13-raid-spawns-and-the-trade-shop) |
 | Control pregnancy and offspring | [14. Pregnancy and birth](#14-pregnancy-and-birth) |
@@ -327,10 +344,10 @@ In GNX files `-1` almost always means **"none" or "not used"**: `"icon_hair": -1
 
 | Term | Meaning |
 |---|---|
-| alpha / line | A monster sprite pair: `alpha` is the filled body (tinted or see-through per the game's monster display settings), `line` the outline on top. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
+| alpha / line | A monster sprite pair: `alpha` is the filled body (tinted or see-through per the game's monster display settings), `line` the outline on top. In `monster_art` the pair is written `fill` and `line`. [Appendix C](#appendix-c-old-monster-keys), [10.9](#109-monster_art-reference) |
 | atlas | One large PNG with many sprites plus `uv.json` with their positions; optional, loads faster. [§20](#20-atlas-packing) |
-| base_body | `human_spr` key naming the set of vanilla body poses used for the captive: `standard`, `big` or `tent`. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
-| by_class | In a fixed-mode `human_spr`: sprites per class, so classes can look different in the same cell. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
+| base_body | `human_spr` key naming the set of vanilla body poses used for the captive: `standard`, `big` or `tent`. [§10](#10-cell-sprites-human_spr-and-monster_art) |
+| by_class | In a fixed-mode `human_spr`: sprites per class, so classes can look different in the same cell. [§10](#10-cell-sprites-human_spr-and-monster_art) |
 | captive | See *unit*. |
 | category | cells.json key: the cell's build-menu tab and, with it, the cell size. [§8](#8-cells-cellsjson) |
 | cell | A nest room where a captive is placed and monsters visit her. Its type ID is `h_type`. [§8](#8-cells-cellsjson) |
@@ -340,12 +357,12 @@ In GNX files `-1` almost always means **"none" or "not used"**: `"icon_hair": -1
 | condition | A test such as "state key `witch_state` equals 2", checked by quests, conditional raid spawns, cage escape, tower bosses and tool guards. [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md), [§13](#13-raid-spawns-and-the-trade-shop) |
 | encounter pool | The weighted list of classes a raid encounter picks from, one per stage and encounter level. [§13](#13-raid-spawns-and-the-trade-shop) |
 | event | Something a cell tells the props next to it: a monster leaves, a scene starts, a phase changes, a birth, a milk item. [19.10](#1910-reactions-to-a-cell-react) |
-| fixed mode | `"mode": "fixed"` in `human_spr`: the cell draws its own human sprites instead of the captive's clothing. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
+| fixed mode | `"mode": "fixed"` in `human_spr`: the cell draws its own human sprites instead of the captive's clothing. [§10](#10-cell-sprites-human_spr-and-monster_art) |
 | frame | One picture of an animation. [§5](#5-sprites) |
 | gnx: reference | Text such as `"gnx:idle_head"`: the entry `idle_head` from the `sprites` dict of the same class or cell. [5.4](#54-gnx-references-and-vanilla-sprite-names) |
 | h_type | A cell type's ID: vanilla 1–42 (0, 16, 26, 35 are not cells), mod cells a hash ID 100–9999. [§8](#8-cells-cellsjson), [Appendix A](#appendix-a-vanilla-ids-and-cell-list) |
 | hash ID | An ID GNX calculates from `"<folder>.<name>"`: same text, same number; a rename changes it. [3.4](#34-duplicate-ids) |
-| human_spr | Cell key that decides which captive sprites the cell draws. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
+| human_spr | Cell key that decides which captive sprites the cell draws. [§10](#10-cell-sprites-human_spr-and-monster_art) |
 | intermission | A short extra phase between two main phases of a scene: `idle_start`, `start_loop`, `loop_ej` or `ej_birth`. [§23](#23-intermissions) |
 | is_special | Class flag for boss-type classes: one skin tone, a different clothing format and some extra rules. [§16](#16-special-classes-and-monster-sprite-overrides) |
 | layer | One entry of `physical.layers`: a sprite and a layer type, drawn in list order. [§9](#9-the-physical-block-how-a-cell-behaves) |
@@ -353,13 +370,14 @@ In GNX files `-1` almost always means **"none" or "not used"**: `"icon_hair": -1
 | manifest | `manifest.json`, the file that turns a folder into a mod. [§4](#4-manifestjson) |
 | mod error | A `[GNX] ERROR:` line in the log, also listed in the `Mod loading problem(s)` box. One that names a cell, prop, class or sprite says which value GNX replaced; the rest still loads. [Appendix B](#appendix-b-troubleshooting) |
 | mod folder | A folder directly inside `GNX_mods/`. Its name is the mod's identity. [§3](#3-mod-folder-and-loading) |
-| mon_spr | Cell key holding the monster sprites for that cell. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
+| monster_art | Key (1.5.2) that gives monsters their sprites: in a cell, in a class or in the manifest. [10.8](#108-monster_art-monster-sprites-in-a-cell), [16.7](#167-monster_art-by-class-and-for-all-monsters) |
+| mon_spr | Old cell key holding the monster sprites for that cell. [Appendix C](#appendix-c-old-monster-keys) |
 | mon_type | Monster species number: 0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre. [Appendix A](#appendix-a-vanilla-ids-and-cell-list) |
 | origin (xorig / yorig) | A sprite's pivot point in pixels from its top-left corner, placed on the drawing position. [5.3](#53-the-origin) |
 | override | `"override": true` on a class entry: merges your fields into an existing class, or registers a class at a fixed `class_id`. [§6](#6-classes-classesjson), [§12](#12-patching-vanilla-cells-and-classes) |
 | passage | The narrow slot between two cells, where props stand: at most one prop in each of its top, middle and bottom groups. [§19](#19-props-propsjson) |
 | patch (vanilla patch) | A cells.json entry with an existing `h_type`: it changes that cell instead of creating one. [§12](#12-patching-vanilla-cells-and-classes) |
-| phase | A cell animation stage: 0 start, 1 idle, 2 loop, 3 ejaculation, 4 birth (tentacle and underground cells), 6–9 the intermissions ([§23](#23-intermissions)). Outside underground cells phase 3 reuses the loop sprites. [§10](#10-cell-sprites-human_spr-and-mon_spr) |
+| phase | A cell animation stage: 0 start, 1 idle, 2 loop, 3 ejaculation, 4 birth (tentacle and underground cells), 6–9 the intermissions ([§23](#23-intermissions)). Outside underground cells phase 3 reuses the loop sprites. [§10](#10-cell-sprites-human_spr-and-monster_art) |
 | placement | A numbered monster position in a cell that holds more than one monster; with independent places each runs its own scene ([11.5](#115-independent-places)). [§11](#11-multi-monster-cells) |
 | required_class | Cell key listing the classes allowed into the cell. [§9](#9-the-physical-block-how-a-cell-behaves) |
 | save state | Your mod's saved variables (`save_state.fields` in the manifest); each name, such as `witch_state`, is a **state key**. [4.3](#43-save_state) |
@@ -544,6 +562,7 @@ What this example does:
 | `mod_id` | A second name for other mods' `requires`, usually the folder name. References use the folder name; since 1.5.2 a class or cell reference also accepts the `mod_id` or `name` in its place, as the folder can differ with how a mod was installed. `build_mod.py` deploys the mod into `GNX_mods/<mod_id>/` (the source folder's name without it): that folder name is what your class and cell IDs and references are made from, so keep it fixed once players have saves. | text | the folder name |
 | `requires` | Mods this one needs, by folder name or `mod_id` ([4.5](#45-requires-and-the-mods-menu)). | list | — |
 | `sprite_replace` | Your art in place of game sprites, by name: a file name or the object itself ([5.9](#59-replacing-game-sprites-sprite_replace)). | text or object | — |
+| `monster_art` | Your monster sprites for every class, and how monsters stand and walk: a file name or the object itself ([16.7](#167-monster_art-by-class-and-for-all-monsters)). New in 1.5.2. | text or object | - |
 | `min_gnx_version` | The oldest GNX your mod works with, for example `"1.5.0"` when it uses keys new in 1.5 ([4.2](#42-the-version-check)). | text | — |
 | `map`, `map_info`, `map_start` | Which map(s) the mod belongs to, and your own map for multi-map travel ([§21](#21-multi-map-travel)). `map_info` was called `map_button` before 1.4.9; the old name is still read. | — | — |
 
@@ -567,7 +586,7 @@ With no match, or without the key, the mod is **not loaded at all**. GNX writes 
 
 On an older GNX the mod is then **not loaded**; the MODS menu shows it as `not loaded: needs GNX 1.5.0 (this is 1.4.9)`, the error box at the end of loading asks the player to update GNX, and mods that `require` it are skipped too. Versions compare part by part as numbers (`1.10` is newer than `1.9`, `1.5` and `1.5.0` are the same); a leading `v` and anything after the numbers (`-beta`) are ignored.
 
-> **When** the player's GNX is 1.5.0 or older, it does not know `min_gnx_version` yet (the check came after 1.5.0) and loads the mod anyway.
+> **When** the player's GNX is 1.5.0 or older, it does not know `min_gnx_version` yet (the check came after 1.5.0) and loads the mod anyway. For `monster_art` (new in 1.5.2) that means the art is missing: a mod cell that has only `monster_art` shows vanilla monsters there. Write `"min_gnx_version": "1.5.2"` for any mod that uses it.
 
 ### 4.3 save_state
 
@@ -620,6 +639,12 @@ Each data file key (`classes`, `cells`, `quests`, `tools`, `sounds`, `props`) ho
 ```
 
 This loads all six files, in the phases of [3.3](#33-load-order). Paths can point into subfolders, for example `"cells": "data/cells.json"`.
+
+`sprite_replace` ([5.9](#59-replacing-game-sprites-sprite_replace)) and `monster_art` ([16.7](#167-monster_art-by-class-and-for-all-monsters)) are manifest keys that hold either a path like these or the object itself:
+
+```json
+{ "sprite_replace": "sprite_replace.json", "monster_art": "monster_art.json" }
+```
 
 A listed file that is missing or broken is skipped with an error, shown in the message box too:
 
@@ -925,7 +950,7 @@ frame number = skin × (frames ÷ 3) + pose
 - GNX loads per-frame PNGs directly with `folder` or a `frames` list, so packing strips is optional.
 - The Python script `gnx_pack_strips.py` turns per-frame folders into strips: `python gnx_pack_strips.py path/to/my_mod --force`, with files named `<strip name>/<strip name>_<i>.png`.
 - For many sprites, an atlas loads faster than separate strips ([§20](#20-atlas-packing)).
-- **The game can show about 32,700 sprite frames loaded from mods, across all mods together.** Past that, sprites still load without an error but draw nothing: cells and characters turn invisible. Every frame of a strip or a folder counts as one; a whole atlas page counts as one, however many frames it holds. Since 1.5.2 GNX reports going over as a mod error naming the mods with the most frames, and the MODS page shows how full it is, as `SPRITE FRAMES 25% (8195)` (amber from 90 %). If your mod has many frames, ship an atlas. An atlas page costs memory instead: a 4096 x 4096 page took about 160 MB of RAM in a test.
+- **The game can show about 32,700 sprite frames loaded from mods, across all mods together.** Past that, sprites still load without an error but draw nothing: cells and characters turn invisible. Every frame of a strip or a folder counts as one; a whole atlas page counts as one, however many frames it holds. Since 1.5.2 GNX reports going over as a mod error naming the mods with the most frames, and the MODS page shows how full it is, as `SPRITE FRAMES 25% (8195)` (amber from 90 %). Game sprites that `sprite_replace` or `monster_art` replace count three times (your art, the copy in the game's sprite, and the backup of the game's own art, so it can come back), and every frame of `world` art counts too. If your mod has many frames, ship an atlas. An atlas page costs memory instead: a 4096 x 4096 page took about 160 MB of RAM in a test.
 
 > **When** `frames` does not match the picture (a 90-frame strip declared with `"frames": 30`), every frame is three times too wide and the animation shows the wrong poses.
 
@@ -963,6 +988,14 @@ frame number = skin × (frames ÷ 3) + pose
 - Names: UndertaleModTool shows every game sprite's name; [Appendix A](#appendix-a-vanilla-ids-and-cell-list) lists the cells.
 - New in 1.5.2. Set `"min_gnx_version": "1.5.2"` in the manifest ([4.2](#42-the-version-check)): an older GNX does not know `sprite_replace` and would load the mod with no visible change.
 - Turning the mod off in the MODS menu or a travel to a map where the mod is not loaded puts the game's own art back, without a restart.
+
+- A sprite sheet that is shared by many monsters or screens (`spr_mon_icon`, `spr_mon_icon_head`, `spr_infant_ui_head`), props and backgrounds are replaced with `sprite_replace`; `monster_art` ([§10](#10-cell-sprites-human_spr-and-monster_art), [16.7](#167-monster_art-by-class-and-for-all-monsters)) is for the monsters by class, by cell, and at other sizes.
+- **Atlas mods:** the file name of a `sprite_replace` entry may be the name of an entry in your own atlas ([§20](#20-atlas-packing)). Before 1.5.2 that gave a wrong size error, or could assign wrong art when the sizes matched; GNX now bakes the atlas art into a real sprite first. The same loader serves the `world` art of `monster_art` ([16.8](#168-world-art-how-monsters-stand-walk-and-carry)).
+- **Several mods:** the game's own sprite is the one your art is compared with, also when an earlier mod already replaced it. Before 1.5.2 a `sprite_replace` after a mod that changed the size of that sprite failed its size check.
+- **`active_dates`:** a manifest key `"active_dates": ["12-01", "01-06"]` (two `MM-DD` dates, a window that may cross the new year) puts the manifest's `sprite_replace` and `monster_art` in place only between those dates. Outside them the game's own art stays, and the player can turn the art on all year with the MODS menu's ALL YEAR switch. The cells and classes of the mod are not affected. Dates that are not two `MM-DD` texts are a mod error and the art applies all year.
+- **Deploying:** `build_mod.py` copies every file the manifest's `sprite_replace` and global `monster_art` name, from any folder of the mod.
+- **The collision box stays the game's.** The game uses a sprite's collision box for patrol speed and for sending monsters into transfer cells, so after the swap GNX puts the game's own box back on the sprite, as a rectangle, when your art would give another one. This holds for `sprite_replace` at the same size too. Gameplay does not depend on the art you ship.
+- **The frame limit** counts a replaced sprite three times: the frames of your art, the copy in the game's sprite and a backup of the game's own art ([5.8](#58-packing-tool-and-atlas)).
 
 > **When** two mods replace the same game sprite, the one loaded last wins.
 
@@ -1115,7 +1148,7 @@ In DISPLAY_B an ogre can carry a unit around (the "patrol"). For classes with ID
 
 For **special** classes `carry_head` is the **whole** carried body (8 frames, one skin), and `carry_hair` and `carry_base_spr` are ignored. Without `carry_head`, **nothing** is drawn on the ogre's back.
 
-The ogre's own walking sprite is the `patrol` key of `mon_spr_overrides` ([§16](#16-special-classes-and-monster-sprite-overrides)).
+The ogre's own walking sprite is the `patrol` key of `mon_spr_overrides` ([§16](#16-special-classes-and-monster-sprite-overrides)), or, new in 1.5.2, the address `ogre.carry.walk` of the class's `monster_art` ([16.7](#167-monster_art-by-class-and-for-all-monsters)).
 
 ### 6.6 Other class keys
 
@@ -1128,7 +1161,8 @@ The ogre's own walking sprite is the `patrol` key of `mon_spr_overrides` ([§16]
 | `birth_class`, `birth_classes`, `birth_spr` | Offspring and birth animations | [§14](#14-pregnancy-and-birth) |
 | `post_raid`, `tower_boss_condition` | Cage escape and tower boss | [§15](#15-bosses-cage-escape-and-tower) |
 | `gb1_breast_d2`, `mon_spr_overrides` | Special sprites in some vanilla cells | [§16](#16-special-classes-and-monster-sprite-overrides) |
-| `mon_sprite_swap` | Replace vanilla monster sprites by name, in every cell | [16.7](#167-mon_sprite_swap-replacing-monster-sprites-by-name) |
+| `monster_art` | Replace vanilla monster sprites by address, on captives of this class | [16.7](#167-monster_art-by-class-and-for-all-monsters) |
+| `mon_sprite_swap` | Old key: replace vanilla monster sprites by name, in every cell | [16.11](#1611-mon_sprite_swap-replacing-monster-sprites-by-name-old-key) |
 | `carry_base_spr` | Ogre carry body | [6.5](#65-ogre-carry-sprites) |
 
 > **When** the classes file is not a JSON list `[ ... ]` (even for one class), loading stops with `Mod '<folder>': <file> is not a JSON array`.
@@ -1169,7 +1203,7 @@ The ogre's own walking sprite is the `patrol` key of `mon_spr_overrides` ([§16]
 
 ### 7.1 Which map is used in which cell
 
-The `mode` and `base_body` of a cell's `human_spr` ([§10](#10-cell-sprites-human_spr-and-mon_spr)) decide which map GNX reads:
+The `mode` and `base_body` of a cell's `human_spr` ([§10](#10-cell-sprites-human_spr-and-monster_art)) decide which map GNX reads:
 
 | Cell setting | Vanilla cells | Normal class uses | Special class uses |
 |---|---|---|---|
@@ -1426,7 +1460,7 @@ A cell entry has four big parts:
 
 - top-level keys: name, build menu tab, price, payout (this section);
 - `physical`: how the cell behaves: scripts, layers, effects ([§9](#9-the-physical-block-how-a-cell-behaves));
-- `human_spr` and `mon_spr`: how the captive and the monsters are drawn ([§10](#10-cell-sprites-human_spr-and-mon_spr));
+- `human_spr` and `mon_spr`: how the captive and the monsters are drawn ([§10](#10-cell-sprites-human_spr-and-monster_art));
 - `sprites`: the cell's own sprite list ([§5](#5-sprites)).
 
 ### 8.1 Minimal example: the ALTAR cell
@@ -1510,8 +1544,8 @@ A standard-size breeding cell that reuses the vanilla WALL 1 body pose, with its
 - `"category": "breed"` puts it in the standard breeding tab, as a standard-size (45 px) cell ([8.4](#84-category-build-menu-tab-and-cell-size)).
 - `"mon_types": [0]`: only goblins come ([8.5](#85-mon_types-which-monsters-come)). `"price": 200` is the cell price; built through NEW → CUSTOM it costs 300 with the standard slot ([8.4](#84-category-build-menu-tab-and-cell-size)). `spawn_info` is the gold and mood paid when a scene ends ([8.6](#86-spawn_info-gold-and-mood)).
 - `physical` is copied from vanilla WALL 1, except the back wall layer `"gnx:altar_back"` ([§9](#9-the-physical-block-how-a-cell-behaves)). Like WALL 1, its body layers draw only the captive's legs (type 8) and hands (type 7); a pose that also shows the head or breast needs layers 10 and 6 ([9.4](#94-layers-what-gets-drawn)).
-- `human_spr` with `base+class` draws the captive like a vanilla cell: the vanilla base body plus the class's clothing, in the WALL 1 pose because `character_row` is 0 ([§10](#10-cell-sprites-human_spr-and-mon_spr)).
-- `mon_spr` replaces the goblin's sprites: `start` is the first animation, `loop` the main one, and `leg_any` means "for every captive leg variant". A plain sprite name such as `"gnx:gob_altar_start_hand"` is a fill sprite with no outline ([10.8](#108-mon_spr-monster-sprites)).
+- `human_spr` with `base+class` draws the captive like a vanilla cell: the vanilla base body plus the class's clothing, in the WALL 1 pose because `character_row` is 0 ([§10](#10-cell-sprites-human_spr-and-monster_art)).
+- `mon_spr` replaces the goblin's sprites: `start` is the first animation, `loop` the main one, and `leg_any` means "for every captive leg variant". A plain sprite name such as `"gnx:gob_altar_start_hand"` is a fill sprite with no outline ([Appendix C](#appendix-c-old-monster-keys)). Since 1.5.2 the same is written with `monster_art` ([10.8](#108-monster_art-monster-sprites-in-a-cell)).
 - `sprites` declares every `gnx:` sprite of the cell (`origin_from`: [5.3](#53-the-origin)). The start strips have 2 frames (the idle animation length) and the loop strips 5.
 
 ### 8.2 Top-level fields
@@ -1528,10 +1562,11 @@ A standard-size breeding cell that reuses the vanilla WALL 1 body pose, with its
 | `code_text` | Short code on the cell's blueprint item (vanilla WALL 1: `"A"`). | text | `-1` (none) |
 | `spawn_info` | Gold and mood paid when a scene ends ([8.6](#86-spawn_info-gold-and-mood)). | object | `-1`, but required for any cell with a scene |
 | `physical` | How the cell behaves ([§9](#9-the-physical-block-how-a-cell-behaves)). | object | required |
-| `human_spr` | How the captive is drawn ([§10](#10-cell-sprites-human_spr-and-mon_spr)). | object | `base+class` with `base_body` from `category` |
-| `mon_spr` | Goblin sprites in this cell ([10.8](#108-mon_spr-monster-sprites)). | object | none (vanilla sprites) |
-| `mon_spr_hob`, `mon_spr_ogr` | Hobgoblin and ogre sprites. | object | none (falls back to `mon_spr`) |
-| `mon_spr_p0` … `mon_spr_ogr_p2` | Sprites for one [placement](#2-glossary) only ([§11](#11-multi-monster-cells)). | object | none |
+| `human_spr` | How the captive is drawn ([§10](#10-cell-sprites-human_spr-and-monster_art)). | object | `base+class` with `base_body` from `category` |
+| `monster_art` | Monster sprites in this cell: goblins, hobgoblins and ogres, with places and anal scenes ([10.8](#108-monster_art-monster-sprites-in-a-cell)). New in 1.5.2; wins over the old `mon_spr` keys. | object | none (vanilla sprites) |
+| `mon_spr` | Old key: goblin sprites in this cell ([Appendix C](#appendix-c-old-monster-keys)). | object | none (vanilla sprites) |
+| `mon_spr_hob`, `mon_spr_ogr` | Old keys: hobgoblin and ogre sprites. | object | none (falls back to `mon_spr`) |
+| `mon_spr_p0` … `mon_spr_ogr_p2` | Old keys: sprites for one [placement](#2-glossary) only ([§11](#11-multi-monster-cells)). | object | none |
 | `sfx_type` | Sound set ([§18](#18-sounds-soundsjson)). | text | none |
 | `tent_spr`, `milk_spr`, `infant_spr`, `band_spr` | Tentacle, milk overlay, newborn and floor band of an underground cell ([§24](#24-underground-cells), new in 1.5). | object or sprite | GNX parts |
 | `sprites` | The cell's sprite list ([§5](#5-sprites)). `wall` and `wall_2` are drawn automatically ([8.7](#87-sprites-and-the-wall-key)). | object | none |
@@ -1579,7 +1614,7 @@ If you do write `h_type`:
 
 `mon_types` lists the monster types the cell calls in: `0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre. Each call picks one type from the list at random; without the key, goblins and hobgoblins come.
 
-- `mon_types` also filters your custom monster sprites: a type not in the list never gets this cell's `mon_spr` sprites.
+- `mon_types` also filters your custom monster sprites: a type not in the list never gets this cell's `mon_spr` sprites, and `monster_art` for it is a mod error.
 - With `mon_placements` ([§11](#11-multi-monster-cells)) the placements decide which types come. `mon_types` is then only the sprite filter, so it must still list every type used in the placements.
 - In the vanilla cells 4, 17–24 and 36–39 the game itself decides which monsters come; a patched `mon_types` only filters the sprites there.
 
@@ -1779,7 +1814,7 @@ The loader keeps only the first five positions.
 | 11 | Cape or extra body part | Body layer, `spr_array[6]`. |
 | 12 | Dirt | Drawn only while the cell is dirty. Frame = dirt level − 1, so it needs 3 frames. |
 
-`spr_array` is the captive's sprite table for the current phase ([§10](#10-cell-sprites-human_spr-and-mon_spr)). Types 6, 7 and 8 get a clothing on/off switch in the MOD window when a captive enters. Vanilla types 4, 13 and 14 (special MOD-window controls) are not drawn by `scr_draw_slot_gnx`.
+`spr_array` is the captive's sprite table for the current phase ([§10](#10-cell-sprites-human_spr-and-monster_art)). Types 6, 7 and 8 get a clothing on/off switch in the MOD window when a captive enters. Vanilla types 4, 13 and 14 (special MOD-window controls) are not drawn by `scr_draw_slot_gnx`.
 
 **Player options in the MOD window.** A cell can let the player choose a hand pose, a leg pose and clothing on or off, in the MOD window a click on the built cell opens:
 
@@ -1812,7 +1847,7 @@ The rows appear only for what the cell can show, in this order: hand pose, leg p
 
 **Draw order.** The first entry is at the back, the last in front. Before the layers, the game draws the plain cell background and then the `wall` sprite, if any ([8.7](#87-sprites-and-the-wall-key)).
 
-**Auto-added layers.** For `fixed` and `class_map` cells ([§10](#10-cell-sprites-human_spr-and-mon_spr)), GNX appends any missing layer of type 10, 6, 7, 8 or 9 at the **end** of the list, in front of everything. base+class cells get nothing added: without your body layers the captive is not drawn. To control the order, list all body layers yourself.
+**Auto-added layers.** For `fixed` and `class_map` cells ([§10](#10-cell-sprites-human_spr-and-monster_art)), GNX appends any missing layer of type 10, 6, 7, 8 or 9 at the **end** of the list, in front of everything. base+class cells get nothing added: without your body layers the captive is not drawn. To control the order, list all body layers yourself.
 
 > **When** layers are set up, these rules apply:
 > - Type 2 must come before type 7, and type 3 before type 9, because the hands and the leg part check the earlier choice.
@@ -1841,7 +1876,7 @@ Since 1.5 the base scripts above also play the cell's own frame counts and timin
 
 > **When** a script name is wrong (names are case-sensitive), GNX logs `[GNX] WARNING: script not found: <name>`. There is **no fallback**: the game hits an error when the cell reaches that step (for `scr_idle`, as soon as a captive is in the cell).
 >
-> **When** a fixed-mode cell uses `scr_slot_h_big_start`, it needs a `phase_0` entry in `human_spr` ([§10](#10-cell-sprites-human_spr-and-mon_spr)). `scr_slot_h_base_start` never switches to phase 0.
+> **When** a fixed-mode cell uses `scr_slot_h_big_start`, it needs a `phase_0` entry in `human_spr` ([§10](#10-cell-sprites-human_spr-and-monster_art)). `scr_slot_h_base_start` never switches to phase 0.
 
 ### 9.6 scr_draw
 
@@ -1849,7 +1884,7 @@ Use `"scr_draw_slot_gnx"`: it draws the `wall` sprite, the layers and the splash
 
 ### 9.7 Hands: hand_x, hand_y, hand_xscale, hand_angle, hand_frames
 
-These keys place the **captive's** hands (layer type 7); the monster's hand is part of `mon_spr` ([10.8](#108-mon_spr-monster-sprites)).
+These keys place the **captive's** hands (layer type 7); the monster's hand is part of `monster_art` ([10.8](#108-monster_art-monster-sprites-in-a-cell)) or of the old `mon_spr` ([Appendix C](#appendix-c-old-monster-keys)).
 
 Each list has **one entry per frame of the type 2 hand pose overlay**: pose N chosen by the player uses entry N; with `-2` at `[2]` of the type 7 layer, entry 0. Vanilla WALL 1 has 2 entries, WALL 2 has 3, RIDE 1 none.
 
@@ -1942,9 +1977,19 @@ Starting values some vanilla cells need. Only the matching vanilla scripts read 
 
 ---
 
-## 10. Cell sprites: human_spr and mon_spr
+## 10. Cell sprites: human_spr and monster_art
 
-**In short:** `human_spr` decides where the captive's sprites come from; `mon_spr` (with `mon_spr_hob` and `mon_spr_ogr`) replaces the monsters' sprites in this cell. The `layers` say *where and in which order* body parts are drawn, `human_spr` says *which sprites* fill them.
+**In short:** `human_spr` decides where the captive's sprites come from; `monster_art` (new in 1.5.2) gives the monsters of this cell their own sprites. The `layers` say *where and in which order* body parts are drawn, `human_spr` says *which sprites* fill them. The older keys `mon_spr`, `mon_spr_hob` and `mon_spr_ogr` still work and are described in [Appendix C](#appendix-c-old-monster-keys).
+
+**Which key do I use?**
+
+| You want | Use | Read |
+|---|---|---|
+| Any re-skin of a game sprite at the same size, in one place or everywhere: outfits, props, backgrounds, a monster's sprite, and the sheets that many monsters share (`spr_mon_icon`, `spr_mon_icon_head`, `spr_infant_ui_head`) | `sprite_replace` in the manifest | [5.9](#59-replacing-game-sprites-sprite_replace) |
+| New sprites for the monsters of one cell, at any size or frame count | `monster_art` in the cell | [10.8](#108-monster_art-monster-sprites-in-a-cell) |
+| Monster sprites that fit the body of one class | `monster_art` in the class | [16.7](#167-monster_art-by-class-and-for-all-monsters) |
+| A new look for all goblins, hobgoblins or ogres, or new walking, standing and carrying sprites, at any size | `monster_art` in the manifest (`world` for walking and standing) | [16.7](#167-monster_art-by-class-and-for-all-monsters), [16.8](#168-world-art-how-monsters-stand-walk-and-carry) |
+| A mod written before 1.5.2 | the old keys keep working | [Appendix C](#appendix-c-old-monster-keys), [16.4](#164-mon_spr_overrides-how-it-works) to [16.6](#166-override-keys-that-gnx-reads-but-does-not-apply), [16.11](#1611-mon_sprite_swap-replacing-monster-sprites-by-name-old-key) |
 
 ### 10.1 human_spr: the three modes
 
@@ -2106,59 +2151,28 @@ When a phase starts, GNX picks the captive's sprites in this order:
 
 In fixed and class_map mode `base_body` only decides whether the start uses `phase_0` (only with `"big"`). There is no XL base body, so an XL cell should use fixed or class_map mode with its own sprites (and `"standard"` or `"big"`).
 
-### 10.8 mon_spr: monster sprites
+### 10.8 monster_art: monster sprites in a cell
 
-`mon_spr` replaces the goblin sprites in this cell, `mon_spr_hob` the hobgoblin's and `mon_spr_ogr` the ogre's, all with the same structure. This example gives the ALTAR its own goblin and hobgoblin:
+`monster_art` (new in 1.5.2) gives the monsters of one cell their own sprites. It holds one block per monster type (`goblin`, `hobgoblin`, `ogre`), and inside each block one block per phase. It uses the cell's `sprites` block ([5.1](#51-the-sprites-dict)), so `gnx:` keys work as everywhere else, and so do game sprite names.
 
 ```json
 {
-  "mon_types": [0, 1],
-  "mon_spr": {
-    "start": {
-      "body": {
-        "leg_1": { "alpha": "gnx:gob_altar_start_v1", "line": "gnx:gob_altar_start_v1_line" },
-        "leg_2": { "alpha": "gnx:gob_altar_start_v2", "line": "gnx:gob_altar_start_v2_line" },
-        "leg_any": { "alpha": "gnx:gob_altar_start_v1", "line": "gnx:gob_altar_start_v1_line" }
+  "mon_types": [0, 3],
+  "monster_art": {
+    "goblin": {
+      "start": { "body": "gnx:gob_start", "hand": "gnx:gob_start_hand", "hand_xscale": "random" },
+      "loop": {
+        "body": {
+          "leg_1": { "fill": "gnx:gob_v1", "line": "gnx:gob_v1_l" },
+          "any": { "fill": "gnx:gob", "line": "gnx:gob_l" }
+        },
+        "head": ["gnx:head_a", "gnx:head_b"],
+        "pen": "gnx:gob_pen"
       },
-      "hand": { "alpha": "gnx:gob_altar_start_hand", "line": "gnx:gob_altar_start_hand_line" },
-      "pen": "gnx:gob_altar_start_pen",
-      "touch": "gnx:gob_altar_start_touch",
-      "hand_xscale": "random"
+      "ej": { "body": "gnx:gob_ej" },
+      "placement": { "1": { "loop": { "body": "gnx:gob_second", "pen": "gnx:gob_pen" } } }
     },
-    "loop": {
-      "head": [
-        { "alpha": "gnx:gob_altar_head_a", "line": "gnx:gob_altar_head_a_line" },
-        { "alpha": "gnx:gob_altar_head_b", "line": "gnx:gob_altar_head_b_line" }
-      ],
-      "body": {
-        "leg_any": { "alpha": "gnx:gob_altar_loop", "line": "gnx:gob_altar_loop_line" },
-        "cow": { "alpha": "gnx:gob_altar_loop_cow", "line": "gnx:gob_altar_loop_cow_line" }
-      },
-      "hand": {
-        "leg_any": { "alpha": "gnx:gob_altar_loop_hand", "line": "gnx:gob_altar_loop_hand_line" }
-      },
-      "pen": "gnx:gob_altar_loop_pen",
-      "touch": { "default": "gnx:gob_altar_loop_touch", "cow": "gnx:gob_altar_loop_touch_cow" },
-      "enter": "gnx:gob_altar_loop_enter"
-    },
-    "ej": {
-      "body": {
-        "leg_any": { "alpha": "gnx:gob_altar_ej", "line": "gnx:gob_altar_ej_line" }
-      }
-    }
-  },
-  "mon_spr_hob": {
-    "start": {
-      "body": {
-        "leg_any": { "alpha": "gnx:hob_altar_start", "line": "gnx:hob_altar_start_line" }
-      }
-    },
-    "loop": {
-      "body": {
-        "leg_any": { "alpha": "gnx:hob_altar_loop", "line": "gnx:hob_altar_loop_line" }
-      },
-      "pen": "gnx:hob_altar_loop_pen"
-    }
+    "ogre": { "loop": { "body": "gnx:ogre_loop" } }
   }
 }
 ```
@@ -2167,76 +2181,130 @@ In fixed and class_map mode `base_body` only decides whether the start uses `pha
 
 **What this example does**
 
-- `"mon_types": [0, 1]`: goblins and hobgoblins come, and both may use this cell's sprites.
-- `start`: the body depends on the captive's leg variant (`leg_1`, `leg_2`, otherwise `leg_any`); the hand is one fill + line pair; `pen` and `touch` are single sprites; `"hand_xscale": "random"` mirrors the goblin's hand at random each time.
-- `loop` (both loops): one of two heads is picked at random each time the loop sprites are set. The vanilla Cow class gets the `cow` body and touch overlay. `enter` is the penetration overlay.
-- `ej` replaces only the body during ejaculation; every other part comes from `loop`.
-- `mon_spr_hob` has no head, hand, touch or enter, so those parts are not drawn for the hobgoblin.
+- `"mon_types": [0, 3]`: goblins and ogres come. Art for a monster that is not in `mon_types` is a mod error.
+- `goblin.start`: the start has a body and a hand; `"hand_xscale": "random"` mirrors the hand at random each time.
+- `goblin.loop`: the body depends on the captive's leg pose (`leg_1`, otherwise `any`), and a body can be a pair of fill and outline (`fill` and `line`). The head is a list: one of the two heads is picked at random, once for each monster and scene. `pen` is a single sprite.
+- `goblin.ej`: the ejaculation changes only the body; every other part comes from `loop`.
+- `goblin.placement."1"`: the goblin standing at place 1 of a multi-monster cell ([§11](#11-multi-monster-cells)) gets another body. It keeps every other phase of the goblin block.
+- `ogre.loop.body` is a plain sprite, so the ogre is one opaque body ([10.9](#109-monster_art-reference)).
+- The goblin has no `touch` or `enter`: at place 0 they are cleared (nothing is drawn) instead of keeping the last phase's.
 
-### 10.9 mon_spr reference
+**Where it goes and what it replaces**
 
-**Phase blocks**
+- `monster_art` is a cell key, like `human_spr`. It works in new cells and in patches of vanilla cells and of other mods' cells ([§12](#12-patching-vanilla-cells-and-classes)). A patch replaces the whole block of each monster type it names, as `mon_spr` patches do.
+- **A cell's `monster_art` beats its old `mon_spr`, `mon_spr_hob`, `mon_spr_ogr` and the placement keys, whatever the load order.** A cell can carry both: GNX 1.5.1 and older read only the old keys. The old keys are described in [Appendix C](#appendix-c-old-monster-keys).
+- **There is no fallback between monster types.** A cell whose `monster_art` has only `goblin` gives its hobgoblins the same sprites they would have without it. If the cell also has `mon_spr`, that includes the old fallback to `mon_spr`.
+- **Your own sprites beat class and global art** ([16.7](#167-monster_art-by-class-and-for-all-monsters)), because those swap game sprites by name and your sprites have other names. A game sprite you use here is swapped like any other.
+- **Old versions:** set `"min_gnx_version": "1.5.2"` in the manifest ([4.2](#42-the-version-check)). GNX 1.5.0 and older ignore that key, load the mod anyway and do not know `monster_art`: a mod cell that has only `monster_art` shows vanilla monsters there.
 
-| Block | Used during | Keys it reads |
-|-------|-------------|---------------|
-| `start` | the start step | `body`, `hand`, `pen`, `touch`, `hand_xscale` |
-| `loop` | slow and fast loop; fallback for `ej` | `head`, `body`, `hand`, `pen`, `touch`, `enter` |
-| `ej` | ejaculation | as `loop`; each missing part uses `loop` |
-| `idle_start`, `start_loop`, `loop_ej`, `ej_birth` | the intermissions ([§23](#23-intermissions)) | as `loop`; without the block the strips of the next phase |
+### 10.9 monster_art reference
 
-**Part keys**
+**Blocks**
 
-| Key | What it is | Format |
-|-----|------------|--------|
-| `body` | The monster's body. Required in practice: no body = vanilla sprites ([10.10](#1010-when-gnx-uses-vanilla-monster-sprites)). | object of variants (below) |
-| `hand` in `start` | The monster's hand. | one pair or one sprite, no variants |
-| `hand` in `loop`/`ej` | The monster's hand. | variants: `leg_any`, `leg_1`, `leg_2`, `cow` |
-| `head` | Head (`loop` and `ej` only). | one pair, or a list of which the first two are used 50/50 |
-| `pen` | Drawn first, behind the other monster parts, without transparency. | one sprite |
-| `touch` | Hand-on-captive overlay, on the captive's leg layer (type 8). | one sprite or class variants |
-| `enter` | Penetration overlay on the leg layer (`loop`/`ej` only). | one sprite or class variants |
-| `hand_xscale` | `"random"` = mirror the hand at random; `start` only, other values ignored. Loop and ejaculation always use the normal direction. | text |
+| Block | Where | Holds |
+|---|---|---|
+| `goblin`, `hobgoblin`, `ogre` | directly in `monster_art` | phases, `anal`, `placement` |
+| a phase | in a monster block, in `anal`, or in a placement block | parts |
+| `anal` | in a monster block or in a placement block | phases |
+| `placement` | in a monster block | the keys `"0"`, `"1"`, `"2"`; each holds phases and `anal` |
 
-A **pair** is `{ "alpha": <fill sprite>, "line": <outline sprite> }`; `line` is optional, and a plain sprite name is a pair without a line. The game's monster transparency setting decides how fill and line are drawn; the line is drawn in all three modes.
+No family (`standard`, `giant` and so on) is written in a cell: the cell is its own pose. Families are for class and global art ([16.7](#167-monster_art-by-class-and-for-all-monsters)).
 
-**Body and hand variants:** `cow` (vanilla Cow, body and hand), `lilith` (vanilla Lilith, body only), `leg_1`, `leg_2` (captive leg variants), `leg_any` (everyone else, and the fallback). GNX checks the class variant, then the leg variant, then `leg_any`, then your other leg variants (`leg_1`, then `leg_2`). There is no `leg_0`: kneeling captives use `leg_any`, or your `leg_1` art when there is no `leg_any` ([§7](#7-clothing-maps-how-a-class-looks-in-each-cell)).
+**Phases.** The first column is the key, the second says when the game draws it, the third what happens when the block is missing.
 
-**Touch and enter class variants:** `default`, `cow`, `nyx`, `lilith`, `morrigan`, `cat` (the vanilla classes of those names); every other class, and a plain sprite name, means `default`. Class variants matter only in cells with ID 100 or more, where vanilla classes get custom monster sprites.
+| Phase | Used during | When missing |
+|---|---|---|
+| `start` | the start step | no art: the monster is drawn as without `monster_art` |
+| `loop` | slow and fast loop | no art: as above |
+| `ej` | ejaculation | each missing part comes from `loop` |
+| `idle_start` | intermission before the start ([§23](#23-intermissions)) | `start`, else `loop` |
+| `start_loop` | intermission between start and loop | `loop` |
+| `loop_ej` | intermission between loop and ejaculation | `ej` merged with `loop` |
+| `ej_birth` | intermission after the ejaculation, into the birth | `ej` merged with `loop` |
+| `ej_end` | after the ejaculation, in cells with independent places ([11.5](#115-independent-places)) | `ej` merged with `loop` |
 
-**Frame layout of monster strips:** frame = row × frames per row + current frame, with row = `character_row` (or the placement with `mon_positions`). With the standard scene scripts a row has 2 frames for `start` and 5 for `loop` and `ej` (ejaculation shows frames 2–4). A cell with its own `frames` uses its own counts ([22.1](#221-physicalframes)), and GNX checks every strip against them ([22.5](#225-the-frame-rule-for-every-mod-cell)).
+An intermission block is accepted only on a cell that plays that intermission: a mod cell that declares it in `physical.intermissions` ([§23](#23-intermissions)) (`ej_birth` also needs a cell with a birth scene, a tentacle or underground one), and for `ej_end` a cell with independent places and an `ej_end` entry. Vanilla cells have no intermissions, and a patch cannot add them, so such a block on a vanilla cell is a mod error (`Cell 3 monster_art.goblin.idle_start: not played on this cell`). The same goes for a cell that does not declare it. The error drops the whole monster block.
 
-**Frame layout of touch and enter:** they use the **captive's** frame numbers, so they need the layout of the captive's strips (3 skin blocks per row in base+class and class_map, 1 in fixed mode). `touch` is not drawn in the third monster transparency mode.
+"Merged" means part by part: `loop_ej` first, then `ej`, then `loop`; each part comes from the first block that has it. Phase -1, the pose a monster has when it reaches the cell, uses `loop` in cells with an ID of 100 or more and no art in vanilla cells (ID below 100).
 
-> **When** monster sprites have the wrong shape, they are ignored:
-> - `body` and the loop/ej `hand` must use variants. A pair directly under `body` (`"body": { "alpha": … }`) is ignored, and the monster falls back to vanilla sprites.
-> - `start.hand` is the opposite: one pair only; variant keys inside it are ignored.
-> - `touch` and `enter` are stored once per cell, not per monster ([§11](#11-multi-monster-cells)).
+**Parts**
 
-### 10.10 When GNX uses vanilla monster sprites
+| Part | Phases | Sprite | Pair | Variants | List | `"none"` |
+|---|---|---|---|---|---|---|
+| `body` | all | yes | yes | yes | yes | no |
+| `hand` | all | yes | yes | yes | yes | yes |
+| `head` | all but `start` | yes | yes | yes | yes | yes |
+| `pen` | all | yes | no | yes | yes | yes |
+| `touch` | all | yes | no | yes | yes | yes |
+| `enter` | all but `start` | yes | no | yes | yes | yes |
+| `hand_xscale` | `start` and `loop` | `"random"` only | | | | |
 
-GNX draws vanilla monster sprites instead of yours when:
+- **Sprite:** a `gnx:` key or a game sprite name.
+- **Pair:** `{ "fill": sprite, "line": sprite }`; `line` is optional. The fill is tinted or see-through by the game's monster display setting, the line is the outline. A pair with no `line` has no outline; a plain sprite keeps its automatic outline when it is a game sprite whose name ends in `_alpha` (as in the old keys), and has none otherwise. A line without a `fill`, `"line": "none"` and a list as `fill` are mod errors.
+- **Variants:** an object with the keys `leg_0`, `leg_1`, `leg_2`, `any`, `cow`, `lilith`, `nyx`, `morrigan` and `cat`. Each value is a sprite, a pair (where the part takes one), a list or `"none"`. The leg keys follow the captive's leg pose; the class keys mean the vanilla class of that name. An object that mixes `fill` and variant keys is a mod error.
+- **List:** one or more sprites or pairs, one picked at random. An empty list, `"none"` inside a list, a list inside a list and a variant object inside a list are mod errors.
+- **`"none"`:** the part is not drawn. In a variant object it says "no hand at leg 2". On `touch` and `enter` it is the same as leaving them out at place 0. `body` cannot be `"none"`.
+- **`hand_xscale`:** `"random"` mirrors the hand at random in `start` and `loop`, and in every phase that takes its parts from that block (`ej`, the intermissions); any other value, or the key in another phase, is a mod error. The choice is made each time the game sets the phase's sprites, so a hand marked `random` in `loop` can flip when the ejaculation starts.
+- **Comments:** a key that starts with `_` or `//` is ignored, at every level.
+- **`start` and `loop` need a `body`;** without it they are a mod error. `ej` and the intermissions may leave it out and use the table above.
+- **`touch` and `enter`** belong to the cell, not to the monster. In a cell with several monsters the last one's pick wins. They use the captive's frame layout (3 skin blocks per row in base+class and class_map cells, 1 in fixed mode), as in [C.2](#c2-mon_spr-reference). On vanilla cells the one-row rule of [10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn) applies instead.
 
-- the cell has no block for that monster type. `mon_spr_hob` and `mon_spr_ogr` fall back to `mon_spr`, so with only `mon_spr`, **hobgoblins and ogres get your goblin art**; limit `mon_types` or add their blocks;
-- the monster type is not in `mon_types`;
-- the phase block has no body (for example no `start`); without start art, point `start.body` at your loop strips (with row 0 the start shows their first two frames);
-- the captive is a vanilla class (ID below 14) and the cell ID is below 100;
-- for goblins, in an anal scene with a vanilla captive, in a `base+class` cell ([9.2](#92-anal)). Cells with their own art (`fixed`, `class_map`) keep your sprites.
+**Which variant is used.** The body is resolved first, in this order: the captive's vanilla class key (`cow`, `lilith`, `nyx`, `morrigan`, `cat`), then her leg key (`leg_0`, `leg_1`, `leg_2`), then `any`, then the other legs (`leg_1`, `leg_2`, `leg_0`). The last step keeps the fix for kneeling captives: with only `leg_1` art, a kneeling captive (leg 0) gets it. A leg outside 0 to 2 counts as leg 1. **Every other part** is looked up in the same way, but with the leg the body picked, then `any`; if none fits, the part is not drawn, so a kneeling body never gets a standing hand.
 
-**Ogres.** By default an ogre in a custom cell is **one opaque body sprite**: only the `body` alpha is used and the transparency setting does not apply. If the ogre's body in `mon_spr_ogr` has both `alpha` and `line`, the ogre is drawn like goblins: fill plus outline, following the player's MON TYPE and OPACITY settings.
+**If no body fits the captive** (for example `"body": { "cow": "gnx:x" }` and a Witch), the cell has no art for that monster and that call, and the monster is drawn as without `monster_art`. This is not an error.
 
-```json
-{
-  "mon_spr_ogr": {
-    "loop": {
-      "body": {
-        "leg_any": { "alpha": "gnx:ogre_altar_loop", "line": "gnx:ogre_altar_loop_l" }
-      }
-    }
-  }
-}
+**Ogres.** In a cell, an ogre is drawn as one opaque body unless its body has a line: with fill and outline it follows the player's MON TYPE and OPACITY settings, as goblins do. `hand`, `head` and `pen` are drawn only then, so they need a pair with a `line` on every body variant of that block (and of the loop body, for `ej` and the intermissions that have no body of their own). Otherwise it is a mod error. Each block is judged alone: a placement block's parts never merge with the monster block's for this rule.
+
+**Missing parts**
+
+| Case | Result |
+|---|---|
+| A phase has a body, a part is not listed | not drawn. `touch` and `enter`: cleared at place 0, left alone at the other places (the slot is shared) |
+| No `start` or `loop` block, no block for this monster, or the body fits nobody | the monster is drawn as without `monster_art` |
+| `ej` lacks a part | the part of `loop` |
+| An intermission block is missing | the table above |
+| Anal scene, see [10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn) | |
+
+**Random picks.** A list is picked once for each monster and scene, with fill and line from the same entry, so a head does not flicker and fill and line stay together. A scene that starts again after loading a save picks again. Parts of one monster that are lists use the same roll, so two lists of equal length stay in step.
+
+**Errors.** These are mod errors; the entry is left out and the rest of the mod loads: a wrong shape, a block or part where it is not allowed, an unknown monster, phase, part or variant, a missing sprite, art for a monster that the cell's `mon_types` leaves out, art for a monster the game never calls to that cell, `start` or `loop` without a body, a wrong `hand_xscale`, and the rules of [10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn). A mistake in one monster's block does not stop the other monsters' blocks. Check your files with `check_mod.py` ([§26](#26-checking-your-mod-schemas-and-check_modpy)).
+
+### 10.10 Anal scenes, places, vanilla cells and where art is not drawn
+
+**Anal scenes.** A cell with `physical.anal` rolls an anal scene on every arrival ([9.2](#92-anal)). The scene reads the `anal` block of the place first, then of the monster.
+
+- **Mod cells (ID 100 or more) with no `anal` block** read the normal blocks. A cell with `"anal": true` draws your art in every scene, not the vanilla goblin.
+- **Vanilla cells (ID below 100) with no `anal` block** keep the game's own anal art.
+- **An `anal` block reads only anal blocks.** A phase it does not list gets no art from `monster_art`, not even from the normal block, and the monster is drawn as without `monster_art`. In a cell with no `mon_spr` that is the vanilla goblin, for example at the start of the scene when the `anal` block has only `loop`. Give the `anal` block every phase you use.
+- **`base+class` cells:** without an `anal` block, a vanilla class (ID below 14) in an anal scene gets the vanilla goblin instead of your art, as with `mon_spr` ([9.2](#92-anal)), because your art may not fit the vanilla anal poses. A cell that gives its own captive art (`fixed` or `class_map`) keeps your art, and so does a cell with an `anal` block.
+- **Wall cells:** a scene that uses an `anal` block does not add the cell's crate, as the vanilla anal scene does not.
+- **In cells with several monsters** an anal scene is rolled again at every arrival, so a monster can change from the normal blocks to the anal blocks at its next phase. The game's own poses already do this.
+
+**Places.** `placement` blocks inherit per phase: a phase the place does not list comes from the monster block. A place's `anal` block is read before the monster's.
+
+**Vanilla cells: one row per phase.** The frame of a monster in a vanilla cell includes the row of that cell, which a custom strip does not follow. A strip of exactly one row works on every row, because it wraps: **2 frames for `start`, 5 for every other phase.** A single frame is a still image and fits every phase. The checker applies this to every list entry and every line; a strip that is a whole multiple of the row is only logged, because it shows the wrong row past row 0, and any other count is a mod error:
+
+```
+[GNX] ERROR: Cell 6 monster_art.goblin.loop.body: has 3 frames, one row here is 5
 ```
 
-Here the loop body has fill `ogre_altar_loop` and outline `ogre_altar_loop_l` for any leg pose. Without `line` the ogre stays opaque.
+Mod cells follow the frame rule of [22.5](#225-the-frame-rule-for-every-mod-cell), including a cell with its own `physical.frames`: a phase of another length needs strips for it. A patch of a mod cell is checked against the cell's own counts too, but a patch that gives only `loop` on a cell whose `start` has another length does not report the missing `start` (the start plays from the cell's other sets or the vanilla sheets). Give both.
+
+**Cells where the art is not drawn.** On a vanilla cell the following is a mod error or is refused per part, because it would be accepted and never drawn. The cause is the game's own scene code, which sets the monster's sprites itself in these cells:
+
+| Cell | Refused |
+|---|---|
+| 18 (G.BANG 2), 24 (PATROL) | every monster: G.BANG 2 draws its second goblin itself, PATROL never calls the function that picks the art |
+| 4 (MILK 1), 11 (DRINK) | goblins |
+| 21 (BEHIND), 22 (RIDE 2) | goblins and hobgoblins; an ogre only as `body` with no `line`: these cells draw the ogre's body fill and nothing else |
+| 23 (G.BANG 3) | an ogre only as `body` with no `line`; a `placement` block for the hidden place (place 0 for goblins and hobgoblins, place 1 for the ogre) |
+| 36 (DAIRY), 37 (GIANT), 38 (CHAINS), 39 (LILITH SHRINE) | goblins, hobgoblins and ogres: the cell sets the monster's sprites itself, or hides the monster and draws it |
+
+Besides that, art for a monster **that the game never calls into the cell** is refused, because it could never be drawn: goblins only in cells 4 and 19; hobgoblins only in 17; ogres only in 20, 21, 22, 24 and 38; goblins and hobgoblins in 18 and 36; all three in 23, 37 and 39. In the other vanilla cells goblins and hobgoblins are called, and ogres only when the cell's `mon_types` or `mon_placements` list them (a patch can add that). Cells 5, 10, 11, 12, 25, 27 to 34 and 40 to 42 are not judged, because monsters reach them another way (cell 11 still refuses goblins, by the table above). Each refusal is a mod error naming the cell, the monster and, where only a part is refused, the phase and part: `[GNX] ERROR: Cell 4 monster_art.goblin: not drawn on this cell`.
+
+Class and global art ([16.7](#167-monster_art-by-class-and-for-all-monsters)) still reaches these cells, by swapping the sprites they draw. A later GNX may lift the part of this list that comes from the scene code.
+
+**Old and new keys together.** A cell can carry `monster_art` and the old keys. For one monster, `monster_art` wins when it fits the captive; when it has no art for the monster, call or captive, the old keys apply as before. Two mods that both set `monster_art` for the same monster type of a cell: the one loaded last replaces the other's whole block for that type.
 
 ---
 
@@ -2343,8 +2411,8 @@ Here the loop body has fill `ogre_altar_loop` and outline `ogre_altar_loop_l` fo
 
 - `b_breed` makes a big (77 px) cell. It starts with `scr_slot_h_big_start`, so the fixed `human_spr` has a `phase_0`. For brevity the whole captive is one sprite per phase on the leg layer (type 8, `spr_array[4]`); the other body layers are auto-added and stay empty.
 - `"max_mon_num": 2` with two `mon_placements`: spot 0 (in front) takes only hobgoblins (`[1]`), spot 1 (behind) a goblin or ogre (`[0, 3]`). `mon_types` lists all three types, so they may use this cell's sprites.
-- `mon_spr_hob_p0` is the front hobgoblin; `mon_spr_p1` and `mon_spr_ogr_p1` are the goblin and ogre behind her. They use plain sprite names (fill only). The ogre gets only a body, because ogres in custom cells are drawn as one body sprite anyway ([10.10](#1010-when-gnx-uses-vanilla-monster-sprites)).
-- Only the back monsters have `enter`, because `touch`/`enter` are shared by the whole cell ([11.4](#114-how-a-scene-runs-with-several-monsters)). The `enter` strips use the captive's frame layout ([10.9](#109-mon_spr-reference)): fixed mode, one row, 5 loop frames.
+- `mon_spr_hob_p0` is the front hobgoblin; `mon_spr_p1` and `mon_spr_ogr_p1` are the goblin and ogre behind her. They use plain sprite names (fill only). The ogre gets only a body, because ogres in custom cells are drawn as one body sprite anyway ([C.3](#c3-when-gnx-uses-vanilla-monster-sprites)).
+- Only the back monsters have `enter`, because `touch`/`enter` are shared by the whole cell ([11.4](#114-how-a-scene-runs-with-several-monsters)). The `enter` strips use the captive's frame layout ([C.2](#c2-mon_spr-reference)): fixed mode, one row, 5 loop frames.
 - There is no `mon_positions`: each placement's art is already drawn in the right spot inside its strip, and all strips use row 0.
 
 ### 11.1 mon_placements
@@ -2362,7 +2430,7 @@ Here the loop body has fill `ogre_altar_loop` and outline `ogre_altar_loop_l` fo
 
 ### 11.2 Per-placement sprite keys
 
-These top-level keys work like `mon_spr` ([10.8](#108-mon_spr-monster-sprites)), but for one placement only:
+These top-level keys are the old way to give one placement its own sprites; they work like `mon_spr` ([Appendix C](#appendix-c-old-monster-keys)). With `monster_art` use a `placement` block instead ([10.8](#108-monster_art-monster-sprites-in-a-cell)).
 
 | Monster | Placement 0 | Placement 1 | Placement 2 |
 |---------|-------------|-------------|-------------|
@@ -2521,6 +2589,7 @@ An entry is a patch when it has an explicit `h_type` that is already registered:
 |------|------------------------|-------|
 | top level | `name`, `price`, `code_text`, `spawn_info`, `slot_type`, `mon_types`, `sfx_type` | `name`, `price`, `spawn_info`, `code_text`: **no visible effect** on vanilla cells (built-in text). |
 | monster sprites | `mon_spr`, `mon_spr_hob`, `mon_spr_ogr` | Replaced as a whole. On vanilla cells they affect only captives of class 14 or higher. |
+| monster sprites (1.5.2) | `monster_art` | The block of each monster type that the patch names is replaced as a whole. On vanilla cells it affects every captive, vanilla classes included, in the cells where it is drawn ([10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn)). |
 | sprites | `sprites.wall`, `sprites.wall_2` (mod cells only, [8.7](#87-sprites-and-the-wall-key)) | Also used to resolve `gnx:` keys inside the patch. |
 | `human_spr` | `mode`, `base_body`, `phase_0`, `phase_1`, `phase_2`, `phase_4`, and the intermission tables `phase_<name>` ([§23](#23-intermissions)) | Phases are merged ([12.3](#123-merge-rules-across-mods)). |
 | `physical` | every required key of [9.1](#91-required-keys), plus `character_row`, `hand_frames`, `sp_spr`, `mon_placements`, `required_class`, `range_draw_func`, `scr_unoccupy` | Each given field replaces the old value, except `required_class` (merged). A new `scr_h` gets the cell's intermissions put in again, and switches independent places on or off ([11.5](#115-independent-places)). |
@@ -2862,7 +2931,7 @@ While this condition (quest format, checked in your mod's state) is true, the cl
 
 ## 16. Special classes and monster sprite overrides
 
-**In short:** three advanced class features. `is_special` turns a class into a "special" class like Lilith or Nyx (one skin tone, full-body sprite tables). `gb1_breast_d2` is an extra breast sprite for one G.BANG cell. `mon_spr_overrides` replaces the **monster** sprites that some vanilla cells draw for your class.
+**In short:** three advanced class features. `is_special` turns a class into a "special" class like Lilith or Nyx (one skin tone, full-body sprite tables). `gb1_breast_d2` is an extra breast sprite for one G.BANG cell. `mon_spr_overrides` replaces the **monster** sprites that some vanilla cells draw for your class. Since 1.5.2 `monster_art` does that for every monster sprite, by address ([16.7](#167-monster_art-by-class-and-for-all-monsters)); the old keys of 16.4 to 16.6 and 16.11 keep working.
 
 ```json
 {
@@ -2940,7 +3009,7 @@ The "gb1" comes from the game's internal `gb_1` sprites of G.BANG 2. In vanilla,
 Some vanilla cells pick monster sprites by captive class, for example a different goblin pose for Hathor. `mon_spr_overrides` lets your class do the same: an object of `"key": sprite` pairs, with `gnx:` sprites or vanilla sprite names.
 
 - **Only classes with ID ≥ 14**; vanilla classes ignore it, even through `override`.
-- **Only the vanilla cells listed below.** In your own cells use the cell's `mon_spr` ([§10](#10-cell-sprites-human_spr-and-mon_spr)).
+- **Only the vanilla cells listed below.** In your own cells use the cell's `monster_art` ([§10](#10-cell-sprites-human_spr-and-monster_art)) or the old `mon_spr`.
 - **`-1` is dropped.** Keys with `-1` (or a sprite that cannot be found) are removed when the class loads, so the vanilla sprite is drawn. To hide a sprite, use a fully transparent one.
 - **Give `_alpha` and `_line` keys as a pair.** Monsters are a fill (`alpha`, drawn with the player's monster-transparency setting) plus an outline (`line`). With only the alpha, GNX looks for the outline by name (`..._alpha` → `..._line`), which never works for mod sprites, so the monster has no outline. For the giant head and the G.BANG 2 extra goblin, a missing line keeps the **vanilla** outline over your fill. The dairy `_line` keys are read only with their `_alpha` key.
 - **Match the vanilla frame layout**: each override uses the frame numbers of the vanilla sprite it replaces.
@@ -3052,7 +3121,7 @@ GNX gives every vanilla cell a built-in monster sprite table for modded classes,
 | Standard cells, hobgoblin | `hobgoblin_wall_body_start`, `hobgoblin_wall_hand_start`, `hobgoblin_wall_touch_loop`, `hobgoblin_wall_enter_loop`, `hobgoblin_wall_touch_ej`, `hobgoblin_wall_enter_ej`, `hobgoblin_wall_touch_anal_loop`, `hobgoblin_wall_enter_anal_loop` |
 | Cells without their own ogre sprites | `ogre_wall_body_start`, `ogre_wall_body_loop` |
 
-To change monster sprites there, patch the cell's `mon_spr`, `mon_spr_hob` or `mon_spr_ogr` ([§12](#12-patching-vanilla-cells-and-classes), format in [§10](#10-cell-sprites-human_spr-and-mon_spr)). That affects **every** modded class in the cell.
+To change monster sprites there, patch the cell's `mon_spr`, `mon_spr_hob` or `mon_spr_ogr` ([§12](#12-patching-vanilla-cells-and-classes), format in [Appendix C](#appendix-c-old-monster-keys)). That affects **every** modded class in the cell. This stays true for the old keys. For the monster sprites that these cells draw, `monster_art` has addresses ([16.7](#167-monster_art-by-class-and-for-all-monsters)), such as `goblin.standard.loop.touch`, and a cell's own `monster_art` works in the cells of [10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn) that draw it.
 
 > **When** G.BANG keys are chosen, mind the numbers: `gb1` keys belong to `h_type` 18, shown as **G.BANG 2**; `gb2` keys to `h_type` 19, shown as **G.BANG 1**.
 
@@ -3061,7 +3130,397 @@ To change monster sprites there, patch the cell's `mon_spr`, `mon_spr_hob` or `m
 > **When** DAIRY, CHAINS or LILITH SHRINE get overrides, they matter only if the class can enter: in vanilla these cells accept only Hathor, Morrigan and Lilith, so patch `required_class` first ([§12](#12-patching-vanilla-cells-and-classes)).
 
 
-### 16.7 mon_sprite_swap: replacing monster sprites by name
+### 16.7 monster_art by class and for all monsters
+
+`monster_art` (new in 1.5.2) replaces vanilla monster sprites by an address instead of by sprite name. In a class it applies to the captives of that class; in the manifest (**global** scope) it applies to every captive. Cells have their own form of the key ([10.8](#108-monster_art-monster-sprites-in-a-cell)).
+
+> **A swap changes a sprite everywhere it is drawn.** An address names the vanilla sprites it swaps, and the game draws many of them in more than one place. A `loop` address also changes the ejaculation (`ej`), the intermissions and the pose a monster has when it reaches the cell, wherever those phases draw the same sprite. For example `goblin.standard.loop.body.leg_1` swaps `spr_h_goblin_body_loop_v1_alpha`, and the game also draws that sprite in `ej`, `ej_end`, `loop_ej` and `start_loop`; `spr_h_goblin_pen_loop` is drawn in `loop` and `ej`; `leg_0` and `leg_1` of a goblin share one sprite, so they share one address. A few addresses are drawn by another monster: `spr_h_ogre_touch_loop` is drawn by goblins in G.BANG only, so its address is `goblin.gbang_1.loop.touch.any`. The address list ([16.9](#169-address-list)) names, for every address, the other phases and monsters that draw its sprites. Art for a sprite shared this way must fit every place it is drawn.
+
+```json
+{
+  "name": "Witch",
+  "sprites": {
+    "witch_gob": { "strip": "strips/witch_gob.png", "frames": 75 },
+    "witch_gob_l": { "strip": "strips/witch_gob_l.png", "frames": 75 }
+  },
+  "monster_art": {
+    "goblin": {
+      "standard": {
+        "loop": {
+          "body": { "leg_1": { "fill": "gnx:witch_gob", "line": "gnx:witch_gob_l" } },
+          "pen": "none"
+        }
+      }
+    }
+  }
+}
+```
+
+**What this example does:** on a Witch, the goblin's standard loop body for leg pose 1 uses the mod's strips (the fill and its outline as one pair, 75 frames like the vanilla strip), and the goblin's pen is not drawn. Because `spr_h_goblin_body_loop_v1_alpha` and the pen `spr_h_goblin_pen_loop` are also drawn in the ejaculation and the intermissions, the Witch's goblin has the new body and no pen there too.
+
+**Global scope** is written in the manifest, as the object itself or as the name of a JSON file, like `sprite_replace` ([5.9](#59-replacing-game-sprites-sprite_replace)). It has its own `sprites`:
+
+```json
+{
+  "name": "Goblin Re-skin",
+  "version": "1.0.0",
+  "compatible_game_versions": ["1.40"],
+  "min_gnx_version": "1.5.2",
+  "monster_art": "monster_art.json"
+}
+```
+
+`monster_art.json`:
+
+```json
+{
+  "sprites": { "gob_loop": { "strip": "strips/gob_loop.png", "frames": 75 } },
+  "goblin": {
+    "standard": { "loop": { "body": { "any": "gnx:gob_loop" } } },
+    "world": {
+      "idle": "world/gob_idle.png",
+      "walk": { "strip": "world/gob_walk.png", "frames": 10, "xorig": 32, "yorig": 60 }
+    }
+  }
+}
+```
+
+**What this example does:** every goblin's standard loop body (leg poses 1 and 2) uses `gob_loop`, whoever the captive is. The `world` block changes how goblins stand and walk ([16.8](#168-world-art-how-monsters-stand-walk-and-carry)).
+
+**The address.** A path of keys, from the monster down to the part:
+
+```
+monster . family . [anal .] phase . part [. variant]
+```
+
+| Level | Keys |
+|---|---|
+| monster | `goblin`, `hobgoblin`, `ogre` |
+| family | `standard`, `giant`, `shrine`, `dairy`, `drink`, `gbang_1`, `gbang_2`, `gbang_3` (not every monster has every family; the list in [16.9](#169-address-list) is the truth) |
+| phase | `start`, `loop`, `ej`; the others have no address of their own, their sprites are the ones the `loop` addresses swap |
+| part | `body`, `hand`, `head`, `pen`, `touch`, `enter` |
+| variant | `leg_0`, `leg_1`, `leg_2`, `any`, `cow`, `lilith`, `nyx`, `morrigan`, `cat` |
+
+- **Families name the vanilla art, not a cell.** `standard` is the art of the ordinary cells; `giant`, `shrine`, `dairy` and `drink` are the art of GIANT, LILITH SHRINE, DAIRY and DRINK; `gbang_1`, `gbang_2` and `gbang_3` follow the game's sprite names `gb_1`, `gb_2` and `gb_3`, where, as in [16.6](#166-override-keys-that-gnx-reads-but-does-not-apply), `gb_1` is the cell shown as G.BANG 2 (h_type 18), `gb_2` G.BANG 1 (19) and `gb_3` G.BANG 3 (23). A cell that draws another sprite is not affected.
+- **`anal`** goes inside the family: `goblin.standard.anal.loop.body.any`. Only the families and phases that have anal sprites in the list accept it.
+- **`any` means the leg sprites only.** It never changes class-shaped art (`cow`, `lilith`, `nyx`, `morrigan`, `cat`), so a global re-skin does not put a normal body on the Cow. Class-shaped addresses are written explicitly. They are valid in global scope and in the matching vanilla class's `override` ([6.2](#62-override-changing-an-existing-class)); on any other class they are a mod error, because they would never fire.
+- **Parts with no variants end at the part:** `pen`, and `head`, for instance `goblin.standard.loop.pen`. A plain sprite, a pair or a list for a part that has variants means `any`.
+- **`goblin.standard` has no `leg_0`:** leg 0 and leg 1 share one vanilla sprite, so write `leg_1`. `leg_0` there is a mod error (`no address ...`). Hobgoblin and ogre bodies, and the two `gbang` bodies that have one, have their own `leg_0`.
+- **An address that is not in the list is a mod error** (`no address goblin.standard.loop.body.leg_0`). The list holds only the addresses this release implements, so a part that is not hooked yet cannot be accepted and ignored.
+- **The values** are the sprites, pairs, lists, variant objects and `"none"` of [10.9](#109-monster_art-reference), with these differences: `body` may be `"none"`; a pair is `fill` and `line`; `hand_xscale` and `placement` do not exist (a monster has no places here); `prop` has no address in this release, so props such as the crate use `sprite_replace`.
+- **`birth`** is not available in this release (`monster_art.birth: not available in this version`).
+
+**How a swap is compiled**
+
+- **Fill and line are one pair.** Each address names fill sprites. The outline is found by name (`..._alpha` becomes `..._line`, when that sprite exists); the explicit pairs are the props. Your `line` replaces it. A fill with no `line` replaces the outline with nothing: it never keeps the vanilla outline by accident. A plain game sprite keeps its own automatic outline.
+- **`"none"`** swaps the fill and the line for an empty sprite. (`-1` would leave the slot's previous touch or enter in place, so it is not used.)
+- **A line needs a line sprite.** On an address whose sprites have no outline, `line` is a mod error (`a line is given, but ogre.standard.loop.body.any has no line sprite`). Most ogre art has none; the ogre GIANT and LILITH SHRINE art has.
+- **Frame count:** your sprite must have the frame count of the sprite it replaces; otherwise it is a mod error naming both counts. **Size and origin are not checked**: the art is drawn where the replaced sprite was, so it must have the same layout, rows included.
+- **Skin rows:** when the replaced sprite is one of the game's overlays with three skin rows (touch and enter), your art is drawn with the same three rows, so it needs them too.
+- **Two addresses that give one sprite different art in one block** are a mod error. A specific variant overrides `any` in the same part, whatever the order in the JSON.
+- **Lists:** a swap with a list picks one entry for each monster, at random, once for each monster and scene ([10.9](#109-monster_art-reference)); fill and line come from the same entry. The heads that GIANT draws, the DRINK goblin and the second G.BANG goblin have no monster of their own at that point: they read the pick of the cell's monster at place 0, else use the first entry.
+
+**Which art wins**
+
+- A class's art beats the global art, and between mods the last one loaded wins, per sprite name.
+- In a class, `monster_art` entries win over `mon_sprite_swap` entries ([16.11](#1611-mon_sprite_swap-replacing-monster-sprites-by-name-old-key)) for the same sprite, and the log says so.
+- **A class with `mon_spr_overrides` and `monster_art`:** for a sprite that both change, the old key wins, because the swap only sees vanilla names. The log names both: `[GNX] class 'Witch': mon_spr_overrides 'goblin_shrine_body_alpha' wins over monster_art for ...`. The old override sprites are not vanilla names either, so a class's old override keeps beating a global re-skin.
+- **Special classes in the shrine:** `*.shrine.loop.touch` and `*.shrine.loop.enter` never fire for an `is_special` captive (the shrine draws no touch or enter for her), so they are a mod error on such a class. The old key stays the way to do it: `goblin_shrine_touch`, `goblin_shrine_enter` and `hobgoblin_shrine_touch` ([16.5](#165-override-keys-that-work)).
+- **Cells:** a cell's own `monster_art` sprites beat all of this, because swaps only match vanilla names. A game sprite that a cell uses is swapped like any other.
+- **`override`:** an `override` entry whose `monster_art` gives swaps replaces all the swaps the base class had (the whole map, not entry by entry); with no swaps, the base's stay. `birth` aside, the other keys of `override` work as in [6.2](#62-override-changing-an-existing-class).
+- **Several mods:** two global files that swap the same sprite: the last one loaded wins.
+
+**The carrying ogre.** One address has no phase: `ogre.carry.walk`, the sprite of an ogre on patrol that carries a captive (`spr_ogre_walk_carry`, 8 frames). It takes one sprite, not a pair or a list:
+
+```json
+{ "monster_art": { "ogre": { "carry": { "walk": "gnx:witch_ogre_carry_walk" } } } }
+```
+
+In a class it applies when the ogre carries a captive of that class; in global scope for every captive. It replaces the old `patrol` override and a `mon_sprite_swap` of `spr_ogre_walk_carry`. The carried captive herself is drawn from the class's carry sprites ([6.5](#65-ogre-carry-sprites)). A `carry.walk` swap is drawn over a `world.walk_carry` file ([16.8](#168-world-art-how-monsters-stand-walk-and-carry)); the `world` art still sets the collision box.
+
+### 16.8 World art: how monsters stand, walk and carry
+
+`world` (global scope only) replaces the sprites the monsters walk, stand and carry with, which have no phases or captives. It sits inside a monster block of the manifest's `monster_art` ([16.7](#167-monster_art-by-class-and-for-all-monsters)). A class or a cell with a `world` block is a mod error.
+
+| Monster | Part | Game sprite | Frames |
+|---|---|---|---|
+| goblin | `idle` | `spr_goblin_idle` | free |
+| goblin | `walk` | `spr_goblin_walk` | free |
+| goblin | `walk_back` | `spr_goblin_b_walk` | free |
+| goblin | `milk_walk_empty` | `spr_goblin_milk_walk_e` | free |
+| goblin | `milk_walk_full` | `spr_goblin_milk_walk_f` | free |
+| hobgoblin | `idle` | `spr_hobgoblin_idle` | free |
+| hobgoblin | `walk` | `spr_hobgoblin_walk` | free |
+| hobgoblin | `walk_back` | `spr_hobgoblin_b_walk` | free |
+| hobgoblin | `carry` | `spr_hobgoblin_carry` | the game's (8) |
+| hobgoblin | `log` | `spr_hobgoblin_log` | the game's; only the first frame is drawn |
+| ogre | `idle` | `spr_ogre_idle` | free |
+| ogre | `walk` | `spr_ogre_walk` (also its back walk) | free |
+| ogre | `walk_carry` | `spr_ogre_walk_carry` | the game's (8) |
+
+- **Values** have the forms of `sprite_replace` ([5.9](#59-replacing-game-sprites-sprite_replace)): a folder, a `.png` strip with the game sprite's frame count, or a sprite entry object (`strip` and `frames`, `folder`, a `frames` list). A `gnx:` key, a game sprite name and a list are mod errors. The files are read from the mod folder, so they may live in any folder.
+- **Another size is allowed** (the art does not have to match the game sprite), but then `xorig` and `yorig` are **required**, both: without them it is a mod error and the game sprite stays (`... at another size xorig and yorig are required`). At the game's size the origin defaults to the game sprite's.
+- **Another frame count** is allowed for the parts marked free, and logged (`has 10 frames, the game sprite 8 (the game plays the frames it counts)`). The animation keeps the game sprite's playback speed, so more frames make a longer cycle. The parts marked "the game's" must keep the count: another count is a mod error naming both.
+- **The collision box stays the game's.** The runtime derives masks from the sprite, and the game uses them for patrol speed and for sending monsters into transfer cells, so GNX puts the original box back, shifted by the difference in origin, as a rectangle. Gameplay does not depend on the art you ship.
+- **`walk_carry` is a swap, not a replacement:** the game sprite keeps its collision box, which is far wider than its picture (470 px on a 115 px image) and which the runtime cuts to the picture if the sprite itself is replaced. So the art is stored as a global swap of `spr_ogre_walk_carry` and drawn instead of the game sprite. A class `ogre.carry.walk` swap is drawn over it, and the last global file loaded wins.
+- **Old and new together.** A `sprite_replace` of `spr_ogre_walk_carry` still replaces the sprite and cuts its box to the art, so fewer monsters are slowed by it, as before; its art is not drawn while a `walk_carry` or `carry.walk` swap exists.
+- **Order:** in one mod `sprite_replace` loads first and `world` second, so `world` wins for the same sprite. Between mods the last loaded wins.
+- **Atlas:** a `world` file whose base name is the name of an entry of the mod's atlas ([§20](#20-atlas-packing)) is read from the atlas. `check_mod.py` warns about it, because the file is then used only when the atlas has another frame count. Give the file another name.
+- **Where it shows:** the travel screen plays the walk sprite through all its frames, so a walk with another frame count animates correctly there. The mood bubble above a monster and the goblin's pack on the travel screen stay at fixed offsets: art of another size can sit wrong there.
+- **`active_dates`** ([5.9](#59-replacing-game-sprites-sprite_replace)) switches the whole global file off outside its dates, `world` included. Class and cell art is not gated.
+- **The frame limit** ([5.8](#58-packing-tool-and-atlas)) counts a replaced sprite three times: the frames of your art, the copy in the game's sprite and the frames of a backup of the game's own art, which GNX keeps so the original comes back when the mod is turned off. The `walk_carry` swap is not a replacement and is counted once.
+
+### 16.9 Address list
+
+Every address of this release, with the game sprites it swaps. The last column lists where else the game draws those sprites: other phases (`contact` is the pose a monster has when it reaches the cell) and other monsters. A swap changes them too. The list was made from a dump of every monster sprite the game picks, and a test checks that each sprite exists. The note about `leg_0` and `any` of [16.7](#167-monster_art-by-class-and-for-all-monsters) applies.
+
+| Address | Game sprites | Also drawn in |
+|---|---|---|
+| `goblin.dairy.loop.body.any` | `spr_h_goblin_dairy_loop_alpha` | phases `contact`, `start`, `ej`; also drawn by ogres |
+| `goblin.dairy.loop.touch.any` | `spr_h_goblin_dairy_loop_touch` | phases `contact`, `start`, `ej` |
+| `goblin.drink.loop.body.any` | `spr_h_goblin_drink_base`, `spr_h_goblin_drink_loop_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.drink.loop.body.cat` | `spr_h_goblin_drink_cat` |  |
+| `goblin.drink.loop.body.cow` | `spr_h_goblin_drink_cow` |  |
+| `goblin.drink.loop.body.lilith` | `spr_h_goblin_drink_lilith` |  |
+| `goblin.drink.loop.body.morrigan` | `spr_h_goblin_drink_morrigan` |  |
+| `goblin.drink.loop.body.nyx` | `spr_h_goblin_drink_nyx` |  |
+| `goblin.drink.loop.touch.any` | `spr_h_goblin_drink_loop_touch` | phases `contact`, `start`, `ej` |
+| `goblin.drink.loop.touch.cat` | `spr_h_goblin_drink_loop_touch_cat` | phases `contact`, `start`, `ej` |
+| `goblin.drink.loop.touch.lilith` | `spr_h_goblin_drink_loop_touch_lilith` | phases `contact`, `start`, `ej` |
+| `goblin.drink.loop.touch.morrigan` | `spr_h_goblin_drink_loop_touch_morrigan` | phases `contact`, `start`, `ej` |
+| `goblin.drink.loop.touch.nyx` | `spr_h_goblin_drink_loop_touch_nyx` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.body.any` | `spr_h_goblin_gb_1_loop_alpha`, `spr_h_goblin_gb_1_v3_loop_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.body.cow` | `spr_h_goblin_gb_1_cow_loop_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.body.leg_0` | `spr_h_goblin_gb_1_v3_loop_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.body.lilith` | `spr_h_goblin_gb_1_lilith_loop_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.touch.any` | `spr_h_ogre_touch_loop` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.touch.cat` | `spr_h_ogre_touch_loop_cat` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.touch.cow` | `spr_h_ogre_touch_loop_cow` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.touch.lilith` | `spr_h_ogre_touch_loop_lilith` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.touch.morrigan` | `spr_h_ogre_touch_loop_morrigan` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_1.loop.touch.nyx` | `spr_h_ogre_touch_loop_nyx` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.body.any` | `spr_h_goblin_gb_2_loop_alpha`, `spr_h_goblin_gb_2_v3_loop_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.body.cow` | `spr_h_goblin_gb_2_cow_loop_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.body.leg_0` | `spr_h_goblin_gb_2_v3_loop_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.enter.any` | `spr_h_goblin_gb_2_loop_enter` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.enter.cat` | `spr_h_goblin_gb_2_loop_enter_cat` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.enter.cow` | `spr_h_goblin_gb_2_loop_enter_cow` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.enter.lilith` | `spr_h_goblin_gb_2_loop_enter_lilith` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.enter.morrigan` | `spr_h_goblin_gb_2_loop_enter_morrigan` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_2.loop.enter.nyx` | `spr_h_goblin_gb_2_loop_enter_nyx` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.body.any` | `spr_h_goblin_gb_3_loop_body_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.enter.any` | `spr_h_goblin_gb_3_loop_enter` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.enter.cat` | `spr_h_goblin_gb_3_cat_loop_enter` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.enter.cow` | `spr_h_goblin_gb_3_cow_loop_enter` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.enter.lilith` | `spr_h_goblin_gb_3_lilith_loop_enter` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.enter.morrigan` | `spr_h_goblin_gb_3_morrigan_loop_enter` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.enter.nyx` | `spr_h_goblin_gb_3_nyx_loop_enter` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.hand.any` | `spr_h_goblin_gb_3_loop_hand_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.hand.cow` | `spr_h_goblin_gb_3_cow_loop_hand_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.gbang_3.loop.hand.lilith` | `spr_h_goblin_gb_3_lilith_loop_hand_alpha` | phases `contact`, `start`, `ej` |
+| `goblin.giant.loop.body.any` | `spr_h_goblin_body_alpha_giant` | phases `contact`, `ej` |
+| `goblin.giant.loop.enter.any` | `spr_h_goblin_enter_giant` | phases `contact`, `ej` |
+| `goblin.giant.loop.head` | `spr_h_goblin_head_alpha_giant` |  |
+| `goblin.giant.loop.pen` | `spr_h_goblin_pen_giant` | phases `contact`, `ej` |
+| `goblin.giant.loop.touch.any` | `spr_h_goblin_touch_giant` | phases `contact`, `ej` |
+| `goblin.giant.start.body.any` | `spr_h_goblin_body_start_alpha_giant` |  |
+| `goblin.giant.start.pen` | `spr_h_goblin_body_start_pen_giant` |  |
+| `goblin.shrine.loop.body.any` | `spr_h_goblin_shrine_alpha` | phases `ej` |
+| `goblin.shrine.loop.enter.any` | `spr_h_goblin_shrine_enter` | phases `ej` |
+| `goblin.shrine.loop.touch.any` | `spr_h_goblin_shrine_touch` | phases `ej` |
+| `goblin.shrine.start.body.any` | `spr_h_goblin_shrine_start_body_alpha` |  |
+| `goblin.shrine.start.hand.any` | `spr_h_goblin_shrine_start_hand_alpha` |  |
+| `goblin.shrine.start.pen` | `spr_h_goblin_shrine_start_pen` |  |
+| `goblin.standard.anal.ej.body.any` | `spr_h_goblin_body_ej_alpha_anal` |  |
+| `goblin.standard.anal.ej.body.cow` | `spr_h_goblin_body_ej_alpha_anal_cow` |  |
+| `goblin.standard.anal.ej.body.lilith` | `spr_h_goblin_body_ej_alpha_anal_lilith` |  |
+| `goblin.standard.anal.loop.body.any` | `spr_h_goblin_body_loop_alpha_anal` | phases `ej` |
+| `goblin.standard.anal.loop.body.cow` | `spr_h_goblin_body_loop_alpha_anal_cow` | phases `ej` |
+| `goblin.standard.anal.loop.body.lilith` | `spr_h_goblin_body_loop_alpha_anal_lilith` | phases `ej` |
+| `goblin.standard.anal.loop.enter.any` | `spr_h_goblin_enter_loop_anal` | phases `ej`; also drawn by hobgoblins |
+| `goblin.standard.anal.loop.enter.cat` | `spr_h_goblin_enter_loop_anal_cat` | phases `ej` |
+| `goblin.standard.anal.loop.enter.cow` | `spr_h_goblin_enter_loop_anal_cow` | phases `ej` |
+| `goblin.standard.anal.loop.enter.lilith` | `spr_h_goblin_enter_loop_anal_lilith` | phases `ej` |
+| `goblin.standard.anal.loop.enter.morrigan` | `spr_h_goblin_enter_loop_anal_morrigan` | phases `ej` |
+| `goblin.standard.anal.loop.enter.nyx` | `spr_h_goblin_enter_loop_anal_nyx` | phases `ej` |
+| `goblin.standard.anal.loop.hand.any` | `spr_h_goblin_hand_loop_alpha_anal` | phases `ej` |
+| `goblin.standard.anal.loop.head` | `spr_h_goblin_head_loop_alpha_anal` | phases `ej` |
+| `goblin.standard.anal.loop.pen` | `spr_h_goblin_pen_loop_anal` | phases `ej` |
+| `goblin.standard.anal.loop.touch.any` | `spr_h_goblin_touch_loop_anal` | phases `ej` |
+| `goblin.standard.anal.loop.touch.cat` | `spr_h_goblin_touch_loop_anal_cat` | phases `ej` |
+| `goblin.standard.anal.loop.touch.cow` | `spr_h_goblin_touch_loop_anal_cow` | phases `ej` |
+| `goblin.standard.anal.loop.touch.lilith` | `spr_h_goblin_touch_loop_anal_lilith` | phases `ej` |
+| `goblin.standard.anal.loop.touch.morrigan` | `spr_h_goblin_touch_loop_anal_morrigan` | phases `ej` |
+| `goblin.standard.anal.loop.touch.nyx` | `spr_h_goblin_touch_loop_anal_nyx` | phases `ej` |
+| `goblin.standard.anal.start.body.any` | `spr_h_goblin_body_start_alpha_anal` |  |
+| `goblin.standard.anal.start.body.cow` | `spr_h_goblin_body_start_alpha_anal_cow` |  |
+| `goblin.standard.anal.start.body.lilith` | `spr_h_goblin_body_start_alpha_anal_lilith` |  |
+| `goblin.standard.anal.start.hand.any` | `spr_h_goblin_hand_start_alpha_anal` |  |
+| `goblin.standard.anal.start.pen` | `spr_h_goblin_pen_start_anal` |  |
+| `goblin.standard.anal.start.touch.any` | `spr_h_goblin_touch_start_anal_v1`, `spr_h_goblin_touch_start_anal_v2` |  |
+| `goblin.standard.anal.start.touch.cat` | `spr_h_goblin_touch_start_anal_cat` |  |
+| `goblin.standard.anal.start.touch.cow` | `spr_h_goblin_touch_start_anal_cow` |  |
+| `goblin.standard.anal.start.touch.leg_1` | `spr_h_goblin_touch_start_anal_v1` |  |
+| `goblin.standard.anal.start.touch.leg_2` | `spr_h_goblin_touch_start_anal_v2` |  |
+| `goblin.standard.anal.start.touch.lilith` | `spr_h_goblin_touch_start_anal_lilith` |  |
+| `goblin.standard.anal.start.touch.morrigan` | `spr_h_goblin_touch_start_anal_morrigan` |  |
+| `goblin.standard.anal.start.touch.nyx` | `spr_h_goblin_touch_start_anal_nyx` |  |
+| `goblin.standard.ej.body.any` | `spr_h_goblin_body_ej_alpha` |  |
+| `goblin.standard.ej.body.cow` | `spr_h_goblin_body_ej_cow_alpha` |  |
+| `goblin.standard.ej.touch.any` | `spr_h_goblin_touch_ej` |  |
+| `goblin.standard.ej.touch.cat` | `spr_h_goblin_touch_ej_cat` |  |
+| `goblin.standard.ej.touch.cow` | `spr_h_goblin_touch_ej_cow` |  |
+| `goblin.standard.ej.touch.lilith` | `spr_h_goblin_touch_ej_lilith` |  |
+| `goblin.standard.ej.touch.morrigan` | `spr_h_goblin_touch_ej_morrigan` |  |
+| `goblin.standard.ej.touch.nyx` | `spr_h_goblin_touch_ej_nyx` |  |
+| `goblin.standard.loop.body.any` | `spr_h_goblin_body_loop_v1_alpha`, `spr_h_goblin_body_loop_v2_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.body.cow` | `spr_h_goblin_body_loop_cow_alpha` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.body.leg_1` | `spr_h_goblin_body_loop_v1_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.body.leg_2` | `spr_h_goblin_body_loop_v2_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.enter.any` | `spr_h_goblin_enter_loop` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.enter.cat` | `spr_h_goblin_enter_loop_cat` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.enter.cow` | `spr_h_goblin_enter_loop_cow` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.enter.lilith` | `spr_h_goblin_enter_loop_lilith` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.enter.morrigan` | `spr_h_goblin_enter_loop_morrigan` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.enter.nyx` | `spr_h_goblin_enter_loop_nyx` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.hand.any` | `spr_h_goblin_hand_loop_v1_alpha`, `spr_h_goblin_hand_loop_v2_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.hand.cow` | `spr_h_goblin_hand_loop_cow_alpha` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.hand.leg_1` | `spr_h_goblin_hand_loop_v1_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.hand.leg_2` | `spr_h_goblin_hand_loop_v2_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.head` | `spr_h_goblin_head_loop_d1_alpha`, `spr_h_goblin_head_loop_d2_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.pen` | `spr_h_goblin_pen_loop` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.touch.any` | `spr_h_goblin_touch_loop_v1`, `spr_h_goblin_touch_loop_v2` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.touch.cat` | `spr_h_goblin_touch_loop_cat` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.touch.cow` | `spr_h_goblin_touch_loop_cow` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.touch.leg_1` | `spr_h_goblin_touch_loop_v1` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.touch.leg_2` | `spr_h_goblin_touch_loop_v2` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.touch.lilith` | `spr_h_goblin_touch_loop_lilith` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.touch.morrigan` | `spr_h_goblin_touch_loop_morrigan` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.loop.touch.nyx` | `spr_h_goblin_touch_loop_nyx` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `goblin.standard.start.body.any` | `spr_h_goblin_body_start_v1_alpha`, `spr_h_goblin_body_start_v2_alpha` | phases `idle_start` |
+| `goblin.standard.start.body.cow` | `spr_h_goblin_body_start_cow_alpha` | phases `idle_start` |
+| `goblin.standard.start.body.leg_1` | `spr_h_goblin_body_start_v1_alpha` | phases `idle_start` |
+| `goblin.standard.start.body.leg_2` | `spr_h_goblin_body_start_v2_alpha` | phases `idle_start` |
+| `goblin.standard.start.hand.any` | `spr_h_goblin_hand_start_alpha` | phases `idle_start` |
+| `goblin.standard.start.pen` | `spr_h_goblin_pen_start` | phases `idle_start` |
+| `goblin.standard.start.touch.any` | `spr_h_goblin_touch_start` | phases `idle_start` |
+| `goblin.standard.start.touch.cat` | `spr_h_goblin_touch_start_cat` | phases `idle_start` |
+| `goblin.standard.start.touch.cow` | `spr_h_goblin_touch_start_cow` | phases `idle_start` |
+| `goblin.standard.start.touch.lilith` | `spr_h_goblin_touch_start_lilith` | phases `idle_start` |
+| `goblin.standard.start.touch.morrigan` | `spr_h_goblin_touch_start_morrigan` | phases `idle_start` |
+| `goblin.standard.start.touch.nyx` | `spr_h_goblin_touch_start_nyx` | phases `idle_start` |
+| `hobgoblin.dairy.loop.body.any` | `spr_h_hobgoblin_dairy_loop_alpha` | phases `contact`, `start`, `ej` |
+| `hobgoblin.dairy.loop.touch.any` | `spr_h_hobgoblin_dairy_loop_touch` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_1.loop.body.any` | `spr_h_hobgoblin_gb_1_loop_alpha`, `spr_h_hobgoblin_gb_1_v3_loop_alpha` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_1.loop.body.leg_0` | `spr_h_hobgoblin_gb_1_v3_loop_alpha` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_1.loop.body.lilith` | `spr_h_hobgoblin_gb_1_lilith_loop_alpha` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.body.any` | `spr_h_hobgoblin_gb_3_loop_body_alpha` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.enter.any` | `spr_h_hobgoblin_gb_3_loop_enter` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.enter.cat` | `spr_h_hobgoblin_gb_3_cat_loop_enter` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.enter.cow` | `spr_h_hobgoblin_gb_3_cow_loop_enter` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.enter.lilith` | `spr_h_hobgoblin_gb_3_lilith_loop_enter` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.enter.morrigan` | `spr_h_hobgoblin_gb_3_morrigan_loop_enter` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.enter.nyx` | `spr_h_hobgoblin_gb_3_nyx_loop_enter` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.hand.any` | `spr_h_hobgoblin_gb_3_loop_hand_alpha` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.hand.cow` | `spr_h_hobgoblin_gb_3_cow_loop_hand_alpha` | phases `contact`, `start`, `ej` |
+| `hobgoblin.gbang_3.loop.hand.lilith` | `spr_h_hobgoblin_gb_3_lilith_loop_hand_alpha` | phases `contact`, `start`, `ej` |
+| `hobgoblin.giant.loop.body.any` | `spr_h_hobgoblin_body_alpha_giant` | phases `contact`, `ej` |
+| `hobgoblin.giant.loop.enter.any` | `spr_h_hobgoblin_enter_giant` | phases `contact`, `ej` |
+| `hobgoblin.giant.loop.head` | `spr_h_hobgoblin_head_alpha_giant` |  |
+| `hobgoblin.giant.loop.pen` | `spr_h_hobgoblin_pen_giant` | phases `contact`, `ej` |
+| `hobgoblin.giant.loop.touch.any` | `spr_h_hobgoblin_touch_giant` | phases `contact`, `ej` |
+| `hobgoblin.giant.start.body.any` | `spr_h_hobgoblin_body_start_alpha_giant` |  |
+| `hobgoblin.giant.start.pen` | `spr_h_hobgoblin_body_start_pen_giant` |  |
+| `hobgoblin.shrine.loop.body.any` | `spr_h_hobgoblin_shrine_alpha` | phases `ej` |
+| `hobgoblin.shrine.loop.enter.any` | `spr_h_hobgoblin_shrine_enter` | phases `ej` |
+| `hobgoblin.shrine.loop.touch.any` | `spr_h_hobgoblin_shrine_touch` | phases `ej` |
+| `hobgoblin.shrine.start.body.any` | `spr_hobgoblin_shrine_start_body_alpha` |  |
+| `hobgoblin.shrine.start.hand.any` | `spr_hobgoblin_shrine_start_hand_alpha` |  |
+| `hobgoblin.shrine.start.pen` | `spr_hobgoblin_shrine_start_pen` |  |
+| `hobgoblin.standard.anal.loop.body.any` | `spr_h_hobgoblin_body_loop_alpha_anal` | phases `ej` |
+| `hobgoblin.standard.anal.loop.enter.cat` | `spr_h_hobgoblin_enter_loop_anal_cat` |  |
+| `hobgoblin.standard.anal.loop.enter.cow` | `spr_h_hobgoblin_enter_loop_anal_cow` |  |
+| `hobgoblin.standard.anal.loop.enter.lilith` | `spr_h_hobgoblin_enter_loop_anal_lilith` |  |
+| `hobgoblin.standard.anal.loop.enter.morrigan` | `spr_h_hobgoblin_enter_loop_anal_morrigan` |  |
+| `hobgoblin.standard.anal.loop.enter.nyx` | `spr_h_hobgoblin_enter_loop_anal_nyx` |  |
+| `hobgoblin.standard.anal.loop.hand.any` | `spr_h_hobgoblin_hand_loop_alpha_anal` | phases `ej` |
+| `hobgoblin.standard.anal.loop.head` | `spr_h_hobgoblin_head_loop_alpha_anal` | phases `ej` |
+| `hobgoblin.standard.anal.loop.pen` | `spr_h_hobgoblin_pen_loop_anal` | phases `ej` |
+| `hobgoblin.standard.anal.loop.touch.any` | `spr_h_hobgoblin_touch_loop_anal` | phases `ej` |
+| `hobgoblin.standard.anal.loop.touch.cat` | `spr_h_hobgoblin_touch_loop_anal_cat` |  |
+| `hobgoblin.standard.anal.loop.touch.cow` | `spr_h_hobgoblin_touch_loop_anal_cow` |  |
+| `hobgoblin.standard.anal.loop.touch.morrigan` | `spr_h_hobgoblin_touch_loop_anal_morrigan` |  |
+| `hobgoblin.standard.anal.loop.touch.nyx` | `spr_h_hobgoblin_touch_loop_anal_nyx` |  |
+| `hobgoblin.standard.anal.start.body.any` | `spr_h_hobgoblin_body_start_alpha_anal` |  |
+| `hobgoblin.standard.anal.start.hand.any` | `spr_h_hobgoblin_hand_start_alpha_anal` |  |
+| `hobgoblin.standard.anal.start.pen` | `spr_h_hobgoblin_pen_start_anal` |  |
+| `hobgoblin.standard.ej.body.any` | `spr_h_hobgoblin_body_ej_alpha` |  |
+| `hobgoblin.standard.ej.hand.any` | `spr_h_hobgoblin_hand_ej_alpha` |  |
+| `hobgoblin.standard.loop.body.any` | `spr_h_hobgoblin_body_loop_v1_alpha`, `spr_h_hobgoblin_body_loop_v2_alpha`, `spr_h_hobgoblin_body_loop_v3_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.body.cow` | `spr_h_hobgoblin_body_loop_cow_alpha` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.body.leg_0` | `spr_h_hobgoblin_body_loop_v3_alpha` | phases `contact`, `start_loop`, `ej` |
+| `hobgoblin.standard.loop.body.leg_1` | `spr_h_hobgoblin_body_loop_v1_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.body.leg_2` | `spr_h_hobgoblin_body_loop_v2_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.enter.any` | `spr_h_hobgoblin_enter_loop` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.enter.cat` | `spr_h_hobgoblin_enter_loop_cat` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.enter.cow` | `spr_h_hobgoblin_enter_loop_cow` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.enter.lilith` | `spr_h_hobgoblin_enter_loop_lilith` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.enter.morrigan` | `spr_h_hobgoblin_enter_loop_morrigan` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.enter.nyx` | `spr_h_hobgoblin_enter_loop_nyx` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.hand.any` | `spr_h_hobgoblin_hand_loop_v1_alpha`, `spr_h_hobgoblin_hand_loop_v1_d1_alpha`, `spr_h_hobgoblin_hand_loop_v2_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.hand.leg_1` | `spr_h_hobgoblin_hand_loop_v1_alpha`, `spr_h_hobgoblin_hand_loop_v1_d1_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.hand.leg_2` | `spr_h_hobgoblin_hand_loop_v2_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.head` | `spr_h_hobgoblin_head_loop_alpha` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.pen` | `spr_h_hobgoblin_pen_loop` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.touch.any` | `spr_h_hobgoblin_touch_loop` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.touch.cat` | `spr_h_hobgoblin_touch_loop_cat` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.touch.cow` | `spr_h_hobgoblin_touch_loop_cow` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.touch.lilith` | `spr_h_hobgoblin_touch_loop_lilith` | phases `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.touch.morrigan` | `spr_h_hobgoblin_touch_loop_morrigan` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.loop.touch.nyx` | `spr_h_hobgoblin_touch_loop_nyx` | phases `start_loop`, `loop_ej`, `ej`, `ej_end` |
+| `hobgoblin.standard.start.body.any` | `spr_h_hobgoblin_body_start_v1_alpha`, `spr_h_hobgoblin_body_start_v2_alpha`, `spr_h_hobgoblin_body_start_v3_alpha` | phases `idle_start` |
+| `hobgoblin.standard.start.body.cow` | `spr_h_hobgoblin_body_start_cow_alpha` | phases `idle_start` |
+| `hobgoblin.standard.start.body.leg_0` | `spr_h_hobgoblin_body_start_v3_alpha` | phases `idle_start` |
+| `hobgoblin.standard.start.body.leg_1` | `spr_h_hobgoblin_body_start_v1_alpha` | phases `idle_start` |
+| `hobgoblin.standard.start.body.leg_2` | `spr_h_hobgoblin_body_start_v2_alpha` | phases `idle_start` |
+| `hobgoblin.standard.start.hand.any` | `spr_h_hobgoblin_hand_start_d1_alpha`, `spr_h_hobgoblin_hand_start_d2_alpha` | phases `idle_start` |
+| `hobgoblin.standard.start.hand.cow` | `spr_h_hobgoblin_hand_start_cow_alpha` | phases `idle_start` |
+| `hobgoblin.standard.start.pen` | `spr_h_hobgoblin_pen_start` | phases `idle_start` |
+| `ogre.carry.walk` | `spr_ogre_walk_carry` |  |
+| `ogre.giant.loop.body.any` | `spr_h_ogre_giant_loop_alpha` | phases `contact`, `ej` |
+| `ogre.giant.loop.pen` | `spr_h_ogre_giant_loop_pen` | phases `contact`, `ej` |
+| `ogre.giant.loop.touch.any` | `spr_h_ogre_giant_loop_touch` | phases `contact`, `ej` |
+| `ogre.giant.start.body.any` | `spr_h_ogre_giant_start_alpha` |  |
+| `ogre.giant.start.pen` | `spr_h_ogre_giant_start_pen` |  |
+| `ogre.shrine.loop.body.any` | `spr_h_ogre_shrine_loop_alpha` | phases `ej` |
+| `ogre.shrine.loop.enter.any` | `spr_h_ogre_shrine_loop_enter` | phases `ej` |
+| `ogre.shrine.start.body.any` | `spr_h_ogre_shrine_start_alpha` |  |
+| `ogre.shrine.start.pen` | `spr_h_ogre_shrine_start_enter` |  |
+| `ogre.standard.loop.body.any` | `spr_h_ogre_body_loop`, `spr_h_ogre_body_loop_v3` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_birth`, `ej_end` |
+| `ogre.standard.loop.body.cow` | `spr_h_ogre_body_loop_cow` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_birth`, `ej_end` |
+| `ogre.standard.loop.body.leg_0` | `spr_h_ogre_body_loop_v3` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_birth`, `ej_end` |
+| `ogre.standard.loop.body.lilith` | `spr_h_ogre_body_loop_lilith` | phases `contact`, `start_loop`, `loop_ej`, `ej`, `ej_birth`, `ej_end` |
+| `ogre.standard.start.body.any` | `spr_h_ogre_body_start`, `spr_h_ogre_body_start_v3` | phases `idle_start` |
+| `ogre.standard.start.body.cow` | `spr_h_ogre_body_start_cow` | phases `idle_start` |
+| `ogre.standard.start.body.leg_0` | `spr_h_ogre_body_start_v3` | phases `idle_start` |
+| `ogre.carry.walk` | `spr_ogre_walk_carry` | the walk of an ogre that carries a captive (see 16.7) |
+
+Not in the list, on purpose: props (`spr_crate`, `spr_fence` and the like, which no one monster owns), the background, dirt and sign sprites of the shrine, the cloth of GIANT and the blink of DAIRY (all these stay with `sprite_replace` and the old keys), the shared sheets `spr_mon_icon`, `spr_mon_icon_head` (one sheet for every monster, also an item icon) and `spr_infant_ui_head`. The milk goblin, the chains of CHAINS, the hobgoblin that carries a captive and the birth sprites have no address in this release.
+
+### 16.10 Limits of monster_art
+
+- **A swap changes a sprite everywhere it is drawn** ([16.7](#167-monster_art-by-class-and-for-all-monsters)). In a cell, use the cell's own `monster_art` ([10.8](#108-monster_art-monster-sprites-in-a-cell)); art for one class in one custom cell is not possible with swaps.
+- **Cells where art is not drawn:** the cells of [10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn) refuse cell art for the monsters and parts they would not draw. Class and global art still reaches them.
+- **Vanilla cells take one row per phase** (2 frames for `start`, 5 for the others) in cell art ([10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn)).
+- **World art:** another size needs `xorig` and `yorig`; the mood bubble and the pack on the travel screen stay at fixed offsets; hobgoblin `carry` and ogre `walk_carry` keep the game's 8 frames; a hobgoblin that carries a captive cannot be changed by class in this release.
+- **Ogre lines:** `line` on an ogre address only where the list has a line sprite (GIANT and LILITH SHRINE art).
+- **Anal scenes in cells with several monsters:** `anal` is rolled again at every arrival, so a monster can change art set at its next phase ([10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn)).
+- **Shared sheets and props use `sprite_replace`** ([5.9](#59-replacing-game-sprites-sprite_replace)).
+- **Old GNX versions:** GNX 1.5.0 and older ignore `min_gnx_version` and load the mod without the art: a mod cell with only `monster_art` shows vanilla monsters there. GNX 1.5.1 reads `min_gnx_version` and refuses the mod ([4.2](#42-the-version-check)); set it to `1.5.2`.
+- **The frame limit:** the runtime stops showing sprites past about 32,700 frames from mods. The MODS page shows the count. Atlases help for scene art; `world` art and replaced sprites count frame by frame, and a replaced game sprite counts three times, with its copy and its backup ([5.8](#58-packing-tool-and-atlas)).
+- **Tools:** `build_mod.py` copies the files that the manifest's `sprite_replace` and global `monster_art` name, from any folder. The strips of a cell's or a class's `sprites` must stay in `strips/` (or the folders the tool lists), as for every other sprite.
+
+### 16.11 mon_sprite_swap: replacing monster sprites by name (old key)
 
 `mon_sprite_swap` replaces vanilla monster sprites **by their game name**, wherever the game would draw them on a captive of your class: every cell, every phase, goblins, hobgoblins and ogres. This is how vanilla fits the monsters to the Cow's body (`spr_h_hobgoblin_body_loop_cow_alpha` instead of `spr_h_hobgoblin_body_loop_v1_alpha`); with it, a class with another body shape can get monsters that fit it.
 
@@ -4463,7 +4922,7 @@ A count written as text or outside 1–99, or a pair with min above max, is a mo
 
 ### 22.5 The frame rule for every mod cell
 
-When a mod cell loads, GNX checks its strips (new in 1.5): every captive strip in the `human_spr` tables and every monster strip in `mon_spr`, `mon_spr_hob`, `mon_spr_ogr` and the placement keys must have the frame count of its phase. Without `frames` these are the vanilla counts: start 2, idle 2, loop 5, ejaculation 5, birth 2.
+When a mod cell loads, GNX checks its strips (new in 1.5): every captive strip in the `human_spr` tables and every monster strip in `monster_art`, `mon_spr`, `mon_spr_hob`, `mon_spr_ogr` and the placement keys must have the frame count of its phase. Without `frames` these are the vanilla counts: start 2, idle 2, loop 5, ejaculation 5, birth 2.
 
 - **Fewer frames** than the phase needs is a mod error naming the strip, where it is used and the count it needs, for example `[GNX] ERROR: Cell 'BIG ALTAR': strip 'gob_back_loop' (mon_spr_p1.loop) has 3 frames, it needs 5 per row`. The game goes on; the strip only shows wrong frames.
 - **More frames** that are not a whole multiple of the count is only a log line, because one strip can hold several rows (skins, placements) or be shared with a longer phase: `[GNX-FRAMES] BIG ALTAR: strip '<key>' (<where>) has 7 frames, the phase uses 5 per row; the last 2 are not shown`.
@@ -4546,7 +5005,7 @@ These keys are added to a fixed-mode standard cell such as the ALTAR of [10.3](#
 All optional, by the intermission's name:
 
 - **captive:** `human_spr.phase_<name>`, built like `phase_1` ([10.3](#103-fixed)); in `class_map` mode per class or in `default` ([10.5](#105-class_map));
-- **monsters:** `mon_spr.<name>`, and the same in `mon_spr_hob`, `mon_spr_ogr` and the placement keys: a block like `loop` (`head`, `body`, `hand`, `pen`, `touch`, `enter`, [10.9](#109-mon_spr-reference)). Without it the monsters keep the strips of the phase the intermission leads into;
+- **monsters:** `mon_spr.<name>`, and the same in `mon_spr_hob`, `mon_spr_ogr` and the placement keys: a block like `loop` (`head`, `body`, `hand`, `pen`, `touch`, `enter`, [C.2](#c2-mon_spr-reference)). With `monster_art` an intermission is a phase block of the same name ([10.9](#109-monster_art-reference)). Without it the monsters keep the strips of the phase the intermission leads into;
 - **captive hands:** `physical.hand_frames.frame_<name>` ([9.7](#97-hands-hand_x-hand_y-hand_xscale-hand_angle-hand_frames));
 - **underground cells:** `tent_spr.<name>` and `milk_spr.<name>` ([§24](#24-underground-cells)).
 
@@ -4699,7 +5158,7 @@ Declared intermissions play in between ([§23](#23-intermissions)). Between scen
 | `physical.birth_rest` | Seconds the captive keeps the birth frames after the newborn is out, 0–60; `0` = straight to idle. | number | 2 |
 | `physical.hand_frames.frame_0` | Hand frames during the start, like `frame_1` … `frame_4` ([9.7](#97-hands-hand_x-hand_y-hand_xscale-hand_angle-hand_frames)). | list | none |
 
-**The captive's pictures** come from `human_spr` in `fixed` or `class_map` mode ([§10](#10-cell-sprites-human_spr-and-mon_spr)), one table per phase: `phase_0` start, `phase_1` idle, `phase_2` loop, `phase_3` ejaculation, `phase_4` birth. Without `phase_0` the start uses `phase_1`, and without `phase_3` the ejaculation uses `phase_2`; their frame counts must then match, or those strips must loop ([22.6](#226-looping-captive-strips)). `phase_1`, `phase_2` and `phase_4` are needed. Every strip follows the frame rule with the cell's own counts ([22.5](#225-the-frame-rule-for-every-mod-cell)).
+**The captive's pictures** come from `human_spr` in `fixed` or `class_map` mode ([§10](#10-cell-sprites-human_spr-and-monster_art)), one table per phase: `phase_0` start, `phase_1` idle, `phase_2` loop, `phase_3` ejaculation, `phase_4` birth. Without `phase_0` the start uses `phase_1`, and without `phase_3` the ejaculation uses `phase_2`; their frame counts must then match, or those strips must loop ([22.6](#226-looping-captive-strips)). `phase_1`, `phase_2` and `phase_4` are needed. Every strip follows the frame rule with the cell's own counts ([22.5](#225-the-frame-rule-for-every-mod-cell)).
 
 ### 24.4 The tentacle (tent_spr)
 
@@ -5184,8 +5643,8 @@ Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave 
 | `[GNX-SANITIZE] orphaned cell h=<N> -> rebuild as h=<N>` | A save holds a cell type that no longer exists; it was rebuilt as a vanilla cell. | Same causes. |
 | `[GNX-TEST] FAIL  T16 mod class entries invalid: <ids>` | These mod classes have neither `clothing_standard` nor `clothing_giant`. | Add a clothing map ([§7](#7-clothing-maps-how-a-class-looks-in-each-cell)). |
 | `[GNX-TEST] FAIL  T84 bad required_class: h<N>[<i>]` | Entry `<i>` of cell `<N>`'s `required_class` (a single value: `h<N>`) is still unresolved text. | See the `required_class ref ... not found` warning above it. |
-| `[GNX-TEST] FAIL  DROUTE h=<N> FIXED_MISSING_PHASE` | A fixed-mode cell lacks `phase_1` or `phase_2`. | Add both ([§10](#10-cell-sprites-human_spr-and-mon_spr)). |
-| `[GNX-TEST] FAIL  DROUTE h=<N> c=<class> CLASS_MAP_NO_MATCH` | A `class_map` cell has no `default` and does not list this class. | Add a `default` or list the class ([§10](#10-cell-sprites-human_spr-and-mon_spr)). |
+| `[GNX-TEST] FAIL  DROUTE h=<N> FIXED_MISSING_PHASE` | A fixed-mode cell lacks `phase_1` or `phase_2`. | Add both ([§10](#10-cell-sprites-human_spr-and-monster_art)). |
+| `[GNX-TEST] FAIL  DROUTE h=<N> c=<class> CLASS_MAP_NO_MATCH` | A `class_map` cell has no `default` and does not list this class. | Add a `default` or list the class ([§10](#10-cell-sprites-human_spr-and-monster_art)). |
 | `[GNX] ERROR: Cell '<name>': <key> must be <range> (<value>); <value> is used` (also `Prop '<folder>.<id>'`, `Class '<name>'`, `Sprite '<key>'`) | A value is out of range, of the wrong kind or misspelled. GNX used the value at the end; the rest loads. | Fix the named key ([19.2](#192-prop-fields), [§22](#22-scene-timing-frame-counts-start-ej-and-loop-strips) to [§24](#24-underground-cells)). |
 | `[GNX] ERROR: Cell '<name>': strip '<key>' (<where>) has <n> frames, it needs <m> per row` | A cell strip is shorter than its phase. | Give it the phase's frame count, or loop it if it is a captive strip ([22.5](#225-the-frame-rule-for-every-mod-cell)). |
 | `[GNX-FRAMES] <cell>: strip '<key>' (<where>) has <n> frames, the phase uses <m> per row; the last <k> are not shown` | Information: a strip has frames left over after its last full row. | Nothing, if the strip is shared on purpose ([22.5](#225-the-frame-rule-for-every-mod-cell)). |
@@ -5217,6 +5676,13 @@ Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave 
 | `[GNX] ERROR: Mod '<folder>': event '<folder>.<event>': completion_hook must be a text such as "cell_built", not <value>; "frame" is used` | `completion_hook` is an object or a number (1.5.1). | Write it as text: `"completion_hook": "cell_built"`. |
 | `[GNX] ERROR: Mod '<folder>': a condition is <value>, not an object like {"type": "state_equals", ...}; it never matches` (also `a condition has no "type"; it never matches`) | A condition in a quest, trigger, raid spawn, cage escape, tower boss or map unlock is not an object, or has no `type` (1.5.1). | Write it as an object with `type`, for example `{"type": "state_equals", "key": "stage", "value": 1}`. |
 | `[GNX] ERROR: Mod '<folder>': map_info.unlock is <value>, not a condition object or a list of them; the map stays hidden` | `unlock` is text, a number, true/false or `null` (1.5.1). | Write a condition object or a list of them ([21.2](#212-map_info)). |
+| `[GNX] ERROR: Cell '<name>' monster_art.<monster>.<phase>: <phase> needs a body` (also `... unknown part`, `... unknown variant`, `... mixes fill and variants`, `... sprite not found`) | A phase block of a cell's `monster_art` is wrong (1.5.2). | Check [10.9](#109-monster_art-reference); every `start` and `loop` needs a `body`. |
+| `[GNX] ERROR: Cell <h_type> monster_art.<monster>: not drawn on this cell` | The vanilla cell sets that monster's sprites itself, or never calls it (1.5.2). | See the list in [10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn); use class or global `monster_art` ([16.7](#167-monster_art-by-class-and-for-all-monsters)) there. |
+| `[GNX] ERROR: Cell <h_type> monster_art.<monster>.<phase>.<part>: has <N> frames, one row here is <M>` | Art on a vanilla cell must be exactly one row: 2 frames for `start`, 5 for the others (1.5.2). | [10.10](#1010-anal-scenes-places-vanilla-cells-and-where-art-is-not-drawn). |
+| `[GNX] ERROR: class '<name>' monster_art.<monster>...: no address <address>` | The address is not in the list (1.5.2). | Take it from [16.9](#169-address-list); `goblin.standard` has `leg_1`, not `leg_0`. |
+| `[GNX] ERROR: ... art for <sprite> has <N> frames, the game sprite <M>` | A swap must have the frame count of the sprite it replaces (1.5.2). | Match the count; size and origin are not checked, so keep the layout too ([16.7](#167-monster_art-by-class-and-for-all-monsters)). |
+| `[GNX] ERROR: ... at another size xorig and yorig are required` | `world` art with a size other than the game sprite's has no origin (1.5.2). | Give both `xorig` and `yorig` ([16.8](#168-world-art-how-monsters-stand-walk-and-carry)). |
+
 
 ### B.3 Common mistakes
 
@@ -5230,8 +5696,10 @@ Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave 
 - **`class_id` without `"override": true`:** ignored; the class gets a hash ID ([§6](#6-classes-classesjson)).
 - **An explicit `h_type` that already exists:** the entry patches that cell. Leave `h_type` out for new cells, or use 100 or higher: below 100, custom monster sprites miss vanilla captives and `mon_positions` does not change the strip rows ([§8](#8-cells-cellsjson)).
 - **Misspelled `category`:** the cell appears in no build menu, with no warning at load time ([§8](#8-cells-cellsjson)).
-- **Missing phases:** fixed-mode cells need `phase_1` and `phase_2`, plus `phase_0` for a big cell starting with `scr_slot_h_big_start` ([§10](#10-cell-sprites-human_spr-and-mon_spr)).
-- **Missing monster sprites:** without `mon_spr` / `mon_spr_hob` / `mon_spr_ogr` for a monster type, vanilla sprites (usually the wall-cell pose) are drawn ([§10](#10-cell-sprites-human_spr-and-mon_spr)).
+- **Missing phases:** fixed-mode cells need `phase_1` and `phase_2`, plus `phase_0` for a big cell starting with `scr_slot_h_big_start` ([§10](#10-cell-sprites-human_spr-and-monster_art)).
+- **Missing monster sprites:** without `monster_art` (or the old `mon_spr` / `mon_spr_hob` / `mon_spr_ogr`) for a monster type, vanilla sprites (usually the wall-cell pose) are drawn ([§10](#10-cell-sprites-human_spr-and-monster_art)).
+- **`monster_art` without `min_gnx_version`:** GNX 1.5.0 and older load the mod and ignore the art; a mod cell with only `monster_art` shows vanilla monsters there ([4.2](#42-the-version-check)).
+- **A class swap that changes more than you meant:** an address swaps the sprite everywhere the game draws it, `ej` and the intermissions included ([16.7](#167-monster_art-by-class-and-for-all-monsters)).
 - **No troop choice for offspring:** a mod class without `birth_class` and `birth_classes` gives children of troop type 0 ([§14](#14-pregnancy-and-birth)).
 - **Too short BIRTH 2 strip:** `birth_2` needs 6 frames per skin (18 for a normal class), although the last frame of each block is never shown ([14.4](#144-birth_spr-birth-animations)).
 - **Raid weights too high:** vanilla weights are 12–65 per pool, the default 10; 100–200 puts your class in almost every encounter ([§13](#13-raid-spawns-and-the-trade-shop)).
@@ -5245,3 +5713,141 @@ Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave 
 - **Prop numbers in tools and quests:** write the prop's name; a number can change when two prop names collide ([19.5](#195-prop-ids)).
 - **Cell strips with the wrong frame count:** every strip needs the frame count of its phase; read the `Cell '<name>': strip '<key>' ...` errors ([22.5](#225-the-frame-rule-for-every-mod-cell)).
 - **Parts of an underground cell missing:** the GNX graphics are not in `GNX_assets`, or the cell's own walls or band are missing ([24.1](#241-what-gnx-fills-in)).
+
+---
+
+## Appendix C. Old monster keys
+
+The keys `mon_spr`, `mon_spr_hob`, `mon_spr_ogr` and the placement keys (`mon_spr_p0` to `mon_spr_ogr_p2`, [11.2](#112-per-placement-sprite-keys)) give the monsters of one cell their sprites. They are the way mods were written before GNX 1.5.2, they keep working in every later version, and a cell can carry them together with `monster_art` ([10.8](#108-monster_art-monster-sprites-in-a-cell)), which wins when it has art for the monster. The old class keys are in [16.4](#164-mon_spr_overrides-how-it-works) to [16.6](#166-override-keys-that-gnx-reads-but-does-not-apply) and [16.11](#1611-mon_sprite_swap-replacing-monster-sprites-by-name-old-key). The text below is the reference for the cell keys as it was in 1.5.1.
+
+### C.1 mon_spr: monster sprites
+
+`mon_spr` replaces the goblin sprites in this cell, `mon_spr_hob` the hobgoblin's and `mon_spr_ogr` the ogre's, all with the same structure. This example gives the ALTAR its own goblin and hobgoblin:
+
+```json
+{
+  "mon_types": [0, 1],
+  "mon_spr": {
+    "start": {
+      "body": {
+        "leg_1": { "alpha": "gnx:gob_altar_start_v1", "line": "gnx:gob_altar_start_v1_line" },
+        "leg_2": { "alpha": "gnx:gob_altar_start_v2", "line": "gnx:gob_altar_start_v2_line" },
+        "leg_any": { "alpha": "gnx:gob_altar_start_v1", "line": "gnx:gob_altar_start_v1_line" }
+      },
+      "hand": { "alpha": "gnx:gob_altar_start_hand", "line": "gnx:gob_altar_start_hand_line" },
+      "pen": "gnx:gob_altar_start_pen",
+      "touch": "gnx:gob_altar_start_touch",
+      "hand_xscale": "random"
+    },
+    "loop": {
+      "head": [
+        { "alpha": "gnx:gob_altar_head_a", "line": "gnx:gob_altar_head_a_line" },
+        { "alpha": "gnx:gob_altar_head_b", "line": "gnx:gob_altar_head_b_line" }
+      ],
+      "body": {
+        "leg_any": { "alpha": "gnx:gob_altar_loop", "line": "gnx:gob_altar_loop_line" },
+        "cow": { "alpha": "gnx:gob_altar_loop_cow", "line": "gnx:gob_altar_loop_cow_line" }
+      },
+      "hand": {
+        "leg_any": { "alpha": "gnx:gob_altar_loop_hand", "line": "gnx:gob_altar_loop_hand_line" }
+      },
+      "pen": "gnx:gob_altar_loop_pen",
+      "touch": { "default": "gnx:gob_altar_loop_touch", "cow": "gnx:gob_altar_loop_touch_cow" },
+      "enter": "gnx:gob_altar_loop_enter"
+    },
+    "ej": {
+      "body": {
+        "leg_any": { "alpha": "gnx:gob_altar_ej", "line": "gnx:gob_altar_ej_line" }
+      }
+    }
+  },
+  "mon_spr_hob": {
+    "start": {
+      "body": {
+        "leg_any": { "alpha": "gnx:hob_altar_start", "line": "gnx:hob_altar_start_line" }
+      }
+    },
+    "loop": {
+      "body": {
+        "leg_any": { "alpha": "gnx:hob_altar_loop", "line": "gnx:hob_altar_loop_line" }
+      },
+      "pen": "gnx:hob_altar_loop_pen"
+    }
+  }
+}
+```
+
+(Every `gnx:` key also needs an entry in the cell's `sprites`, as in [8.1](#81-minimal-example-the-altar-cell).)
+
+**What this example does**
+
+- `"mon_types": [0, 1]`: goblins and hobgoblins come, and both may use this cell's sprites.
+- `start`: the body depends on the captive's leg variant (`leg_1`, `leg_2`, otherwise `leg_any`); the hand is one fill + line pair; `pen` and `touch` are single sprites; `"hand_xscale": "random"` mirrors the goblin's hand at random each time.
+- `loop` (both loops): one of two heads is picked at random each time the loop sprites are set. The vanilla Cow class gets the `cow` body and touch overlay. `enter` is the penetration overlay.
+- `ej` replaces only the body during ejaculation; every other part comes from `loop`.
+- `mon_spr_hob` has no head, hand, touch or enter, so those parts are not drawn for the hobgoblin.
+
+### C.2 mon_spr reference
+
+**Phase blocks**
+
+| Block | Used during | Keys it reads |
+|-------|-------------|---------------|
+| `start` | the start step | `body`, `hand`, `pen`, `touch`, `hand_xscale` |
+| `loop` | slow and fast loop; fallback for `ej` | `head`, `body`, `hand`, `pen`, `touch`, `enter` |
+| `ej` | ejaculation | as `loop`; each missing part uses `loop` |
+| `idle_start`, `start_loop`, `loop_ej`, `ej_birth` | the intermissions ([§23](#23-intermissions)) | as `loop`; without the block the strips of the next phase |
+
+**Part keys**
+
+| Key | What it is | Format |
+|-----|------------|--------|
+| `body` | The monster's body. Required in practice: no body = vanilla sprites ([C.3](#c3-when-gnx-uses-vanilla-monster-sprites)). | object of variants (below) |
+| `hand` in `start` | The monster's hand. | one pair or one sprite, no variants |
+| `hand` in `loop`/`ej` | The monster's hand. | variants: `leg_any`, `leg_1`, `leg_2`, `cow` |
+| `head` | Head (`loop` and `ej` only). | one pair, or a list of which the first two are used 50/50 |
+| `pen` | Drawn first, behind the other monster parts, without transparency. | one sprite |
+| `touch` | Hand-on-captive overlay, on the captive's leg layer (type 8). | one sprite or class variants |
+| `enter` | Penetration overlay on the leg layer (`loop`/`ej` only). | one sprite or class variants |
+| `hand_xscale` | `"random"` = mirror the hand at random; `start` only, other values ignored. Loop and ejaculation always use the normal direction. | text |
+
+A **pair** is `{ "alpha": <fill sprite>, "line": <outline sprite> }`; `line` is optional, and a plain sprite name is a pair without a line. The game's monster transparency setting decides how fill and line are drawn; the line is drawn in all three modes.
+
+**Body and hand variants:** `cow` (vanilla Cow, body and hand), `lilith` (vanilla Lilith, body only), `leg_1`, `leg_2` (captive leg variants), `leg_any` (everyone else, and the fallback). GNX checks the class variant, then the leg variant, then `leg_any`, then your other leg variants (`leg_1`, then `leg_2`). There is no `leg_0`: kneeling captives use `leg_any`, or your `leg_1` art when there is no `leg_any` ([§7](#7-clothing-maps-how-a-class-looks-in-each-cell)).
+
+**Touch and enter class variants:** `default`, `cow`, `nyx`, `lilith`, `morrigan`, `cat` (the vanilla classes of those names); every other class, and a plain sprite name, means `default`. Class variants matter only in cells with ID 100 or more, where vanilla classes get custom monster sprites.
+
+**Frame layout of monster strips:** frame = row × frames per row + current frame, with row = `character_row` (or the placement with `mon_positions`). With the standard scene scripts a row has 2 frames for `start` and 5 for `loop` and `ej` (ejaculation shows frames 2–4). A cell with its own `frames` uses its own counts ([22.1](#221-physicalframes)), and GNX checks every strip against them ([22.5](#225-the-frame-rule-for-every-mod-cell)).
+
+**Frame layout of touch and enter:** they use the **captive's** frame numbers, so they need the layout of the captive's strips (3 skin blocks per row in base+class and class_map, 1 in fixed mode). `touch` is not drawn in the third monster transparency mode.
+
+> **When** monster sprites have the wrong shape, they are ignored:
+> - `body` and the loop/ej `hand` must use variants. A pair directly under `body` (`"body": { "alpha": … }`) is ignored, and the monster falls back to vanilla sprites.
+> - `start.hand` is the opposite: one pair only; variant keys inside it are ignored.
+> - `touch` and `enter` are stored once per cell, not per monster ([§11](#11-multi-monster-cells)).
+
+### C.3 When GNX uses vanilla monster sprites
+
+GNX draws vanilla monster sprites instead of yours when:
+
+- the cell has no block for that monster type. `mon_spr_hob` and `mon_spr_ogr` fall back to `mon_spr`, so with only `mon_spr`, **hobgoblins and ogres get your goblin art**; limit `mon_types` or add their blocks;
+- the monster type is not in `mon_types`;
+- the phase block has no body (for example no `start`); without start art, point `start.body` at your loop strips (with row 0 the start shows their first two frames);
+- the captive is a vanilla class (ID below 14) and the cell ID is below 100;
+- for goblins, in an anal scene with a vanilla captive, in a `base+class` cell ([9.2](#92-anal)). Cells with their own art (`fixed`, `class_map`) keep your sprites.
+
+**Ogres.** By default an ogre in a custom cell is **one opaque body sprite**: only the `body` alpha is used and the transparency setting does not apply. If the ogre's body in `mon_spr_ogr` has both `alpha` and `line`, the ogre is drawn like goblins: fill plus outline, following the player's MON TYPE and OPACITY settings.
+
+```json
+{
+  "mon_spr_ogr": {
+    "loop": {
+      "body": {
+        "leg_any": { "alpha": "gnx:ogre_altar_loop", "line": "gnx:ogre_altar_loop_l" }
+      }
+    }
+  }
+}
+```
+
+Here the loop body has fill `ogre_altar_loop` and outline `ogre_altar_loop_l` for any leg pose. Without `line` the ogre stays opaque.

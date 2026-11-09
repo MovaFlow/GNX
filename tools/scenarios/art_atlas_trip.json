@@ -1,0 +1,75 @@
+{
+  "about": "Atlas art given another origin than its uv.json entry (world walk with xorig 2, yorig 7 on a 1,6 entry) is baked once, not again at every load: a trip to a map and back runs the loader twice and gnx_runtime_sprites must not grow.",
+  "mods": [
+    "tools/scenarios/mods/harness_art_atlas_trip"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "4x8 n1 o2,7",
+      "why": "the atlas art is in, with the JSON origin"
+    },
+    {
+      "call": "gnx_scn_spr_mark"
+    },
+    {
+      "travel": "harness_art_atrip"
+    },
+    {
+      "wait": 40
+    },
+    {
+      "assert": "active_map",
+      "is": "harness_art_atrip"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "4x8 n1 o2,7",
+      "why": "loaded again on the map"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_spr_growth",
+      "args": [],
+      "is": 0,
+      "why": "the baked copy is reused: no new runtime sprite on the map"
+    },
+    {
+      "travel": "vanilla"
+    },
+    {
+      "wait": 40
+    },
+    {
+      "assert": "active_map",
+      "is": "vanilla"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_sprite_geom",
+      "args": [
+        "spr_goblin_walk"
+      ],
+      "is": "4x8 n1 o2,7"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_spr_growth",
+      "args": [],
+      "is": 0,
+      "why": "nor on the way back"
+    }
+  ]
+}
