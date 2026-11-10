@@ -101,6 +101,35 @@ shown. Use this for invisible quest steps (e.g. moving a storyline on).
 
 `next_event` can be `null` to end the chain.
 
+#### several objectives (GNX 1.5.2)
+
+`completion` can be a list of conditions: the quest is done when all of them hold.
+Each `build_count` of the list counts from the quest's start on its own (kept in
+the save). An empty list never completes and is reported, like a quest without
+`completion`.
+
+```json
+"expand_quest": {
+  "type": "quest",
+  "quest_text": "Expand the nest.",
+  "completion": [
+    {"type": "build_count", "h_type": 11, "value": 3, "label": "DRINK"},
+    {"type": "build_count", "h_type": 10, "value": 2, "label": "DISPLAY"},
+    {"type": "cell_occupied", "h_type": [10, 11], "value": 5, "label": "GIRLS"}
+  ],
+  "reward": {"type": "unit", "class": "Witch", "level": 3},
+  "next_event": "expand_done"
+}
+```
+
+Every objective that counts something (`build_count`, `cell_count`,
+`cell_occupied`, `unit_count`, `has_item`) shows its progress after the quest's
+text, also as a single `completion`: `Expand the nest. (DRINK 1/3, DISPLAY 0/2, GIRLS 2/5)`.
+The optional `label` stands before its numbers and is translated like the
+quest's text. The text updates when the quest is checked: use `"frame"` (the
+default) rather than `"cell_built"` for `cell_occupied`. GNX 1.5.1 never
+completes a list `completion`.
+
 ### triggers
 
 Array of trigger definitions. Each trigger fires an event when all conditions are met at a specific hook point.
@@ -131,19 +160,19 @@ Used in triggers, quest completion, and conditional raid_spawns.
 | `state_lte` | `key`, `value` | mod save state key <= value |
 | `unit_count` | `class` (optional), `value` (default 1) | units of that class >= value. Omit `class` to count all units |
 | `gold_gte` | `value` | `global.val.money >= value` |
-| `day_gte` | `value` | the day counter (shown under the clock) >= value |
-| `day_every` | `value`, `offset` (default 0) | the day is a multiple of `value` (after subtracting `offset`): `{"value": 7}` on days 7, 14, 21...; `{"value": 1}` every day. Meant for the `day_start` hook |
+| `day_gte` | `value` (default 1) | the day counter (shown under the clock) >= value |
+| `day_every` | `value` (default 1), `offset` (default 0) | the day is a multiple of `value` (after subtracting `offset`): `{"value": 7}` on days 7, 14, 21...; `{"value": 1}` every day. Meant for the `day_start` hook |
 | `has_item` | `item`, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
 | `floor_gte` | `value` | `global.val.floor >= value` |
-| `cell_count` | `h_type`, `value` (default 1) | count of built cells with that h_type >= value |
-| `build_count` | `h_type` (optional: any type without it), `value` | cells of that type the player built (build menu, CUSTOM, COPY DOWN) >= value. In a quest's `completion` it counts from the moment the quest appeared (kept in the save) and the quest text shows the progress, e.g. `(2/4)`; elsewhere every build of the save |
-| `cell_built` | `h_type` (string ref or int) | at least one cell with that h_type exists |
-| `cell_occupied` | `h_type` | at least one cell with that h_type has a unit |
+| `cell_count` | `h_type` and/or `category`, `value` (default 1) | count of built cells with that h_type >= value |
+| `build_count` | `h_type` and/or `category` (optional: any type without them), `value` | cells of that type the player built (build menu, CUSTOM, COPY DOWN) >= value. In a quest's `completion` it counts from the moment the quest appeared (kept in the save) and the quest text shows the progress, e.g. `(2/4)`; elsewhere every build of the save |
+| `cell_built` | `h_type` (string ref or int) and/or `category` | at least one cell with that h_type exists |
+| `cell_occupied` | `h_type` and/or `category`, `value` (default 1) | at least `value` cells with that h_type have a unit |
 | `stage_discovered` | `stage`: 0-4, `"vanilla.FOREST"`, a mod stage `"mod.ID"` or your own `"ID"` (modding guide 27.3) | that stage is discovered on the map the player is on (a stage not on it: false) |
 | `stage_cleared` | `stage` (as above), `min_level` | that stage's highest open level >= min_level (`stage_info[stage].max_lvl`) |
 | `last_raid` | `stage`, `level`, `won` (each optional) | the last raid on this map, once the cart is home: went to that stage (any stage name, as above), at that level (0 = lvl 1), and was won (`true`) or lost (`false`); keys left out match anything. Use it with the `post_raid` / `post_raid_win` hooks ("win at the Crypt") |
 | `boss_captured` | `class` (string ref or int) | unit with that class exists in cage |
-| `class_unlocked` | `class` (string ref or int) | an `unlock_class` side effect has unlocked that class in this save |
+| `class_unlocked` | `class` (string ref or int) | an `unlock_class` side effect has unlocked that class in this save; without `class` it never matches |
 | `raid_won` | (none) | always true (only meaningful at post_raid_win hook) |
 | `on_map` | `map` | the player is on that map (`"vanilla"` = the village) |
 | `map_visited` | `map` | the player has been on that map (or is on it now) |
@@ -152,6 +181,15 @@ Used in triggers, quest completion, and conditional raid_spawns.
 String refs (`"mod_id.ClassName"`) are pre-resolved to integer IDs at load
 time. You can use string refs or integer IDs interchangeably in `class` and
 `h_type` fields.
+
+**Groups of cells (GNX 1.5.2).** In `build_count`, `cell_built`, `cell_count`
+and `cell_occupied`, `h_type` can be a list (`[31, 32, 29]` or
+`["my_mod.ALTAR", 3]`) and `category` names a build tab as in cells.json
+(`"t_breed"`: every tentacle breeding cell, vanilla and modded), or a list of
+tabs. The cells of all of them add up. A `category` that is no tab is a mod
+error and names no cell. Any objective of a list `completion` can carry a
+`label` for its progress text. GNX 1.5.1 never matches lists or `category`,
+and ignores `value` in `cell_occupied`.
 
 ## Side effect types
 
@@ -165,6 +203,7 @@ time. You can use string refs or integer IDs interchangeably in `class` and
 | `unlock_cell` | `h_type` (string ref or int) | unlocks cell in build menu |
 | `unlock_class` | `class` (string ref or int) | unlocks the class: saved, and shared by every map like the game's own unlocks. On its own it changes nothing in raids; gate a `raid_spawns` entry on it with `"condition": {"type": "class_unlocked", "class": "my_mod.NAME"}` so the class only appears once unlocked |
 | `unlock_map` | `map` | opens a mod map in the travel menu for good, as its `map_info.unlock` would (saved, shared by every map, announced with `New map: <label>`). A map without a travel entry (its mod is off) is logged and ignored |
+| `create_unit` | `class` (string ref or int), `level` | puts a new captive into the prison when the event fires; with the prison full she is lost and the player sees `Prison is full!` (GNX 1.5.2) |
 
 Side effects are applied **immediately** (synchronous) when a notification
 event fires, before the dialog is displayed.
@@ -178,6 +217,7 @@ event fires, before the dialog is displayed.
 | `blueprint` | `h_type`, optional `fragment`, optional `lvl` | Default: complete blueprint (instant unlock, lvl=3). With `"fragment": true`: single fragment (need 3 to combine), `lvl` controls pip display (default 1) |
 | `prop` | `prop_id` | Unlocks a prop in the customization menu |
 | `item` | `item`, `amount` (default 1) | A mod item (items.json), `"NAME"` of the quest's mod or `"mod.NAME"` |
+| `unit` | `class`, `level` | A captive (GNX 1.5.2). `class`: a class name of the mod, `"mod.NAME"` or a class ID; `level`: special classes 5, 6 or 7, others 0-4 or 6. Shown as her head in the quest log; claiming puts her into the prison. She is made when the quest appears and kept in the save until claimed; with the prison full the reward stays (`Prison is full!`). An unknown class is a mod error and gives no reward |
 
 ## Hook points (triggers)
 

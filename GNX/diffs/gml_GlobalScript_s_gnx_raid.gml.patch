@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml
 +++ gml/gml_GlobalScript_s_gnx_raid.gml
-@@ -0,0 +1,1670 @@
+@@ -0,0 +1,1860 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -43,8 +43,19 @@
 +
 +// GNX-NOCAP: index in encounter unit list arg0 of a vanilla boss (classes 8-12: capturing one records the boss's
 +// defeat), else -1
++// GNX-FIX: first the boss a mod stage's level rolled (gnx_stage_encounter_data marks that unit with gnx_boss). Before,
++// only vanilla bosses counted, so a mod stage's boss on a no_capture level could never be captured and, with
++// until_captured, came back to every raid for good. The unit itself is marked, not its class: an enemy of the
++// pool with the boss's class is not the boss, nor is one when the boss did not come.
 +function gnx_raid_boss_index(arg0)
 +{
++    // the marked boss (is_struct: a unit; && = and)
++    for (var i = 0; i < array_length(arg0); i++)
++    {
++        if (is_struct(arg0[i]) && variable_struct_exists(arg0[i], "gnx_boss"))
++            return i;
++    }
++
 +    for (var i = 0; i < array_length(arg0); i++)
 +    {
 +        if (arg0[i].class >= 8 && arg0[i].class <= 12)
@@ -52,6 +63,80 @@
 +    }
 +
 +    return -1;
++}
++
++
++// GNX-FIX: the name of the boss of level arg1 of mod stage arg0 (its definition): "<stage key>#<level>#<class>",
++// e.g. "my_mod.CRYPT#2#4821". A boss that was captured is kept by this name (gnx_mark_boss_captured), so its
++// until_captured is about that boss only: not every unit of its class, and not the boss of another level or stage.
++// A mod that gives the level another boss class gets a boss that has not been captured yet.
++function gnx_stage_boss_key(arg0, arg1)
++{
++    return arg0.key + "#" + string(arg1) + "#" + string(arg0.levels[arg1].boss.class_id);
++}
++
++
++// GNX-FIX: unit arg0 was just captured in a raid and is in the cage: when it is a mod stage's boss (marked
++// gnx_boss), its name goes into global.unlock.gnx_boss_caught (saved, merged across maps like the other unlocks).
++// The mark becomes gnx_boss_caged until the raid is home: a cage_escape on the way back (gnx_boss_escaped) takes the
++// name off again, so a boss that broke free comes back; gnx_boss_cage_settle then takes the mark off.
++function gnx_mark_boss_captured(arg0)
++{
++    // ! = not, || = or: not a unit, or not a marked boss
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "gnx_boss"))
++        exit;
++
++    if (!variable_struct_exists(global.unlock, "gnx_boss_caught"))
++        global.unlock.gnx_boss_caught = [];
++
++    if (!array_contains(global.unlock.gnx_boss_caught, arg0.gnx_boss))
++        array_push(global.unlock.gnx_boss_caught, arg0.gnx_boss);
++
++    arg0.gnx_boss_caged = arg0.gnx_boss;
++    variable_struct_remove(arg0, "gnx_boss");
++}
++
++
++// GNX-FIX: captive arg0 broke out of the cage on the way home (scr_gnx_check_post_raid_escape): when she is a mod
++// stage's boss captured in this raid (gnx_boss_caged), her name is taken off gnx_boss_caught, so she comes again
++function gnx_boss_escaped(arg0)
++{
++    // ! = not, || = or: not a unit, or not a boss caged in this raid
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "gnx_boss_caged"))
++        exit;
++
++    if (variable_struct_exists(global.unlock, "gnx_boss_caught"))
++    {
++        // array_get_index: where her name is in the list (-1 = not there)
++        var _at = array_get_index(global.unlock.gnx_boss_caught, arg0.gnx_boss_caged);
++
++        if (_at != -1)
++            array_delete(global.unlock.gnx_boss_caught, _at, 1);
++    }
++
++    variable_struct_remove(arg0, "gnx_boss_caged");
++}
++
++
++// GNX-FIX: the raid is home and the escapes are rolled: the captives still in the cage keep their capture, and the
++// gnx_boss_caged mark is taken off them (it is not needed once they are home, and should not stay in the save)
++function gnx_boss_cage_settle()
++{
++    for (var _i = 0; _i < array_length(global.val.cage); _i++)
++    {
++        var _u = global.val.cage[_i];
++
++        // && = and: a captive with the mark
++        if (is_struct(_u) && variable_struct_exists(_u, "gnx_boss_caged"))
++            variable_struct_remove(_u, "gnx_boss_caged");
++    }
++}
++
++
++// GNX-FIX: true once the mod stage boss named arg0 (gnx_stage_boss_key) was captured in this save
++function gnx_boss_was_captured(arg0)
++{
++    return variable_struct_exists(global.unlock, "gnx_boss_caught") && array_contains(global.unlock.gnx_boss_caught, arg0);
 +}
 +
 +
@@ -140,6 +225,7 @@
 +        
 +        if (_escaped)
 +        {
++            gnx_boss_escaped(_unit);  // GNX-FIX: a mod stage's boss that breaks free comes again (until_captured)
 +            global.val.cage[_ci] = -1;
 +            
 +            with (obj_button)
@@ -735,12 +821,33 @@
 +            continue;
 +        }
 +
-+        var _pos = (variable_struct_exists(_s, "pos") && is_array(_s.pos) && array_length(_s.pos) == 2) ? _s.pos : -1;
++        // GNX-FIX: pos needs two numbers (gnx_json_point); ["abc", 80] put the stage at x 0, it is skipped now
++        var _pos = variable_struct_exists(_s, "pos") ? gnx_json_point(_s.pos) : undefined;
 +
-+        if (_pos == -1)
++        if (_pos == undefined)
 +        {
-+            gnx_report_mod_error(_who + " needs \"pos\": [x, y] on the raid map; skipped");
++            gnx_report_mod_error(_who + " needs \"pos\": [x, y] with two numbers on the raid map; skipped");
 +            continue;
++        }
++
++        // GNX-FIX: unlock is a condition (an object) or a list of them. Any other value (text, number, true/false,
++        // null) was taken as "no unlock", so the stage was there from the start. It is now a mod error and the stage
++        // stays hidden: a list holding that value never holds (as map_info.unlock). || = or, ! = not
++        var _unl = undefined;
++        var _unl_bad = false;
++
++        if (variable_struct_exists(_s, "unlock"))
++        {
++            if (is_struct(_s.unlock) || is_array(_s.unlock))
++            {
++                _unl = _s.unlock;
++            }
++            else
++            {
++                gnx_report_mod_error(_who + ": unlock is " + string(_s.unlock) + ", not a condition object or a list of them; the stage stays hidden");
++                _unl = [_s.unlock];
++                _unl_bad = true;
++            }
 +        }
 +
 +        var _def =
@@ -749,11 +856,11 @@
 +            id: _s.id,
 +            mod_name: arg0,
 +            label: (variable_struct_exists(_s, "label") && is_string(_s.label)) ? _s.label : _s.id,
-+            x: gnx_json_num(_pos[0], 0),
-+            y: gnx_json_num(_pos[1], 0),
++            x: _pos[0],
++            y: _pos[1],
 +            icon: gnx_stage_load_icon(arg0, gnx_stage_field(_s, "icon", "")),
 +            raid_time: max(60, floor(gnx_json_num(gnx_opt(_s, "raid_time", 3600), 3600))),
-+            unlock: (variable_struct_exists(_s, "unlock") && (is_struct(_s.unlock) || is_array(_s.unlock))) ? _s.unlock : undefined,
++            unlock: _unl,
 +            on_discover: is_string(gnx_stage_field(_s, "on_discover", "")) ? gnx_stage_field(_s, "on_discover", "") : "",
 +            path: gnx_stage_points(gnx_stage_field(_s, "path", []), _who),
 +            curve: gnx_json_num(gnx_stage_field(_s, "curve", false), 0) != 0,
@@ -764,7 +871,7 @@
 +
 +        if (is_struct(_def.unlock))
 +            scr_gnx_resolve_condition_refs(_def.unlock, arg0);
-+        else if (is_array(_def.unlock))
++        else if (is_array(_def.unlock) && !_unl_bad)  // GNX-FIX: a bad unlock was reported just above
 +        {
 +            for (var _u = 0; _u < array_length(_def.unlock); _u++)
 +                scr_gnx_resolve_condition_refs(_def.unlock[_u], arg0);
@@ -883,6 +990,8 @@
 +
 +// A3: every mod class (id 14+) ever captured in a raid, in global.unlock.gnx_captured (saved, merged across maps
 +// like the other unlocks). Recorded at the capture roll (scr_raid_cal_stat).
++// GNX-FIX: until_captured no longer reads it (gnx_boss_was_captured): a class says nothing about the boss. Capturing
++// any unit of the class stopped the boss, and a boss of a vanilla class never stopped (only 14+ is recorded).
 +function gnx_mark_captured(arg0)
 +{
 +    if (!is_real(arg0) || arg0 < 14)
@@ -896,6 +1005,7 @@
 +}
 +
 +
++// true once a unit of mod class arg0 was captured in a raid (GNX-FIX: until_captured reads gnx_boss_was_captured now)
 +function gnx_was_captured(arg0)
 +{
 +    return variable_struct_exists(global.unlock, "gnx_captured") && array_contains(global.unlock.gnx_captured, arg0);
@@ -989,7 +1099,8 @@
 +    var _en_ap = [0, 0];
 +    var _picked = [];
 +    // A3: like the vanilla bosses, a boss stops coming once captured (until_captured, default on)
-+    var _boss = _L.boss != undefined && !(_L.boss.until_captured && gnx_was_captured(_L.boss.class_id)) && irandom_range(1, 100) <= _L.boss.chance && (_L.boss.condition == undefined || scr_gnx_eval_condition(_L.boss.condition, arg1.mod_name));
++    // GNX-FIX: captured as this level's boss (gnx_boss_was_captured with its name), not "any unit of its class"
++    var _boss = _L.boss != undefined && !(_L.boss.until_captured && gnx_boss_was_captured(gnx_stage_boss_key(arg1, _lvl))) && irandom_range(1, 100) <= _L.boss.chance && (_L.boss.condition == undefined || scr_gnx_eval_condition(_L.boss.condition, arg1.mod_name));
 +    // an encounter holds 5 units at most, the boss included
 +    var _num = min(irandom_range(_L.count[0], _L.count[1]), _boss ? 4 : 5);
 +    _en_ap[0] += irandom_range(_L.hp[0], _L.hp[1]) + _num;
@@ -1016,7 +1127,11 @@
 +        var _bap = scr_set_unit_ap(_L.boss.class_id, _L.boss.lvl);
 +        _en_ap[0] += _bap[0];
 +        _en_ap[1] += _bap[1];
-+        array_push(_unit_list, scr_create_unit_base(_L.boss.class_id, _L.boss.lvl));
++        var _bu = scr_create_unit_base(_L.boss.class_id, _L.boss.lvl);
++        // GNX-FIX: this unit is the boss (gnx_raid_boss_index, gnx_mark_boss_captured): a pool enemy of the same
++        // class is not. The mark is saved with the encounter and taken off when the boss is captured.
++        _bu.gnx_boss = gnx_stage_boss_key(arg1, _lvl);
++        array_push(_unit_list, _bu);
 +    }
 +
 +    // what the raid can bring home, as vanilla: gold and food drops, then the stage's loot; up to 3 + level picks
@@ -1058,6 +1173,27 @@
 +#macro GNX_MAP_Y1 130
 +
 +
++// GNX-FIX: a point from mod JSON: [x, y] with two numbers (numbers written as text count). Returns [x, y], or
++// undefined for anything else: no list, another length, or a value that is no number. Before, x and y went through
++// gnx_json_num with 0 as the default, so ["abc", 80] put the point at x 0 instead of being reported.
++function gnx_json_point(arg0)
++{
++    // && = and: a list of exactly two
++    if (!is_array(arg0) || array_length(arg0) != 2)
++        return undefined;
++
++    // undefined = gnx_json_num found no number
++    var _x = gnx_json_num(arg0[0], undefined);
++    var _y = gnx_json_num(arg0[1], undefined);
++
++    // || = or: either one is not a number
++    if (_x == undefined || _y == undefined)
++        return undefined;
++
++    return [_x, _y];
++}
++
++
 +// a list of [x, y] points from mod JSON (bad entries dropped with an error)
 +function gnx_stage_points(arg0, arg1)
 +{
@@ -1071,12 +1207,13 @@
 +
 +    for (var _i = 0; _i < array_length(arg0); _i++)
 +    {
-+        var _p = arg0[_i];
++        // GNX-FIX: both values must be numbers (gnx_json_point); a point with text in it is skipped, not put at 0
++        var _p = gnx_json_point(arg0[_i]);
 +
-+        if (is_array(_p) && array_length(_p) == 2)
-+            array_push(_out, [gnx_json_num(_p[0], 0), gnx_json_num(_p[1], 0)]);
++        if (_p != undefined)
++            array_push(_out, _p);
 +        else
-+            gnx_report_mod_error(arg1 + ": path point " + string(_i) + " is not [x, y]; skipped");
++            gnx_report_mod_error(arg1 + ": path point " + string(_i) + " is " + string(arg0[_i]) + ", not [x, y] with two numbers; skipped");
 +    }
 +
 +    return _out;
@@ -1319,13 +1456,22 @@
 +        }
 +
 +        var _pos = gnx_stage_field(_e, "pos", undefined);
++        // GNX-FIX: pos is [x, y] with two numbers (gnx_json_point). x and y were read from any list, so "pos": [] or
++        // [10] stopped the game, and ["abc", 80] moved the stage to x 0; any other value is now a mod error and the
++        // stage keeps its vanilla place (&& = and, != = not equal)
++        var _pt = (_pos != undefined) ? gnx_json_point(_pos) : undefined;
++        var _moved = _pt != undefined;
++
++        if (_pos != undefined && !_moved)
++            gnx_report_mod_error(_who + ": pos must be [x, y] with two numbers, not " + string(_pos) + "; the stage keeps its vanilla place");
++
 +        var _ov =
 +        {
 +            key: "vanilla." + _names[_i],
 +            hidden: gnx_json_num(gnx_stage_field(_e, "hidden", false), 0) != 0,
-+            moved: is_array(_pos) && array_length(_pos) == 2,
-+            x: is_array(_pos) ? gnx_json_num(_pos[0], 0) : 0,
-+            y: is_array(_pos) ? gnx_json_num(_pos[1], 0) : 0,
++            moved: _moved,
++            x: _moved ? _pt[0] : 0,
++            y: _moved ? _pt[1] : 0,
 +            path: gnx_stage_points(gnx_stage_field(_e, "path", []), _who),
 +            curve: gnx_json_num(gnx_stage_field(_e, "curve", false), 0) != 0,
 +            replace_pool: gnx_json_num(gnx_stage_field(_e, "replace_pool", false), 0) != 0,
@@ -1645,8 +1791,15 @@
 +/// mod classes with "is_special": false), or from level 6 up (vanilla bosses 8-13 and mod classes with
 +/// "is_special": true, as tower bosses, caught at level 6). Before, every class in the registry passed, and GNX
 +/// puts the vanilla classes there too, so the level-6 rule never held.
++/// GNX-SELL: a class with "sell_lvl" in classes.json decides itself: from that level up, -1 = never
 +function gnx_can_sell(arg0)
 +{
++    var _sl = gnx_sell_lvl(arg0.class);
++    
++    // != undefined: the class has its own sell_lvl (>= 0 && ...: sold at all, and she has that level)
++    if (_sl != undefined)
++        return _sl >= 0 && arg0.lvl >= _sl;
++    
 +    var _rc = ds_map_find_value(global.class_registry, arg0.class);
 +    
 +    // && = and; ? : = its is_special when the class is known, else the vanilla rule (class 8 and up)
@@ -1654,6 +1807,43 @@
 +    
 +    // ! = not, || = or: not special, or level 6 and up
 +    return !_special || arg0.lvl >= 6;
++}
++
++
++/// GNX-SELL: the sell_lvl of class arg0 (its classes.json "sell_lvl": 0-7, -1 = never), undefined when it has none
++function gnx_sell_lvl(arg0)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++    
++    // && = and: a known class with its own sell_lvl
++    return (is_struct(_rc) && variable_struct_exists(_rc, "gnx_sell_lvl")) ? _rc.gnx_sell_lvl : undefined;
++}
++
++
++/// GNX-SELL: may the trader's "sell all" (prison or cage) take captive arg0 (unit data)? A class with its own
++/// sell_lvl only from that level up (-1: never); any other class as the game decides there
++function gnx_sell_bulk_ok(arg0)
++{
++    var _sl = gnx_sell_lvl(arg0.class);
++    
++    // == undefined: no sell_lvl, the game's rule; || = or, && = and
++    return _sl == undefined || (_sl >= 0 && arg0.lvl >= _sl);
++}
++
++
++/// GNX-SELL: may the prison's "sell all" (pregnant or not) take captive arg0 (unit data)? The game skips
++/// level-5 captives there; a class with its own sell_lvl follows only that (sell_lvl 0 sells her at level 5
++/// too, -1 never). Before, the level-5 rule came first, so sell_lvl 0-5 could not sell a level-5 captive there.
++function gnx_sell_bulk_prison_ok(arg0)
++{
++    var _sl = gnx_sell_lvl(arg0.class);
++    
++    // != undefined: her class has a sell_lvl (>= 0 && ...: sold at all, and she has that level)
++    if (_sl != undefined)
++        return _sl >= 0 && arg0.lvl >= _sl;
++    
++    // no sell_lvl: the game's rule, every level but 5 (!= = not equal)
++    return arg0.lvl != 5;
 +}
 +
 +

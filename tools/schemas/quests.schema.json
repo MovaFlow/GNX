@@ -74,7 +74,8 @@
             "take_item",
             "unlock_cell",
             "unlock_class",
-            "unlock_map"
+            "unlock_map",
+            "create_unit"
           ]
         }
       },
@@ -342,6 +343,47 @@
             },
             "additionalProperties": false
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "create_unit"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "Puts a new captive of that class and level (default 1) into the prison.",
+            "properties": {
+              "type": {
+                "const": "create_unit"
+              },
+              "class": {
+                "$ref": "common.schema.json#/definitions/ref"
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7
+              },
+              "lvl": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7
+              }
+            },
+            "required": [
+              "type",
+              "class"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
         }
       ]
     },
@@ -358,7 +400,8 @@
             "food",
             "blueprint",
             "prop",
-            "item"
+            "item",
+            "unit"
           ]
         }
       },
@@ -535,6 +578,47 @@
             },
             "additionalProperties": false
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "unit"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "description": "A captive of that class and level (default 1), put into the prison when claimed; with the prison full the reward stays.",
+            "properties": {
+              "type": {
+                "const": "unit"
+              },
+              "class": {
+                "$ref": "common.schema.json#/definitions/ref"
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7
+              },
+              "lvl": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 7
+              }
+            },
+            "required": [
+              "type",
+              "class"
+            ],
+            "patternProperties": {
+              "^_": {}
+            },
+            "additionalProperties": false
+          }
         }
       ]
     },
@@ -602,7 +686,19 @@
           "$ref": "#/definitions/reward"
         },
         "completion": {
-          "$ref": "common.schema.json#/definitions/condition"
+          "description": "One condition, or a list: the quest is done when all hold.",
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/definitions/condition"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/definitions/condition"
+              },
+              "minItems": 1
+            }
+          ]
         },
         "completion_hook": {
           "enum": [

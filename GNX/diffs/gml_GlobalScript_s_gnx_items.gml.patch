@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_items.gml
 +++ gml/gml_GlobalScript_s_gnx_items.gml
-@@ -0,0 +1,301 @@
+@@ -0,0 +1,315 @@
 +// GNX: mod items (items.json): registry, raid loot, inventory counts for quests
 +// (the functions are global, callable from any script)
 +
@@ -15,6 +15,7 @@
 +    global.gnx_item_name_to_id = {};  // "folder.NAME" -> item_type
 +    global.gnx_loot_raw = [];  // [{mod, index, entry}] as read; resolved after every mod has loaded
 +    global.gnx_loot = [];  // [{key, stage, level, entry: [item_type, num, lvl], mod}]
++    global.gnx_item_missing = [];  // GNX-FIX: unknown item names already reported (gnx_item_resolve)
 +}
 +
 +
@@ -37,7 +38,13 @@
 +
 +    if (!is_string(arg0))
 +    {
-+        gnx_report_mod_error("item must be an item name (\"Mod.NAME\"), not " + string(arg0));
++        // GNX-FIX: once per value, as for unknown names below
++        if (!array_contains(global.gnx_item_missing, "#" + string(arg0)))
++        {
++            array_push(global.gnx_item_missing, "#" + string(arg0));
++            gnx_report_mod_error("item must be an item name (\"Mod.NAME\"), not " + string(arg0));
++        }
++
 +        return -1;
 +    }
 +
@@ -46,7 +53,14 @@
 +    if (variable_struct_exists(global.gnx_item_name_to_id, _full))
 +        return variable_struct_get(global.gnx_item_name_to_id, _full);
 +
-+    gnx_report_mod_error("item '" + _full + "' is not an item of any loaded mod (items.json \"name\", named \"Mod.NAME\")");
++    // GNX-FIX: each unknown name is reported once. Names are looked up while the game runs, and has_item in a quest
++    // completion is checked every frame: one typo added an error and a log line 60 times a second (! = not)
++    if (!array_contains(global.gnx_item_missing, _full))
++    {
++        array_push(global.gnx_item_missing, _full);
++        gnx_report_mod_error("item '" + _full + "' is not an item of any loaded mod (items.json \"name\", named \"Mod.NAME\")");
++    }
++
 +    return -1;
 +}
 +

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1584 @@
+@@ -0,0 +1,1618 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -422,6 +422,25 @@
 +        return (arg0.kind == "legacy") ? sprite_get_number(arg0.spr) : array_length(arg0.frames);
 +    
 +    return sprite_get_number(arg0);
++}
++
++
++/// GNX: a text naming sprite arg0 (a sprite or a GNX sprite struct), the same for every use of one shared sprite:
++/// its id, or for an atlas sprite its first frame's place in the atlas (as gnx_draw_sprite_clip names them)
++function gnx_sprite_key(arg0)
++{
++    // ! = not: a plain sprite id
++    if (!is_struct(arg0))
++        return string(arg0);
++    
++    if (variable_struct_exists(arg0, "spr"))
++        return "spr" + string(arg0.spr);
++    
++    // && = and: an atlas sprite with at least one frame
++    if (variable_struct_exists(arg0, "frames") && is_array(arg0.frames) && array_length(arg0.frames) > 0 && is_struct(arg0.frames[0]))
++        return "atlas@" + string(arg0.frames[0].atlas) + ":" + string(arg0.frames[0].x) + "," + string(arg0.frames[0].y);
++    
++    return "atlas";
 +}
 +
 +
@@ -1568,6 +1587,21 @@
 +    var _l = gnx_log_open();
 +    gnx_log_write(_l, "[GNX] " + _who + ": sprite_replace " + string(_done) + " game sprite(s)\n");
 +    gnx_log_close(_l);
++}
++
++
++// GNX-FIX: text arg0 (gnx_tr of arg1) drawn by GNX in the player's language: when it differs from arg1 (a mod
++// translated it), the font of that language is set, as the game does before its own translated texts
++// (scr_change_lang), and its position shift is returned; else nothing changes and the shift is [0, 0]. GNX drew
++// these with the English font, which may not hold Japanese, Chinese or Korean letters. The caller sets
++// fnt_base_font_eng back after drawing.
++function gnx_tr_font(arg0, arg1)
++{
++    // != : gnx_tr gave another text, so a translation is drawn
++    if (arg0 != arg1)
++        return scr_change_lang();
++
++    return [0, 0];
 +}
 +
 +

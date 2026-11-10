@@ -1,0 +1,32 @@
+--- gml_138/gml_GlobalScript_s_pop_up.gml
++++ gml/gml_GlobalScript_s_pop_up.gml
+@@ -118,7 +118,9 @@
+         draw_sprite(spr_pop, image_index, (x - shift_x) + icon_x, y + 7);
+ }
+ 
+-function scr_item_pop_up_create(arg0, arg1, arg2, arg3)
++// GNX-UNIT: arg4 (optional, false = as before) = draw "+" whatever the item's num says: a captive given by a mod
++// quest is an item with num -1 (no number on her icon), which used to show "-" although she was gained
++function scr_item_pop_up_create(arg0, arg1, arg2, arg3, arg4 = false)
+ {
+     with (instance_create_depth(arg0, arg1, depth, obj_empty))
+     {
+@@ -133,6 +135,8 @@
+         
+         image_speed = 0;
+         item_data = arg2;
++        // GNX-UNIT: this popup's own "+" (each popup keeps its own, as several can be up at once)
++        gnx_force_plus = arg4;
+         scr_empty_step = scr_icon_pop_up_step;
+         scr_empty_draw = scr_item_pop_up_draw;
+         wait = 60;
+@@ -143,7 +147,8 @@
+ {
+     draw_set_halign(fa_left);
+     
+-    if (item_data.num > 0)
++    // GNX-UNIT: || = or: a gain the caller marked (gnx_force_plus), or a positive number as before
++    if ((variable_instance_exists(id, "gnx_force_plus") && gnx_force_plus) || item_data.num > 0)
+         draw_text(x - 12, y, "+");
+     else
+         draw_text(x - 12, y, "-");

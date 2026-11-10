@@ -84,6 +84,7 @@ cls = obj({
     "default_leg": {"type": "integer", "minimum": 0, "maximum": 2, "description": "Fixed leg pose: 1 or 2, or 0 (kneeling)."},
     "scr_unit": {"type": "integer", "description": "Passive effect in a cell: 0 = milk refills like Hathor, 1 = pregnancies refill (guide 6.6)."},
     "only_listed_cells": {"type": ["boolean", "integer"], "description": "true = enters only cells whose required_class lists it."},
+    "sell_lvl": {"description": "Lowest level at which the raid trader buys a captive of this class (0-7), -1 = never; also in the trader's sell all buttons. Without it: special classes from level 6, others at any level.", "type": "integer", "minimum": -1, "maximum": 7},
     "milk_lvl": {"description": "Milk level this class gives (0-4), or \"lvl\" for the captive's own level. Without it mod classes give level 1.",
                  "anyOf": [{"type": "number", "minimum": 0, "maximum": 4}, {"type": "string", "pattern": "^[lL][vV][lL]$"}]},
     "voice": obj({"bank": {"type": "string"}, "pitch": {"type": "number"}, "by_mon_type": {"$ref": "sounds.schema.json#/definitions/by_mon_type"}},

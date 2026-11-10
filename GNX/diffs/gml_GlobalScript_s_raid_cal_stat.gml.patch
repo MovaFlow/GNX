@@ -21,7 +21,7 @@
          for (var i = 0; i < array_length(global.val.cage); i++)
          {
              var _unit_list2 = [];
-@@ -277,13 +280,30 @@
+@@ -277,13 +280,31 @@
              
              var _c_rate = ((((_over_diff - 1) / (1 + (_max_lvl * 0.3))) * 100) + (_cap_mul * 100)) * _cap_start;
              _c_rate = max(floor(_c_rate), 0);
@@ -36,6 +36,7 @@
 +
 +            if (_gnx_nocap)
 +            {
++                // GNX-FIX: on a mod stage, the boss its level rolled comes first (marked gnx_boss)
 +                _gnx_boss_at = gnx_raid_boss_index(_data.unit_list);
 +
 +                if (_gnx_boss_at == -1)
@@ -53,7 +54,7 @@
                  {
                      var _aa = _a;
                      
-@@ -294,6 +314,14 @@
+@@ -294,6 +315,14 @@
                      _a = _aa;
                  }
                  
@@ -68,7 +69,7 @@
                  _cap_start = _cap_start * 0.9;
                  var _lvl_mul = scr_check_skill_data(UnknownEnum.Value_10);
                  
-@@ -307,6 +335,7 @@
+@@ -307,6 +336,7 @@
                  global.val.cap_num++;
                  scr_check_steam_achievement(UnknownEnum.Value_5);
                  global.val.cage[_cage_num] = _unit_data;
@@ -76,7 +77,21 @@
                  array_delete(_data.unit_list, _a, 1);
                  _cage_num++;
                  
-@@ -488,6 +517,8 @@
+@@ -366,6 +396,13 @@
+                     }
+                 }
+                 
++                // GNX-FIX: a mod stage's boss counts as captured (until_captured) only while she is in the cage after
++                // the lines above: Selene's grace frees a class 1 or 3 captive below level 6 at once (cage = -1), and
++                // a boss the player never got must not stop coming. is_struct && == : the cage place still holds
++                // this unit (-1 when she was freed)
++                if (is_struct(global.val.cage[_cage_num - 1]) && global.val.cage[_cage_num - 1] == _unit_data)
++                    gnx_mark_boss_captured(_unit_data);
++                
+                 if (array_length(_data.unit_list) == 0)
+                     i = array_length(global.val.cage);
+             }
+@@ -488,6 +525,8 @@
                          _m_lvl = 1;
                  }
                  
@@ -85,7 +100,7 @@
                  scr_add_milk_item(_m_lvl, 1);
              }
          }
-@@ -499,6 +530,10 @@
+@@ -499,6 +538,10 @@
          
          if (_selene_grace)
              scr_pop_up_create(UnknownEnum.Value_27);

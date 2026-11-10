@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_travel.gml
 +++ gml/gml_GlobalScript_s_gnx_travel.gml
-@@ -0,0 +1,2310 @@
+@@ -0,0 +1,2316 @@
 +// GNX: multi-map travel: maps, selector, carry, troops
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2049,6 +2049,9 @@
 +        }
 +    }
 +    
++    // GNX-FIX: while these mods load, and other mods' names are read again below, a missing cell is reported only
++    // for them (the mods loaded at boot were reported then)
++    global.gnx_ref_report_only = _gnx_dlist;
 +    // Mav (1.4.7.5): these mods load in phases too (classes -> cells -> the rest)
 +    scr_gnx_load_mod_list(_gnx_dlist);
 +    _log = gnx_log_open();
@@ -2063,7 +2066,10 @@
 +        scr_gnx_apply_prop_unlocks();
 +        scr_gnx_register_goblin_sprites();
 +        gnx_loot_resolve();  // the map mods' raid loot (items.json, raids.json) is resolved like the boot mods'
++        gnx_reresolve_quest_refs();  // GNX-FIX: other mods' quests may name these mods' cells, which exist only now
 +    }
++    
++    global.gnx_ref_report_only = -1;
 +    
 +    // Mav (1.4.7.5): the name maps stay for later trips
 +    var _rx = 200;

@@ -1,12 +1,13 @@
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1198 @@
+@@ -0,0 +1,1798 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
 +// Mav (1.4.7.5): re-resolves names in classes.json conditions (raid_spawns, cage_escape, tower_boss_condition).
 +// No cell existed yet while classes loaded, so "h_type": "Mod.Cell" stayed a string.
 +// Already resolved values (numbers) are skipped, so it is safe to call more than once.
++// GNX-FIX: map_info.unlock too: it is read with the manifest, in the same phase as the classes.
 +function scr_gnx_reresolve_class_conditions()
 +{
 +    if (variable_global_exists("gnx_encounter_pools") && ds_exists(global.gnx_encounter_pools, ds_type_map))
@@ -39,6 +40,88 @@
 +                scr_gnx_resolve_condition_refs(_rc.tower_boss_condition, _rc.mod_name);
 +        }
 +        _ck = ds_map_find_next(global.class_registry, _ck);
++    }
++    
++    // GNX-FIX: map_info.unlock was read with the manifest (phase 1), before any mod cell existed, and was never
++    // read again: a map whose unlock named a mod cell ("h_type": "Mod.Cell") never opened
++    if (variable_global_exists("gnx_travel_locations") && is_array(global.gnx_travel_locations))
++    {
++        for (var _ti = 0; _ti < array_length(global.gnx_travel_locations); _ti++)
++        {
++            var _tl = global.gnx_travel_locations[_ti];
++            
++            // || = or: an object or a list of them (any other value was reported when the manifest was read)
++            if (variable_struct_exists(_tl, "unlock") && variable_struct_exists(_tl, "mod_name") && (is_struct(_tl.unlock) || is_array(_tl.unlock)))
++            {
++                // ? : = the list itself, or the one object put in a list
++                var _ul = is_array(_tl.unlock) ? _tl.unlock : [_tl.unlock];
++                
++                for (var _ui = 0; _ui < array_length(_ul); _ui++)
++                {
++                    if (is_struct(_ul[_ui]))
++                        scr_gnx_resolve_condition_refs(_ul[_ui], _tl.mod_name);
++                }
++            }
++        }
++    }
++}
++
++
++// GNX-FIX: a map mod loaded late (scr_gnx_load_deferred_map_mods: a save loaded from the menu, RELOAD MODS) brings
++// cells that other mods' quests may name; those names were read before the cells existed and stayed text, so they
++// never matched, even on that map. Every trigger condition, quest completion and side effect is read again
++// (numbers are skipped, so it is safe to call more than once).
++function gnx_reresolve_quest_refs()
++{
++    for (var _i = 0; _i < array_length(global.gnx_quest_triggers); _i++)
++    {
++        var _t = global.gnx_quest_triggers[_i];
++        
++        // && = and: a trigger with a list of conditions
++        if (is_struct(_t) && variable_struct_exists(_t, "conditions") && is_array(_t.conditions))
++        {
++            // is_struct: a condition that is no object was reported when the quests loaded
++            for (var _c = 0; _c < array_length(_t.conditions); _c++)
++            {
++                if (is_struct(_t.conditions[_c]))
++                    scr_gnx_resolve_condition_refs(_t.conditions[_c], _t.mod_name);
++            }
++        }
++    }
++    
++    var _k = ds_map_find_first(global.gnx_quest_events);
++    
++    // != = not equal: until the map has no more keys
++    while (_k != undefined)
++    {
++        var _e = ds_map_find_value(global.gnx_quest_events, _k);
++        
++        if (is_struct(_e) && variable_struct_exists(_e, "mod_name"))
++        {
++            if (variable_struct_exists(_e, "completion") && is_struct(_e.completion))
++                scr_gnx_resolve_condition_refs(_e.completion, _e.mod_name);
++            
++            // GNX-MULTI: each objective of a list (is_struct: an entry that is no object was reported at loading)
++            if (variable_struct_exists(_e, "completion") && is_array(_e.completion))
++            {
++                for (var _o = 0; _o < array_length(_e.completion); _o++)
++                {
++                    if (is_struct(_e.completion[_o]))
++                        scr_gnx_resolve_condition_refs(_e.completion[_o], _e.mod_name);
++                }
++            }
++            
++            if (variable_struct_exists(_e, "side_effects") && is_array(_e.side_effects))
++            {
++                for (var _s = 0; _s < array_length(_e.side_effects); _s++)
++                {
++                    if (is_struct(_e.side_effects[_s]))
++                        scr_gnx_resolve_side_effect_refs(_e.side_effects[_s], _e.mod_name);
++                }
++            }
++        }
++        
++        _k = ds_map_find_next(global.gnx_quest_events, _k);
 +    }
 +}
 +
@@ -174,14 +257,21 @@
 +            if (variable_struct_exists(_edef, "next_event") && is_string(_edef.next_event))
 +                _edef.next_event = arg0 + "." + _edef.next_event;
 +            
-+            // GNX-FIX: only a completion that is an object goes to the resolver; any other value (text, number,
-+            // list) is reported just below (&& = and)
++            // GNX-FIX: only a completion that is an object goes to the resolver; any other value (text, number)
++            // is reported just below (&& = and)
 +            if (variable_struct_exists(_edef, "completion") && is_struct(_edef.completion))
 +                scr_gnx_resolve_condition_refs(_edef.completion, arg0);
 +            
-+            // GNX-FIX: a quest needs a completion condition (an object), and completion_hook is a text
-+            // ("frame", "cell_built", "post_raid" ...); && = and, || = or, ! = not
-+            if (_edef.type == "quest" && (!variable_struct_exists(_edef, "completion") || !is_struct(_edef.completion)))
++            // GNX-MULTI: a list of objectives: each one is read (an entry that is no object is reported there)
++            if (variable_struct_exists(_edef, "completion") && is_array(_edef.completion))
++            {
++                for (var _oi = 0; _oi < array_length(_edef.completion); _oi++)
++                    scr_gnx_resolve_condition_refs(_edef.completion[_oi], arg0);
++            }
++            
++            // GNX-FIX: a quest needs a completion condition (an object, GNX-MULTI: or a list of them that is not
++            // empty), and completion_hook is a text ("frame", "cell_built", "post_raid" ...); && = and, || = or, ! = not
++            if (_edef.type == "quest" && !gnx_completion_ok(_edef))
 +                gnx_report_mod_error("Mod '" + arg0 + "': quest event '" + string(_full_id) + "' has no completion condition, so it never completes");
 +            
 +            if (variable_struct_exists(_edef, "completion_hook") && !is_string(_edef.completion_hook))
@@ -264,8 +354,57 @@
 +    
 +    // GNX-FIX: cell_built, cell_occupied and cell_count need the cell's h_type; without it the condition never
 +    // matches (is_struct: a condition is an object; && = and, || = or, ! = not)
-+    if (is_struct(arg0) && variable_struct_exists(arg0, "type") && (arg0.type == "cell_built" || arg0.type == "cell_occupied" || arg0.type == "cell_count") && !variable_struct_exists(arg0, "h_type"))
-+        gnx_report_mod_error("Mod '" + string(arg1) + "': quest condition " + string(arg0.type) + " has no h_type, so it never matches");
++    // GNX-CELLSET: or a category (a build tab), which names every cell of it
++    if (is_struct(arg0) && variable_struct_exists(arg0, "type") && (arg0.type == "cell_built" || arg0.type == "cell_occupied" || arg0.type == "cell_count") && !variable_struct_exists(arg0, "h_type") && !variable_struct_exists(arg0, "category"))
++        gnx_report_mod_error("Mod '" + string(arg1) + "': quest condition " + string(arg0.type) + " has no h_type or category, so it never matches");
++    
++    // GNX-CELLSET: a category must be a build tab of cells.json ("breed" ... "ug_breed"), one or a list of them
++    if (variable_struct_exists(arg0, "category"))
++    {
++        // ? : the list, or the one value put in a list
++        var _cats = is_array(arg0.category) ? arg0.category : [arg0.category];
++        
++        for (var _ci = 0; _ci < array_length(_cats); _ci++)
++        {
++            // ! = not: no such tab
++            if (!gnx_cat_known(_cats[_ci]))
++                gnx_report_mod_error("Mod '" + string(arg1) + "': condition " + (variable_struct_exists(arg0, "type") ? string(arg0.type) : "?") + ": category '" + string(_cats[_ci]) + "' is not a cell category (breed, utility, pleasure, b_breed, b_utility, b_other, t_breed, t_utility, xl_breed, ug_breed); it names no cell");
++        }
++    }
++    
++    // GNX-CELLSET: h_type as a list: each name is read like a single h_type (numbers are kept). A new list is
++    // written back, so the read never depends on how this game copies lists
++    if (variable_struct_exists(arg0, "h_type") && is_array(arg0.h_type))
++    {
++        var _hl = [];
++        
++        for (var _hi = 0; _hi < array_length(arg0.h_type); _hi++)
++        {
++            var _hv = arg0.h_type[_hi];
++            
++            // is_string: a name; a number stays as it is
++            if (is_string(_hv))
++            {
++                var _lref = _hv;
++                
++                // == 0: no dot, so a cell of the mod itself
++                if (string_pos(".", _lref) == 0)
++                    _lref = arg1 + "." + _lref;
++                
++                var _lid = ds_map_find_value(global.gnx_cell_name_to_id, _lref);
++                
++                // != undefined: the cell is loaded; else the name stays text and matches nothing
++                if (_lid != undefined)
++                    _hv = _lid;
++                else
++                    gnx_ref_missing("cell", _lref, arg1);
++            }
++            
++            array_push(_hl, _hv);
++        }
++        
++        arg0.h_type = _hl;
++    }
 +    
 +    if (variable_struct_exists(arg0, "class") && is_string(arg0.class))
 +    {
@@ -299,24 +438,40 @@
 +}
 +
 +
-+// GNX-FIX: a reference arg1 ("folder.NAME") in a condition of mod arg2 that names no loaded class or cell (arg0). It
-+// stays text, so the condition never matches: before, without a word. A mod that is installed but has no such
-+// name (or the mod's own cell written without its folder, e.g. "MILK BAR" from another mod) is a mod error; a mod
-+// that is not installed is only logged, so a quest can name an optional mod's content and never match without it.
-+// Not while classes load: no cell exists yet, nor the classes of later mods (scr_gnx_reresolve_class_conditions
-+// asks again).
++// GNX-FIX: a reference arg1 ("folder.NAME") in a condition of mod arg2 that names no loaded class or cell (arg0 =
++// "class" or "cell"). It stays text, so the condition never matches: before, without a word. A mod that is installed
++// but has no such name (or the mod's own cell written without its folder, e.g. "MILK BAR" from another mod) is a mod
++// error; a mod that is not installed is only logged, so a quest can name an optional mod's content and never match
++// without it. Not while classes load (callers check gnx_loading_classes): no cell exists yet, nor the classes of later
++// mods (scr_gnx_reresolve_class_conditions asks again).
++// GNX-FIX: nothing is reported in phase 1 of a staged load (classes and manifests, gnx_staged_load): no mod cell
++// exists yet, and scr_gnx_reresolve_class_conditions reads those conditions again once every cell is loaded. A map
++// mod that is not loaded on this map counts as not installed (its content is on its own map). While a late map mod
++// load reads every name again (gnx_ref_report_only = the folders it loaded), only names in those mods' files or of
++// those mods' content are reported: the others were reported when they first loaded.
 +function gnx_ref_missing(arg0, arg1, arg2)
 +{
++    if (variable_global_exists("gnx_staged_load") && global.gnx_staged_load)
++        exit;
++
 +    var _folder = string_copy(arg1, 1, string_pos(".", arg1) - 1);
-+    
-+    if (array_contains(global.gnx_indexed_mods, _folder))
++
++    // && = and, || = or, ! = not: a re-read limited to some mods, and neither the mod naming the reference (arg2) nor
++    // the reference's own mod is one of them
++    if (variable_global_exists("gnx_ref_report_only") && is_array(global.gnx_ref_report_only) && !(array_contains(global.gnx_ref_report_only, arg2) || array_contains(global.gnx_ref_report_only, _folder)))
++        exit;
++
++    // a map mod deferred on this map: on the list of mods to load later, and not declared for the map the player is on
++    var _away = array_contains(global.gnx_map_deferred_mods, _folder) && !gnx_map_decl_has(variable_struct_get(global.gnx_mod_map_decl, _folder), global.gnx_active_map);
++
++    if (array_contains(global.gnx_indexed_mods, _folder) && !_away)
 +    {
 +        gnx_report_mod_error("Mod '" + string(arg2) + "': " + arg0 + " \"" + arg1 + "\" not found, so it never matches. Name a mod's " + arg0 + " as \"<its folder>.<its name>\" (e.g. \"py_more_cells_mod.MILK BAR\"), a vanilla one by its number (guide, Appendix A)");
 +    }
 +    else
 +    {
 +        var _l = gnx_log_open();
-+        gnx_log_write(_l, "[GNX] Mod '" + string(arg2) + "': " + arg0 + " \"" + arg1 + "\" belongs to mod '" + _folder + "', which is not installed: it never matches\n");
++        gnx_log_write(_l, "[GNX] Mod '" + string(arg2) + "': " + arg0 + " \"" + arg1 + "\" belongs to mod '" + _folder + "', which is not installed or not loaded on this map: it never matches here\n");
 +        gnx_log_close(_l);
 +    }
 +}
@@ -389,7 +544,8 @@
 +
 +/// arg0 = the condition, arg1 = the mod's folder; GNX-BUILD: arg2 = the quest whose completion it is (its
 +/// build_count starts when the quest appeared), undefined elsewhere (triggers, raids, tools: the whole save)
-+function scr_gnx_eval_condition(arg0, arg1, arg2 = undefined)
++/// GNX-MULTI: arg3 = the objective's place in a completion list (-1: a single completion)
++function scr_gnx_eval_condition(arg0, arg1, arg2 = undefined, arg3 = -1)
 +{
 +    // GNX-FIX: a condition that is no object, or has no type, matches nothing (reading .type of it stopped the
 +    // game); the quest loader reports it (! = not, || = or)
@@ -412,11 +568,14 @@
 +            return _v != undefined && _v <= arg0.value;
 +        
 +        case "day_gte":
-+            return global.val.day >= gnx_json_num(arg0.value, 1);
++            // GNX-FIX: without "value" it is 1, as gnx_json_num meant: reading arg0.value first stopped the game
++            // (? : = the condition's value when it has one, else 1)
++            return global.val.day >= gnx_json_num(variable_struct_exists(arg0, "value") ? arg0.value : 1, 1);
 +
 +        case "day_every":
 +            // GNX-DAY: every value days (day 0, n, 2n... shifted by offset); value 1 = every day
-+            var _every = max(1, floor(gnx_json_num(arg0.value, 1)));
++            // GNX-FIX: without "value" it is 1 (every day) instead of stopping the game
++            var _every = max(1, floor(gnx_json_num(variable_struct_exists(arg0, "value") ? arg0.value : 1, 1)));
 +            var _off = variable_struct_exists(arg0, "offset") ? floor(gnx_json_num(arg0.offset, 0)) : 0;
 +            return ((global.val.day - _off) mod _every) == 0;
 +
@@ -434,7 +593,8 @@
 +            return gnx_last_raid_is(arg0, arg1);
 +
 +        case "class_unlocked":
-+            return gnx_class_unlocked(arg0.class);
++            // GNX-FIX: without "class" it never matches (reading arg0.class stopped the game; && = and)
++            return variable_struct_exists(arg0, "class") && gnx_class_unlocked(arg0.class);
 +
 +        case "boss_captured":
 +            var _cls = arg0.class;
@@ -451,10 +611,12 @@
 +        case "cell_built":
 +            // GNX-FIX: a cell condition without h_type matches nothing (reading it stopped the game);
 +            // the quest loader reports it as a mod error (scr_gnx_resolve_condition_refs)
-+            if (!variable_struct_exists(arg0, "h_type"))
-+                return false;
++            // GNX-CELLSET: the cells it names: h_type (one or a list) and category (a build tab, one or a list)
++            var _set = gnx_cond_cells(arg0);
 +            
-+            var _h = arg0.h_type;
++            // == undefined: it names no cell
++            if (_set == undefined)
++                return false;
 +            
 +            if (instance_exists(obj_slot))
 +            {
@@ -462,7 +624,7 @@
 +                {
 +                    // GNX-FIX: gnx_slot_h_type, not slot_data.h_type: passages, stairs and floor entrances
 +                    // have no h_type, and the first one of them stopped the game
-+                    if (gnx_slot_h_type(id) == _h)
++                    if (array_contains(_set, gnx_slot_h_type(id)))
 +                        return true;
 +                }
 +            }
@@ -471,22 +633,11 @@
 +        
 +        case "cell_occupied":
 +            // GNX-FIX: no h_type = no match, as in cell_built
-+            if (!variable_struct_exists(arg0, "h_type"))
-+                return false;
++            // GNX-CELLSET: "value" = how many of those cells must hold a captive (1 when left out)
++            var _occ = gnx_cell_tally(arg0, true);
 +            
-+            _h = arg0.h_type;
-+            
-+            if (instance_exists(obj_slot))
-+            {
-+                with (obj_slot)
-+                {
-+                    // GNX-FIX: gnx_slot_h_type (-1 for passages, stairs and floor entrances); && = and
-+                    if (gnx_slot_h_type(id) == _h && unit_data != -1)
-+                        return true;
-+                }
-+            }
-+            
-+            return false;
++            // >= 0: the condition names cells (-1 = none, no match)
++            return _occ >= 0 && _occ >= gnx_cond_need(arg0);
 +        
 +        case "unit_count":
 +            var _need = variable_struct_exists(arg0, "value") ? arg0.value : 1;
@@ -505,7 +656,8 @@
 +                        return false;
 +                }
 +                
-+                _count = 0;
++                // GNX-FIX: var: _count was the local of cell_count further down, which no longer has one
++                var _count = 0;
 +                var _unum = ds_list_size(global.unit_list);
 +                
 +                for (var _ui = 0; _ui < _unum; _ui++)
@@ -544,33 +696,20 @@
 +            return variable_struct_exists(arg0, "map") && gnx_map_is_unlocked(arg0.map);
 +        
 +        case "cell_count":
-+            // GNX-FIX: no h_type = no match, as in cell_built
-+            if (!variable_struct_exists(arg0, "h_type"))
-+                return false;
++            // GNX-FIX: no h_type = no match, as in cell_built (gnx_slot_h_type: -1 for passages, stairs and floor
++            // entrances; cell_count looks at every slot, so it stopped the game every time it was checked)
++            // GNX-CELLSET: every cell the condition names counts (h_type list, category)
++            var _cnt = gnx_cell_tally(arg0, false);
 +            
-+            _h = arg0.h_type;
-+            _need = variable_struct_exists(arg0, "value") ? arg0.value : 1;
-+            var _count = 0;
-+            
-+            if (instance_exists(obj_slot))
-+            {
-+                with (obj_slot)
-+                {
-+                    // GNX-FIX: gnx_slot_h_type (-1 for passages, stairs and floor entrances). cell_count
-+                    // looks at every slot, so it stopped the game every time it was checked
-+                    if (gnx_slot_h_type(id) == _h)
-+                        _count++;
-+                }
-+            }
-+            
-+            return _count >= _need;
++            // >= 0: the condition names cells (-1 = none, no match)
++            return _cnt >= 0 && _cnt >= gnx_cond_need(arg0);
 +        
 +        case "build_count":
 +            // GNX-BUILD: how many cells of type h_type (any type without h_type) the player built: in a quest's
 +            // completion since the quest appeared, elsewhere in the whole save (gnx_build_done)
-+            // && = and: a value that is a number, else 1
-+            _need = (variable_struct_exists(arg0, "value") && is_real(arg0.value)) ? arg0.value : 1;
-+            return gnx_build_done(arg0, arg2) >= _need;
++            // GNX-CELLSET: h_type may be a list and category a build tab: the builds of all those cells add up
++            // GNX-MULTI: arg3 = the objective's place, for its own starting count; gnx_cond_need = value, else 1
++            return gnx_build_done(arg0, arg2, arg3) >= gnx_cond_need(arg0);
 +    }
 +    
 +    return false;
@@ -777,6 +916,21 @@
 +                scr_add_new_slot_h_type(_se.h_type, false);
 +                break;
 +            
++            case "create_unit":  // GNX-UNIT: {"type": "create_unit", "class": "Witch", "level": 3}: a new captive in the prison
++                var _cu = gnx_make_unit(variable_struct_exists(_se, "class") ? _se.class : undefined, gnx_unit_level_of(_se), arg1);
++                
++                // != undefined: the class is known (else gnx_make_unit reported it)
++                if (_cu != undefined)
++                {
++                    // the class's name in the message, as the TOOLS button create_unit says it
++                    if (gnx_unit_to_prison(_cu))
++                        scr_gnx_pop_up_create(string(_cu.class_name) + " added!");
++                    else
++                        scr_gnx_pop_up_create("Prison is full!");
++                }
++                
++                break;
++            
 +            case "unlock_class":
 +                // records the class in global.unlock.gnx_classes (saved, shared by every map); raid_spawns entries
 +                // and quests gate on it with the condition class_unlocked. It used to append to the encounter pools
@@ -863,6 +1017,18 @@
 +        
 +        return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
 +    }
++    else if (_type == "unit")
++    {
++        // GNX-UNIT: {"type": "unit", "class": "Witch", "level": 3}: a new captive, shown in the quest log with her
++        // head and put into the prison when the player claims the reward (scr_check_quest_click)
++        var _ru = gnx_make_unit(variable_struct_exists(arg0, "class") ? arg0.class : undefined, gnx_unit_level_of(arg0), arg1);
++        
++        // != undefined: the class is known (else gnx_make_unit reported it); no reward otherwise
++        if (_ru != undefined)
++            return gnx_unit_reward_item(_ru);
++        
++        return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
++    }
 +    
 +    return scr_set_item_data(UnknownEnum.Value_0, 0, -1);
 +}
@@ -893,13 +1059,35 @@
 +        
 +        // GNX-FIX: a quest without completion never completes (reading it stopped the game every frame); the
 +        // quest loader reports it as a mod error
-+        if (!variable_struct_exists(_evt, "completion") || !is_struct(_evt.completion))
++        // GNX-MULTI: an object, or a list of them (! = not)
++        if (!gnx_completion_ok(_evt))
 +            continue;
 +        
 +        var _comp = _evt.completion;
++        // GNX-MULTI: the progress in its text first: cell counts and captives change without a build too
++        gnx_quest_build_text(_q);
++        var _done = true;
 +        
-+        // GNX-BUILD: _q = this quest, so a build_count counts from its start
-+        if (scr_gnx_eval_condition(_comp, _q.gnx_mod_name, _q))
++        // GNX-MULTI: a list completes when every objective holds (k = its place, for its own build count)
++        if (is_array(_comp))
++        {
++            for (var k = 0; k < array_length(_comp); k++)
++            {
++                // ! = not: one objective that does not hold is enough
++                if (!scr_gnx_eval_condition(_comp[k], _q.gnx_mod_name, _q, k))
++                {
++                    _done = false;
++                    break;
++                }
++            }
++        }
++        else
++        {
++            // GNX-BUILD: _q = this quest, so a build_count counts from its start
++            _done = scr_gnx_eval_condition(_comp, _q.gnx_mod_name, _q);
++        }
++        
++        if (_done)
 +        {
 +            _q.quest_clear = true;
 +            global.val.quest_clear = true;
@@ -935,6 +1123,14 @@
 +            // GNX-BUILD: where its build_count started
 +            if (variable_struct_exists(_q, "gnx_build_base"))
 +                _qsave.build_base = _q.gnx_build_base;
++            
++            // GNX-MULTI: where each build_count objective of a list started
++            if (variable_struct_exists(_q, "gnx_build_bases"))
++                _qsave.build_bases = _q.gnx_build_bases;
++            
++            // GNX-UNIT: the captive waiting as its reward, so she is the same one after loading
++            if (is_struct(_q.quest_reward) && _q.quest_reward.item_type == UnknownEnum.Value_9 && is_struct(_q.quest_reward.info))
++                _qsave.reward_unit = _q.quest_reward.info;
 +            
 +            array_push(_qs.quests, _qsave);
 +        }
@@ -979,13 +1175,20 @@
 +            _data.quest_type = _saved.event_id;
 +            _data.quest_text = _evt.quest_text;
 +            _data.quest_reward = scr_gnx_make_reward(_evt.reward, gnx_opt(_evt, "mod_name", ""));
++            
++            // GNX-UNIT: the captive saved as its reward (a save from before has none: a new one was made above), while
++            // the quest still gives a captive (&& = and)
++            if (variable_struct_exists(_saved, "reward_unit") && is_struct(_saved.reward_unit) && _data.quest_reward.item_type == UnknownEnum.Value_9)
++                _data.quest_reward = gnx_unit_reward_item(_saved.reward_unit);
++            
 +            _data.gnx_event_id = _saved.event_id;
 +            _data.gnx_event = _evt;
 +            _data.gnx_next = gnx_opt(_evt, "next_event", undefined);
 +            _data.gnx_mod_name = _evt.mod_name;
 +            _data.event_after = -1;
 +            // GNX-BUILD: the saved start of its build_count (? : a save from before 1.5.1 has none, so it counts from now)
-+            gnx_quest_build_start(_data, gnx_opt(_saved, "build_base", -1));
++            // GNX-MULTI: or the saved list of starts, one per objective
++            gnx_quest_build_start(_data, variable_struct_exists(_saved, "build_bases") ? _saved.build_bases : (variable_struct_exists(_saved, "build_base") ? _saved.build_base : -1));
 +            ds_list_add(global.quest_list, _data);
 +        }
 +    }
@@ -1108,51 +1311,447 @@
 +
 +/// GNX-BUILD: how many cells the build_count condition arg0 counts were built, in quest arg1 (a quest_list
 +/// entry) since it appeared, else (undefined) in the whole save
-+function gnx_build_done(arg0, arg1)
++/// GNX-CELLSET: the builds of every cell it names add up (h_type list, category; gnx_build_total)
++/// GNX-MULTI: arg2 = the objective's place in a completion list (-1: a single completion), for its own start
++function gnx_build_done(arg0, arg1, arg2 = -1)
 +{
-+    var _c = gnx_build_counts();
-+    var _k = gnx_build_key(arg0);
-+    // ? : the count kept for that key, else 0 (nothing built yet)
-+    var _n = variable_struct_exists(_c, _k) ? variable_struct_get(_c, _k) : 0;
++    var _n = gnx_build_total(arg0);
 +    
 +    // is_struct: a quest; the count it started from is taken off (max 0: never below 0)
-+    if (is_struct(arg1) && variable_struct_exists(arg1, "gnx_build_base"))
-+        _n = max(0, _n - arg1.gnx_build_base);
++    if (is_struct(arg1))
++        _n = max(0, _n - gnx_quest_build_base(arg1, arg2));
 +    
 +    return _n;
 +}
 +
 +
++/// GNX-CELLSET: builds counted for condition arg0 in the whole save: of every cell it names (gnx_cond_cells,
++/// added up), or of every cell type ("all") when it names none
++function gnx_build_total(arg0)
++{
++    var _c = gnx_build_counts();
++    var _set = gnx_cond_cells(arg0);
++    
++    // == undefined: no h_type and no category, so every build counts
++    if (_set == undefined)
++        return variable_struct_exists(_c, "all") ? variable_struct_get(_c, "all") : 0;
++    
++    var _n = 0;
++    
++    for (var i = 0; i < array_length(_set); i++)
++    {
++        // the counts are kept by h_type as text ("3")
++        var _k = string(_set[i]);
++        
++        if (variable_struct_exists(_c, _k))
++            _n += variable_struct_get(_c, _k);
++    }
++    
++    return _n;
++}
++
++
++/// GNX-MULTI: the build count quest arg0 started from for objective arg1 (its place in a completion list; -1 =
++/// a single completion), 0 when it keeps none
++function gnx_quest_build_base(arg0, arg1)
++{
++    // >= 0 && ...: an objective of a list, and the quest keeps a start for it
++    if (arg1 >= 0 && variable_struct_exists(arg0, "gnx_build_bases") && is_array(arg0.gnx_build_bases) && arg1 < array_length(arg0.gnx_build_bases))
++        return arg0.gnx_build_bases[arg1];
++    
++    // ? : the start of a single build_count, else none
++    return (arg1 < 0 && variable_struct_exists(arg0, "gnx_build_base")) ? arg0.gnx_build_base : 0;
++}
++
++
 +/// GNX-BUILD: for a quest arg0 (a quest_list entry) whose completion is a build_count: keeps the count its
 +/// progress starts from (arg1, or the current count when arg1 is -1) and writes the progress into its text.
-+/// Other quests stay as they are.
++/// GNX-MULTI: a completion list keeps one start per build_count objective (arg1 = the saved list of them, or -1)
++/// in gnx_build_bases. Other quests only get their progress text (gnx_quest_build_text).
 +function gnx_quest_build_start(arg0, arg1)
 +{
 +    var _e = arg0.gnx_event;
++    // ? : the completion when the event has one
++    var _c = variable_struct_exists(_e, "completion") ? _e.completion : undefined;
 +    
-+    // ! = not, || = or: a quest without a build_count completion
-+    if (!variable_struct_exists(_e, "completion") || !is_struct(_e.completion) || !variable_struct_exists(_e.completion, "type") || _e.completion.type != "build_count")
-+        exit;
++    if (is_array(_c))
++    {
++        // one start per objective; 0 for objectives that are no build_count
++        var _b = array_create(array_length(_c), 0);
++        
++        for (var k = 0; k < array_length(_c); k++)
++        {
++            if (gnx_cond_is(_c[k], "build_count"))
++            {
++                // && = and: a saved list with a number for this place; else the count now (the whole save)
++                _b[k] = (is_array(arg1) && k < array_length(arg1) && is_numeric(arg1[k])) ? arg1[k] : gnx_build_total(_c[k]);
++            }
++        }
++        
++        arg0.gnx_build_bases = _b;
++    }
++    else if (gnx_cond_is(_c, "build_count"))
++    {
++        // a start saved with the game (a number other than -1); else the count now (the whole save)
++        arg0.gnx_build_base = (is_numeric(arg1) && arg1 != -1) ? arg1 : gnx_build_total(_c);
++    }
 +    
-+    // != -1: a start saved with the game; else the count now (gnx_build_done with no quest = the whole save)
-+    arg0.gnx_build_base = (arg1 != -1) ? arg1 : gnx_build_done(_e.completion, undefined);
 +    gnx_quest_build_text(arg0);
 +}
 +
 +
 +/// GNX-BUILD: writes the progress of build_count quest arg0 after its quest_text: "Build more Titfuck
 +/// cells. (2/4)". The count stops at the target (min), so a finished quest shows 4/4.
++/// GNX-MULTI: every objective that counts something shows done/needed (gnx_objective_progress), with its
++/// "label" before it: "(DRINK 1/3, DISPLAY 0/2)". Objectives that count nothing show nothing; a quest with none
++/// keeps its text as written.
 +function gnx_quest_build_text(arg0)
 +{
-+    // ! = not: only quests that keep a build count
-+    if (!variable_struct_exists(arg0, "gnx_build_base"))
++    // ! = not, || = or: no quest of a mod event, or no completion
++    if (!variable_struct_exists(arg0, "gnx_event") || !is_struct(arg0.gnx_event) || !variable_struct_exists(arg0.gnx_event, "completion"))
 +        exit;
 +    
 +    var _e = arg0.gnx_event;
-+    // && = and: a value that is a number, else 1 (as the condition reads it)
-+    var _need = (variable_struct_exists(_e.completion, "value") && is_real(_e.completion.value)) ? _e.completion.value : 1;
-+    var _done = min(gnx_build_done(_e.completion, arg0), _need);
-+    arg0.quest_text = string(_e.quest_text) + " (" + string(_done) + "/" + string(_need) + ")";
++    var _c = _e.completion;
++    // ? : the list, or the one condition put in a list
++    var _list = is_array(_c) ? _c : [_c];
++    var _txt = "";
++    
++    for (var k = 0; k < array_length(_list); k++)
++    {
++        // ? : its place in a list, -1 for a single completion
++        var _p = gnx_objective_progress(_list[k], arg0, is_array(_c) ? k : -1);
++        
++        // == undefined: this objective counts nothing
++        if (_p == undefined)
++            continue;
++        
++        // the objective's label, translated like the quest's text, before its numbers
++        var _lab = (is_struct(_list[k]) && variable_struct_exists(_list[k], "label")) ? (gnx_tr(string(_list[k].label)) + " ") : "";
++        // ? : a comma between two objectives
++        _txt += ((_txt != "") ? ", " : "") + _lab + string(_p[0]) + "/" + string(_p[1]);
++    }
++    
++    // != "": at least one objective counts something
++    if (_txt != "")
++        arg0.quest_text = string(_e.quest_text) + " (" + _txt + ")";
++}
++
++
++/// GNX-MULTI: the progress of objective arg0 of quest arg1 (arg2 = its place in a completion list, -1 for a single
++/// completion) as [done, needed], done stopping at needed; undefined for an objective that counts nothing. Counted:
++/// build_count, cell_count, cell_occupied, unit_count and has_item.
++function gnx_objective_progress(arg0, arg1, arg2)
++{
++    // ! = not, || = or: no condition object
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "type"))
++        return undefined;
++    
++    var _need = gnx_cond_need(arg0);
++    var _done = 0;
++    
++    switch (arg0.type)
++    {
++        case "build_count":
++            _done = gnx_build_done(arg0, arg1, arg2);
++            break;
++        
++        case "cell_count":
++            _done = gnx_cell_tally(arg0, false);
++            break;
++        
++        case "cell_occupied":
++            _done = gnx_cell_tally(arg0, true);
++            break;
++        
++        case "unit_count":
++            _done = gnx_unit_tally(arg0);
++            break;
++        
++        case "has_item":
++            // the quest's mod, for an item name without a folder
++            var _it = variable_struct_exists(arg0, "item") ? gnx_item_resolve(arg0.item, arg1.gnx_mod_name) : -1;
++            _done = (_it != -1) ? gnx_item_count(_it) : 0;
++            break;
++        
++        default:
++            return undefined;
++    }
++    
++    // max(0, ...): -1 (names no cell) shows as 0; min: a finished objective shows needed/needed
++    return [min(max(0, _done), _need), _need];
++}
++
++
++/// GNX-MULTI: how many of what condition arg0 needs: its "value" when that is a number, else 1
++function gnx_cond_need(arg0)
++{
++    // && = and: the key is there and holds a number
++    return (variable_struct_exists(arg0, "value") && is_numeric(arg0.value)) ? arg0.value : 1;
++}
++
++
++/// GNX-MULTI: true when arg0 is a condition object of type arg1
++function gnx_cond_is(arg0, arg1)
++{
++    // && = and: an object with that "type"
++    return is_struct(arg0) && variable_struct_exists(arg0, "type") && arg0.type == arg1;
++}
++
++
++/// GNX-MULTI: true when event arg0 has a completion GNX can check: a condition object, or a list of them that is
++/// not empty (an entry of the list that is no object was reported at loading and never holds)
++function gnx_completion_ok(arg0)
++{
++    // ! = not: no completion at all
++    if (!variable_struct_exists(arg0, "completion"))
++        return false;
++    
++    // || = or: an object, or a list with at least one entry
++    return is_struct(arg0.completion) || (is_array(arg0.completion) && array_length(arg0.completion) > 0);
++}
++
++
++/// GNX-CELLSET: the cell types condition arg0 names, as a list of h_types: its "h_type" (one, or a list) and every
++/// cell of its "category" (a build tab of cells.json, one or a list). undefined = it names neither (build_count:
++/// every type; the other cell conditions: no cell). A cell name that did not resolve stays text and is left out.
++function gnx_cond_cells(arg0)
++{
++    var _has_h = variable_struct_exists(arg0, "h_type");
++    var _has_c = variable_struct_exists(arg0, "category");
++    
++    // ! && !: neither key
++    if (!_has_h && !_has_c)
++        return undefined;
++    
++    var _out = [];
++    
++    if (_has_h)
++    {
++        // ? : a list as it is, one value put in a list
++        var _hl = is_array(arg0.h_type) ? arg0.h_type : [arg0.h_type];
++        
++        for (var i = 0; i < array_length(_hl); i++)
++        {
++            // is_numeric: a cell number (a name that did not resolve is text); ! = not: each one once
++            if (is_numeric(_hl[i]) && !array_contains(_out, _hl[i]))
++                array_push(_out, _hl[i]);
++        }
++    }
++    
++    if (_has_c)
++    {
++        var _cl = is_array(arg0.category) ? arg0.category : [arg0.category];
++        
++        for (var i = 0; i < array_length(_cl); i++)
++        {
++            var _cc = gnx_cat_cells(_cl[i]);
++            
++            for (var j = 0; j < array_length(_cc); j++)
++            {
++                if (!array_contains(_out, _cc[j]))
++                    array_push(_out, _cc[j]);
++            }
++        }
++    }
++    
++    return _out;
++}
++
++
++/// GNX-CELLSET: the cells of build tab arg0, as cells.json names it in "category": the game's list of that tab,
++/// which holds its vanilla cells and the mod cells of that category. [] for a name that is no tab.
++function gnx_cat_cells(arg0)
++{
++    switch (string(arg0))
++    {
++        case "breed":
++            return global.breed_order;
++        
++        case "utility":
++            return global.utility_order;
++        
++        case "pleasure":
++            return global.pleasure_order;
++        
++        case "b_breed":
++            return global.b_breed_order;
++        
++        case "b_utility":
++            return global.b_utility_order;
++        
++        case "b_other":
++            // the game calls this tab's list b_pleasure
++            return global.b_pleasure_order;
++        
++        case "t_breed":
++            return global.t_breed_order;
++        
++        case "t_utility":
++            return global.t_utility_order;
++        
++        case "xl_breed":
++            return global.xl_breed_order;
++        
++        case "ug_breed":
++            return global.ug_breed_order;
++    }
++    
++    return [];
++}
++
++
++/// GNX-CELLSET: true when arg0 is the name of a build tab (a cells.json "category")
++function gnx_cat_known(arg0)
++{
++    return array_contains(["breed", "utility", "pleasure", "b_breed", "b_utility", "b_other", "t_breed", "t_utility", "xl_breed", "ug_breed"], string(arg0));
++}
++
++
++/// GNX-CELLSET: how many cells of the nest condition arg0 names (gnx_cond_cells) stand now; with arg1 true only
++/// those holding a captive. -1 when it names no cell (no h_type, no category).
++function gnx_cell_tally(arg0, arg1)
++{
++    var _set = gnx_cond_cells(arg0);
++    
++    // == undefined: it names no cell
++    if (_set == undefined)
++        return -1;
++    
++    var _occ = arg1;
++    var _n = 0;
++    
++    if (instance_exists(obj_slot))
++    {
++        with (obj_slot)
++        {
++            // gnx_slot_h_type: -1 for passages, stairs and floor entrances (no h_type); || = or, ! = not: every
++            // cell, or (arg1) only one with a captive in it (unit_data -1 = empty)
++            if (array_contains(_set, gnx_slot_h_type(id)) && (!_occ || unit_data != -1))
++                _n++;
++        }
++    }
++    
++    return _n;
++}
++
++
++/// GNX-MULTI: how many captives in the prison unit_count condition arg0 counts: of its "class" when it has one
++/// (0 for a class name no mod has), else every monster (scr_all_mon_num_cal), as the condition reads it
++function gnx_unit_tally(arg0)
++{
++    if (!variable_struct_exists(arg0, "class"))
++        return scr_all_mon_num_cal();
++    
++    var _cls = arg0.class;
++    
++    // is_string: a class name not read yet; undefined = no such class
++    if (is_string(_cls))
++    {
++        _cls = ds_map_find_value(global.gnx_class_name_to_id, _cls);
++        
++        if (_cls == undefined)
++            return 0;
++    }
++    
++    var _n = 0;
++    
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        var _ud = ds_list_find_value(global.unit_list, i);
++        
++        // != -1 && ...: an occupied place with a captive of that class
++        if (_ud != -1 && is_struct(_ud) && variable_struct_exists(_ud, "class") && _ud.class == _cls)
++            _n++;
++    }
++    
++    return _n;
++}
++
++
++/// GNX-UNIT: the level a create_unit side effect or a unit reward arg0 asks for: "level" (or "lvl"), else 1
++function gnx_unit_level_of(arg0)
++{
++    if (variable_struct_exists(arg0, "level"))
++        return gnx_json_num(arg0.level, 1);
++    
++    // ? : lvl when written so, else 1
++    return variable_struct_exists(arg0, "lvl") ? gnx_json_num(arg0.lvl, 1) : 1;
++}
++
++
++/// GNX-UNIT: a new captive of class arg0 (a class id, "Folder.Name", or a class name of mod arg2) at level arg1,
++/// with the level rules of the TOOLS button create_unit: a special class 5 (6 and 7 kept), any other class at
++/// most 4 (6 kept). undefined, with a mod error, when the class is not known.
++function gnx_make_unit(arg0, arg1, arg2)
++{
++    var _ref = arg0;
++
++    // && = and: a class number written as text ("9"), string_digits keeps only its digits
++    if (is_string(_ref) && _ref != "" && string_digits(_ref) == _ref)
++        _ref = real(_ref);
++
++    // gnx_tool_resolve_class: numbers stay, names are looked up (-1 = not found)
++    var _cls = (_ref == undefined) ? -1 : gnx_tool_resolve_class(_ref, arg2);
++    
++    // < 0 || !...: not found, or a number no class has
++    if (!is_numeric(_cls) || _cls < 0 || !ds_map_exists(global.class_registry, _cls))
++    {
++        gnx_report_mod_error("Mod '" + string(arg2) + "': create_unit / unit reward: class " + string(arg0) + " not found; no captive given");
++        return undefined;
++    }
++    
++    var _lvl = floor(arg1);
++    var _cr = ds_map_find_value(global.class_registry, _cls);
++    // && = and: the class is marked special
++    var _special = variable_struct_exists(_cr, "is_special") && _cr.is_special;
++    
++    // != && !=: special classes take 5, 6 or 7; the others at most 4, or 6
++    if (_special)
++    {
++        if (_lvl != 6 && _lvl != 7)
++            _lvl = 5;
++    }
++    else if (_lvl != 6 && _lvl > 4)
++    {
++        _lvl = 4;
++    }
++    
++    return scr_create_unit_base(_cls, max(0, _lvl));
++}
++
++
++/// GNX-UNIT: the quest reward for captive arg0 (unit data): the game's captive item (type 9), drawn as her head in
++/// the quest log; no number on it, her class as its name
++function gnx_unit_reward_item(arg0)
++{
++    // -1: no number drawn on the item
++    var _it = scr_set_item_data(UnknownEnum.Value_9, -1, arg0);
++    _it.item_name = variable_struct_exists(arg0, "class_name") ? string(arg0.class_name) : -1;
++    return _it;
++}
++
++
++/// GNX-UNIT: puts captive arg0 (unit data) into the first free place of the prison and refreshes the prison
++/// window when it is open. false when the prison is full (nothing changes).
++function gnx_unit_to_prison(arg0)
++{
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        // == -1: a free place
++        if (ds_list_find_value(global.unit_list, i) == -1)
++        {
++            ds_list_set(global.unit_list, i, arg0);
++            
++            // && = and: the prison window is open
++            if (variable_instance_exists(obj_np, "unit_button") && obj_np.unit_button.child_window != -1)
++                scr_reset_unit_window(-1);
++            
++            return true;
++        }
++    }
++    
++    return false;
 +}
 +
 +
@@ -1194,6 +1793,7 @@
 +    Value_4,
 +    Value_5,
 +    Value_7 = 7,
++    Value_9 = 9,
 +    Value_12 = 12,
 +    Value_33 = 33,
 +    Value_40 = 40,

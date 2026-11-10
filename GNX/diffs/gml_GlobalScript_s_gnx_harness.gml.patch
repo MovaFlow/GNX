@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7309 @@
+@@ -0,0 +1,7350 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -7293,6 +7293,47 @@
 +function gnx_scn_spr_growth()
 +{
 +    return array_length(global.gnx_runtime_sprites) - global.gnx_scn_spr_mark;
++}
++
++
++// for {"call"}: captures the boss of mod stage arg0, level arg1, as a raid would (gnx_mark_boss_captured on the unit the
++// level rolled as its boss); 1 when the encounter had a boss, else 0
++function gnx_scn_capture_stage_boss(arg0, arg1)
++{
++    var _i = gnx_stage_ref(arg0, "");
++
++    if (_i == -1 || global.val.stage_info[_i] == -1)
++        return 0;
++
++    var _u = global.val.stage_info[_i].info[arg1].unit_list;
++
++    for (var _k = 0; _k < array_length(_u); _k++)
++    {
++        if (variable_struct_exists(_u[_k], "gnx_boss"))
++        {
++            gnx_mark_boss_captured(_u[_k]);
++            return 1;
++        }
++    }
++
++    return 0;
++}
++
++
++// for {"assert": "fn"}: arg0 when it is a number, else -1 (a cell id registered as text "24680" is no number)
++function gnx_scn_num_id(arg0)
++{
++    return is_numeric(arg0) ? arg0 : -1;
++}
++
++
++// for {"assert": "fn"}: true when class_map cell arg0 (h_type) has an entry for class arg1 (class id), as extend adds
++function gnx_scn_cmap_has(arg0, arg1)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++
++    // && = and: a registered class_map cell with that class among its entries
++    return is_struct(_c) && variable_struct_exists(_c, "human_spr") && is_struct(_c.human_spr) && variable_struct_exists(_c.human_spr, "classes") && is_struct(_c.human_spr.classes) && variable_struct_exists(_c.human_spr.classes, string(arg1));
 +}
 +
 +

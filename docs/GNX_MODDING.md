@@ -39,7 +39,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 
 ## New stuff (GNX 1.5.2)
 
-**In short:** what GNX 1.5.2 adds for monster sprites, in one place. Each part links to the section it extends and says what GNX 1.5.1 does with the same JSON, so one mod can work on both. Set `"min_gnx_version": "1.5.2"` in a mod that uses any of this ([4.2](#42-the-version-check)); GNX 1.5.0 and older ignore that key and load the mod without the new art.
+**In short:** what GNX 1.5.2 adds for monster sprites, captive art, classes and quests, in one place. Each part links to the section it extends and says what GNX 1.5.1 does with the same JSON, so one mod can work on both. Set `"min_gnx_version": "1.5.2"` in a mod that uses any of this ([4.2](#42-the-version-check)); GNX 1.5.0 and older ignore that key and load the mod without the new art.
 
 | What | Details | GNX 1.5.1 with the same JSON |
 |---|---|---|
@@ -50,6 +50,69 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5, 
 | "Which key do I use": `sprite_replace` or `monster_art` | [§10](#10-cell-sprites-human_spr-and-monster_art) | not available |
 | The old monster keys (`mon_spr`, `mon_spr_hob`, `mon_spr_ogr`, `_pN`) moved to an appendix; they work as before | [Appendix C](#appendix-c-old-monster-keys) | works |
 | Fixes: `sprite_replace` in a mod that has an atlas, with a file named like an atlas entry; `build_mod.py` deploys the art that `sprite_replace` and `monster_art` name; a `sprite_replace` after another mod's resized sprite compares with the game's own sprite; the frame count of the MODS page includes backups of replaced sprites | [5.9](#59-replacing-game-sprites-sprite_replace), [5.8](#58-packing-tool-and-atlas) | the old behaviour |
+| Clothing variants: a place of `spr_c_array` can be a list; the cell's clothing button goes through the variants, each in a colour of its own | [7.7a](#77a-clothing-variants) | a place with a list is drawn without clothes |
+| Leg entries `leg_1`, `leg_2`, `leg_0`, `leg_any` in a `class_map` entry, so the bodies of one class can look different | [10.5](#105-class_map) | ignored: the entry's own tables for every variant |
+| `by_mon_type` in a phase of a `class_map` entry works | [10.5](#105-class_map) | ignored |
+| `tent_spr` per `class_map` entry, and `milk_spr`, `infant_spr`, `tent_spr` per leg entry, in underground cells | [Underground cells](#underground-cells-milk-and-newborn-per-class) | ignored: the entry's or the cell's for everyone |
+| Milk and newborn strips with a block per skin tone, marked `"skins": 3` | [24.5](#245-milking-milk_spr), [24.6](#246-birth-and-the-newborn-infant_spr) | ignored: the first block, or the whole strip as one newborn |
+| `extend`: add your classes, with their art, milk, egg and tentacle, to another mod's `class_map` cell, in any load order | [12.4a](#124a-adding-your-classes-to-another-mods-cell-extend) | skipped with a mod error |
+| Class key `sell_lvl`: from which level the raid trader buys a captive of the class, or never | [Classes](#classes-milk_lvl-and-selling) | ignored: the 1.5.1 rule |
+| Quests with several objectives, groups of cells (`h_type` lists, `category`), `cell_occupied` with a count, a captive as a reward, side effect `create_unit` | [Quests](#quests-several-objectives-groups-of-cells-captives-as-rewards) | a list `completion` never completes; the rest is ignored or never matches |
+| Fixes: `h_type` written as text, quest conditions without `value`, bosses on `no_capture` levels and `until_captured`, stage coordinates, `raids.json` stage `unlock`, cell names read before the cells existed, and more | [Fixes in GNX 1.5.2](#fixes-in-gnx-152) | the old behaviour (`"h_type": "500"`, `day_gte` without `value` and a stage `pos` with fewer than two numbers stop the game) |
+
+### Quests: several objectives, groups of cells, captives as rewards
+
+New in GNX 1.5.2. `QUESTS_SCHEMA.md` lists the same keys.
+
+```json
+{
+  "events": {
+    "expand_quest": {
+      "type": "quest",
+      "quest_text": "Expand the nest.",
+      "completion": [
+        { "type": "build_count", "h_type": 11, "value": 3, "label": "DRINK" },
+        { "type": "build_count", "h_type": 10, "value": 2, "label": "DISPLAY" },
+        { "type": "cell_occupied", "h_type": [10, 11], "value": 5, "label": "GIRLS" }
+      ],
+      "reward": { "type": "unit", "class": "Witch", "level": 3 },
+      "next_event": "expand_done"
+    }
+  }
+}
+```
+
+**What this example does:** the quest is done when the player has built 3 DRINK and 2 DISPLAY cells since it appeared, and 5 of the DISPLAY and DRINK cells in the nest hold a captive. The log shows `Expand the nest. (DRINK 1/3, DISPLAY 0/2, GIRLS 2/5)`. The reward is a level 3 Witch, drawn as her head; clicking it puts her into the prison.
+
+- **`completion` as a list:** the quest is done when every objective holds. Each build_count objective counts from the moment the quest appeared, on its own, also across saving and loading. An empty list never completes and is reported, like a quest without `completion`.
+- **Progress in the text:** every objective that counts something shows `done/value` after `quest_text`: `build_count`, `cell_count`, `cell_occupied`, `unit_count` and `has_item`, also as a single `completion`. The optional `"label"` stands before its numbers and is translated like the quest's text. The quest log is narrow: keep `quest_text` and the labels short. The text updates whenever the quest is checked, so with `completion_hook` `"cell_built"` a captive put into a cell shows only at the next build; leave the hook out (`"frame"`) for `cell_occupied`.
+- **Groups of cells** in `build_count`, `cell_built`, `cell_count` and `cell_occupied`:
+  - `"h_type"` can be a list: `[31, 32, 29]` or `["my_mod.ALTAR", 3]`; the cells of all of them add up.
+  - `"category"` names a build tab, as `category` in cells.json ([8.4](#84-category-build-menu-tab-and-cell-size)): `"t_breed"` is every tentacle breeding cell, vanilla and modded; a list of tabs works too. `h_type` and `category` together add up. A name that is no tab is a mod error and names no cell.
+  - "3 of T.WALL 1, 3 of T.WALL 2 and 4 of T.WALL 3" is three objectives in a list; "10 tentacle cells of any kind" is one objective with `"category": "t_breed"`.
+- **`cell_occupied` with `"value"`:** how many of the cells it names must hold a captive; 1 when left out, as before.
+- **Reward `"unit"`:** `"class"` is a class name of the mod, `"<folder>.<name>"` or a class ID; `"level"` is the captive's level (special classes 5, 6 or 7, others 0–4 or 6, as the TOOLS button `create_unit`). The captive is made when the quest appears and kept in the save until the reward is claimed. With the prison full, the reward stays in the log: `Prison is full!`. An unknown class is a mod error and gives no reward.
+- **Side effect `create_unit`** (`{"type": "create_unit", "class": "Witch", "level": 3}`): puts a new captive into the prison when the event fires; with the prison full she is lost and the player sees `Prison is full!`.
+- GNX 1.5.1 does not know these: a list `completion` never completes, `category` and `h_type` lists never match, `"value"` of `cell_occupied` is ignored, a `unit` reward gives nothing, `create_unit` is skipped.
+
+### Fixes in GNX 1.5.2
+
+These fixes come on top of GNX 1.5.1.
+
+- **`h_type` written as text** ([8.3](#83-h_type-the-cells-id)): `"h_type": "500"` is read as 500. Before, the text went into the cell registry and the game stopped at the first such cell built or loaded (`scr_set_slot_h_data`: `spr_slot` not set). Text that is no number is a mod error, and the cell gets its hash ID as if `h_type` were left out: `[GNX] ERROR: Mod 'my_mod': cell 'ALTAR' has h_type ALTAR, not a number; it gets its own id, as without h_type`. A negative number or a fraction is a mod error with the same result (`-1` means "no cell" to the game).
+- **Quest conditions without their value:** `day_gte` and `day_every` without `value`, and `class_unlocked` without `class`, stopped the game whenever they were checked. `value` is now 1 when left out (`day_every` then holds every day); `class_unlocked` without `class` never matches.
+- **Blueprint pieces of underground and XL cells** ([§24](#24-underground-cells)) are kept when the player presses the inventory's sort button. The sort kept only blueprints of cells on the vanilla build tabs, so pieces of `ug_breed` and `xl_breed` cells, of cells of a mod not loaded on this map, and of removed mods were deleted.
+- **Cell names in `classes.json` conditions** (`raid_spawns`, `cage_escape`, `tower_boss_condition`) no longer give a "cell not found" error at every start: they are read before any cell is loaded, and read again once every cell is. A name still missing then is reported once.
+- **Cell names in `map_info.unlock`** ([21.2](#212-map_info)), such as `{"type": "cell_built", "h_type": "my_mod.GATE"}`, now work. They were read before any cell was loaded and never again, so the map never opened.
+- **Cell names of a map mod in quests:** after a save was loaded from the menu, or after RELOAD MODS, a quest condition or side effect naming a cell of a map mod never matched. The names are now read again once the map mod has loaded. A quest naming a cell of a map mod that is not loaded on this map is a log line, not a mod error.
+- **A save made mid-scene, loaded after the cell's `scr_h` got shorter:** the cell goes back to idle and the scene's monsters leave. Before, they stayed in the cell, which then called nobody and stood still until the captive was taken out.
+- **Bosses of `raids.json` levels** ([27.2](#272-levels)): on a `no_capture` level the level's own `boss` can be captured now; `until_captured` goes by that boss only, for a boss of any class, and counts her only once she is in the cage after the raid.
+- **Coordinates** (`map_info.vanilla_stages.<STAGE>.pos`, a `raids.json` stage `pos`, `path` points, `map_info.nest`) that are not two numbers are mod errors; before, a short list stopped the game and text was read as 0 ([27.4](#274-cart-routes)).
+- **A `raids.json` stage `unlock` that is no condition** is a mod error and the stage stays hidden; before, the stage was there from the start ([27.1](#271-stages)).
+- **A cell turned off** left the off switch in its slot, so the next cell built there started off. A new cell now starts on.
+- **`build_count` quests in another language:** the quest log translates the quest's text and adds the progress after it, `(2/4)`.
+- **Translated texts that GNX draws itself** (mod names and details in the MODS menu, mod stage names on the raid map, the tool window's title) use their language's font, as the game's own texts do. A prop menu group with a translated name shows its "new" dot again.
+- **Log noise:** an unknown item name (`has_item`, `give_item`, `take_item`, item rewards) is reported once, not in every frame. A `raids.json` that `manifest.json` does not declare is logged, like the other data files.
 
 ## New stuff (GNX 1.5.1)
 
@@ -185,23 +248,65 @@ Each `classes` entry also holds its phase tables (`phase_1`, `phase_2`, `phase_4
   For `strip`, `path`, `frames`, `folder` and plain file names the check only looks for the files. For an atlas page it also reads the PNG header, to check the frames against the page size. It never reads the picture data: a PNG with a good header but broken picture data passes the check and the mod loads; that sprite fails only when GNX loads it, with the usual log line ([B.2](#b2-log-messages)), for example `[GNX] <key>: strip frames=<N> idx=-1`.
 
 - **Who can enter** works as [24.1](#241-what-gnx-fills-in) says: a `class_map` underground cell lets in the classes listed in `classes`, and every class when it has a `default` entry. GNX 1.5.0 let only the listed classes in, even with a `default`.
+- **A tentacle per class** (new in GNX 1.5.2): a `classes` entry, or `default`, can also bring its own `tent_spr`, written as the cell's own ([24.4](#244-the-tentacle-tent_spr)), so a bigger captive gets a bigger tentacle. A phase the entry leaves out keeps the cell's tentacle; a class without `tent_spr` gets the cell's. Its strips follow the frame rule like the cell's, and an entry's `tent_spr` that is no object is a mod error. GNX 1.5.1 ignores the key and draws the cell's tentacle for everyone.
+
+  ```json
+  {
+    "human_spr": {
+      "mode": "class_map",
+      "classes": {
+        "9": {
+          "tent_spr": {"start": "gnx:pit_tent_big_start", "loop": "gnx:pit_tent_big_loop", "ej": "gnx:pit_tent_big_ej"}
+        }
+      }
+    },
+    "tent_spr": {"start": "gnx:pit_tent_start", "idle": "spr_empty", "loop": "gnx:pit_tent_loop", "ej": "gnx:pit_tent_ej", "birth": "spr_empty"}
+  }
+  ```
+
+  Hathor (class 9) gets the big tentacle in start, loop and ej; in idle and birth, and for every other class, the cell's is drawn.
+- **Per leg variant** (new in GNX 1.5.2): the leg entries of an entry ([10.5](#105-class_map)) can bring their own `milk_spr`, `infant_spr` and `tent_spr` too, so each body of a class gets its own milk and tentacle. What a leg entry leaves out is its entry's; a `tent_spr` phase neither has is the cell's. They are checked before the mod loads like the entry's.
+
+  ```json
+  {
+    "human_spr": {
+      "mode": "class_map",
+      "classes": {
+        "0": {
+          "infant_spr": "gnx:pit_egg",
+          "leg_1": { "milk_spr": {"loop": "gnx:pit_body1_milk"} },
+          "leg_2": {
+            "milk_spr": {"loop": "gnx:pit_body2_milk"},
+            "tent_spr": {"start": "gnx:pit_tent2_start", "loop": "gnx:pit_tent2_loop", "ej": "gnx:pit_tent2_ej"}
+          }
+        }
+      }
+    }
+  }
+  ```
+
+  Every Peasant lays `pit_egg`; each body has its own milk; variant 2 gets its own tentacle, variant 1 the cell's. The phase tables of the leg entries are left out here.
 
 ### Classes: milk_lvl and selling
 
 ```json
 {
   "name": "Witch",
-  "milk_lvl": 3
+  "milk_lvl": 3,
+  "sell_lvl": 2
 }
 ```
 
 | Key | What it means | Type | Default |
 |---|---|---|---|
 | `milk_lvl` | The level (0–4) of the milk this class gives, or `"lvl"` for the captive's own level. Used wherever milk is made: MILK 1, MILK 2, DAIRY, underground milking and the raid cages. | number or text | the vanilla rule: her level for classes 0–7, Lilith 4, every other class 1, so every mod class gives level 1 (DAIRY always 1) |
+| `sell_lvl` | New in GNX 1.5.2. The lowest level at which the raid trader buys a captive of this class, 0–7; `-1` = never. Counts for dragging her onto the trader and for the trader's "sell all" buttons (prison, pregnant captives and cage). | number | special classes from level 6, the others at any level (below) |
 
 - An `override` with `milk_lvl` replaces the earlier value ([6.2](#62-override-changing-an-existing-class)); without it the earlier value stays.
 - A value that is not `"lvl"`, not a number or outside 0–4 is a mod error, for example `[GNX] ERROR: Class 'my_mod.Witch': milk_lvl must be 0-4 (7); 4 is used`.
 - **Selling captives to the raid trader** ([13.5](#135-trade_stage)): special classes (the vanilla bosses 8–13 and mod classes with `"is_special": true`, [16.1](#161-what-is_special-changes)) sell only from level 6, as the vanilla bosses always did; other classes sell at any level. GNX 1.5.0 let every class through. The price stays (level + 1) × 10 gold, at most 60.
+- **`sell_lvl` changes that rule for one class** (new in GNX 1.5.2): `"sell_lvl": 0` lets a special class be sold at any level, `"sell_lvl": -1` keeps a class from ever being sold, `"sell_lvl": 3` sells from level 3. Write a number: JSON `true` and `false` arrive in GNX as 1 and 0 and would be read as levels. A value outside -1–7, or text that is no number, is a mod error. An `override` with `sell_lvl` replaces the earlier value; vanilla classes can get one through an `override` too.
+- **"Sell all" at the trader** (prison, pregnant captives, cage) keeps the game's own rules for classes without `sell_lvl` (in the prison it skips level-5 captives); a class with `sell_lvl` is sold there only from that level (`"sell_lvl": 0` sells her at level 5 too), and a captive kept this way stays in her prison place or cage.
 
 ### Quests: build_count
 
@@ -785,6 +890,7 @@ If the mod has an atlas, GNX checks it before all of these ([§20](#20-atlas-pac
 | `xorig`, `yorig` | Origin: pixels from the left and top edge of a frame, or a name: `"left"`, `"center"`, `"right"` / `"top"`, `"middle"`, `"bottom"` ([5.3](#53-the-origin), new in 1.5). | number or text | 0 |
 | `origin_from` | Vanilla sprite whose origin is copied, instead of `xorig` / `yorig`. | text | — |
 | `loop` | Captive strips in cells: the strip loops its own frames inside a longer phase ([22.6](#226-looping-captive-strips), new in 1.5). | true/false or number | — |
+| `skins` | `3`: the strip holds a block per skin tone. Read only for the milk and newborn strips of underground cells ([24.5](#245-milking-milk_spr), [24.6](#246-birth-and-the-newborn-infant_spr), new in GNX 1.5.2). | number (3 or 1) | 1 |
 | `canvas_w`, `canvas_h` | **Ignored.** A strip's frame width is always the PNG width divided by `frames`. | number | — |
 
 **Strip** (the normal case, as in the example above). The PNG must be exactly `frames` × one frame wide.
@@ -1322,11 +1428,40 @@ Each list position ("slot") is one body part:
 | `[3]` | hand | hand clothes | 7 |
 | `[4]` | leg | leg clothes | 8 |
 | `[5]` | leg part | leg part clothes | 9 |
-| `[6]` | cape / extra | — (not read) | 11 |
+| `[6]` | cape / extra | cape variants, as a list ([7.7a](#77a-clothing-variants)); otherwise not read | 11 |
 
 Write all 7 entries in `spr_array` and at least 6 in `spr_c_array` (a 7th is ignored), with `-1` for unused slots. In cells with a cape layer (M.PRESS 1, DISPLAY, GIANT) GNX reads slot `[6]` without checking the list length, so a shorter list can cause an error.
 
 There is no leg choice in these tables: a special class has one fixed body per phase. Use `default_leg` to fix its pose elsewhere, for example on the ogre carry.
+
+### 7.7a Clothing variants
+
+New in GNX 1.5.2. A place of `spr_c_array` can be a **list** instead of one sprite: the first entry is the clothing as before, the others are variants of it. Each variant is an ordinary key of `sprites`.
+
+```json
+{
+  "phase_2": {
+    "spr_array": [-1, "gnx:loop_head", "gnx:loop_breast", "gnx:hand", "gnx:loop_leg", "gnx:loop_legp", -1],
+    "spr_c_array": [
+      -1,
+      "gnx:loop_head",
+      ["gnx:loop_breast_c", "gnx:loop_breast_c_maid", "gnx:loop_breast_c_bikini"],
+      "gnx:hand_c",
+      ["gnx:loop_leg_c", "gnx:loop_leg_c_maid"],
+      "gnx:loop_legp_c",
+      -1
+    ]
+  }
+}
+```
+
+- **The cell's clothing button** (the round buttons in the cell's window) goes clothing → variant 1 → variant 2 → … → no clothing → clothing. Without lists it stays the game's on/off. A button showing a variant has a colour of its own: blue, pink, green, gold, then blue again. White is the clothing, the darker look no clothing, as before.
+- **Which places go with which button.** The breast `[2]`, the hand `[3]` and the leg `[4]` have buttons. The leg part `[5]` goes with the leg. The cape `[6]` and the head overlay `[1]` go with the breast; the head has no button of its own, so a hat goes with the top. The hair `[0]` has no variants. For the cape the list's first entry is the cape of the clothing state, in place of `spr_array[6]`.
+- **How many steps:** the most variants among the places of one button. A shorter list shows its first entry, the clothing, for the variants it lacks; `-1` in a list means no clothing on that place in that variant (the cape gone with the bikini top: `["gnx:loop_cape", -1, "gnx:loop_cape"]`).
+- **Where:** every table with `spr_c_array`: the special classes' `clothing_*` phases with `by_class` and `by_mon_type`, `class_map` entries and their leg entries ([10.5](#105-class_map)), `fixed`, and `extend` ([12.4a](#124a-adding-your-classes-to-another-mods-cell-extend)). Not the normal classes' named tables (`head`, `breast`, `leg_1`, ...).
+- **The choice belongs to the cell**, like its clothing buttons: it is saved with the cell, starts at the clothing when the cell is built, and a captive who comes in wears what the cell's buttons show. Only the cell shows variants; the prison, the carry and the icons show the clothing. Give every phase the same lists: a phase without the chosen variant shows the clothing (the button turns white) and the next click goes on from the clothing; back in a phase that has the variant, it shows again. A phase that keeps the art on screen (a GIANT phase without its own `clothing_giant` table) keeps its variants as well.
+- **A variant strip has the layout of the strip it replaces:** the phase's frames per row, the same rows, and for a normal class the 3 skin blocks, because it is drawn with the same frame number. The frame rule ([22.5](#225-the-frame-rule-for-every-mod-cell)) checks variants like any strip.
+- A list in `spr_array` is a mod error; its first entry is used. GNX 1.5.1 draws a place with a list without clothes.
 
 ### 7.8 naked_standard, naked_big, naked_tent
 
@@ -1579,7 +1714,7 @@ Vanilla cells use 1–42 (0, 16, 26 and 35 are not cells; [Appendix A](#appendix
 
 If you do write `h_type`:
 
-- Write a plain number: `"h_type": 500`, never `"h_type": "500"`.
+- Write a plain whole number: `"h_type": 500`. A number in quotes (`"500"`) is read as that number (new in GNX 1.5.2; it stops GNX 1.5.1); other text, a negative number or a fraction is a mod error and the cell gets its hash ID.
 - Use 100 or higher. 43–99 registers, but custom monster sprites for vanilla captives (class ID below 14) and the `mon_positions` strip rows ([§11](#11-multi-monster-cells)) need 100+.
 - An ID that already exists makes the entry a patch, not a new cell ([§12](#12-patching-vanilla-cells-and-classes)).
 
@@ -2083,6 +2218,7 @@ Every class uses the phase's own lists except the Witch, who uses her `by_class`
 
 - `by_class` keys: a class ref `"<folder>.<class name>"` or a class ID as text (`"9"` = vanilla cow), resolved when the cell loads, so classes of any mod work ([3.3](#33-load-order)). A miss logs `[GNX-WARN] by_class '<ref>' not found. Check: folder name + class name must match exactly (case-sensitive).`
 - `by_mon_type` keys: `"0"` goblin, `"1"` hobgoblin, `"2"` tentacle, `"3"` ogre.
+- In `class_map` mode `by_mon_type` sits directly in a phase of a class's entry ([10.5](#105-class_map)), without `by_class`.
 - Each entry needs a 7-position `spr_array` and a `spr_c_array` with at least 6 positions, as in [10.3](#103-fixed).
 
 > **When** a cell holds several monsters ([§11](#11-multi-monster-cells)), `by_mon_type` looks only at the **first** one.
@@ -2124,8 +2260,43 @@ The Witch uses her own entry under `classes`, with clothing overlays; every othe
 
 - `classes` keys: class refs or class IDs as text; refs to **any** mod work, as they are resolved again after all mods load. A miss logs `[GNX-WARN] class_map h=<id> unresolved ref: <ref>`.
 - class_map strips keep **3 skin blocks per row**, unlike fixed mode; `is_special` classes use one.
-- Only `spr_array` and `spr_c_array` are read per phase; `by_mon_type` and `by_class` do nothing here.
+- Per phase `spr_array`, `spr_c_array` and `by_mon_type` are read: `by_mon_type` gives the class other art when the first monster in the cell is of that type, with the keys of [10.4](#104-by_class-and-by_mon_type-fixed-mode-only) (new in GNX 1.5.2; before it did nothing here). `by_class` does nothing here: the entry already belongs to one class.
 - A class with no entry and no `default` fails the self-test (`[GNX-TEST] FAIL  DROUTE h=<id> c=<class> CLASS_MAP_NO_MATCH`) and gets the vanilla fallback sprites. So does a listed class whose entry lacks the needed phase: `default`'s phase is **not** used (verbose log: `[GNX-WARN] class_map h=<id> c=<class> missing phase_<n>`).
+
+**Leg entries (new in GNX 1.5.2).** A captive of a normal class has one of three bodies, her [leg variant](#2-glossary): `leg_1` or `leg_2` (drawn at random when she is made, Peasant to Samurai) or `leg_0` (the kneeling body, always for Shaman and Warrior). An entry of `classes`, or `default`, can bring a table set for each of them:
+
+```json
+{
+  "human_spr": {
+    "mode": "class_map",
+    "classes": {
+      "0": {
+        "leg_1": {
+          "phase_1": {
+            "spr_array": [-1, "gnx:pit_peasant_idle_head", "gnx:pit_body1_idle_breast", -1, "gnx:pit_body1_idle_leg", -1, -1],
+            "spr_c_array": ["gnx:pit_peasant_idle_hair", -1, -1, -1, -1, -1, -1]
+          }
+        },
+        "leg_2": {
+          "phase_1": {
+            "spr_array": [-1, "gnx:pit_peasant_idle_head", "gnx:pit_body2_idle_breast", -1, "gnx:pit_body2_idle_leg", -1, -1],
+            "spr_c_array": ["gnx:pit_peasant_idle_hair", -1, -1, -1, -1, -1, -1]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+**What this example does:** a Peasant with leg variant 1 is drawn with the body `pit_body1`, one with variant 2 with `pit_body2`; both have the Peasant's head and hair. The other phases are left out here.
+
+- **Keys:** `leg_1`, `leg_2`, `leg_0` and `leg_any`, each an object built like an entry: phase tables, intermission tables ([§23](#23-intermissions)) and, in an underground cell, `milk_spr`, `infant_spr` and `tent_spr` ([Underground cells](#underground-cells-milk-and-newborn-per-class)).
+- **Which one a captive gets:** the one for her leg variant, else `leg_any`, else the entry itself.
+- **What a leg entry leaves out comes from its entry:** a phase table, `milk_spr` or `infant_spr` it does not have is the entry's; a `tent_spr` phase it does not have is the entry's, else the cell's. So shared tables can sit in the entry, next to the leg entries.
+- A captive whose entry has leg entries, but none for her variant and no `leg_any`, uses the entry's own tables; without the needed phase there, she gets the vanilla fallback sprites, as above. Classes Peasant to Samurai only have variants 1 and 2, Shaman and Warrior only 0.
+- Their strips follow the frame rule like the entry's ([22.5](#225-the-frame-rule-for-every-mod-cell)); normal classes need 3 skin blocks per row ([5.5](#55-how-frames-are-arranged-in-a-strip)).
+- GNX 1.5.1 does not read leg entries: it draws the entry's own tables for every variant. A mod that must also work there keeps full tables in the entry.
 
 ### 10.6 Dispatch order
 
@@ -2623,6 +2794,52 @@ Several mods can patch the same cell; patches are applied in load order (alphabe
 ```
 
 GIANT (h_type 37) accepts only the giant class (11) through its `required_class`; the patch makes the list `[11, Witch]`. That is all access needs, while a `clothing_giant` block alone does not open GIANT. Give the Witch a `clothing_giant` too ([§7](#7-clothing-maps-how-a-class-looks-in-each-cell)): without it GIANT draws her `clothing_standard`, which has no GIANT pose, so she shows the wrong frames.
+
+### 12.4a Adding your classes to another mod's cell (extend)
+
+New in GNX 1.5.2. A patch cannot add `class_map` art (`human_spr.classes` is ignored in a patch) and depends on load order. An `extend` entry can, for any order of the mods: a mod puts its characters into a `class_map` cell of another mod without editing that mod. For example, a recolour of the cow joins the underground cell T.PIT:
+
+```json
+[
+  {
+    "extend": "T_PIT.T.PIT",
+    "sprites": {
+      "bluecow_start_head": { "strip": "strips/bluecow_ug_start_head.png", "frames": 2, "loop": true, "xorig": 0, "yorig": 86 },
+      "bluecow_idle_head": { "strip": "strips/bluecow_ug_idle_head.png", "frames": 2, "xorig": 0, "yorig": 86 }
+    },
+    "human_spr": {
+      "classes": {
+        "BlueCow": {
+          "phase_0": {
+            "spr_array": [-1, "gnx:bluecow_start_head", "gnx:bluecow_start_breast", -1, "gnx:bluecow_start_leg", -1, "gnx:bluecow_start_cape"],
+            "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+          },
+          "phase_1": {
+            "spr_array": [-1, "gnx:bluecow_idle_head", "gnx:bluecow_idle_breast", -1, "gnx:bluecow_idle_leg", -1, "gnx:bluecow_idle_cape"],
+            "spr_c_array": [-1, -1, -1, -1, -1, -1, -1]
+          },
+          "milk_spr": { "loop": "gnx:bluecow_milk_loop" },
+          "infant_spr": "gnx:bluecow_egg",
+          "tent_spr": { "start": "gnx:bluecow_tent_start", "loop": "gnx:bluecow_tent_loop", "ej": "gnx:bluecow_tent_ej" }
+        }
+      }
+    }
+  }
+]
+```
+
+This is an entry of the recolour mod's own `cells.json`; the other phases and most sprites are left out here. **What it does:** the class `BlueCow` of this mod gets its own art in T.PIT, milk, egg and tentacle included, and can be put into the cell; T.PIT itself is not touched.
+
+- **`extend`:** the cell, as `"<folder>.<cell name>"` (the cell's `name`, as quests name cells) or its `h_type`. The cell must use `human_spr` mode `class_map`; anything else is a mod error and nothing is added.
+- **`human_spr.classes`:** entries written exactly as the cell's own ([10.5](#105-class_map)): phase and intermission tables, leg entries, and in an underground cell `milk_spr`, `infant_spr` and `tent_spr` ([Underground cells](#underground-cells-milk-and-newborn-per-class)). A class of your mod may be written without its folder (`"BlueCow"`); classes of other mods as `"<folder>.<name>"`, vanilla classes by number.
+- **`sprites`:** your mod's sprites for these entries, loaded from your folder and your atlas. The cell's own sprites cannot be named here; a sprite it shares with you must be in your mod too.
+- **Order does not matter:** extend entries wait until every cell of every mod is loaded, then go in (a second pass over the cells). For a cell of a map mod they go in once that mod loads. A cell of a mod that is not installed, or not loaded on this map, is only a log line, so the recolour works without T.PIT; a wrong name for a cell of an installed mod is a mod error.
+- **Who can enter:** an added class can enter the cell. A cell with a `required_class` list gets the class added to it; an underground cell without one lets in the classes it has art for, the added ones included.
+- **A class the cell already has keeps the cell's art:** `[GNX-WARN] Mod 'BlueCow': extend 'T_PIT.T.PIT': the cell already has art for class <id> (...); the cell's is kept ("replace": true replaces it)`. When two mods add the same class, the first in load order stays.
+- **`"replace": true`** (next to `extend`): your entries replace the art the cell, or an earlier mod, has for those classes, with its tentacle, milk and newborn. This is for a mod that recolours a class the cell already has, for example an `override` of the vanilla cow (class 9) in a cell with its own `"9"` entry. With several such mods, the last in load order wins.
+- **Checks:** the strips follow the cell's frame counts, as the cell's own do; errors name the cell and your mod: `[GNX] ERROR: Cell 'T.PIT' from mod 'BlueCow': strip 'bluecow_loop_head' (human_spr.phase_2) has 4 frames, it needs 5 per row`. `milk_spr` and `infant_spr` are checked before your mod loads, as in an underground cell; a broken one stops your mod from loading.
+- The log shows each added class: `[GNX] cell 'T.PIT' h=5875: mod 'BlueCow' adds class 2911 (BlueCow.BlueCow)`.
+- GNX 1.5.1 does not know `extend`: such an entry has no `category` or `physical`, so it is skipped with a mod error and your class does not get into the cell.
 
 ### 12.5 Patching classes
 
@@ -5172,6 +5389,7 @@ Layer type 20 draws the tentacle. Its own sprite (GNX: `spr_gnx_ug_tent_ready`) 
 - A main phase without a key draws the layer's own sprite; an intermission without a key draws no tentacle.
 - Without `tent_spr` at all, the tentacle shows only in the empty cell.
 - Tentacle strips need the frame count of their phase; they never loop.
+- In `class_map` mode a `classes` entry, `default` or a leg entry can bring its own `tent_spr` (new in GNX 1.5.2, [Underground cells](#underground-cells-milk-and-newborn-per-class)); a class without one gets the cell's.
 
 ### 24.5 Milking (milk_spr)
 
@@ -5192,14 +5410,22 @@ How a milk strip plays:
 
 - A strip with the phase's frame count (or whole rows of it) moves with the captive.
 - A strip marked `"loop": true`, or one whose count does not fit the phase (5 frames in a 2-frame phase), runs on its own clock at `speed.milk`. So one 5-frame milk strip can serve every phase.
+- **A strip with several rows** (one per `character_row`, shared by cells on different rows) that runs on its own clock needs `"loop": <frames of one row>`. Its length gives the frames of all rows together, not how many rows there are, so without a number GNX reads it as the rows the cell needs: one row for a cell on row 0, rows 0 and 1 for a cell on row 1, and so on. A cell on row 1 or more then writes a log line asking for the number (a mod error for a strip marked `"skins": 3`). A cell on row 0 cannot tell by itself; when it runs the strip on its own clock and the same strip is also drawn on a later row (on its own clock or in step with the phase), GNX reports once more that the row-0 cells read it as one row. A strip drawn only on row 0 cannot be checked, so give `"loop"` whenever a strip has several rows. Before GNX 1.5.2 such a strip played its whole length as one cycle, and a cell on row 1 or more showed the wrong rows.
 - A phase without its own strip borrows one, so the milk shows whenever it comes. Without any `milk_spr` the items still come in but nothing is drawn: `[GNX-UG] WITCH PIT: no milk_spr - milk items come in, but no milk is drawn`.
+- **Skin tones** (new in GNX 1.5.2): milk drawn over the breast shows her skin, so a strip can hold a block per skin tone, 3 blocks per row like the body strips of a normal class ([5.5](#55-how-frames-are-arranged-in-a-strip)): a 5-frame milk loop becomes 15 frames, skin 0, 1, 2. Mark such a strip in `sprites` with `"skins": 3`, as the newborn's ([24.6](#246-birth-and-the-newborn-infant_spr)):
+
+  ```json
+  { "pit_milk": { "strip": "strips/spr_h_pit_milk_loop.png", "frames": 15, "skins": 3, "xorig": 0, "yorig": 86 } }
+  ```
+
+  A captive with a skin tone (a normal class, in a `class_map` cell) then gets the block of hers; a special class (one skin) gets the first block. Only the mark makes the blocks: GNX does not guess them from the length, because 10 frames can be two rows of one block (a cell with two rows) as well as one row with a second block. A strip without the mark is one block per row, as before. On the milk's own clock a marked strip loops the frames of one block in one row (15 frames in a 2-frame phase: 5; with several rows, see above). With `"loop"`, give the frames of one block, `"loop": 5`, not `"loop": true`: `true` loops the whole strip, through all three tones. A marked strip with fewer than 3 blocks of the frames it plays (in each row up to the cell's) is a mod error when the cell loads, once per strip, and the captives get the first block: `[GNX] ERROR: Mod 'my_mod': milk strip 'gnx:pit_milk' (milk_spr.loop) is marked "skins": 3 but has 10 frames, fewer than 3 blocks of 5. ...`. GNX 1.5.1 ignores the mark and draws the first block for everyone.
 - Keep the type 21 layer GNX writes, `[21, "spr_empty", false, -1]`: a layer whose sprite is `-1` is never drawn.
 
 > **When** a declared `milk_spr` names a strip GNX cannot find, or has no phase key, the whole mod is not loaded (new in 1.5.1, [Underground cells](#underground-cells-milk-and-newborn-per-class)). That part also shows how a `class_map` cell gives each class its own `milk_spr`.
 
 ### 24.6 Birth and the newborn (infant_spr)
 
-`infant_spr` is the newborn, for example an egg: one block of frames without skin blocks. First come the labour frames, spread over each loop of the birth frames; then the frames of the newborn coming out. The child joins the nest on the last frame.
+`infant_spr` is the newborn, for example an egg: one block of frames (or one per skin tone, below). First come the labour frames, spread over each loop of the birth frames; then the frames of the newborn coming out. The child joins the nest on the last frame.
 
 | Key | What it means | Type | Default |
 |---|---|---|---|
@@ -5208,6 +5434,18 @@ How a milk strip plays:
 | `physical.infant_time` | Seconds for the rest of `infant_spr` instead, 0.1–600; wins over `infant_speed`. | number | not set |
 
 - Without `infant_spr` nothing is drawn and the birth ends after 0.5 s.
+- **Skin tones** (new in GNX 1.5.2): a newborn that shows the mother's colours can have a block per skin tone. Draw the three blocks side by side (skin 0, 1, 2, the same number of frames each) and mark the strip in `sprites` with `"skins": 3`:
+
+  ```json
+  { "pit_egg": { "strip": "strips/spr_h_pit_egg.png", "frames": 27, "skins": 3, "xorig": 0, "yorig": 86 } }
+  ```
+
+  A 9-frame egg becomes 27 frames; `infant_labour_frames` and the other keys count the frames of one block. A mother with a skin tone (a normal class, not in a `fixed` cell) gets the block of hers; a special class (one skin) gets the first block. Without the mark the whole strip is one newborn, as before. GNX 1.5.1 ignores the mark and plays all 27 frames.
+- **Mistakes with `"skins"`**, each reported once per definition while the mods load (a clash once per shared PNG):
+  - A value other than exactly 3 or 1 is a mod error (3.8 is no 3); the strip is one block.
+  - A frame count 3 does not divide (28) is a mod error. The strip stays 3 blocks of the frames div 3 (9 each), and the last ones (1) are not shown. As one block it would play all three tones one after the other.
+  - Fewer than 3 frames cannot be 3 blocks: a mod error, one block.
+  - One PNG with the same frames and origin is loaded once and shared, so its blocks belong to the shared sprite. Two definitions of it, one with `"skins": 3` and one without, are a mod error: the first one loaded is kept, as for `"loop"`. Give both the same `"skins"`, or use separate PNGs.
 - The child's species is the class's `preg_mon_type_override`, otherwise tentacle ([14.1](#141-pregnancy-preg_c_override-and-preg_mon_type_override)); its troop type comes from `birth_class` ([14.2](#142-birth_class-which-troop-the-child-joins)). The child is given exactly once, even when the newborn picture is gone before its last frame.
 
 > **When** a declared `infant_spr` names a strip GNX cannot find, the whole mod is not loaded (new in 1.5.1, [Underground cells](#underground-cells-milk-and-newborn-per-class)). That part also shows how a `class_map` cell gives each class its own `infant_spr`.
@@ -5396,7 +5634,7 @@ New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest, so an older GNX 
 | `pos` | `[x, y]` of the button's centre on the raid map, in the map's pixels (the map shows 133 × 91 at x 173, y 39: the top of the 133 × 113 map picture). Keep x within 186–293 and y within 52–109 so the button and the level bar under it stay on the map. | [x, y] | required |
 | `icon` | The button's picture: a PNG in your `sprites/` folder, either one 27 × 27 frame or two side by side (normal, pointed at), or a number 0–4 to reuse that vanilla stage's button ([27.3](#273-naming-stages)). One frame is lightened when pointed at, unless a `<icon>_sel.png` sits next to it: that picture is drawn on top, centred on the button, while it is pointed at (an outline like the vanilla buttons; new in 1.5.2). | text or number | `0` (the Village's) |
 | `map` | The maps this stage is on: one map ID or a list, as the manifest's `map` ([21.1](#211-map)). For a mod that loads on several maps, e.g. a stage only on your own map while the rest of the mod also loads in the village. New in 1.5.2: an older GNX ignores it and puts the stage on every map the mod loads on. | text or list | every map the mod loads on |
-| `unlock` | A quest condition, or a list that must all hold ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). GNX checks it every second; the first time it holds, the stage is discovered. Without `unlock` the stage is there from the start, without a popup. `state_*` conditions read your mod's own state. | object or list | none |
+| `unlock` | A quest condition, or a list that must all hold ([QUESTS_SCHEMA.md](QUESTS_SCHEMA.md)). GNX checks it every second; the first time it holds, the stage is discovered. Without `unlock` the stage is there from the start, without a popup; `"unlock": []` means the same. An `unlock` that is no condition object or list of them (text, a number, true/false, `null`) is a mod error and the stage stays hidden, as `map_info.unlock` does (GNX 1.5.2; before, the stage was there from the start). `state_*` conditions read your mod's own state. | object or list | none |
 | `on_discover` | A quest event of your mod fired once, when the stage is discovered (an intro dialog, a side effect). | text | none |
 | `raid_time` | Frames from the nest to the stage at normal speed; the way back takes as long. Vanilla's own values run from 2760 (Village) to 5100 (Castle). The raid panel shows the trip time. | number, at least 60 | `3600` |
 | `path`, `curve`, `cart` | The cart's route on the raid map and its picture ([27.4](#274-cart-routes)). | | straight line, vanilla cart |
@@ -5417,15 +5655,17 @@ Every key is optional. A level builds its encounter the way the vanilla stages d
 | `units.count` | How many units the encounter holds: a number or `[min, max]`. At most 5 with the boss. | number or [min, max] | `[1, 2]` |
 | `units.pool` | The classes the units are drawn from, with the keys of a `raid_spawns` entry minus `stage` and `level`: `class` (required), `weight`, `min_lvl`, `max_lvl`, `condition`, `max_per_encounter`, `ap_override` ([13.2](#132-raid_spawns-fields)). Other mods add to it with `raid_spawns` ([27.3](#273-naming-stages)). | list | empty |
 | `enemy_ap.hp`, `enemy_ap.ap` | The encounter's base strength, a number or `[min, max]` rolled each time. Like vanilla, the unit count is added, then each unit's own HP and AP: its class's values (built in for vanilla classes, `fap_mul`/`bap_mul` × level for mod classes), or `ap_override`. | number or [min, max] | `0` |
-| `boss` | A unit added on top of the count: `class` (required), `lvl` (default 5), `chance` in % (default 100), `condition`, `until_captured` (default true: it stops coming once a unit of its class was captured in a raid, on any map; this counts mod classes only). | object | none |
+| `boss` | A unit added on top of the count: `class` (required), `lvl` (default 5), `chance` in % (default 100), `condition`, `until_captured` (default true: it stops coming once this boss was captured, on any map). | object | none |
 | `drops.gold`, `drops.food` | Gold and food the raid may bring back, a number or `[min, max]`. Like vanilla finds, the encounter picks up to 3 + level items (5 at most) among the drops and the stage's loot, each with a 75 % chance. | number or [min, max] | none |
 | `reward` | `{ "gold": n, "food": n }` paid for every win. | object | nothing |
 | `loot` | One-time finds of this level: the keys of an `items.json` loot entry minus `stage` and `level` ([25.2](#252-raid-loot)). | list | none |
-| `no_capture` | `true`: a win captures nobody (loot and progress only). A vanilla boss (classes 8–12) is still captured, since that records its defeat. | true/false | false |
+| `no_capture` | `true`: a win captures nobody (loot and progress only). A vanilla boss (classes 8–12) is still captured, since that records its defeat, and so is the level's own `boss` (GNX 1.5.2). | true/false | false |
 | `xp` | Wins at this level, while it is the highest one open, before the next level opens. | number | vanilla's (level × 0.4 + 1) × 9, so 9, 12, 16, … |
 
 - The game shows the levels as lvl 1, 2, 3, …; the files count them from 0 (`"level": 0` is lvl 1). The level bar under the button shows one slot per open level: up to three fit the vanilla bar, a stage with more levels gets a longer bar, centred under its button.
 - A win raises the stage's XP like on the vanilla Village to Castle (never like the Tower).
+- **The boss and `no_capture`** (GNX 1.5.2): on a `no_capture` level the boss unit the level rolled can be captured; everyone else cannot. An enemy of the pool with the boss's class is not the boss, and neither is anyone when the boss did not come. GNX 1.5.1 let only the vanilla bosses through, so with `until_captured` such a boss came back to every raid for good.
+- **How `until_captured` counts** (GNX 1.5.2): it goes by that boss only, kept by stage, level and class (`"my_mod.CRYPT#2#4821"` in `global.unlock.gnx_boss_caught`, saved and shared by every map), for a boss of any class, vanilla classes included. Capturing an ordinary enemy of the same class, or the same class on another stage or level, does not count. The boss counts as captured only once she is in the cage after the raid: not when Selene's grace frees her right after the capture, and the record is taken back when she breaks out on the way home (`cage_escape`, [15.1](#151-cage_escape-fields)), so she comes again. GNX 1.5.1 went by class, and only for classes 14 and up; a save made there has no record, so a boss captured there comes once more.
 
 > **When** a pool entry or a boss names a class no loaded mod has, it is left out and the error dialog says so. A level whose pool is empty and that no other mod fills holds Peasants at level 0 (and the log says `[GNX] pool_pick: no pool stage=… lvl=…`).
 
@@ -5455,6 +5695,8 @@ Mod stages have no cart animation of their own: GNX draws the cart, which goes f
 | `cart` | A PNG in your `sprites/` folder drawn as the cart (the vanilla one is 28 × 24, standing on a point 12 px from its left and 19 px from its top). | text | the vanilla cart |
 
 The cart leaves from the vanilla nest at (200, 59). On a map mod with its own `map_sprite`, set `map_info.nest` to where your map shows the nest ([21.2](#212-map_info)). The cart stops 2 px left of and 5 px below the stage button, where the vanilla carts stop.
+
+**Coordinates** (GNX 1.5.2): a stage `pos`, a `path` point, `map_info.nest` and `map_info.vanilla_stages.<STAGE>.pos` must be `[x, y]` with two numbers; numbers written as text (`["150", "80"]`) still work. Anything else is a mod error: a `raids.json` stage is skipped (its `pos` is required), a vanilla stage keeps its place, a `path` point is left out, and carts leave from the vanilla nest. Before, a list with fewer than two numbers in `vanilla_stages` stopped the game, and text such as `["abc", 80]` was read as 0. A `map_info.nest` off the raid map panel (outside x 173–306, y 39–130) is reported, but kept, as a cart may start at the edge on purpose.
 
 **Placing a route.** Turn on GNX DEBUG > RAID ROUTES ([17.3](#173-built-in-menus-spawn-and-gnx-debug)) and open the raid map: every mod stage's route is drawn in yellow, its path points in red and its button area in cyan.
 
@@ -5645,6 +5887,8 @@ Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave 
 | `[GNX-TEST] FAIL  T84 bad required_class: h<N>[<i>]` | Entry `<i>` of cell `<N>`'s `required_class` (a single value: `h<N>`) is still unresolved text. | See the `required_class ref ... not found` warning above it. |
 | `[GNX-TEST] FAIL  DROUTE h=<N> FIXED_MISSING_PHASE` | A fixed-mode cell lacks `phase_1` or `phase_2`. | Add both ([§10](#10-cell-sprites-human_spr-and-monster_art)). |
 | `[GNX-TEST] FAIL  DROUTE h=<N> c=<class> CLASS_MAP_NO_MATCH` | A `class_map` cell has no `default` and does not list this class. | Add a `default` or list the class ([§10](#10-cell-sprites-human_spr-and-monster_art)). |
+| `[GNX] ERROR: Mod '<folder>': cell '<name>' has h_type <value>, not a number; it gets its own id, as without h_type` | `h_type` is text that is no number (GNX 1.5.2). | Write the number without quotes, or leave `h_type` out ([8.3](#83-h_type-the-cells-id)). |
+| `[GNX] ERROR: Mod '<folder>': cell '<name>' has h_type <value>, not a whole number of 0 or more; it gets its own id, as without h_type` | `h_type` is negative or a fraction (GNX 1.5.2). | Use a whole number, 100 or higher ([8.3](#83-h_type-the-cells-id)). |
 | `[GNX] ERROR: Cell '<name>': <key> must be <range> (<value>); <value> is used` (also `Prop '<folder>.<id>'`, `Class '<name>'`, `Sprite '<key>'`) | A value is out of range, of the wrong kind or misspelled. GNX used the value at the end; the rest loads. | Fix the named key ([19.2](#192-prop-fields), [§22](#22-scene-timing-frame-counts-start-ej-and-loop-strips) to [§24](#24-underground-cells)). |
 | `[GNX] ERROR: Cell '<name>': strip '<key>' (<where>) has <n> frames, it needs <m> per row` | A cell strip is shorter than its phase. | Give it the phase's frame count, or loop it if it is a captive strip ([22.5](#225-the-frame-rule-for-every-mod-cell)). |
 | `[GNX-FRAMES] <cell>: strip '<key>' (<where>) has <n> frames, the phase uses <m> per row; the last <k> are not shown` | Information: a strip has frames left over after its last full row. | Nothing, if the strip is shared on purpose ([22.5](#225-the-frame-rule-for-every-mod-cell)). |
@@ -5686,7 +5930,7 @@ Mod stages come after these ([27](#27-raid-stages-raidsjson)). Raid carts leave 
 
 ### B.3 Common mistakes
 
-- **ID numbers in quotes:** `"h_type": "24680"` or `"required_class": "11"` is text; write numbers without quotes ([1.3](#13-json-in-two-minutes)).
+- **ID numbers in quotes:** `"h_type": "24680"` or `"required_class": "11"` is text; write numbers without quotes ([1.3](#13-json-in-two-minutes)). GNX 1.5.2 reads a quoted `h_type` number; GNX 1.5.1 stops the game on it.
 - **Wrong case or spelling in references:** `"my_mod.witch"` does not find `Witch`, and the folder part must match exactly too.
 - **A needed mod is switched off:** check the MODS menu and list needed mods in `requires` ([4.5](#45-requires-and-the-mods-menu)).
 - **Manifest one folder too deep:** `GNX_mods/my_mod/my_mod/manifest.json` is not found.

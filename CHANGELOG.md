@@ -32,6 +32,27 @@
 - A `sprite_replace` after another mod's replacement of the same sprite compared size, origin and frame count with the earlier mod's art; it now compares with the game's own sprite.
 - A carrying ogre with its own walk art (an old `patrol` override, or a `mon_sprite_swap` of the carry walk) got that art's collision box and frame count after a save was loaded. After loading it now keeps the game's, the same as when the ogre starts carrying in play.
 
+### Contributed by Mav
+
+- **Clothing variants**: a place of `spr_c_array` can be a list, `["gnx:loop_breast_c", "gnx:loop_breast_c_maid"]`. The first entry is the clothing as before, the others are variants: the cell's clothing button then goes clothing, variant 1, variant 2, ..., no clothing, each variant with a button colour of its own. Works in every table with `spr_c_array`; the choice is saved with the cell. GNX 1.5.1 draws such a place without clothes (modding guide 7.7a).
+- **Adding classes to another mod's cell** (`extend`): a cells.json entry `{"extend": "<folder>.<cell name>", "sprites": {...}, "human_spr": {"classes": {...}}}` adds a mod's classes to another mod's `class_map` cell without editing it, in any load order. The entries use the extending mod's sprites; a class the cell already has keeps the cell's art unless the entry has `"replace": true` (modding guide 12.4a).
+- **`sell_lvl`** (classes.json): the lowest level at which the raid trader buys a captive of the class (0-7), `-1` = never. It replaces the 1.5.1 rule for that class (special classes from level 6), vanilla classes included through an `override`, and also counts in the trader's "sell all" buttons.
+- **Leg entries in `class_map`**: `leg_1`, `leg_2`, `leg_0` and `leg_any` in a `classes` entry or `default`, so the bodies of one class can be drawn differently. In underground cells they can carry their own `milk_spr`, `infant_spr` and `tent_spr`.
+- **A tentacle per class in underground cells**: each `class_map` entry and `default` can bring its own `tent_spr`, so a bigger captive gets a bigger tentacle in the same cell.
+- **Skin tones for milk and newborns**: a milk or `infant_spr` strip marked `"skins": 3` in `sprites` holds one block per skin tone, and a captive gets hers. Without the mark nothing changes; a multi-row milk strip on its own clock needs `"loop": <frames of one row and tone>`.
+- **Quests with several objectives**: `completion` can be a list, done when all hold, each showing its progress after the quest text (`(DRINK 1/3, DISPLAY 0/2)`, optional `label`). `build_count`, `cell_built`, `cell_count` and `cell_occupied` take `h_type` lists and `category`; `cell_occupied` takes `value`. New reward `{"type": "unit", "class", "level"}` puts a captive into the prison when claimed, and the side effect `create_unit` does so when its event fires (QUESTS_SCHEMA.md).
+- `by_mon_type` in a phase of a `class_map` entry now works (it was dropped when the cell loaded).
+- Crash fixes: `day_gte` / `day_every` without `value` (now 1) and `class_unlocked` without `class`; a cell `h_type` written as text (a number in text is now read as that number, other text, a negative or a fraction is a mod error and the cell gets its hashed id); `map_info.vanilla_stages.<STAGE>.pos` with fewer than two numbers.
+- Raid bosses: `until_captured` now goes by that boss (stage, level and class), not by any unit of its class, and works for bosses of vanilla classes; a boss counts once she is in the cage after the raid (not when freed by Selene's grace or escaping on the way home). The boss of a `no_capture` level can be captured. A 1.5.1 save has no record, so a boss captured there comes once more.
+- The inventory's sort button deleted blueprint pieces of cells not on the build lists (`xl_breed` and `ug_breed` cells, cells of a mod on another map or removed); they are now kept.
+- A `map_info.unlock`, or a quest condition or side effect after a menu load or RELOAD MODS, naming a map mod's cell never matched; these names are now read again once every cell is loaded. Conditions in classes.json and `map_info.unlock` naming a mod cell no longer report "cell not found" at every start.
+- A save made mid-scene, loaded after the cell's mod shortened its scene list: the scene's monsters stayed and the cell never called anyone again. They now leave.
+- A cell turned off passed its off switch to the next cell built in its slot.
+- Coordinates that are no numbers (stage `pos`, `path` points, `map_info.nest`) were read as 0; they are now mod errors, and a `map_info.nest` off the raid map is reported. A `raids.json` stage `unlock` that is no condition is a mod error and the stage stays hidden.
+- A multi-row milk strip on its own clock in a cell drawn on a later row showed frames of other rows.
+- Translations: `build_count` quests stayed in English; translated prop group names never showed the "new" dot; mod texts drawn by GNX (MODS menu, mod stage names, tool window title) now use the language's font.
+- Diagnostics: an unknown item name is reported once instead of every frame; an undeclared `raids.json` is logged; `"skins"` values and strips that do not fit are mod errors, each reported once.
+
 ## v1.5.1
 
 **Game version:** 1.40

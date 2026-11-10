@@ -41,11 +41,21 @@
       "type": "object",
       "properties": {
         "h_type": {
-          "type": [
-            "integer",
-            "string"
-          ],
-          "description": "The cell's ID; a vanilla number makes the entry a patch (guide 8.3, 12)."
+          "description": "The cell's ID, a whole number of 0 or more (text of digits counts); a vanilla number makes the entry a patch (guide 8.3, 12). true / false read as 1 / 0.",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          ]
+        },
+        "extend": {
+          "type": "string",
+          "description": "Adds this entry's human_spr.classes to another mod's class_map cell, \"<folder>.<cell name>\" (guide 12.4a)."
         },
         "name": {
           "type": "string",
@@ -447,6 +457,26 @@
                     "string",
                     "integer"
                   ]
+                },
+                "tent_spr": {
+                  "description": "Underground cells: this class's own strips, written as the cell's own.",
+                  "type": [
+                    "object",
+                    "string",
+                    "integer"
+                  ]
+                },
+                "leg_1": {
+                  "$ref": "#/definitions/cm_leg"
+                },
+                "leg_2": {
+                  "$ref": "#/definitions/cm_leg"
+                },
+                "leg_0": {
+                  "$ref": "#/definitions/cm_leg"
+                },
+                "leg_any": {
+                  "$ref": "#/definitions/cm_leg"
                 }
               },
               "patternProperties": {
@@ -478,6 +508,33 @@
                       "string",
                       "integer"
                     ]
+                  },
+                  "tent_spr": {
+                    "description": "Underground cells: this class's own strips, written as the cell's own.",
+                    "type": [
+                      "object",
+                      "string",
+                      "integer"
+                    ]
+                  },
+                  "leg_1": {
+                    "$ref": "#/definitions/cm_leg"
+                  },
+                  "leg_2": {
+                    "$ref": "#/definitions/cm_leg"
+                  },
+                  "leg_0": {
+                    "$ref": "#/definitions/cm_leg"
+                  },
+                  "leg_any": {
+                    "$ref": "#/definitions/cm_leg"
+                  },
+                  "replace": {
+                    "type": [
+                      "boolean",
+                      "integer"
+                    ],
+                    "description": "extend only: replace the art of a class the cell already has (a recolour)."
                   }
                 },
                 "patternProperties": {
@@ -693,7 +750,7 @@
         },
         "spr_c_array": {
           "type": "array",
-          "description": "Her clothes, slot by slot."
+          "description": "Her clothes, slot by slot. A slot can be a list: the clothing, then variants the cell's clothing button cycles through (guide 7.7a)."
         },
         "by_class": {
           "type": "object",
@@ -701,10 +758,47 @@
         },
         "by_mon_type": {
           "type": "object",
-          "description": "Inside a by_class entry: per monster type (guide 10.4)."
+          "description": "Per monster type: inside a by_class entry (fixed mode), or in a class_map entry's phase (guide 10.4, 10.5)."
         }
       },
       "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    },
+    "cm_leg": {
+      "type": "object",
+      "description": "A leg entry of a class_map entry: built like the entry, for captives of that leg variant (guide 10.5).",
+      "properties": {
+        "milk_spr": {
+          "description": "Underground cells: this class's own strips, written as the cell's own.",
+          "type": [
+            "object",
+            "string",
+            "integer"
+          ]
+        },
+        "infant_spr": {
+          "description": "Underground cells: this class's own strips, written as the cell's own.",
+          "type": [
+            "object",
+            "string",
+            "integer"
+          ]
+        },
+        "tent_spr": {
+          "description": "Underground cells: this class's own strips, written as the cell's own.",
+          "type": [
+            "object",
+            "string",
+            "integer"
+          ]
+        }
+      },
+      "patternProperties": {
+        "^phase_([0-5]|idle_start|start_loop|loop_ej|ej_birth)$": {
+          "$ref": "#/definitions/hum_phase"
+        },
         "^_": {}
       },
       "additionalProperties": false

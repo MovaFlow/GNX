@@ -1764,7 +1764,7 @@
 +                        _mon_body_l = spr_h_goblin_gb_1_lilith_loop_line;
 +                    }
 +                    
-+                    break;
+                     break;
 +                
 +                default:
 +                    var _gb1rc = ds_map_find_value(global.class_registry, unit_data.class);
@@ -1774,11 +1774,9 @@
 +                    else
 +                        _breast_spr = spr_slot[2][1];
 +                    
-                     break;
-             }
-             
--            draw_sprite_ext(_mon_body_b, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, c_white, 1);
--            draw_sprite_ext(_mon_body_l, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, c_white, 1);
++                    break;
++            }
++            
 +            var _gnx_mso = gnx_get_mso(unit_data.class);
 +            
 +            if (_gnx_mso != undefined)
@@ -1802,8 +1800,10 @@
 +                var _gnx_roll = gnx_art_slot_roll_src();
 +                _mon_body_b = gnx_mon_swap_one(_mon_body_b, _gnx_sw, _gnx_roll);
 +                _mon_body_l = gnx_mon_swap_one(_mon_body_l, _gnx_sw, _gnx_roll);
-+            }
-+            
+             }
+             
+-            draw_sprite_ext(_mon_body_b, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, c_white, 1);
+-            draw_sprite_ext(_mon_body_l, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, c_white, 1);
 +            gnx_draw_sprite_ext(_mon_body_b, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, 16777215, 1);
 +            gnx_draw_sprite_ext(_mon_body_l, _mon_index, x + (image_xscale * _flip), y, _scale, 1, 0, 16777215, 1);
          }
@@ -3184,7 +3184,7 @@
          }
      }
      
-@@ -2613,24 +2838,404 @@
+@@ -2613,24 +2838,426 @@
      {
          var _mod_sign = _index;
          var _scale_sign = ((_mod_sign * 2) - 1) * -1;
@@ -3428,7 +3428,8 @@
 +                    if (unit_data != -1 && unit_data.milk && _index != -1 && _gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_milk_spr") && variable_struct_exists(_gnx_cell.physical, "gnx_milk_items") && _gnx_cell.physical.gnx_milk_items > 0)
 +                    {
 +                        // GNX-BYCLASS: the milk of the captive's class (her class_map entry), else the cell's
-+                        var _mtab = gnx_milk_for(_gnx_cell, unit_data.class);
++                        // GNX-LEG: unit_data too, for a leg entry of her class_map entry
++                        var _mtab = gnx_milk_for(_gnx_cell, unit_data.class, unit_data);
 +                        var _mph = slot_data.anim_struct.spr_type;
 +                        // && = and: a phase 0-4 that has a milk strip (its own or borrowed at registration)
 +                        var _mown = _mph >= 0 && _mph < array_length(_mtab.spr) && _mtab.spr[_mph] != -1;
@@ -3437,18 +3438,36 @@
 +                        if (_mspr != -1)
 +                        {
 +                            var _mrow = slot_data.h_type - slot_data.spr_row_pos - 1;
-+                            var _mframe = (_mrow * slot_data.anim_struct.frame_c) + floor(slot_data.anim_struct.index);
++                            // frames per block and the frame inside it: in step with the captive (her phase)
++                            var _mper = slot_data.anim_struct.frame_c;
++                            var _mf = floor(slot_data.anim_struct.index);
 +                            
 +                            // GNX-UG: a strip on the milk's own clock loops its gnx_milk_n frames per row at
 +                            // speed.milk (mod = remainder, so frame 7 of a 5-frame strip is frame 2)
 +                            if (_mown && _mtab.clock[_mph])
 +                            {
-+                                var _mn = max(1, _mtab.n[_mph]);
++                                _mper = max(1, _mtab.n[_mph]);
 +                                var _mt = variable_struct_exists(slot_data, "gnx_ug_milk_f") ? floor(slot_data.gnx_ug_milk_f) : 0;
-+                                _mframe = (_mrow * _mn) + (_mt mod _mn);
++                                _mf = _mt mod _mper;
 +                            }
 +                            
-+                            gnx_draw_sprite(_mspr, _mframe, x, y);
++                            // GNX-SKIN: the milk can show her skin, so a strip marked "skins": 3 in sprites holds a
++                            // block per skin tone (3 per row, like the body strips) and a captive with a skin tone
++                            // (_draw_skin 0-2: a normal class, not in a fixed cell) gets the block of hers. Only the
++                            // mark says so: a strip's length cannot, because 10 frames may be two rows of one block
++                            // (an older strip) as well as one row with a second block. Without the mark: one block per
++                            // row, as before.
++                            var _mbn = gnx_skin_blocks(_mspr);
++                            // ? : her tone when the strip has 3 blocks and she has one (&& = and), else the first block
++                            var _mblk = (_mrow * _mbn) + ((_mbn == 3 && _draw_skin >= 0 && _draw_skin <= 2) ? _draw_skin : 0);
++                            var _mfi = (_mblk * _mper) + _mf;
++                            
++                            // >= = past the strip's end (fewer blocks or rows than the cell needs): her row's frame
++                            // without the blocks, as drawn before
++                            if (_mfi >= gnx_sprite_get_number(_mspr))
++                                _mfi = (_mrow * _mper) + _mf;
++                            
++                            gnx_draw_sprite(_mspr, _mfi, x, y);
 +                        }
 +                    }
 +                    
@@ -3461,11 +3480,14 @@
 +                    
 +                    if (unit_data != -1 && _gnx_cell != undefined && variable_struct_exists(_gnx_cell, "gnx_tent"))
 +                    {
++                        // GNX-BYCLASS: the tentacle of the captive's class (gnx_tent_for), else the cell's
++                        // GNX-LEG: unit_data too, for a leg entry of her class_map entry
++                        var _ttab = gnx_tent_for(_gnx_cell, unit_data.class, unit_data);
 +                        // GNX-UG: phases 0-6 (6 = the ej -> birth intermission)
-+                        var _tph = clamp(slot_data.anim_struct.spr_type, 0, array_length(_gnx_cell.gnx_tent) - 1);
++                        var _tph = clamp(slot_data.anim_struct.spr_type, 0, array_length(_ttab) - 1);
 +                        
-+                        if (_gnx_cell.gnx_tent[_tph] != -1)
-+                            _tspr = _gnx_cell.gnx_tent[_tph];
++                        if (_ttab[_tph] != -1)
++                            _tspr = _ttab[_tph];
 +                    }
 +                    
 +                    if (_tspr != -1 && _index != -1)

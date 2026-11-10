@@ -1866,7 +1866,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3261,20 +3387,1585 @@
+@@ -3261,20 +3387,1601 @@
      scr_slot_call_mon(true);
  }
  
@@ -2457,7 +2457,17 @@
 +    var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +    // GNX-BYCLASS: the newborn of the mother's class (her class_map entry), else the cell's;
 +    // ? : her class when there is a captive, else -1 (no class has that, so the cell's sprite)
-+    var _spr = (_c != undefined) ? gnx_infant_for(_c, is_struct(unit_data) ? unit_data.class : -1) : -1;
++    // GNX-LEG: the mother's unit data too, for a leg entry of her class_map entry (undefined without a captive)
++    var _spr = (_c != undefined) ? gnx_infant_for(_c, is_struct(unit_data) ? unit_data.class : -1, is_struct(unit_data) ? unit_data : undefined) : -1;
++    // GNX-SKIN: a newborn strip marked "skins": 3 holds a block per skin tone (read before baking, which
++    // makes a new sprite); the mother's tone picks hers, as for her body: none for a special class (skin -1)
++    // or in a fixed cell (one set of art for every class)
++    var _sk = gnx_skin_blocks(_spr);
++    var _mskin = is_struct(unit_data) ? unit_data.skin : -1;
++    
++    // && = and: a cell whose human_spr is in fixed mode
++    if (_c != undefined && variable_struct_exists(_c, "human_spr") && is_struct(_c.human_spr) && variable_struct_exists(_c.human_spr, "mode") && _c.human_spr.mode == "fixed")
++        _mskin = -1;
 +
 +    if (is_sprref(_spr))
 +    {
@@ -2468,14 +2478,18 @@
 +    with (arg0)
 +    {
 +        gnx_ug_t = 0;
-+        gnx_ug_frames = (_spr != -1) ? sprite_get_number(_spr) : 0;
++        var _all = (_spr != -1) ? sprite_get_number(_spr) : 0;
++        // GNX-SKIN: frames of one block (div = whole-number division: 27 frames in 3 blocks are 9 each) and the
++        // first frame of the mother's block (0 = the first block: one block, or a mother without a skin tone)
++        gnx_ug_frames = (_sk == 3) ? (_all div 3) : _all;
++        gnx_ug_f0 = (_sk == 3 && _mskin >= 0 && _mskin <= 2) ? (_mskin * gnx_ug_frames) : 0;
 +        
 +        // without infant_spr the newborn stays invisible (spr_empty) but the birth still completes
 +        sprite_index = (_spr != -1) ? _spr : spr_empty;
 +        gnx_birth_spr = _spr;
 +        
 +        image_speed = 0;
-+        image_index = 0;
++        image_index = gnx_ug_f0;
 +    }
 +}
 +
@@ -2487,21 +2501,7 @@
 +/// birth frames for birth_rest seconds (default 2) and then goes to idle; a captive still pregnant
 +/// (Bastet) starts the next birth at once.
 +function scr_slot_h_gnx_ug_birth()
- {
--    Value_0,
--    Value_1,
--    Value_2,
--    Value_3,
--    Value_4,
--    Value_5,
--    Value_8 = 8,
--    Value_9,
--    Value_12 = 12,
--    Value_13,
--    Value_27 = 27,
--    Value_28,
--    Value_39 = 39,
--    Value_40
++{
 +    var _cfg = gnx_ug_cfg();
 +    
 +    if (_cfg == undefined)
@@ -2575,7 +2575,8 @@
 +        if (_inf != noone)
 +            // the newborn's labour frames (_lab) spread over one loop of the captive's birth frames;
 +            // with as many labour frames as birth frames this is simply the captive's frame
-+            _inf.image_index = min(floor((slot_data.anim_struct.index * _lab) / slot_data.anim_struct.frame_c), _lab - 1, max(0, _inf.gnx_ug_frames - 1));
++            // GNX-SKIN: + gnx_ug_f0 = inside the mother's skin block of the strip
++            _inf.image_index = _inf.gnx_ug_f0 + min(floor((slot_data.anim_struct.index * _lab) / slot_data.anim_struct.frame_c), _lab - 1, max(0, _inf.gnx_ug_frames - 1));
 +        
 +        // each finished round of labour frames lowers h_wait
 +        if (animation_end)
@@ -2628,7 +2629,8 @@
 +    
 +    _inf.gnx_ug_t += (_ifps / 60) * global.w_spd;
 +    var _end = max(_lab + 4, _inf.gnx_ug_frames);
-+    _inf.image_index = min(floor(_inf.gnx_ug_t), max(0, _inf.gnx_ug_frames - 1));
++    // GNX-SKIN: + gnx_ug_f0 = inside the mother's skin block of the strip
++    _inf.image_index = _inf.gnx_ug_f0 + min(floor(_inf.gnx_ug_t), max(0, _inf.gnx_ug_frames - 1));
 +    
 +    if (_inf.gnx_ug_t >= _end)
 +    {
@@ -2731,7 +2733,21 @@
 +/// GNX-INTER: intermission arg0 (0 idle_start, 1 start_loop, 2 loop_ej, 3 ej_birth) of the cell in this
 +/// slot: its { frames, speed, loops } from physical.intermissions, or -1 when the cell has none.
 +function gnx_cell_inter(arg0)
-+{
+ {
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_8 = 8,
+-    Value_9,
+-    Value_12 = 12,
+-    Value_13,
+-    Value_27 = 27,
+-    Value_28,
+-    Value_39 = 39,
+-    Value_40
 +    var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +    
 +    // == undefined: not a registered cell; ! = not: a cell without intermissions

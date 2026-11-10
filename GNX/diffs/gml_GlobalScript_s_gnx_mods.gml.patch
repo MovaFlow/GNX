@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2904 @@
+@@ -0,0 +1,2947 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1334,7 +1334,11 @@
 +
 +        var _on = gnx_mod_row_on(id, _row);
 +        draw_set_color(_on ? c_white : c_gray);
-+        draw_text(_px + 58, _y - 4, gnx_fit(gnx_tr(_row.name), 98));
++        // GNX-FIX: a translated name in its language's font, moved by its shift (gnx_tr_font)
++        var _gnx_nm = gnx_tr(_row.name);
++        var _gnx_lp = gnx_tr_font(_gnx_nm, _row.name);
++        draw_text(_px + 58 + _gnx_lp[0], (_y - 4) + _gnx_lp[1], gnx_fit(_gnx_nm, 98));
++        draw_set_font(fnt_base_font_eng);
 +        draw_set_color(make_color_rgb(170, 140, 120));
 +        draw_text(_px + 160, _y - 4, gnx_fit("v" + string(_row.version), 34));
 +        var _note = "";
@@ -1392,9 +1396,14 @@
 +        if (array_length(_h.used) > 0 && (_h.cells + _h.units) > 0)
 +            _l2 = ((_l2 != "") ? _l2 + "  -  " : "") + "in saves: " + string(_h.cells) + " cells, " + string(_h.units) + " characters";
 +
-+        draw_text(_px + 12, 205, gnx_fit(_l1, _pw - 24));
++        // GNX-FIX: a line with a translated name or description in its language's font (gnx_tr_font)
++        var _gnx_hp = gnx_tr_font(gnx_tr(_h.name), _h.name);
++        draw_text(_px + 12 + _gnx_hp[0], 205 + _gnx_hp[1], gnx_fit(_l1, _pw - 24));
++        draw_set_font(fnt_base_font_eng);
 +        draw_set_color(make_color_rgb(170, 140, 120));
-+        draw_text(_px + 12, 215, gnx_fit(_l2, _pw - 24));
++        _gnx_hp = gnx_tr_font(gnx_tr(_h.description), _h.description);
++        draw_text(_px + 12 + _gnx_hp[0], 215 + _gnx_hp[1], gnx_fit(_l2, _pw - 24));
++        draw_set_font(fnt_base_font_eng);
 +    }
 +    else
 +    {
@@ -1534,6 +1543,7 @@
 +    gnx_items_reset();  // mod items and raid loot (items.json)
 +    gnx_sprite_replace_restore();  // GNX-REPLACE: the game's own art back before mods replace it again
 +    global.gnx_map_deferred_mods = [];
++    global.gnx_ref_report_only = -1;  // GNX-FIX: -1 = report every missing cell name (gnx_cell_ref_missing)
 +    global.gnx_mod_map_decl = {};
 +    global.gnx_multimap_enabled = true;
 +    
@@ -1597,6 +1607,14 @@
 +    global.gnx_loop_strips = {};
 +    // GNX-FIX: which sprites already had their loop set (gnx_loop_mark), so a clash can be reported
 +    global.gnx_loop_seen = {};
++    // GNX-SKIN: sprites whose JSON has "skins": 3 (a block per skin tone), filled while the mods load
++    global.gnx_skin_strips = {};
++    // GNX-FIX: which sprites already had their blocks set (gnx_skin_mark), so a clash can be reported
++    global.gnx_skin_seen = {};
++    // GNX-FIX: mistakes already reported this load (gnx_report_mod_error_once, gnx_log_once)
++    global.gnx_err_once = {};
++    // GNX-FIX: rows each milk strip without a numeric loop is drawn on (gnx_milk_rows_seen)
++    global.gnx_milk_rows = {};
 +    // GNX-FIX: the list stays across loads, like the sprite cache: the sprites are still alive, and the frame and
 +    // memory counts need them (reset here, a reload counted 0)
 +    if (!variable_global_exists("gnx_runtime_sprites"))
@@ -1628,6 +1646,8 @@
 +    global.gnx_loading_manifest = undefined;
 +    global.gnx_atlas_bad_frames = {};
 +    global.gnx_loading_classes = false;
++    // GNX-EXT: the cells.json entries with "extend" of this load, waiting for their cells (gnx_cell_ext_apply_all)
++    global.gnx_cell_ext = [];
 +    // Mav (1.4.7.5): destroy the name maps left by a previous load first, so they do not leak
 +    if (variable_global_exists("gnx_class_name_to_id") && ds_exists(global.gnx_class_name_to_id, ds_type_map))
 +        ds_map_destroy(global.gnx_class_name_to_id);
@@ -2262,6 +2282,9 @@
 +        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_j]))
 +            scr_gnx_load_mod_stage(arg0[_j], variable_struct_get(global.gnx_staged_manifests, arg0[_j]), 2);
 +    }
++    // GNX-EXT: every cell of these mods exists now: classes other mods add to them ("extend") go in, whatever the
++    // order of the mods (a second pass over the cells)
++    gnx_cell_ext_apply_all();
 +    // conditions in classes.json may name cells ("h_type": "Mod.Cell"): every cell exists now
 +    scr_gnx_reresolve_class_conditions();
 +    // phase 3: quests, tools, sounds, props of every mod
@@ -2557,8 +2580,27 @@
 +            _tl.no_capture = gnx_parse_no_capture(_mb, arg0);
 +
 +            // GNX-STAGE: where raid carts leave from on this map's own map_sprite
-+            if (variable_struct_exists(_mb, "nest") && is_array(_mb.nest) && array_length(_mb.nest) == 2)
-+                _tl.nest = [gnx_json_num(_mb.nest[0], 200), gnx_json_num(_mb.nest[1], 59)];
++            // GNX-FIX: nest needs two numbers (gnx_json_point): text in it gave 200 / 59 for that value alone, and a
++            // nest that is no [x, y] was dropped without a word. It is now a mod error and carts leave from the
++            // vanilla nest (! = not)
++            if (variable_struct_exists(_mb, "nest"))
++            {
++                var _gnest = gnx_json_point(_mb.nest);
++
++                if (_gnest != undefined)
++                {
++                    _tl.nest = _gnest;
++                    
++                    // GNX-FIX: a nest off the raid map panel is reported, as stage buttons and path points are
++                    // (gnx_stage_check_bounds); it is kept, a cart may start at the edge on purpose (|| = or).
++                    // The numbers are GNX_MAP_X0 / X1 / Y0 / Y1 (s_gnx_raid): a macro of a script compiled later
++                    // reads as an unset variable here
++                    if (_gnest[0] < 173 || _gnest[0] > 306 || _gnest[1] < 39 || _gnest[1] > 130)
++                        gnx_report_mod_error("Mod '" + arg0 + "': map_info.nest " + string(_gnest) + " is outside the raid map (x 173-306, y 39-130); carts start there");
++                }
++                else
++                    gnx_report_mod_error("Mod '" + arg0 + "': map_info.nest must be [x, y] with two numbers, not " + string(_mb.nest) + "; carts leave from the vanilla nest");
++            }
 +
 +            _tl.vanilla_stages = gnx_parse_vanilla_stages(_mb, arg0);  // GNX-VSTAGE
 +            array_push(global.gnx_travel_locations, _tl);
@@ -2676,8 +2718,9 @@
 +    _tmp_lg = gnx_log_open();
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
 +    gnx_log_close(_tmp_lg);
-+    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json", "items.json"];
-+    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props", "items"];
++    // GNX-FIX: raids.json too (1.5.1 left it out)
++    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json", "items.json", "raids.json"];
++    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props", "items", "raids"];
 +    var _mod_dir = global.gnx_mods_root + arg0 + "/";
 +    
 +    for (var _wi = 0; _wi < array_length(_data_files); _wi++)

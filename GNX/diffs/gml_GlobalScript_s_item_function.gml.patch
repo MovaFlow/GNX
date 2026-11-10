@@ -445,11 +445,31 @@
              if (_item.num == _array_order[ii])
              {
                  ds_list_add(_new_list, _item);
-@@ -478,15 +438,12 @@
+@@ -478,15 +438,32 @@
              }
          }
      }
 -    
++    // GNX-FIX: blueprints of cells on none of the build lists above (xl_breed and ug_breed mod cells, a cell of a mod
++    // not loaded on this map, a mod that is gone) go last. Before, they stayed in _print_list, which is replaced by
++    // _new_list just below, so pressing sort deleted them
++    // (pieces of one cell are put next to each other, so the sort by piece below sees them together)
++    for (var i = 0; i < ds_list_size(_print_list); i++)
++    {
++        var _gnx_left = ds_list_find_value(_print_list, i);
++        var _gnx_at = -1;
++        // the last blueprint of the same cell already placed (-1 = none yet)
++        for (var ii = 0; ii < ds_list_size(_new_list); ii++)
++        {
++            if (ds_list_find_value(_new_list, ii).num == _gnx_left.num)
++                _gnx_at = ii;
++        }
++        // != -1: right after it; else at the end
++        if (_gnx_at != -1)
++            ds_list_insert(_new_list, _gnx_at + 1, _gnx_left);
++        else
++            ds_list_add(_new_list, _gnx_left);
++    }
      _max_size = ds_list_size(_new_list);
 -    
      for (var i = 1; i < _max_size; i++)
@@ -461,7 +481,7 @@
          while (_item_2 != undefined && _item.num == _item_2.num && _item.lvl < _item_2.lvl)
          {
              ds_list_replace(_new_list, i - 1 - _num, _item);
-@@ -496,17 +453,14 @@
+@@ -496,17 +473,14 @@
              _item_2 = ds_list_find_value(_new_list, i - 1 - _num);
          }
      }
@@ -479,7 +499,7 @@
          while (_item_2 != undefined && _item.item_type < _item_2.item_type)
          {
              ds_list_replace(global.inv_list, i - 1 - _num, _item);
-@@ -516,23 +470,18 @@
+@@ -516,23 +490,18 @@
              _item_2 = ds_list_find_value(global.inv_list, i - 1 - _num);
          }
      }
@@ -503,7 +523,7 @@
      ds_list_destroy(_milk_list);
      ds_list_destroy(_print_list);
      ds_list_destroy(_between_list);
-@@ -543,36 +492,28 @@
+@@ -543,36 +512,33 @@
  function scr_reload_all_item()
  {
      var _num = ds_list_size(global.quest_list);
@@ -515,7 +535,13 @@
          if (_quest.quest_text != -1)
          {
              var _a = _quest.quest_reward;
-             ds_list_find_value(global.quest_list, i).quest_reward = scr_set_item_data(_a.item_type, _a.num, _a.lvl);
+-            ds_list_find_value(global.quest_list, i).quest_reward = scr_set_item_data(_a.item_type, _a.num, _a.lvl);
++            // GNX-UNIT: a captive given by a mod quest is rebuilt by GNX, which also keeps her class name for the
++            // reward's hover text (rebuilt here from type, num and lvl alone she lost it on every load; && = and)
++            if (variable_struct_exists(_quest, "gnx_event_id") && _a.item_type == UnknownEnum.Value_9 && variable_struct_exists(_a, "info") && is_struct(_a.info))
++                ds_list_find_value(global.quest_list, i).quest_reward = gnx_unit_reward_item(_a.info);
++            else
++                ds_list_find_value(global.quest_list, i).quest_reward = scr_set_item_data(_a.item_type, _a.num, _a.lvl);
          }
      }
 -    
@@ -540,7 +566,7 @@
      for (var i = 0; i < _num; i++)
      {
          if (global.val.stage_info[i] != -1)
-@@ -587,15 +528,14 @@
+@@ -587,15 +553,14 @@
              }
          }
      }

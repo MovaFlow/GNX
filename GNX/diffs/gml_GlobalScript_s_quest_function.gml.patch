@@ -10,13 +10,60 @@
          image_xscale = 3;
          image_yscale = bar_height;
          bar_c = global.bar_c;
-@@ -193,7 +194,8 @@
+@@ -193,7 +194,25 @@
              
              if (global.val.language != UnknownEnum.Value_0)
              {
 -                _text = scr_lang_quest_text(_quest.quest_type);
 +                // GNX: a mod quest's text, translated when the mod translates it (vanilla only knows its own quests)
-+                _text = variable_struct_exists(_quest, "gnx_event_id") ? gnx_tr(_quest.quest_text) : scr_lang_quest_text(_quest.quest_type);
++                if (variable_struct_exists(_quest, "gnx_event_id"))
++                {
++                    // GNX-FIX: the quest's own text is translated, then what gnx_quest_build_text put after it (the
++                    // build progress " (2/4)", or nothing) is added back: the whole text with the progress is in no
++                    // translation file, so build_count quests stayed in English
++                    // (? : = the text of its definition when the quest has one, && = and)
++                    var _gnx_qt = (variable_struct_exists(_quest, "gnx_event") && is_struct(_quest.gnx_event) && variable_struct_exists(_quest.gnx_event, "quest_text")) ? string(_quest.gnx_event.quest_text) : string(_quest.quest_text);
++                    
++                    // == : the quest text starts with it; string_delete then leaves only what follows
++                    if (string_copy(string(_quest.quest_text), 1, string_length(_gnx_qt)) == _gnx_qt)
++                        _text = gnx_tr(_gnx_qt) + string_delete(string(_quest.quest_text), 1, string_length(_gnx_qt));
++                    else
++                        _text = gnx_tr(_quest.quest_text);
++                }
++                else
++                {
++                    _text = scr_lang_quest_text(_quest.quest_type);
++                }
                  
                  if (global.val.language == UnknownEnum.Value_2 || global.val.language == UnknownEnum.Value_9 || global.val.language == UnknownEnum.Value_1 || global.val.language == UnknownEnum.Value_3)
                  {
+@@ -1096,9 +1115,27 @@
+     if (_quest != undefined && _quest.quest_clear)
+     {
+         var _item = _quest.quest_reward;
+-        scr_add_item(_item);
++        // GNX-UNIT: a captive given by a mod quest (&& = and): her popup shows "+" (her item has num -1)
++        var _gnx_unit_gain = variable_struct_exists(_quest, "gnx_event_id") && _item.item_type == UnknownEnum.Value_9;
++        
++        // GNX-UNIT: a captive as a mod quest's reward (the game's captive item, type 9) goes into the first free
++        // place of the prison, not the inventory; with the prison full the quest stays in the log, to be claimed
++        // later (&& = and, ! = not)
++        if (_gnx_unit_gain)
++        {
++            if (!gnx_unit_to_prison(_item.info))
++            {
++                scr_gnx_pop_up_create("Prison is full!");
++                exit;
++            }
++        }
++        else
++        {
++            scr_add_item(_item);
++        }
++        
+         ds_list_delete(global.quest_list, _pos_y);
+-        scr_item_pop_up_create(arg0, arg1, _item, true);
++        scr_item_pop_up_create(arg0, arg1, _item, true, _gnx_unit_gain);
+         scr_sfx_play(UnknownEnum.Value_0);
+         var _y;
+         

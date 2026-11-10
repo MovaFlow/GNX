@@ -26,6 +26,10 @@ N = {"type": "number"}
 S = {"type": "string"}
 REF = {"$ref": "#/definitions/ref"}
 ANY = {"type": ["number", "string", "boolean"]}
+LABEL = {"type": "string", "description": "Shown before this objective's progress in the quest log, e.g. \"DRINK\" in (DRINK 1/3)."}
+CELLS = {"description": "A cell type, or a list of them (every cell they name counts).", "oneOf": [REF, {"type": "array", "items": REF, "minItems": 1}]}
+CATEGORY = {"description": "A build tab of cells.json (breed, utility, ...), or a list of them: every cell of the tab counts.", "oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}, "minItems": 1}]}
+UNIT = ({"class": {"$ref": C + "ref"}, "level": {"type": "integer", "minimum": 0, "maximum": 7}, "lvl": {"type": "integer", "minimum": 0, "maximum": 7}}, ["class"])
 STAGE = {"description": "A raid stage: 0-4, \"vanilla.VILLAGE\" / MOUNTAIN / FOREST / CASTLE / TOWER, a mod stage \"folder.ID\", or a bare ID of your own mod (raids.json).", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "string", "minLength": 1}]}
 
 common = json.load(open('common.schema.json', encoding='utf-8'))
@@ -35,16 +39,16 @@ d['condition'] = typed({
     "state_equals": ({"key": S, "value": ANY}, ["key", "value"], "The mod's save state key == value."),
     "state_gte": ({"key": S, "value": N}, ["key", "value"], "The mod's save state key >= value."),
     "state_lte": ({"key": S, "value": N}, ["key", "value"], "The mod's save state key <= value."),
-    "unit_count": ({"class": REF, "value": N}, [], "Units of that class (all units without class) >= value (default 1)."),
+    "unit_count": ({"class": REF, "value": N, "label": LABEL}, [], "Units of that class (all units without class) >= value (default 1)."),
     "gold_gte": ({"value": N}, ["value"], "Gold >= value."),
-    "day_gte": ({"value": N}, ["value"], "The day counter >= value."),
-    "day_every": ({"value": {"type": "integer", "minimum": 1}, "offset": {"type": "integer"}}, ["value"], "The day is a multiple of value (after subtracting offset). Meant for the day_start hook."),
-    "has_item": ({"item": S, "value": N}, ["item"], "The inventory holds at least value (default 1) of that mod item."),
+    "day_gte": ({"value": N}, [], "The day counter >= value (default 1)."),
+    "day_every": ({"value": {"type": "integer", "minimum": 1}, "offset": {"type": "integer"}}, [], "The day is a multiple of value (default 1: every day) (after subtracting offset). Meant for the day_start hook."),
+    "has_item": ({"item": S, "value": N, "label": LABEL}, ["item"], "The inventory holds at least value (default 1) of that mod item."),
     "floor_gte": ({"value": N}, ["value"], "Floors >= value."),
-    "cell_count": ({"h_type": REF, "value": N}, ["h_type"], "Built cells of that type >= value (default 1)."),
-    "build_count": ({"h_type": REF, "value": N}, [], "Cells of that type (any type without h_type) the player built >= value; in a quest's completion counted from when the quest appeared."),
-    "cell_built": ({"h_type": REF}, ["h_type"], "At least one cell of that type is built."),
-    "cell_occupied": ({"h_type": REF}, ["h_type"], "At least one cell of that type has a captive."),
+    "cell_count": ({"h_type": CELLS, "category": CATEGORY, "value": N, "label": LABEL}, [], "Built cells of those types or tabs >= value (default 1). Needs h_type or category."),
+    "build_count": ({"h_type": CELLS, "category": CATEGORY, "value": N, "label": LABEL}, [], "Cells of that type (any type without h_type) the player built >= value; in a quest's completion counted from when the quest appeared."),
+    "cell_built": ({"h_type": CELLS, "category": CATEGORY}, [], "At least one cell of those types or tabs is built. Needs h_type or category."),
+    "cell_occupied": ({"h_type": CELLS, "category": CATEGORY, "value": N, "label": LABEL}, [], "At least value (default 1) cells of those types or tabs hold a captive. Needs h_type or category."),
     "stage_discovered": ({"stage": STAGE}, ["stage"], "That raid stage is discovered."),
     "stage_cleared": ({"stage": STAGE, "min_level": {"type": "integer", "minimum": 0}}, ["stage", "min_level"], "That raid stage's highest cleared level >= min_level."),
     "boss_captured": ({"class": REF}, ["class"], "A unit of that class is in the cage."),
@@ -55,6 +59,10 @@ d['condition'] = typed({
     "map_visited": ({"map": S}, ["map"], "The player has been on that map."),
     "map_unlocked": ({"map": S}, ["map"], "That map can be travelled to."),
 }, "A quest condition (QUESTS_SCHEMA.md, Condition types).")
+# a cell condition names its cells by h_type or category (one of them is required)
+for _a in d['condition']['allOf']:
+    if _a['if']['properties']['type']['const'] in ('cell_count', 'cell_built', 'cell_occupied'):
+        _a['then']['anyOf'] = [{"required": ["h_type"]}, {"required": ["category"]}]
 d['conditions'] = {"type": "array", "items": {"$ref": "#/definitions/condition"}}
 json.dump(common, open('common.schema.json', 'w', encoding='utf-8', newline='\n'), indent=2, ensure_ascii=False)
 
@@ -68,6 +76,7 @@ side_effect = typed({
     "unlock_cell": ({"h_type": {"$ref": C + "ref"}}, ["h_type"], "Unlocks a cell in the build menu."),
     "unlock_class": ({"class": {"$ref": C + "ref"}}, ["class"], "Unlocks a class (saved, shared by every map); gate raid_spawns entries or quests on it with the condition class_unlocked."),
     "unlock_map": ({"map": S}, ["map"], "Opens a mod map in the travel menu for good."),
+    "create_unit": UNIT + ("Puts a new captive of that class and level (default 1) into the prison.",),
 }, "A side effect, applied when the event fires (QUESTS_SCHEMA.md, Side effect types).")
 for a in side_effect['allOf']:
     for k, v in a['then']['properties'].items():
@@ -79,6 +88,7 @@ reward = typed({
     "blueprint": ({"h_type": {"$ref": C + "ref"}, "fragment": {"type": ["boolean", "integer"]}, "lvl": {"type": "integer", "minimum": 0, "maximum": 3}}, ["h_type"], "A complete blueprint (unlocks the cell), or with fragment: true one piece."),
     "prop": ({"prop_id": {"type": ["integer", "string"]}}, ["prop_id"], "Unlocks a prop in the customization menu."),
     "item": ({"item": S, "amount": {"type": "integer", "minimum": 1}}, ["item"], "A mod item (items.json)."),
+    "unit": UNIT + ("A captive of that class and level (default 1), put into the prison when claimed; with the prison full the reward stays.",),
 }, "A quest reward (QUESTS_SCHEMA.md, Reward types).")
 
 HOOKS = ["post_raid_win", "post_raid", "post_raid_loss", "cell_built", "day_start", "map_arrive"]
@@ -122,7 +132,7 @@ quests = {
                 "next_event": {"type": ["string", "null"], "description": "The event that follows (null = the chain ends)."},
                 "quest_text": S,
                 "reward": {"$ref": "#/definitions/reward"},
-                "completion": {"$ref": C + "condition"},
+                "completion": {"description": "One condition, or a list: the quest is done when all hold.", "oneOf": [{"$ref": C + "condition"}, {"type": "array", "items": {"$ref": C + "condition"}, "minItems": 1}]},
                 "completion_hook": {"enum": ["frame", "post_raid", "post_raid_win", "cell_built", "day_start"], "description": "When the completion condition is checked (default \"frame\": every frame). map_arrive and post_raid_loss are trigger hooks only."},
             },
             "patternProperties": {"^_": {}}, "additionalProperties": False},

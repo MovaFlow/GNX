@@ -35,13 +35,17 @@ PHASE_KEYS = r"^phase_([0-5]|idle_start|start_loop|loop_ej|ej_birth)$"
 
 # underground class_map entries: own milk / newborn strips, written as the cell's own (guide 24)
 UG_ART = {"description": "Underground cells: this class's own strips, written as the cell's own.", "type": ["object", "string", "integer"]}
+# a class_map entry (default, classes.<class>, or a leg entry of one): phase tables plus its own underground strips
+CM_PROPS = {"milk_spr": UG_ART, "infant_spr": UG_ART, "tent_spr": UG_ART}
+CM_LEGS = {k: {"$ref": "#/definitions/cm_leg"} for k in ("leg_1", "leg_2", "leg_0", "leg_any")}
+CM_REPLACE = {"replace": {"type": ["boolean", "integer"], "description": "extend only: replace the art of a class the cell already has (a recolour)."}}
 
 # per phase of a fixed / class_map human_spr: special-class style tables, optional by_class (fixed mode)
 hum_phase = obj({
     "spr_array": d(L, "The captive's body, slot by slot (guide 10.3)."),
-    "spr_c_array": d(L, "Her clothes, slot by slot."),
+    "spr_c_array": d(L, "Her clothes, slot by slot. A slot can be a list: the clothing, then variants the cell's clothing button cycles through (guide 7.7a)."),
     "by_class": d({"type": "object"}, "Fixed mode: some classes get their own sprites (guide 10.4)."),
-    "by_mon_type": d({"type": "object"}, "Inside a by_class entry: per monster type (guide 10.4)."),
+    "by_mon_type": d({"type": "object"}, "Per monster type: inside a by_class entry (fixed mode), or in a class_map entry's phase (guide 10.4, 10.5)."),
 })
 human_spr = {
     "type": "object",
@@ -50,10 +54,10 @@ human_spr = {
         "mode": {"enum": ["base+class", "fixed", "class_map"]},
         "base_body": {"enum": ["standard", "big", "tent"]},
         "default": {"type": "object", "description": "class_map: the phases for classes not listed.",
-                    "properties": {"milk_spr": UG_ART, "infant_spr": UG_ART},
+                    "properties": dict(CM_PROPS, **CM_LEGS),
                     "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}}, "additionalProperties": False},
         "classes": {"type": "object", "description": "class_map: class ID or reference -> phases (guide 10.5).",
-                    "additionalProperties": {"type": "object", "properties": {"milk_spr": UG_ART, "infant_spr": UG_ART}, "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}}, "additionalProperties": False}},
+                    "additionalProperties": {"type": "object", "properties": dict(CM_PROPS, **CM_LEGS, **CM_REPLACE), "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}}, "additionalProperties": False}},
     },
     "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}},
     "additionalProperties": False,
@@ -119,7 +123,8 @@ physical = obj({
 
 ART = {"description": "One sprite or an object of sprites (guide 24).", "type": ["object", "string", "integer"]}
 cell = obj({
-    "h_type": {"type": ["integer", "string"], "description": "The cell's ID; a vanilla number makes the entry a patch (guide 8.3, 12)."},
+    "h_type": {"description": "The cell's ID, a whole number of 0 or more (text of digits counts); a vanilla number makes the entry a patch (guide 8.3, 12). true / false read as 1 / 0.", "oneOf": [{"type": "integer", "minimum": 0}, {"type": "string", "pattern": "^[0-9]+$"}]},
+    "extend": d(S, "Adds this entry's human_spr.classes to another mod's class_map cell, \"<folder>.<cell name>\" (guide 12.4a)."),
     "name": d(S, "Cell name: references (\"my_mod.ALTAR\"), the hash ID, the build menu."),
     "category": {"enum": CATS, "description": "Build menu tab and cell size (guide 8.4)."},
     "locked": d(B, "Not in the build menu until unlocked."),
@@ -150,6 +155,7 @@ cells = {
         "spr": {"type": ["string", "integer"], "description": "\"gnx:<key>\", a vanilla sprite name, or -1 for none."},
         "cell": cell,
         "hum_phase": hum_phase,
+        "cm_leg": {"type": "object", "description": "A leg entry of a class_map entry: built like the entry, for captives of that leg variant (guide 10.5).", "properties": CM_PROPS, "patternProperties": {PHASE_KEYS: {"$ref": "#/definitions/hum_phase"}, "^_": {}}, "additionalProperties": False},
         "mon_phase": mon_phase,
         "mon_start": mon_start,
     },

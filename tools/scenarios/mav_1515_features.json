@@ -1,0 +1,115 @@
+{
+  "about": "Mav's 1.5.1.5 set: sell_lvl decides the trader per class (special classes included), a cell h_type written as text is read as its number (other text is a mod error and the cell gets its hashed id), extend adds a class to another mod's class_map cell, and day_gte / day_every without value no longer stop the game (value 1).",
+  "mods": [
+    "tools/scenarios/mods/harness_mav1505",
+    "tools/scenarios/mods/harness_mav1515"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "has no completion condition",
+  "expect_mod_errors": [
+    "'harness_mav1505.text_cond' has no completion condition",
+    "'harness_mav1505.no_completion' has no completion condition",
+    "completion_hook must be a text",
+    "quest condition cell_count has no h_type",
+    "a condition is not an object",
+    "a condition has no \"type\"",
+    "milk_lvl must be a number (lots)",
+    "cell \"harness_mav1505.MILK BAR\" not found",
+    "cell 'BAD ID' has h_type twelve"
+  ],
+  "steps": [
+    {
+      "wait": 10
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_can_sell",
+      "args": [
+        {
+          "class": "harness_mav1515.SELL0"
+        },
+        1
+      ],
+      "is": true,
+      "why": "special class with sell_lvl 0: sold at level 1 (the 1.5.1 rule alone wants level 6)"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_can_sell",
+      "args": [
+        {
+          "class": "harness_mav1515.NEVER"
+        },
+        7
+      ],
+      "is": false,
+      "why": "sell_lvl -1: never sold, even at level 7"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_can_sell",
+      "args": [
+        {
+          "class": "harness_mav1505.BOSSY"
+        },
+        1
+      ],
+      "is": false,
+      "why": "special class without sell_lvl keeps the level-6 rule"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_num_id",
+      "args": [
+        {
+          "cell": "harness_mav1515.TEXT ID"
+        }
+      ],
+      "is": 24680,
+      "why": "\"h_type\": \"24680\" is registered as the number 24680, not as text"
+    },
+    {
+      "assert": "cell_registered",
+      "name": "BAD ID",
+      "is": true
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cmap_has",
+      "args": [
+        {
+          "cell": "harness_mav1505.UG LISTED"
+        },
+        {
+          "class": "harness_mav1515.SELL0"
+        }
+      ],
+      "is": true,
+      "why": "the extend entry added SELL0 to the other mod's class_map cell"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "day_gte"
+        },
+        "harness_mav1515"
+      ],
+      "is": true,
+      "why": "day_gte without value: value 1 (it stopped the game before)"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_eval_condition",
+      "args": [
+        {
+          "type": "day_every"
+        },
+        "harness_mav1515"
+      ],
+      "is": true,
+      "why": "day_every without value: every day"
+    }
+  ]
+}

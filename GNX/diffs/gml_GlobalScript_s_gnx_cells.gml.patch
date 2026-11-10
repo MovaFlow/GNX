@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,2704 @@
+@@ -0,0 +1,3463 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -92,6 +92,129 @@
 +}
 +
 +
++/// GNX-SKIN: arg0 = a resolved sprite (a sprite or a GNX sprite struct), arg1 = its JSON definition, arg2 = its
++/// key in sprites (for messages). "skins": 3 = the strip holds one block per skin tone (skin 0, 1, 2 side by
++/// side, the same number of frames each), so a captive with a skin tone gets the block of hers. Read by the
++/// newborn (infant_spr) and the milk (milk_spr). Remembered like the loop: in global.gnx_skin_strips, GNX sprite
++/// structs carry it themselves.
++function gnx_skin_mark(arg0, arg1, arg2 = "")
++{
++    // == -1: nothing was loaded
++    if (!is_struct(arg0) && arg0 == -1)
++        exit;
++    
++    var _where = (is_struct(arg1) && variable_struct_exists(arg1, "strip")) ? ("strip '" + string(arg1.strip) + "'") : ("sprite '" + string(arg2) + "'");
++    // blocks this definition asks for: 1 without "skins" (as before), 3 with "skins": 3
++    var _want = 1;
++    // what is wrong with it, reported once per definition (below); "" = nothing
++    var _sbad = "";
++    
++    // && = and: the definition has "skins"
++    if (is_struct(arg1) && variable_struct_exists(arg1, "skins"))
++    {
++        // GNX-FIX: no floor, so 3.8 is no 3 and 1.9 no 1 (the value must be exactly one of them)
++        var _sv = gnx_json_num(arg1.skins, -1);
++        
++        // the game has 3 skin tones: 3 = a block each, 1 = one block; any other value is a mistake
++        if (_sv == 3)
++            _want = 3;
++        else if (_sv != 1)
++            _sbad = ": \"skins\" must be 3 (a block per skin tone) or left out, not " + string(arg1.skins) + "; it is read as one block";
++    }
++    
++    // GNX-FIX: 3 blocks of the same length need a frame count that 3 divides (mod = remainder: 28 mod 3 = 1).
++    // Such a strip stays 3 blocks (the frames div 3 each, the last ones unused): read as one block it would play
++    // all three tones one after the other. Fewer than 3 frames cannot be 3 blocks
++    if (_want == 3)
++    {
++        var _tot = gnx_sprite_get_number(arg0);
++        
++        if (_tot < 3)
++        {
++            _sbad = " is marked \"skins\": 3 but has " + string(_tot) + " frames; it is read as one block";
++            _want = 1;
++        }
++        else if ((_tot mod 3) != 0)
++        {
++            _sbad = " is marked \"skins\": 3 but its " + string(_tot) + " frames are not 3 blocks of the same length; each block is read as " + string(_tot div 3) + " frames, the last " + string(_tot mod 3) + " are not shown";
++        }
++    }
++    
++    // GNX-FIX: a definition's mistake is reported once per definition (its mod and key), also when the sprite was
++    // met before: a later wrong definition of a shared PNG is no longer left out, and one definition read
++    // several times is not reported several times
++    if (_sbad != "")
++        gnx_report_mod_error_once("skins-bad|" + gnx_err_mod_prefix() + string(arg2) + "|" + _where, gnx_err_mod_prefix() + _where + _sbad);
++    
++    if (!variable_global_exists("gnx_skin_strips") || !is_struct(global.gnx_skin_strips))
++        global.gnx_skin_strips = {};
++    
++    if (!variable_global_exists("gnx_skin_seen") || !is_struct(global.gnx_skin_seen))
++        global.gnx_skin_seen = {};
++    
++    // GNX-FIX: the same PNG with the same frames and origin is loaded once and shared (sprite cache, atlas
++    // entries), so its blocks belong to that shared sprite. A definition without "skins" used to leave a
++    // "skins": 3 of another one in force for both, silently. Now the first definition stays and a clash is a
++    // mod error, as for "loop" (gnx_loop_mark)
++    var _key = is_struct(arg0) ? "" : string(arg0);
++    var _seen = is_struct(arg0) ? variable_struct_exists(arg0, "gnx_skin_seen") : variable_struct_exists(global.gnx_skin_seen, _key);
++    
++    if (_seen)
++    {
++        var _prev = gnx_skin_blocks(arg0);
++        
++        // != : this definition wants other blocks than the first one did. GNX-FIX: once per shared sprite and
++        // kind of clash (gnx_sprite_key names the sprite), so ten uses of it give one message, not nine
++        if (_prev != _want)
++            gnx_report_mod_error_once("skins-clash|" + gnx_sprite_key(arg0) + "|" + string(_want), gnx_err_mod_prefix() + _where + " is shared with another definition that has " + ((_prev == 3) ? "\"skins\": 3" : "no \"skins\"") + "; this one asks for " + ((_want == 3) ? "\"skins\": 3" : "no \"skins\"") + ". The first one is kept; give both the same \"skins\" or use separate PNGs");
++        
++        exit;
++    }
++    
++    if (is_struct(arg0))
++    {
++        arg0.gnx_skin_seen = true;
++        
++        if (_want == 3)
++            arg0.gnx_skins = 3;
++    }
++    else
++    {
++        variable_struct_set(global.gnx_skin_seen, _key, true);
++        
++        if (_want == 3)
++            variable_struct_set(global.gnx_skin_strips, _key, 3);
++    }
++}
++
++
++/// GNX-SKIN: blocks of sprite arg0 (as stored), one per skin tone: 3 when its definition has "skins": 3, else 1.
++function gnx_skin_blocks(arg0)
++{
++    if (is_struct(arg0))
++        return variable_struct_exists(arg0, "gnx_skins") ? arg0.gnx_skins : 1;
++    
++    // == -1: no sprite; ! = not, || = or: nothing marked yet
++    if (arg0 == -1 || !variable_global_exists("gnx_skin_strips") || !is_struct(global.gnx_skin_strips))
++        return 1;
++    
++    var _k = string(arg0);
++    // ? : the mark when the sprite has one, else one block
++    return variable_struct_exists(global.gnx_skin_strips, _k) ? variable_struct_get(global.gnx_skin_strips, _k) : 1;
++}
++
++
++/// GNX: "Mod '<folder>': " for a mod error found while a mod loads (global.gnx_current_loading_mod), else "".
++function gnx_err_mod_prefix()
++{
++    // && = and, != "" = a mod is loading now
++    if (variable_global_exists("gnx_current_loading_mod") && is_string(global.gnx_current_loading_mod) && global.gnx_current_loading_mod != "")
++        return "Mod '" + global.gnx_current_loading_mod + "': ";
++    
++    return "";
++}
++
++
 +function gnx_load_sprite_frames(arg0, arg1, arg2)
 +{
 +    var _n = array_length(arg0);
@@ -148,7 +271,11 @@
 +            _new.spr_array = _old.spr_array;
 +        
 +        if (!variable_struct_exists(arg2, "spr_c_array") && variable_struct_exists(_old, "spr_c_array"))
++        {
 +            _new.spr_c_array = _old.spr_c_array;
++            // GNX-OUTFIT: its clothing variants go with it
++            _new.gnx_c_var = variable_struct_exists(_old, "gnx_c_var") ? _old.gnx_c_var : -1;
++        }
 +        
 +        if (variable_struct_exists(_old, "by_class"))
 +        {
@@ -709,19 +836,17 @@
 +    if (arg4)
 +    {
 +        var _ovk = ["start", "idle", "loop", "ej", "birth"];
-+        var _ovs = ["tent_spr"];
++        // GNX-BYCLASS: the cell's tent_spr and every class_map entry's ([label, tent_spr, key])
++        var _ovs = gnx_tent_sources(arg0);
 +        
-+        for (var o = 0; o < 1; o++)
++        for (var o = 0; o < array_length(_ovs); o++)
 +        {
-+            if (!variable_struct_exists(arg0, _ovs[o]) || !is_struct(variable_struct_get(arg0, _ovs[o])))
-+                continue;
-+            
-+            var _ov = variable_struct_get(arg0, _ovs[o]);
++            var _ov = _ovs[o][1];
 +            
 +            for (var k = 0; k < 5; k++)
 +            {
 +                if (variable_struct_exists(_ov, _ovk[k]))
-+                    _bad += gnx_frames_check_refs(variable_struct_get(_ov, _ovk[k]), arg3[k], arg1, _ovs[o] + "." + _ovk[k], arg2, false);
++                    _bad += gnx_frames_check_refs(variable_struct_get(_ov, _ovk[k]), arg3[k], arg1, _ovs[o][0] + "." + _ovk[k], arg2, false);
 +            }
 +        }
 +    }
@@ -1371,8 +1496,17 @@
 +            _bad++;
 +        }
 +        
-+        if (arg5 && variable_struct_exists(arg0, "tent_spr") && is_struct(arg0.tent_spr) && variable_struct_exists(arg0.tent_spr, _names[k]))
-+            _bad += gnx_frames_check_refs(variable_struct_get(arg0.tent_spr, _names[k]), _f, arg1, "tent_spr." + _names[k], arg2, false);
++        // GNX-BYCLASS: the cell's tent_spr and every class_map entry's (gnx_tent_sources)
++        if (arg5)
++        {
++            var _tsl = gnx_tent_sources(arg0);
++            
++            for (var _tsi = 0; _tsi < array_length(_tsl); _tsi++)
++            {
++                if (variable_struct_exists(_tsl[_tsi][1], _names[k]))
++                    _bad += gnx_frames_check_refs(variable_struct_get(_tsl[_tsi][1], _names[k]), _f, arg1, _tsl[_tsi][0] + "." + _names[k], arg2, false);
++            }
++        }
 +        
 +        // monsters: underground scenes have none
 +        var _max_mon = variable_struct_exists(arg0, "physical") && variable_struct_exists(arg0.physical, "max_mon_num") ? gnx_json_num(arg0.physical.max_mon_num, 0) : 0;
@@ -2138,7 +2272,8 @@
 +/// spr[k] = milk strip of phase k (-1 none), clock[k] true = on the milk's own clock looping n[k] frames,
 +/// false = in step with the captive, any = there is at least one strip. Moved here from the cell
 +/// registration, unchanged, so a class's own milk_spr (class_map entry) gets the same rules as the cell's.
-+function gnx_milk_tables(arg0, arg1, arg2, arg3, arg4)
++/// GNX-FIX: arg5 (optional, 0) = the cell's character_row, the row of the strips it draws (row 0, 1, ...).
++function gnx_milk_tables(arg0, arg1, arg2, arg3, arg4, arg5 = 0)
 +{
 +    var _spr = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
 +    // phases with a milk key and the key's name in milk_spr
@@ -2189,6 +2324,13 @@
 +
 +        var _mlf = gnx_loop_frames(_ms);
 +        var _mnum = gnx_sprite_get_number(_ms);
++        // GNX-SKIN: a strip marked "skins": 3 holds 3 blocks of the same length, one per skin tone, and only one
++        // of them plays, so its own clock loops the frames of one block (div = whole-number division: 15 in 3 = 5).
++        // _mone = the frames of one tone in all the strip's rows together
++        var _mbn = gnx_skin_blocks(_ms);
++        var _mone = (_mbn == 3) ? (_mnum div 3) : _mnum;
++        // GNX-FIX: rows the strip has at least: this cell draws row arg5, so rows 0 to arg5 (max = the larger)
++        var _mrows = max(1, floor(gnx_json_num(arg5, 0)) + 1);
 +
 +        // >= 1 = marked loop: that many frames per row
 +        if (_mlf >= 1)
@@ -2197,10 +2339,48 @@
 +            _cnt[_mq] = _mlf;
 +        }
 +        // % = remainder: 5 % 2 = 1, so 5 frames are no whole rows of a 2-frame phase
-+        else if (_mnum > 1 && (_mnum % _mfr[_mq]) != 0)
++        else if (_mone > 1 && (_mone % _mfr[_mq]) != 0)
 +        {
 +            _clock[_mq] = true;
-+            _cnt[_mq] = _mnum;
++            // GNX-FIX: its own clock loops the frames of one row. The length gives the frames of all rows
++            // together, not how many rows there are, so without a numeric "loop" the strip is read as the rows
++            // this cell needs: one row for a cell on row 0, as before; 2 rows for row 1 (before, the whole strip
++            // was one cycle there and the frames ran past the strip's end)
++            _cnt[_mq] = max(1, _mone div _mrows);
++
++            // > 1: a cell on a later row, so the strip has several rows and only "loop" can say how long one is
++            if (_mrows > 1)
++            {
++                var _mrm = "milk strip '" + string(variable_struct_get(arg0, _mph_k[_mi])) + "' (milk_spr." + _mph_k[_mi] + ") plays on its own clock (its " + string(_mone) + " frames" + ((_mbn == 3) ? " per skin tone" : "") + " are no whole rows of the phase's " + string(_mfr[_mq]) + ") and this cell draws its row " + string(_mrows - 1) + ", so it has several rows; give \"loop\": <the frames of one row" + ((_mbn == 3) ? " of one tone" : "") + ">. It is read as " + string(_mrows) + " rows of " + string(_cnt[_mq]) + " frames";
++
++                // GNX-SKIN: == 3: a strip of 1.5.1.5 ("skins": 3), a mod error; an older strip: a log line, as it
++                // played wrongly before as well
++                if (_mbn == 3)
++                    gnx_report_mod_error_once("milk-rows|" + gnx_err_mod_prefix() + _mrm, gnx_err_mod_prefix() + _mrm);
++                else
++                    gnx_log_once("milk-rows|" + gnx_err_mod_prefix() + _mrm, "[GNX-UG] " + gnx_err_mod_prefix() + _mrm);
++            }
++        }
++
++        // GNX-FIX: every use of a strip without a "loop" notes its row and whether this cell runs it on its own
++        // clock (gnx_milk_rows_seen), also when the cell plays it in step with the phase. A cell on row 0 cannot
++        // tell one row of 10 frames from two of 5; the same strip drawn on a later row as well (on its own clock
++        // or in step) shows it has several rows: reported once. Only a report: the cycle stays as worked out above
++        // < 1 = no "loop"
++        if (_mlf < 1)
++            gnx_milk_rows_seen(_ms, _mrows - 1, _clock[_mq], variable_struct_get(arg0, _mph_k[_mi]), _mph_k[_mi], _mbn, _mone);
++
++        // GNX-SKIN: 3 blocks need 3 times the frames one block plays (? : its own loop, else the phase's frames),
++        // in each row up to the cell's. Checked here, when the cell is registered, not while drawing; with fewer
++        // frames the drawing falls back to the first block
++        var _mneed = _clock[_mq] ? _cnt[_mq] : _mfr[_mq];
++
++        // && = and, < = fewer
++        if (_mbn == 3 && _mnum < (_mrows * 3 * _mneed))
++        {
++            var _mfm = "milk strip '" + string(variable_struct_get(arg0, _mph_k[_mi])) + "' (milk_spr." + _mph_k[_mi] + ") is marked \"skins\": 3 but has " + string(_mnum) + " frames, fewer than " + ((_mrows > 1) ? (string(_mrows) + " rows of ") : "") + "3 blocks of " + string(_mneed) + ". Captives with a skin tone get the first block. With \"loop\", give the frames of one block (\"loop\": 5), not true";
++            // once per strip and phase key of this mod (the same strip in several class entries is one mistake)
++            gnx_report_mod_error_once("milk-few|" + gnx_err_mod_prefix() + _mfm, gnx_err_mod_prefix() + _mfm);
 +        }
 +    }
 +
@@ -2267,16 +2447,14 @@
 +/// entry). A class_map cell: her class's own (milk_spr in her human_spr.classes entry), else the default
 +/// entry's, else no milk; the cell's own milk_spr is never lent to a class there (it is only read by a
 +/// GNX without per-class milk). Any other cell: the cell's own. Returns { spr, clock, n }.
-+function gnx_milk_for(arg0, arg1)
++/// GNX-LEG: arg2 = her unit data (optional): a leg entry of her class_map entry comes first.
++function gnx_milk_for(arg0, arg1, arg2 = undefined)
 +{
 +    // && = and: a class_map cell (set at registration)
 +    if (variable_struct_exists(arg0, "gnx_milk_cmap") && arg0.gnx_milk_cmap)
 +    {
-+        // variable_struct_get gives undefined when there is no such entry
-+        var _e = variable_struct_get(arg0.gnx_milk_bc, string(arg1));
-+
-+        if (_e == undefined)
-+            _e = variable_struct_get(arg0.gnx_milk_bc, "default");
++        // GNX-LEG: her leg entry's, else her class's, else the default entry's (undefined = none of them)
++        var _e = gnx_cmap_bc_get(arg0.gnx_milk_bc, arg0, arg1, arg2);
 +
 +        return (_e != undefined) ? _e : arg0.gnx_milk_none;
 +    }
@@ -2292,20 +2470,291 @@
 +/// class_map cell: her class's own (infant_spr in her human_spr.classes entry), else the default entry's,
 +/// else none; never the cell's own infant_spr. Any other cell: the cell's. -1 = none (invisible newborn,
 +/// the birth still completes).
-+function gnx_infant_for(arg0, arg1)
++/// GNX-LEG: arg2 = the mother's unit data (optional): a leg entry of her class_map entry comes first.
++function gnx_infant_for(arg0, arg1, arg2 = undefined)
 +{
 +    if (variable_struct_exists(arg0, "gnx_milk_cmap") && arg0.gnx_milk_cmap)
 +    {
-+        var _s = variable_struct_get(arg0.gnx_infant_bc, string(arg1));
-+
-+        // == undefined: the class has no entry of its own, so the default entry's (if any)
-+        if (_s == undefined)
-+            _s = variable_struct_get(arg0.gnx_infant_bc, "default");
++        // GNX-LEG: her leg entry's, else her class's, else the default entry's (undefined = none of them)
++        var _s = gnx_cmap_bc_get(arg0.gnx_infant_bc, arg0, arg1, arg2);
 +
 +        return (_s != undefined) ? _s : -1;
 +    }
 +
 +    return variable_struct_exists(arg0, "gnx_infant") ? arg0.gnx_infant : -1;
++}
++
++
++/// GNX-BYCLASS: the tent_spr blocks of underground cell JSON arg0, as [label, tent_spr, key, leg]: the cell's own
++/// (key ""), then the one of each human_spr.classes entry (key = the class as written) and of the default entry
++/// (key "default") in a class_map cell. Only objects are listed; with arg1 true, an entry's tent_spr that is
++/// no object is a mod error (arg2 = the cell's name). Used to register them (gnx_tent_bc) and to check the
++/// frame count of every tentacle strip.
++/// GNX-LEG: then those of the leg entries (leg_1, leg_2, leg_0, leg_any) that bring their own, with key = their
++/// entry's and leg = the leg key; leg is "" for the others.
++function gnx_tent_sources(arg0, arg1 = false, arg2 = "")
++{
++    var _out = [];
++
++    // && = and: a tent_spr object of the cell itself
++    if (variable_struct_exists(arg0, "tent_spr") && is_struct(arg0.tent_spr))
++        array_push(_out, ["tent_spr", arg0.tent_spr, "", ""]);
++
++    var _hs = variable_struct_exists(arg0, "human_spr") ? arg0.human_spr : undefined;
++
++    // ! = not, || = or: only a class_map human_spr has entries per class
++    if (!is_struct(_hs) || !variable_struct_exists(_hs, "mode") || _hs.mode != "class_map")
++        return _out;
++
++    // [key, entry]: every classes entry, then the default entry
++    var _ent = [];
++
++    if (variable_struct_exists(_hs, "classes") && is_struct(_hs.classes))
++    {
++        var _ks = variable_struct_get_names(_hs.classes);
++
++        for (var i = 0; i < array_length(_ks); i++)
++            array_push(_ent, [_ks[i], variable_struct_get(_hs.classes, _ks[i])]);
++    }
++
++    // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
++    if (variable_struct_exists(_hs, "default"))
++        array_push(_ent, ["default", variable_struct_get(_hs, "default")]);
++
++    for (var i = 0; i < array_length(_ent); i++)
++    {
++        var _e = _ent[i][1];
++
++        // ! = not: "_comment" notes and other values that are no entry
++        if (!is_struct(_e) || !variable_struct_exists(_e, "tent_spr"))
++            continue;
++
++        // ? : = the label the errors name: the default entry, or the class's entry
++        var _lab = ((_ent[i][0] == "default") ? "human_spr.default" : ("human_spr.classes." + _ent[i][0])) + ".tent_spr";
++
++        if (is_struct(_e.tent_spr))
++            array_push(_out, [_lab, _e.tent_spr, _ent[i][0], ""]);
++        else if (arg1)
++            gnx_report_mod_error("Cell '" + string(arg2) + "': " + _lab + " must be an object of phase keys (start, idle, loop, ej, birth ...), not " + string(_e.tent_spr) + "; the cell's tentacle is used");
++    }
++
++    // GNX-LEG: the leg entries' own tent_spr, after every entry (their tentacle goes over their entry's)
++    for (var i = 0; i < array_length(_ent); i++)
++    {
++        var _lg = gnx_cmap_legs(_ent[i][1]);
++
++        for (var g = 0; g < array_length(_lg); g++)
++        {
++            var _le = _lg[g][1];
++
++            // ! = not: a leg entry without its own tent_spr keeps its entry's
++            if (!variable_struct_exists(_le, "tent_spr"))
++                continue;
++
++            // ? : = the label the errors name, as above, with the leg key
++            var _llab = ((_ent[i][0] == "default") ? "human_spr.default" : ("human_spr.classes." + _ent[i][0])) + "." + _lg[g][0] + ".tent_spr";
++
++            if (is_struct(_le.tent_spr))
++                array_push(_out, [_llab, _le.tent_spr, _ent[i][0], _lg[g][0]]);
++            else if (arg1)
++                gnx_report_mod_error("Cell '" + string(arg2) + "': " + _llab + " must be an object of phase keys (start, idle, loop, ej, birth ...), not " + string(_le.tent_spr) + "; its entry's tentacle is used");
++        }
++    }
++
++    return _out;
++}
++
++
++/// GNX-BYCLASS: the tentacle table (10 phases, as gnx_tent) for a captive of class arg1 in cell arg0 (a
++/// cell_registry entry): her class's own tent_spr (her human_spr.classes entry), else the default entry's,
++/// else the cell's. A phase the entry leaves out is the cell's (filled in at registration). A bigger captive
++/// can so get a bigger tentacle in the same cell.
++/// GNX-LEG: arg2 = her unit data (optional): a leg entry of her class_map entry comes first.
++function gnx_tent_for(arg0, arg1, arg2 = undefined)
++{
++    // a cell with tent_spr per class (set at registration)
++    if (variable_struct_exists(arg0, "gnx_tent_bc"))
++    {
++        // GNX-LEG: her leg entry's, else her class's, else the default entry's (undefined = none of them)
++        var _t = gnx_cmap_bc_get(arg0.gnx_tent_bc, arg0, arg1, arg2);
++
++        // != undefined: found one
++        if (_t != undefined)
++            return _t;
++    }
++
++    return arg0.gnx_tent;
++}
++
++
++/// GNX-LEG: the leg entries of class_map entry arg0 (a classes entry or the default entry, as JSON or as
++/// registered), as [[key, entry], ...] in the order leg_1, leg_2, leg_0, leg_any. A leg entry is built like
++/// its entry and is used for a captive with that leg pose (leg_0 = the kneeling body of Shaman and
++/// Warrior); leg_any for every pose without its own. Only objects are listed.
++function gnx_cmap_legs(arg0)
++{
++    var _out = [];
++
++    // ! = not: an entry that is no object has no leg entries
++    if (!is_struct(arg0))
++        return _out;
++
++    var _lk = ["leg_1", "leg_2", "leg_0", "leg_any"];
++
++    for (var i = 0; i < 4; i++)
++    {
++        // && = and: the key is there and holds an object
++        if (variable_struct_exists(arg0, _lk[i]) && is_struct(variable_struct_get(arg0, _lk[i])))
++            array_push(_out, [_lk[i], variable_struct_get(arg0, _lk[i])]);
++    }
++
++    return _out;
++}
++
++
++/// GNX-LEG: leg entry arg1 of class_map entry arg0 (both JSON) as one object: what the leg entry leaves out
++/// comes from its entry (phase tables, milk_spr, infant_spr, tent_spr), its own keys win. The entry's leg
++/// entries are not copied. Used at registration to build the leg's milk tables.
++function gnx_cmap_leg_merge(arg0, arg1)
++{
++    var _out = {};
++    var _k = variable_struct_get_names(arg0);
++
++    for (var i = 0; i < array_length(_k); i++)
++    {
++        // string_copy(text, 1, 4) = the first 4 characters: leg_1, leg_2, leg_0 and leg_any stay out
++        if (string_copy(_k[i], 1, 4) != "leg_")
++            variable_struct_set(_out, _k[i], variable_struct_get(arg0, _k[i]));
++    }
++
++    _k = variable_struct_get_names(arg1);
++
++    for (var i = 0; i < array_length(_k); i++)
++        variable_struct_set(_out, _k[i], variable_struct_get(arg1, _k[i]));
++
++    return _out;
++}
++
++
++/// GNX-LEG: registers the leg entries of class_map entry arg0 (JSON) into arg1 (the same entry as
++/// registered, with its own phase tables already in it): each becomes arg1.leg_1 / leg_2 / leg_0 / leg_any,
++/// with its own phase and intermission tables plus every table of arg1 it leaves out. arg2 = the cell's
++/// "sprites" block, arg3 = the mod folder.
++function gnx_cmap_resolve_legs(arg0, arg1, arg2, arg3)
++{
++    var _legs = gnx_cmap_legs(arg0);
++    var _pk = ["phase_0", "phase_1", "phase_2", "phase_3", "phase_4", "phase_5"];
++
++    for (var g = 0; g < array_length(_legs); g++)
++    {
++        var _src = _legs[g][1];
++        var _out = {};
++
++        // the leg entry's own tables, read as the entry's are
++        for (var p = 0; p < array_length(_pk); p++)
++        {
++            if (variable_struct_exists(_src, _pk[p]))
++                variable_struct_set(_out, _pk[p], gnx_resolve_special_phase(variable_struct_get(_src, _pk[p]), arg2, arg3));
++        }
++
++        // GNX-INTER: the intermission tables
++        gnx_inter_resolve_tables(_src, _out, arg2, arg3);
++
++        // the entry's tables the leg entry leaves out (! = not, && = and: keys it has none of, and no other
++        // leg entry registered before it)
++        var _ek = variable_struct_get_names(arg1);
++
++        for (var e = 0; e < array_length(_ek); e++)
++        {
++            if (!variable_struct_exists(_out, _ek[e]) && string_copy(_ek[e], 1, 4) != "leg_")
++                variable_struct_set(_out, _ek[e], variable_struct_get(arg1, _ek[e]));
++        }
++
++        variable_struct_set(arg1, _legs[g][0], _out);
++    }
++}
++
++
++/// GNX-LEG: the leg key of captive arg0 (her unit data): "leg_0" (the kneeling body of Shaman and Warrior),
++/// "leg_2" or "leg_1", as the game picks her body; "" when there is no captive or she has no leg pose.
++function gnx_cmap_leg_name(arg0)
++{
++    // ! = not, || = or: no unit data, or none with a leg pose
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "leg"))
++        return "";
++
++    // ? : leg 0 is the kneeling body, 2 the second pose, anything else the first (as the game draws them)
++    return (arg0.leg == 0) ? "leg_0" : ((arg0.leg == 2) ? "leg_2" : "leg_1");
++}
++
++
++/// GNX-LEG: which leg entry of registered class_map entry arg0 captive arg1 (her unit data) uses: the one for
++/// her leg pose, else leg_any; "" when the entry has neither (she uses the entry itself).
++function gnx_cmap_leg_key(arg0, arg1)
++{
++    // ! = not: no entry, no leg entries
++    if (!is_struct(arg0))
++        return "";
++
++    var _lk = gnx_cmap_leg_name(arg1);
++
++    // != "": she has a leg pose; && = and: the entry has a leg entry for it
++    if (_lk != "" && variable_struct_exists(arg0, _lk))
++        return _lk;
++
++    // ? : leg_any when the entry has it, else none
++    return variable_struct_exists(arg0, "leg_any") ? "leg_any" : "";
++}
++
++
++/// GNX-LEG: the table block captive arg1 (her unit data) is drawn with from registered class_map entry arg0:
++/// its leg entry for her leg pose (gnx_cmap_leg_key), else the entry itself.
++function gnx_cmap_pick(arg0, arg1)
++{
++    var _lk = gnx_cmap_leg_key(arg0, arg1);
++
++    // ? : the leg entry when there is one, else the entry
++    return (_lk != "") ? variable_struct_get(arg0, _lk) : arg0;
++}
++
++
++/// GNX-LEG: what per-class table arg0 of cell arg1 (gnx_milk_bc, gnx_infant_bc or gnx_tent_bc) holds for a
++/// captive of class arg2 (arg3 = her unit data, undefined = no leg pose): her leg entry's
++/// ("<class>|leg_1" ..., "default|leg_1" ... when she uses the default entry), else her class's, else the
++/// default entry's; undefined when none of them has one.
++function gnx_cmap_bc_get(arg0, arg1, arg2, arg3)
++{
++    var _ck = string(arg2);
++    // ? : the cell's human_spr when it has one
++    var _hs = variable_struct_exists(arg1, "human_spr") ? arg1.human_spr : undefined;
++
++    // && = and: a class_map cell; she is drawn with her class's entry, else the default entry
++    if (is_struct(_hs) && variable_struct_exists(_hs, "mode") && _hs.mode == "class_map")
++    {
++        var _e = (variable_struct_exists(_hs, "classes") && is_struct(_hs.classes)) ? variable_struct_get(_hs.classes, _ck) : undefined;
++        var _ek = _ck;
++
++        // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
++        if (_e == undefined && variable_struct_exists(_hs, "default"))
++        {
++            _e = variable_struct_get(_hs, "default");
++            _ek = "default";
++        }
++
++        var _lk = gnx_cmap_leg_key(_e, arg3);
++
++        // != "": she uses a leg entry; its table when it brought one (registered as "<entry>|<leg>")
++        if (_lk != "" && variable_struct_exists(arg0, _ek + "|" + _lk))
++            return variable_struct_get(arg0, _ek + "|" + _lk);
++    }
++
++    var _t = variable_struct_get(arg0, _ck);
++
++    // == undefined: nothing of her class's own, so the default entry's (if any)
++    if (_t == undefined)
++        _t = variable_struct_get(arg0, "default");
++
++    return _t;
 +}
 +
 +
@@ -2528,8 +2977,8 @@
 +/// strips its underground cells (category "ug_breed") declare can load. Both are optional: a captive art set
 +/// without milk_spr has no milk drawn, one without infant_spr an invisible newborn (nobody else's is lent).
 +/// What is declared must be right: milk_spr an object with at least one phase key, every reference loadable
-+/// (gnx_ug_ref_problem). Checked: in a class_map cell every human_spr.classes entry, the default entry and
-+/// the cell's own keys; in any other cell the cell's own keys. Each problem is one mod error; returns how
++/// (gnx_ug_ref_problem). Checked: in a class_map cell every human_spr.classes entry, the default entry, their
++/// leg entries (GNX-LEG) and the cell's own keys; in any other cell the cell's own keys. Each problem is one mod error; returns how
 +/// many there are (0 = the mod may load). A missing or broken cells.json is left to the cells loader.
 +function gnx_ug_strips_check(arg0, arg1)
 +{
@@ -2575,8 +3024,11 @@
 +    {
 +        var _cell = _cells[c];
 +        
++        // GNX-EXT: an "extend" entry may add milk and newborn strips to another mod's underground cell: checked too
++        var _ext = is_struct(_cell) && variable_struct_exists(_cell, "extend");
++        
 +        // only underground cells; != = differs
-+        if (!is_struct(_cell) || !variable_struct_exists(_cell, "category") || string(_cell.category) != "ug_breed")
++        if (!_ext && (!is_struct(_cell) || !variable_struct_exists(_cell, "category") || string(_cell.category) != "ug_breed"))
 +            continue;
 +        
 +        // ! = not: the first underground cell of the mod reads the atlas
@@ -2586,14 +3038,16 @@
 +            _atlas_read = true;
 +        }
 +        
-+        var _cn = variable_struct_exists(_cell, "name") ? string(_cell.name) : ("#" + string(c));
++        // ? : the cell's name; GNX-EXT: for an "extend" entry the cell it extends
++        var _cn = _ext ? ("extend " + string(_cell.extend)) : (variable_struct_exists(_cell, "name") ? string(_cell.name) : ("#" + string(c)));
 +        var _spr = gnx_opt(_cell, "sprites", undefined);
 +        
 +        // the places that may declare milk_spr / infant_spr: [label, object]; the cell itself always
 +        var _sets = [["cell", _cell]];
 +        var _hs = gnx_opt(_cell, "human_spr", undefined);
 +        
-+        if (is_struct(_hs) && variable_struct_exists(_hs, "mode") && _hs.mode == "class_map")
++        // GNX-EXT: an "extend" entry's human_spr has only classes (no mode); || = or
++        if (is_struct(_hs) && ((variable_struct_exists(_hs, "mode") && _hs.mode == "class_map") || _ext))
 +        {
 +            if (variable_struct_exists(_hs, "classes") && is_struct(_hs.classes))
 +            {
@@ -2612,6 +3066,18 @@
 +            // variable_struct_get(.., "default"): default is a GML keyword, so it cannot be written as .default
 +            if (variable_struct_exists(_hs, "default") && is_struct(variable_struct_get(_hs, "default")))
 +                array_push(_sets, ["default", variable_struct_get(_hs, "default")]);
++            
++            // GNX-LEG: the leg entries of each entry (leg_1, leg_2, leg_0, leg_any) may declare their own; the
++            // cell itself (_sets[0]) has none
++            var _sn = array_length(_sets);
++            
++            for (var s = 1; s < _sn; s++)
++            {
++                var _lg = gnx_cmap_legs(_sets[s][1]);
++                
++                for (var g = 0; g < array_length(_lg); g++)
++                    array_push(_sets, [_sets[s][0] + " " + _lg[g][0], _lg[g][1]]);
++            }
 +        }
 +        
 +        for (var s = 0; s < array_length(_sets); s++)
@@ -2688,6 +3154,299 @@
 +    }
 +    
 +    return _out;
++}
++
++
++/// GNX-FIX: notes a use of milk strip arg0 (a resolved sprite) without a "loop" in a cell drawing its row arg1,
++/// arg2 = true when that cell runs it on its own clock (arg3 = its reference, arg4 = its milk_spr key, arg5 = its
++/// blocks, arg6 = the frames of one tone in all rows), in global.gnx_milk_rows (sprite -> what was met). When a
++/// cell on row 0 runs it on its own clock and another cell draws a later row of it (on its own clock or in step
++/// with the phase), the row-0 cells read its frames as one row although it has several: a mod error for a strip
++/// marked "skins": 3, a log line for an older strip, once per strip. Forgotten when the mods load again.
++function gnx_milk_rows_seen(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
++{
++    if (!variable_global_exists("gnx_milk_rows") || !is_struct(global.gnx_milk_rows))
++        global.gnx_milk_rows = {};
++    
++    var _key = gnx_sprite_key(arg0);
++    // c0 = a cell on row 0 runs it on its own clock; later = the highest later row it is drawn on (-1 = none)
++    var _seen = variable_struct_exists(global.gnx_milk_rows, _key) ? variable_struct_get(global.gnx_milk_rows, _key) : { c0: false, later: -1 };
++    
++    // == 0 && : row 0 on its own clock (in step it plays right whatever the rows)
++    if (arg1 == 0 && arg2)
++        _seen.c0 = true;
++    
++    // > 0: a later row
++    if (arg1 > 0)
++        _seen.later = max(_seen.later, arg1);
++    
++    variable_struct_set(global.gnx_milk_rows, _key, _seen);
++    
++    // ! = not, && = and: not both yet
++    if (!(_seen.c0 && _seen.later > 0))
++        exit;
++    
++    var _m = "milk strip '" + string(arg3) + "' (milk_spr." + string(arg4) + ") has no \"loop\", runs on its own clock in a cell on row 0 and is drawn on row " + string(_seen.later) + " too, so it has several rows; the cells on row 0 read its " + string(arg6) + " frames" + ((arg5 == 3) ? " per skin tone" : "") + " as one row. Give \"loop\": <the frames of one row" + ((arg5 == 3) ? " of one tone" : "") + ">";
++    
++    // == 3: a strip marked "skins": 3 (1.5.1.5), a mod error; an older one, a log line
++    if (arg5 == 3)
++        gnx_report_mod_error_once("milk-shared|" + _key, gnx_err_mod_prefix() + _m);
++    else
++        gnx_log_once("milk-shared|" + _key, "[GNX-UG] " + gnx_err_mod_prefix() + _m);
++}
++
++
++/// GNX-OUTFIT: what scr_set_class_spr_data hands back for resolved captive table arg0 (a phase, by_class or
++/// by_mon_type table): [spr_array, spr_c_array, its clothing variants (gnx_c_var, -1 = none)].
++function gnx_spr_ret(arg0)
++{
++    // ? : the variants when the table has them
++    return [arg0.spr_array, arg0.spr_c_array, variable_struct_exists(arg0, "gnx_c_var") ? arg0.gnx_c_var : -1];
++}
++
++
++/// GNX-OUTFIT: the place of spr_c_array that a cell layer of type arg0 shows (as scr_set_slot_spr_part fills
++/// them): 10 head 1, 6 breast 2, 7 hand 3, 8 leg 4, 9 leg part 5, 11 cape 6; -1 = a layer without clothing.
++function gnx_outfit_place(arg0)
++{
++    switch (arg0)
++    {
++        case 10:
++            return 1;
++        
++        case 6:
++            return 2;
++        
++        case 7:
++            return 3;
++        
++        case 8:
++            return 4;
++        
++        case 9:
++            return 5;
++        
++        case 11:
++            return 6;
++    }
++    
++    return -1;
++}
++
++
++/// GNX-OUTFIT: run in the cell (an obj_slot) by scr_set_slot_spr_part, after its layers got this phase's
++/// sprites. arg0 = the clothing variants of the captive's table (-1 = none). Keeps each layer's list in the
++/// cell's gnx_c_var (one entry per layer of spr_slot, -1 = none) and shows the variant chosen with the cell's
++/// clothing buttons (gnx_outfit_apply). Only the cell shows them: they live in its layers.
++function gnx_outfit_setup(arg0)
++{
++    var _n = array_length(spr_slot);
++    var _lv = array_create(_n, -1);
++    
++    if (is_array(arg0))
++    {
++        for (var i = 0; i < _n; i++)
++        {
++            // ! = not: no layer here
++            if (!is_array(spr_slot[i]))
++                continue;
++            
++            var _p = gnx_outfit_place(spr_slot[i][0]);
++            
++            // >= 0 && < : a clothing layer whose place the table has a list for (&& = and)
++            if (_p >= 0 && _p < array_length(arg0) && is_array(arg0[_p]))
++                _lv[i] = arg0[_p];
++        }
++    }
++    
++    gnx_c_var = _lv;
++    gnx_outfit_apply();
++}
++
++
++/// GNX-OUTFIT: the cell's chosen variant per layer, slot_data.gnx_outfit (0 = the clothing, 1 = the first
++/// variant, ...), one entry per layer of spr_slot. Made anew (all 0) when missing or when the layers changed.
++/// It sits in slot_data, so it is saved with the cell, like the game's clothing buttons (mod_index).
++function gnx_outfit_state()
++{
++    var _n = is_array(spr_slot) ? array_length(spr_slot) : 0;
++    
++    // || = or: no list yet, or one for other layers
++    if (!variable_struct_exists(slot_data, "gnx_outfit") || !is_array(slot_data.gnx_outfit) || array_length(slot_data.gnx_outfit) != _n)
++        slot_data.gnx_outfit = array_create(_n, 0);
++    
++    return slot_data.gnx_outfit;
++}
++
++
++/// GNX-OUTFIT: puts the chosen variant into each clothing layer of the cell that has variants: into place 3
++/// of the layer (its clothing, drawn while the layer's button is on), for the cape into place 1 (the cape is
++/// the clothing itself). A variant the layer's list does not have shows the list's first entry, the clothing.
++function gnx_outfit_apply()
++{
++    if (!variable_instance_exists(id, "gnx_c_var") || !is_array(gnx_c_var))
++        exit;
++    
++    var _st = gnx_outfit_state();
++    
++    for (var i = 0; i < array_length(gnx_c_var) && i < array_length(spr_slot); i++)
++    {
++        var _lv = gnx_c_var[i];
++        
++        if (!is_array(_lv) || !is_array(spr_slot[i]))
++            continue;
++        
++        var _k = _st[i];
++        // ? : the chosen variant when the list has it (>= && < = within the list), else the clothing
++        var _spr = (_k >= 0 && _k < array_length(_lv)) ? _lv[_k] : _lv[0];
++        
++        // == 11: the cape
++        if (spr_slot[i][0] == 11)
++            spr_slot[i][1] = _spr;
++        else
++            spr_slot[i][3] = _spr;
++    }
++}
++
++
++/// GNX-OUTFIT: whether cell layer arg1 goes with the clothing button of layer arg0 (both places of spr_slot): the
++/// layer itself; the leg part with the leg and the cape with the breast (the game copies their on/off); and for
++/// the variants the head with the breast too (it has no button of its own, so a hat goes with the top).
++function gnx_outfit_in_group(arg0, arg1)
++{
++    if (arg1 == arg0)
++        return true;
++    
++    var _t = spr_slot[arg0][0];
++    var _u = spr_slot[arg1][0];
++    
++    // && = and, || = or: 8 leg -> 9 leg part; 6 breast -> 11 cape and 10 head
++    return (_t == 8 && _u == 9) || (_t == 6 && (_u == 11 || _u == 10));
++}
++
++
++/// GNX-OUTFIT: the most variants (besides the clothing) in the group of cell layer arg0's clothing button
++/// (gnx_outfit_in_group). 0 = none, so the button stays the game's on/off.
++function gnx_outfit_group_n(arg0)
++{
++    if (!variable_instance_exists(id, "gnx_c_var") || !is_array(gnx_c_var) || !is_array(spr_slot) || arg0 < 0 || arg0 >= array_length(spr_slot) || !is_array(spr_slot[arg0]))
++        return 0;
++    
++    var _n = 0;
++    
++    for (var i = 0; i < array_length(gnx_c_var) && i < array_length(spr_slot); i++)
++    {
++        if (is_array(gnx_c_var[i]) && is_array(spr_slot[i]) && gnx_outfit_in_group(arg0, i))
++            _n = max(_n, array_length(gnx_c_var[i]) - 1);
++    }
++    
++    return _n;
++}
++
++
++/// GNX-OUTFIT: the clothing button of cell layer arg0 was clicked. With variants in its group the button goes
++/// clothing -> variant 1 -> ... -> the last variant -> no clothing -> clothing, and this returns true (the
++/// game's on/off is then skipped); without variants it returns false and the game's on/off runs, as before.
++function gnx_outfit_toggle(arg0)
++{
++    var _n = gnx_outfit_group_n(arg0);
++    
++    // <= 0: no variants
++    if (_n <= 0)
++        return false;
++    
++    var _st = gnx_outfit_state();
++    // GNX-FIX: the variant shown now. One this phase does not have (a higher one chosen in a phase with more
++    // variants) shows the clothing (gnx_outfit_apply), so the next click goes on from the clothing, as seen.
++    // The stored choice is not cut down here: back in the phase with more variants it shows again
++    var _cur = gnx_outfit_shown(arg0, _n);
++    
++    // != 0: no clothing now (the game's 1), so the clothing again
++    if (slot_data.mod_index[arg0] != 0)
++    {
++        slot_data.mod_index[arg0] = 0;
++        _st[arg0] = 0;
++    }
++    // < : the next variant
++    else if (_cur < _n)
++    {
++        _st[arg0] = _cur + 1;
++    }
++    // the last variant: no clothing
++    else
++    {
++        slot_data.mod_index[arg0] = 1;
++        _st[arg0] = 0;
++    }
++    
++    // written back as a whole, so the cell keeps it
++    slot_data.gnx_outfit = _st;
++    return true;
++}
++
++
++/// GNX-OUTFIT: the layers in the group of cell layer arg0's clothing button (gnx_outfit_in_group) take its
++/// variant, as the game copies the leg's on/off to the leg part and the breast's to the cape just before.
++function gnx_outfit_follow_group(arg0)
++{
++    // < 0 || >= : not a layer of the cell
++    if (!is_array(spr_slot) || arg0 < 0 || arg0 >= array_length(spr_slot) || !is_array(spr_slot[arg0]))
++        exit;
++    
++    var _st = gnx_outfit_state();
++    
++    for (var i = 0; i < array_length(spr_slot); i++)
++    {
++        if (i != arg0 && is_array(spr_slot[i]) && gnx_outfit_in_group(arg0, i))
++            _st[i] = _st[arg0];
++    }
++    
++    slot_data.gnx_outfit = _st;
++}
++
++
++/// GNX-FIX: the variant cell layer arg0's button shows now: its chosen one (slot_data.gnx_outfit), or 0 (the
++/// clothing) when this phase's group has fewer variants (arg1 = how many it has, gnx_outfit_group_n).
++function gnx_outfit_shown(arg0, arg1)
++{
++    var _st = gnx_outfit_state();
++    
++    // < 0 || >= : not a layer of the cell
++    if (arg0 < 0 || arg0 >= array_length(_st))
++        return 0;
++    
++    var _k = _st[arg0];
++    
++    // ! = not, || = or: no number, below 0, or more than the group has now
++    if (!is_real(_k) || _k < 0 || _k > arg1)
++        return 0;
++    
++    return _k;
++}
++
++
++/// GNX-OUTFIT: the colour of the clothing button of layer arg1 in cell arg0 (an obj_slot): white for the
++/// clothing and for no clothing (the button's own two looks), a colour of its own for each variant.
++function gnx_outfit_blend(arg0, arg1)
++{
++    if (!instance_exists(arg0) || !variable_struct_exists(arg0.slot_data, "gnx_outfit") || !is_array(arg0.slot_data.gnx_outfit))
++        return c_white;
++    
++    var _st = arg0.slot_data.gnx_outfit;
++    
++    // < 0 || >= : not a layer of the cell; != 0: the button is off (no clothing)
++    if (arg1 < 0 || arg1 >= array_length(_st) || arg1 >= array_length(arg0.slot_data.mod_index) || arg0.slot_data.mod_index[arg1] != 0)
++        return c_white;
++    
++    var _cols = [make_color_rgb(120, 190, 255), make_color_rgb(255, 140, 200), make_color_rgb(140, 225, 120), make_color_rgb(255, 210, 100)];
++    // GNX-FIX: the variant shown now (a chosen one this phase lacks shows the clothing: white, as it looks)
++    var _k = 0;
++    
++    with (arg0)
++        _k = gnx_outfit_shown(arg1, gnx_outfit_group_n(arg1));
++    
++    // <= 0: the clothing; mod = remainder, so variant 5 takes variant 1's colour again
++    return (_k <= 0) ? c_white : _cols[(_k - 1) mod array_length(_cols)];
 +}
 +
 +
