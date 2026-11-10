@@ -16579,7 +16579,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7350 @@
+@@ -0,0 +1,7385 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18754,6 +18754,41 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        scr_set_slot_h_data(_c, arg0);
 +
 +    gnx_scn_log("make_cell h=" + string(arg0) + ((_c != -1) ? " done" : " no empty cell of types " + json_stringify(arg1)));
++}
++
++
++// {"call": "gnx_scn_cage_to_cell", "args": [h_type, cage slot]}: the drop of a cage head on the first empty cell of that
++// type (s_mouse_action): the captive leaves the cage and goes into the cell
++function gnx_scn_cage_to_cell(arg0, arg1)
++{
++    var _c = -1;
++
++    with (obj_slot)
++    {
++        if (_c == -1 && slot_data.anim_struct != -1 && !is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg0)
++            _c = id;
++    }
++
++    var _u = global.val.cage[arg1];
++
++    if (_c == -1 || !is_struct(_u))
++    {
++        scr_gnx_scn_check("cage_to_cell", false, "no empty cell h=" + string(arg0) + " or nothing in cage slot " + string(arg1));
++        exit;
++    }
++
++    global.val.cage[arg1] = -1;
++
++    with (obj_button)
++    {
++        if (interact_type == 20 && drag_type == 5 && button_num == arg1)
++            instance_destroy();
++    }
++
++    scr_occupy_slot(_c, _u, false, 1);
++    global.gnx_scn_occupied = _c;  // as the occupy step, for camera_on_occupied
++    global.gnx_scn_occupied_pos = [_c.slot_data.slot_floor, ds_list_find_index(global.slot_list[_c.slot_data.slot_floor], _c)];
++    gnx_scn_log("cage_to_cell class=" + string(_u.class) + " cell " + string(_c));
 +}
 +
 +
@@ -50716,7 +50751,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  }
                  
                  break;
-@@ -48,21 +48,257 @@
+@@ -48,21 +48,275 @@
          _var += 0.01;
      }
      
@@ -50830,6 +50865,24 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
 +            continue;
 +        
 +        _gnx_ul[_gnx_i] = scr_create_unit_base(0, 1);
++    }
++
++    for (var _gnx_i = 0; _gnx_i < array_length(arg0.global_list.val.cage); _gnx_i++)
++    {
++        var _gnx_ud = arg0.global_list.val.cage[_gnx_i];
++        
++        if (!is_struct(_gnx_ud))
++            continue;
++        
++        var _gnx_ct = variable_struct_exists(_gnx_ud, "class") ? _gnx_ud.class : -1;
++        
++        if (_gnx_ct < 14 || ds_map_exists(global.class_registry, _gnx_ct))
++            continue;
++        
++        var _gnx_lf = gnx_log_open();
++        gnx_log_write(_gnx_lf, "[GNX-SANITIZE] orphaned unit class=" + string(_gnx_ct) + " -> fresh peasant (cage=" + string(_gnx_i) + ")\n");
++        gnx_log_close(_gnx_lf);
++        arg0.global_list.val.cage[_gnx_i] = scr_create_unit_base(0, 1);
 +    }
 +    
 +    var _gnx_si_arr = arg0.global_list.val.stage_info;
@@ -50977,7 +51030,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      global.val.crate_alpha = 1;
                  }
                  
-@@ -73,7 +309,7 @@
+@@ -73,7 +327,7 @@
                  
                  with (obj_slot)
                  {
@@ -50986,7 +51039,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _a = slot_data.mod_index[3];
                          slot_data.mod_index[3] = 0;
-@@ -86,7 +322,7 @@
+@@ -86,7 +340,7 @@
                  
                  for (var i = 0; i < _num; i++)
                  {
@@ -50995,7 +51048,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists++;
                          
-@@ -104,7 +340,7 @@
+@@ -104,7 +358,7 @@
                  
                  for (var i = 0; i < _num; i++)
                  {
@@ -51004,7 +51057,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists++;
                          
-@@ -116,7 +352,7 @@
+@@ -116,7 +370,7 @@
                              
                              for (var ii = 0; ii < array_length(obj_np.obj_raid.raid_data.shop_item); ii++)
                              {
@@ -51013,7 +51066,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                                      obj_np.obj_raid.raid_data.shop_item[ii] = -1;
                              }
                          }
-@@ -133,7 +369,7 @@
+@@ -133,7 +387,7 @@
                  
                  for (var i = 0; i < array_length(global.unlock.utility); i++)
                  {
@@ -51022,7 +51075,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists = true;
                          i = array_length(global.unlock.utility);
-@@ -142,27 +378,27 @@
+@@ -142,27 +396,27 @@
                  
                  if (_exists)
                  {
@@ -51057,7 +51110,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  
                  break;
              
-@@ -182,15 +418,15 @@
+@@ -182,15 +436,15 @@
                  global.val.ogre.expe = [0, 0, 0, 0];
                  global.val.ogre.skill_lvl = [0, 0, 0, 0];
                  global.val.ogre.skill_exp = [0, 0, 0, 0];
@@ -51077,7 +51130,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              depth = -751;
                              
-@@ -245,7 +481,7 @@
+@@ -245,7 +499,7 @@
                  
                  with (obj_slot)
                  {
@@ -51086,7 +51139,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -253,7 +489,7 @@
+@@ -253,7 +507,7 @@
                          _l_num++;
                      }
                      
@@ -51095,7 +51148,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -266,7 +502,7 @@
+@@ -266,7 +520,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -51104,7 +51157,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -274,7 +510,7 @@
+@@ -274,7 +528,7 @@
                          _l_num++;
                      }
                      
@@ -51113,7 +51166,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -287,7 +523,7 @@
+@@ -287,7 +541,7 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -51122,7 +51175,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              global.val.cage[i] = -1;
-@@ -295,7 +531,7 @@
+@@ -295,7 +549,7 @@
                          _l_num++;
                      }
                      
@@ -51131,7 +51184,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              global.val.cage[i] = -1;
-@@ -308,7 +544,7 @@
+@@ -308,7 +562,7 @@
                  {
                      with (obj_button)
                      {
@@ -51140,7 +51193,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              instance_destroy();
                      }
                      
-@@ -316,7 +552,7 @@
+@@ -316,7 +570,7 @@
                      
                      with (obj_button)
                      {
@@ -51149,7 +51202,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              image_index = (button_num * 2) + 1;
                              switch_type = true;
-@@ -354,7 +590,7 @@
+@@ -354,7 +608,7 @@
                  
                  with (obj_slot)
                  {
@@ -51158,7 +51211,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_h_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -362,7 +598,7 @@
+@@ -362,7 +616,7 @@
                          _h_num++;
                      }
                      
@@ -51167,7 +51220,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_n_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -370,7 +606,7 @@
+@@ -370,7 +624,7 @@
                          _n_num++;
                      }
                      
@@ -51176,7 +51229,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_s_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -378,7 +614,7 @@
+@@ -378,7 +632,7 @@
                          _s_num++;
                      }
                      
@@ -51185,7 +51238,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_b_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -386,7 +622,7 @@
+@@ -386,7 +640,7 @@
                          _b_num++;
                      }
                      
@@ -51194,7 +51247,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -394,7 +630,7 @@
+@@ -394,7 +648,7 @@
                          _m_num++;
                      }
                      
@@ -51203,7 +51256,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -407,7 +643,7 @@
+@@ -407,7 +661,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -51212,7 +51265,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_h_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -415,7 +651,7 @@
+@@ -415,7 +669,7 @@
                          _h_num++;
                      }
                      
@@ -51221,7 +51274,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_n_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -423,7 +659,7 @@
+@@ -423,7 +677,7 @@
                          _n_num++;
                      }
                      
@@ -51230,7 +51283,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_s_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -431,7 +667,7 @@
+@@ -431,7 +685,7 @@
                          _s_num++;
                      }
                      
@@ -51239,7 +51292,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -439,7 +675,7 @@
+@@ -439,7 +693,7 @@
                          _m_num++;
                      }
                      
@@ -51248,7 +51301,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_b_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -447,7 +683,7 @@
+@@ -447,7 +701,7 @@
                          _b_num++;
                      }
                      
@@ -51257,7 +51310,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -461,13 +697,13 @@
+@@ -461,13 +715,13 @@
              case 1.13:
                  with (obj_slot)
                  {
@@ -51273,7 +51326,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              bar_glow_rep = -1;
                      }
                  }
-@@ -476,7 +712,7 @@
+@@ -476,7 +730,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -51282,7 +51335,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _new = scr_create_unit_base(_id.class, 7);
                          ds_list_replace(global.unit_list, i, _new);
-@@ -487,7 +723,7 @@
+@@ -487,7 +741,7 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -51291,7 +51344,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _new = scr_create_unit_base(_id.class, 7);
                          global.val.cage[i] = _new;
-@@ -498,7 +734,7 @@
+@@ -498,7 +752,7 @@
                  {
                      with (obj_button)
                      {
@@ -51300,7 +51353,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              instance_destroy();
                      }
                      
-@@ -506,7 +742,7 @@
+@@ -506,7 +760,7 @@
                      
                      with (obj_button)
                      {
@@ -51309,7 +51362,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              image_index = (button_num * 2) + 1;
                              switch_type = true;
-@@ -522,10 +758,10 @@
+@@ -522,10 +776,10 @@
                  
                  with (obj_slot)
                  {
@@ -51323,7 +51376,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          array_insert(slot_data.mod_index, 1, 0);
                  }
                  
-@@ -533,9 +769,9 @@
+@@ -533,9 +787,9 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -51335,7 +51388,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          ds_list_set(global.unit_list, i, _id);
                      }
                  }
-@@ -544,9 +780,9 @@
+@@ -544,9 +798,9 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -51347,7 +51400,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          global.val.cage[i] = _id;
                      }
                  }
-@@ -556,13 +792,13 @@
+@@ -556,13 +810,13 @@
              case 1.15:
                  with (obj_slot)
                  {
@@ -51363,7 +51416,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              {
                                  with (slot_data.prop[i].prop_id)
                                      instance_destroy();
-@@ -583,7 +819,7 @@
+@@ -583,7 +837,7 @@
              case 1.16:
                  with (obj_slot)
                  {
@@ -51372,7 +51425,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          array_push(slot_data.mod_index, false);
                          array_push(slot_data.mod_index, false);
-@@ -597,7 +833,7 @@
+@@ -597,7 +851,7 @@
              case 1.23:
                  with (obj_slot)
                  {
@@ -51381,7 +51434,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _unit_id = unit_data;
                          scr_occupy_slot(id, -1, false, -1);
-@@ -614,23 +850,23 @@
+@@ -614,23 +868,23 @@
                  if (!variable_struct_exists(global.val, "old_t_lvl"))
                      global.val.old_t_lvl = 0;
                  
@@ -51414,7 +51467,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  }
                  
                  break;
-@@ -638,7 +874,7 @@
+@@ -638,7 +892,7 @@
              case 1.29:
                  with (obj_slot)
                  {
@@ -51423,7 +51476,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          array_push(slot_data.mod_index, 0);
                  }
                  
-@@ -723,6 +959,21 @@
+@@ -723,6 +977,21 @@
          global.val.version += 0.01;
      }
      
@@ -51445,7 +51498,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
      return arg0;
  }
  
-@@ -736,7 +987,7 @@
+@@ -736,7 +1005,7 @@
          
          for (var i = 0; i < _num; i++)
          {
@@ -51454,7 +51507,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
              {
                  _exists = true;
                  i = _num;
-@@ -749,7 +1000,7 @@
+@@ -749,7 +1018,7 @@
              
              for (var i = 0; i < _num; i++)
              {
@@ -51463,7 +51516,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  {
                      _exists = true;
                      i = _num;
-@@ -758,10 +1009,10 @@
+@@ -758,10 +1027,10 @@
          }
          
          if (_exists)
@@ -51477,7 +51530,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
          
          var _a = global.val.shop_item[0];
          scr_set_shop_list();
-@@ -794,17 +1045,17 @@
+@@ -794,17 +1063,17 @@
          global.val.stage_item[0][0] = _st_1_1;
          global.val.stage_item[0][1] = _st_1_2;
          global.val.stage_item[1][0] = _st_2_1;
@@ -51498,7 +51551,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          scr_create_textbox(_noti, -1, obj_np);
                          instance_destroy();
-@@ -815,32 +1066,3 @@
+@@ -815,32 +1084,3 @@
          }
      }
  }
