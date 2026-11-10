@@ -17,6 +17,10 @@ Every run after that:
     python tools/gnx_test.py --all            # boot tests + every scenario (parallel, ~100 s)
     python tools/gnx_test.py --all --quick    # skip scenarios marked "slow": true (~65 s)
     python tools/gnx_test.py --all -j 2       # games at once (default: one per CPU thread, max 8)
+    python tools/gnx_test.py --scenario "raid_*,multimap_*"   # shell-style patterns pick scenarios by name
+    python tools/gnx_test.py --failed         # only the runs that failed last time they ran
+    python tools/gnx_test.py --all -x         # stop starting new runs after the first failure
+Runs that failed last time are started first, so a broken change shows up in the first seconds.
 
 Load guard: the harness never takes the machine over 80 % CPU or RAM (--load-limit N to change it). A busy machine gets fewer workers;
 one already at 80 % is given 30 s, then the run stops with exit code 5 ("too busy to run"). Each new game
@@ -37,6 +41,7 @@ Exit codes: 0 all pass | 1 test failures | 2 patch failed | 3 preflight | 4 time
 Full log of the last run: <game-dir>/last_run.log
 """
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -84,6 +89,9 @@ class Load:
         self.per_cpu = 100.0 / (os.cpu_count() or 1)
         self.running = 0
         self.tickets = []  # one per admitted game: {"need": bytes, "proc": psutil.Process or None}
+        self.waiting = []  # games waiting in gate(), in arrival order
+        self.head_hopeless = False  # the first waiting game would not fit even alone: the others may pass it
+        self.last = (0.0, 0.0, 0)  # last sample()
 
     def sample(self):
         cpu = self.psutil.cpu_percent(interval=0.5)
@@ -126,41 +134,66 @@ class Load:
         limit, counting what our running games will still take: each reserves its expected RAM (or its current
         RAM when bigger) and one CPU thread, from the moment it is admitted, so games that have not grown yet
         still count. When none of ours runs and the machine stays too busy for 30 s, stop (EXIT_BUSY).
+        First come, first served: a big game waiting for room is not overtaken by small ones, which would keep
+        taking the room it waits for (a 2.4 GB game once waited 256 s at the end of a run that way). Except when
+        the first one would not fit even with none of ours running: blocking for it would only idle the pool.
         Returns a ticket for started() / done()."""
         need = int(need or self.game_ram)
         idle_busy_since = None
-        while True:
+        me = object()
+        with self.lock:
+            self.waiting.append(me)
+        try:
+            while True:
+                with self.lock:
+                    head = self.waiting[0] is me
+                    if head or self.head_hopeless:
+                        t, alone = self._admit(need)
+                        if head:
+                            self.head_hopeless = t is None and not alone
+                        if t is not None:
+                            return t
+                        if not self.tickets:
+                            idle_busy_since = idle_busy_since or time.time()
+                            if time.time() - idle_busy_since >= 30:
+                                raise HarnessError(EXIT_BUSY, f"too busy to run: CPU {self.last[0]:.0f}%, RAM "
+                                                              f"{self.last[1]:.0f}% (the harness stays under "
+                                                              f"{self.limit:.0f}%; a game needs ~{need >> 20} MB)")
+                        else:
+                            idle_busy_since = None
+                time.sleep(1)
+        finally:
             with self.lock:
-                cpu, ram, _ = self.sample()
-                vm = self.psutil.virtual_memory()
-                ours_rss, reserved = 0, 0
-                for t in self.tickets:
+                if self.waiting[0] is me:
+                    self.head_hopeless = False
+                self.waiting.remove(me)
+
+    def _admit(self, need):
+        """(ticket, fits alone): a ticket when one more game of need bytes fits under the limit now, else None;
+        fits alone = its RAM would fit with none of our games running (caller holds the lock)"""
+        cpu, ram, _ = self.last = self.sample()
+        vm = self.psutil.virtual_memory()
+        ours_rss, reserved = 0, 0
+        for t in self.tickets:
+            rss = 0
+            if t["proc"] is not None:
+                try:
+                    rss = game_mem(t["proc"])
+                except Exception:
                     rss = 0
-                    if t["proc"] is not None:
-                        try:
-                            rss = game_mem(t["proc"])
-                        except Exception:
-                            rss = 0
-                    ours_rss += rss
-                    reserved += max(t["need"], rss)
-                others_ram = vm.used - ours_rss  # everything that is not our games
-                budget_ram = vm.total * self.limit / 100 - others_ram
-                others_cpu = max(0.0, cpu - len(self.tickets) * self.per_cpu)  # a game uses one thread
-                fits_ram = reserved + need <= budget_ram
-                fits_cpu = others_cpu + (len(self.tickets) + 1) * self.per_cpu <= self.limit
-                if fits_ram and fits_cpu:
-                    t = {"need": need, "proc": None}
-                    self.tickets.append(t)
-                    self.running = len(self.tickets)
-                    return t
-                if not self.tickets:
-                    idle_busy_since = idle_busy_since or time.time()
-                    if time.time() - idle_busy_since >= 30:
-                        raise HarnessError(EXIT_BUSY, f"too busy to run: CPU {cpu:.0f}%, RAM {ram:.0f}% "
-                                                      f"(the harness stays under {self.limit:.0f}%; a game needs ~{need >> 20} MB)")
-                else:
-                    idle_busy_since = None
-            time.sleep(1)
+            ours_rss += rss
+            reserved += max(t["need"], rss)
+        others_ram = vm.used - ours_rss  # everything that is not our games
+        budget_ram = vm.total * self.limit / 100 - others_ram
+        others_cpu = max(0.0, cpu - len(self.tickets) * self.per_cpu)  # a game uses one thread
+        fits_ram = reserved + need <= budget_ram
+        fits_cpu = others_cpu + (len(self.tickets) + 1) * self.per_cpu <= self.limit
+        if not (fits_ram and fits_cpu):
+            return None, need <= budget_ram
+        t = {"need": need, "proc": None}
+        self.tickets.append(t)
+        self.running = len(self.tickets)
+        return t, True
 
     def started(self, ticket, pid):
         """the game of this ticket runs as pid: its real RAM counts from now on"""
@@ -525,6 +558,20 @@ def source_hash(game_dir):
     files.append(game_dir / VANILLA)
     for p in files:
         h.update(str(p.relative_to(REPO) if p.is_relative_to(REPO) else p.name).encode())
+        h.update(p.read_bytes())
+    return h.hexdigest()
+
+
+def suite_hash(game_dir):
+    """Hash of what a --all verdict depends on: the patch inputs, the tracked scenarios (with their mods and
+    fixtures), the default mod and this script. Local-only inputs (harness_game/test_mods, harness_game/fixtures)
+    are left out: change those and run with --force-run."""
+    h = hashlib.sha256(source_hash(game_dir).encode())
+    files = [Path(__file__).resolve()]
+    for d in (SCENARIOS, *DEFAULT_MODS):
+        files += sorted(p for p in d.rglob("*") if p.is_file() and "__pycache__" not in p.parts)
+    for p in files:
+        h.update(str(p.relative_to(REPO)).encode())
         h.update(p.read_bytes())
     return h.hexdigest()
 
@@ -1019,6 +1066,10 @@ def main(argv=None):
                     help="games run at once, each in its own copy and save folder (default: one per CPU thread, max 8; "
                          "the games are CPU-bound, so more than the thread count only slows each one down)")
     ap.add_argument("--quick", action="store_true", help="skip scenarios marked \"slow\": true")
+    ap.add_argument("--failed", action="store_true", help="run only what failed the last time it ran (durations.json _failed)")
+    ap.add_argument("-x", "--fail-fast", action="store_true", help="start no new run after the first failure")
+    ap.add_argument("--force-run", action="store_true",
+                    help="with --all: run even when the suite already passed for the same sources")
     ap.add_argument("--load-limit", type=float, default=LOAD_LIMIT,
                     help="percent of CPU and of RAM the run never takes the machine over (default 80; e.g. 90 on a "
                          "busy machine: fewer games at once, slower)")
@@ -1065,11 +1116,36 @@ def main(argv=None):
         elif not (game_dir / "data.win").is_file():
             raise HarnessError(EXIT_PREFLIGHT, "--no-patch but no data.win in game dir")
 
+        durations_file = game_dir / "durations.json"
+        try:
+            known = json.loads(durations_file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            known = {}
+        last_failed = set(known.get("_failed", []))  # "boot" = the plain boot run
+
         # runs: None = plain boot test, else a scenario name
-        if a.all:
-            runs = [None] + sorted(p.stem for p in SCENARIOS.glob("*.json") if not json.loads(p.read_text(encoding="utf-8")).get("manual"))
+        auto = sorted(p.stem for p in SCENARIOS.glob("*.json") if not json.loads(p.read_text(encoding="utf-8")).get("manual"))
+        if a.failed:
+            runs = [None if n == "boot" else n for n in sorted(last_failed) if n == "boot" or (SCENARIOS / f"{n}.json").is_file()]
+            if not runs:
+                print("--failed: nothing failed last time", file=sys.stderr)
+                return EXIT_PASS
+        elif a.all:
+            runs = [None] + auto
+            green = known.get("_green", {})
+            suite = suite_hash(game_dir) if not a.mods else None
+            if suite and green.get("hash") == suite and (a.quick or not green.get("quick")) and not a.force_run:
+                print(f"--all: already green for these sources ({green.get('when')}); --force-run to run it again",
+                      file=sys.stderr)
+                return EXIT_PASS
         elif a.scenario:
-            runs = [s.strip() for s in a.scenario.split(",")]
+            runs = []
+            for s in (s.strip() for s in a.scenario.split(",")):
+                # a pattern picks from the --all set (manual scenarios only by exact name)
+                hits = [n for n in auto if fnmatch.fnmatchcase(n, s)] if any(c in s for c in "*?[") else [s]
+                if not hits:
+                    raise HarnessError(EXIT_PREFLIGHT, f"--scenario {s!r} matches no scenario")
+                runs += [n for n in hits if n not in runs]
         else:
             runs = [None]
         scns = {name: load_scenario(name) for name in runs if name}  # validate all before launching
@@ -1080,11 +1156,6 @@ def main(argv=None):
             if slow:
                 print(f"--quick: skipping {len(slow)} slow scenario(s): {', '.join(slow)}", file=sys.stderr)
         jobs = plan_jobs(runs, scns)
-        durations_file = game_dir / "durations.json"
-        try:
-            known = json.loads(durations_file.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            known = {}
         est = lambda n: known.get(n or "boot", 6.0)
 
         def ram_est(n):
@@ -1096,7 +1167,8 @@ def main(argv=None):
             if n and any("test_mods" in str(m) for m in scns.get(n, {}).get("mods", [])):
                 return known.get("_game_ram", GAME_RAM_GUESS)
             return GAME_RAM_GUESS
-        jobs.sort(key=lambda j: -sum(est(n) for n in j))  # longest first: the pool finishes together
+        # last failures first (a broken change shows in seconds), then longest first: the pool finishes together
+        jobs.sort(key=lambda j: (not any((n or "boot") in last_failed for n in j), -sum(est(n) for n in j)))
 
         global LOAD
         LOAD = Load(known.get("_game_ram"), a.load_limit)
@@ -1188,9 +1260,13 @@ def main(argv=None):
                 results[name] = {k: v for k, v in r.items() if k != "tail"} | {"verdict": code}
                 if not a.json:
                     report(r, code)
+                if code != EXIT_PASS and a.fail_fast:
+                    stop.append(name)
+
+        stop = []  # --fail-fast: set by the first failure, workers then take no new job
 
         def worker(box):
-            while not failure:
+            while not failure and not stop:
                 try:
                     job = todo.get_nowait()
                 except queue.Empty:
@@ -1213,6 +1289,7 @@ def main(argv=None):
                         return
 
         guard = guard_player_saves(game_dir)
+        pool_t0 = time.time()
         try:
             threads = [threading.Thread(target=worker, args=(b,), daemon=True) for b in boxes]
             for t in threads:
@@ -1230,6 +1307,15 @@ def main(argv=None):
             if touched:
                 print(f"ERROR: player save(s) {touched} were modified and have been restored", file=sys.stderr)
                 failure.append(HarnessError(EXIT_FAIL, f"player save(s) {touched} modified (restored)"))
+            # failures of the runs that ran replace their old entries; runs that did not run keep theirs
+            ran = {n or "boot" for n in results}
+            bad = {n or "boot" for n, r in results.items() if r["verdict"] != EXIT_PASS}
+            known["_failed"] = sorted((last_failed - ran) | bad)
+            if a.all and not a.mods and not bad and not failure and not stop and len(results) == len(runs):
+                # every run passed (none skipped): a later --all on the same sources has nothing to learn
+                known["_green"] = {"hash": suite_hash(game_dir), "quick": a.quick, "when": time.strftime("%Y-%m-%d %H:%M")}
+            elif a.all or bad:
+                known.pop("_green", None)
             try:
                 if LOAD.measured:
                     known["_game_ram"] = LOAD.measured  # bytes: the largest game of this run sizes the next one
@@ -1239,8 +1325,16 @@ def main(argv=None):
         if LOAD.peak_ram and not a.json:
             print(f"load: RAM peaked at {LOAD.peak_ram:.0f}% (limit {LOAD.limit:.0f}%), largest game "
                   f"{LOAD.measured >> 20} MB", file=sys.stderr)
+        game_s, wall = sum(r.get("boot_s") or 0 for r in results.values()), time.time() - pool_t0
+        if len(boxes) > 1 and wall > 0 and not a.json:
+            # well under the worker count = the load guard held games back (RAM taken by other programs)
+            print(f"pool: {game_s:.0f} s of games in {wall:.0f} s = {game_s / wall:.1f} at once on "
+                  f"{len(boxes)} workers", file=sys.stderr)
         if failure:
             raise failure[0]
+        if stop:
+            print(f"--fail-fast: stopped after '{stop[0] or 'boot'}' failed; "
+                  f"{len([n for n in runs if n not in results])} run(s) not started", file=sys.stderr)
         ordered = [results[n] for n in runs if n in results]
         worst = max([r["verdict"] for r in ordered] or [EXIT_PASS])  # 4 timeout/crash > 1 fail > 0 pass
         if a.json:
