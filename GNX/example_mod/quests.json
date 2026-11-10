@@ -94,6 +94,24 @@
       "side_effects": [
         {"type": "set_state", "key": "quest_progress", "value": 3}
       ],
+      "next_event": "arena_builder_quest"
+    },
+
+    "arena_builder_quest": {
+      "_comment": "=== QUEST with several objectives (completion as a list: done when all hold) ===",
+      "_comment2": "Each counting objective shows its progress after the text, with its label: (HEX 1/2, ARENA 0/1, BREED CELLS 0/3). build_count counts from when the quest appears; category counts every cell of a build tab; cell_occupied value = how many must hold a captive.",
+      "_comment3": "reward unit: a level 3 Witch goes into the prison when the reward is claimed (with the prison full it waits). create_unit puts a Peasant into the prison when the event fires.",
+      "type": "quest",
+      "quest_text": "Build a fighting floor.",
+      "completion": [
+        {"type": "build_count", "h_type": "example_mod.HEX ROOM", "value": 2, "label": "HEX"},
+        {"type": "cell_built", "h_type": ["example_mod.ARENA", "example_mod.GRAND HALL"]},
+        {"type": "cell_occupied", "category": "breed", "value": 3, "label": "BREED CELLS"}
+      ],
+      "reward": {"type": "unit", "class": "example_mod.WITCH", "level": 3},
+      "side_effects": [
+        {"type": "create_unit", "class": 0, "level": 1}
+      ],
       "next_event": null
     }
   },
@@ -133,12 +151,23 @@
   "_all_condition_types": [
     {"type": "state_equals", "key": "quest_progress", "value": -1},
     {"type": "state_gte", "key": "escape_count", "value": 3},
+    {"type": "state_lte", "key": "escape_count", "value": 5},
     {"type": "unit_count", "class": "example_mod.WITCH", "value": 1},
     {"type": "gold_gte", "value": 1000},
     {"type": "floor_gte", "value": 5},
     {"type": "cell_count", "h_type": "example_mod.HEX ROOM", "value": 2},
-    {"type": "cell_built", "h_type": "example_mod.HEX ROOM"},
-    {"type": "cell_occupied", "h_type": "example_mod.HEX ROOM"},
+    {"type": "cell_count", "category": ["breed", "pleasure"], "value": 4},
+    {"type": "build_count", "h_type": "example_mod.HEX ROOM", "value": 2, "label": "HEX"},
+    {"type": "cell_built", "h_type": ["example_mod.HEX ROOM", "example_mod.ARENA"]},
+    {"type": "cell_occupied", "h_type": "example_mod.HEX ROOM", "value": 1},
+    {"type": "has_item", "item": "example_mod.CRYSTAL", "value": 1},
+    {"type": "day_gte", "value": 10},
+    {"type": "day_every", "value": 7, "offset": 0},
+    {"type": "class_unlocked", "class": "example_mod.SIREN"},
+    {"type": "last_raid", "stage": "vanilla.FOREST", "won": true},
+    {"type": "on_map", "map": "example_mod"},
+    {"type": "map_visited", "map": "vanilla"},
+    {"type": "map_unlocked", "map": "example_mod"},
     {"type": "stage_discovered", "stage": 2},
     {"type": "stage_cleared", "stage": 1, "min_level": 3},
     {"type": "boss_captured", "class": "example_mod.SIREN"},

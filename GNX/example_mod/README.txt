@@ -14,13 +14,15 @@ classes.json    3 classes demonstrating all variants:
                   full naked layer (std+big+tent) with leg_0/leg_1/leg_2 variants,
                   carry_base_spr (per-leg struct form), raid_spawns, birth_class,
                   icon + icon_hair, fap_mul/bap_mul, preg_c_override, "folder" field,
-                  voice (fixed moan bank + pitch)
+                  voice (fixed moan bank + pitch), milk_lvl, sell_lvl 2 (the trader buys
+                  her from level 2; 1.5.2)
                   and a class monster_art swap (1.5.2, guide 16.7)
                 - SIREN: special (is_special:true), gb1_breast_d2, cage_escape,
                   mon_spr_overrides (patrol + ogre_touch + shrine_bg/dirt/sign +
-                  ogre_chain_body), spr_array/spr_c_array clothing_big, "max_row" field
+                  ogre_chain_body), spr_array/spr_c_array clothing_big, "max_row" field,
+                  sell_lvl -1 (never sold to the trader; 1.5.2)
                 - PEASANT override: override:true with class_id:0, partial clothing
-cells.json      8 cells demonstrating all slot types, dispatch modes, and v1.4.5+ features:
+cells.json      9 cells and an extend entry demonstrating all slot types, dispatch modes, and v1.4.5+ features:
                 - HEX ROOM: standard (slot_type 0), base+class mode, full goblin sprites
                   and a monster_art block (1.5.2; game sprite names, as this mod ships no strips;
                   guide 10.8)
@@ -28,19 +30,26 @@ cells.json      8 cells demonstrating all slot types, dispatch modes, and v1.4.5
                   sfx_type:"bj" (marks it an oral cell for the BJ sound pools)
                 - ARENA: standard (slot_type 0), class_map mode, per-class sprite dispatch
                   with default fallback and a WITCH-specific entry. Demonstrates cross-mod
-                  string refs in class keys.
+                  string refs in class keys. 1.5.2: a clothing variant list in the WITCH's
+                  loop (guide 7.7a), by_mon_type in a class_map phase (guide 10.4) and a
+                  leg_2 entry for Peasants (guide 10.5)
                 - SIREN POOL: large (slot_type 2), birth_classes
                 - BINDING: tent (slot_type 3)
                 - GRAND HALL: XL (slot_type 6), category "xl_breed"
                 - PLEASURE PIT patch: patches vanilla h_type 2, by_class SIREN override
                 - DUET STAGE: required_class as array (["WITCH", "SIREN"])
+                - extend entry: adds the WITCH to another mod's class_map cell
+                  (another_mod.ALTAR, not installed here, so only a log line; guide 12.4a)
 quests.json     Quest chain with all features:
                 - Portraits (133x113 px) and popups
                 - Notification and quest event types
                 - Event chaining via next_event
-                - All 12 condition types listed (disabled reference trigger)
-                - All 5 side effect types used (set_state, add_gold, add_food,
-                  unlock_cell, unlock_class)
+                - All 22 condition types listed in _all_condition_types (a reference, never
+                  read), including h_type lists, category and label (1.5.2)
+                - Side effects set_state, add_gold, add_food, unlock_cell, unlock_class and
+                  create_unit (1.5.2)
+                - A quest with several objectives and a captive as reward
+                  (arena_builder_quest, 1.5.2)
                 - All hooks: post_raid_win, post_raid, post_raid_loss, cell_built, frame
                 - Cage escape event (siren_hint, fired from classes.json)
                 - Frame completion hook quest (passive_gold_quest)
