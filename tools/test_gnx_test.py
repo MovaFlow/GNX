@@ -138,6 +138,27 @@ try:
         raise AssertionError("no room for one game was not refused")
     except _g.HarnessError as e:
         assert e.code == _g.EXIT_BUSY, e
+    # gate is first come, first served: a game that fits still waits while an earlier one waits for room
+    from types import SimpleNamespace as _NS
+    L = _g.Load(game_ram=1 << 20)
+    L.per_cpu = 12.5
+    L.sample = lambda: (5.0, 10.0, 8 << 30)
+    L.psutil = _NS(virtual_memory=lambda: _NS(used=1 << 30, total=16 << 30, percent=6.0))
+    _earlier, _waits = object(), []
+    L.waiting.append(_earlier)
+    def _fake_sleep(s):
+        _waits.append(len(L.tickets))
+        if len(_waits) == 3:
+            L.waiting.remove(_earlier)  # the earlier game got its room
+    _g.time.sleep = _fake_sleep
+    _t = L.gate(1 << 20)
+    assert _waits == [0, 0, 0] and L.tickets == [_t] and L.waiting == [], (_waits, L.waiting)
+    # ...unless the earlier one would not fit even with none of ours running: then waiting for it only idles the pool
+    L.waiting.append(_earlier)
+    L.head_hopeless, _waits[:] = True, []
+    _t2 = L.gate(1 << 20)
+    assert _waits == [] and _t2 in L.tickets, _waits
+    L.waiting.remove(_earlier)
 finally:
     _g.time.sleep = _sleep
 print("ok")
