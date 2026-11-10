@@ -71,3 +71,28 @@ if packer is not None:
         open(os.path.join(d, "manifest.json"), "w").write(json.dumps({"monster_art": 5}))
         assert read_meta(d) == (({}, {}), "")
     print("test_atlas_pack: monster_art sprites and world OK")
+
+    # identical frames, in one strip or across strips, are stored once and share a place; different ones are not
+    with tempfile.TemporaryDirectory() as d:
+        os.makedirs(os.path.join(d, "strips"))
+        a = Image.new("RGBA", (40 * 4, 30), (0, 0, 0, 0))   # frames 0 and 2 empty, 1 and 3 red
+        for i in (1, 3):
+            a.paste((255, 0, 0, 255), (i * 40, 0, i * 40 + 40, 30))
+        a.save(os.path.join(d, "strips", "a.png"))
+        b = Image.new("RGBA", (40 * 2, 30), (0, 0, 255, 255))  # frame 0 blue, frame 1 red as in a
+        b.paste((255, 0, 0, 255), (40, 0, 80, 30))
+        b.save(os.path.join(d, "strips", "b.png"))
+        json.dump([{"name": "T", "sprites": {"a": {"strip": "strips/a.png", "frames": 4}, "b": {"strip": "strips/b.png", "frames": 2}}}],
+                  open(os.path.join(d, "classes.json"), "w"))
+        with contextlib.redirect_stdout(io.StringIO()):
+            packer.pack_mod(Path(d), 256, 2)
+        uv = json.load(open(os.path.join(d, "atlas", "uv.json"), encoding="utf-8"))
+        pos = lambda k, i: tuple(uv["entries"][k]["frames"][i][f] for f in ("atlas", "x", "y"))
+        assert pos("a", 0) == pos("a", 2), "FAIL dedup: two empty frames stored twice"
+        assert pos("a", 1) == pos("a", 3) == pos("b", 1), "FAIL dedup: red frames stored more than once"
+        assert len({pos("a", 0), pos("a", 1), pos("b", 0)}) == 3, "FAIL dedup: different frames share a place"
+        page = Image.open(os.path.join(d, "atlas", "atlas_0.png")).convert("RGBA")
+        for k, i, want in (("a", 0, (0, 0, 0, 0)), ("a", 3, (255, 0, 0, 255)), ("b", 0, (0, 0, 255, 255))):
+            f = uv["entries"][k]["frames"][i]
+            assert page.getpixel((f["x"] + 5, f["y"] + 5)) == want, f"FAIL dedup: {k}[{i}] has the wrong pixels"
+    print("test_atlas_pack: dedup OK")
