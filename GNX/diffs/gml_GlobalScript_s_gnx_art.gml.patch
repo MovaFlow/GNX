@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_art.gml
 +++ gml/gml_GlobalScript_s_gnx_art.gml
-@@ -0,0 +1,2205 @@
+@@ -0,0 +1,2279 @@
 +// GNX: monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper
 +// (the functions are global, callable from any script)
 +
@@ -503,10 +503,12 @@
 +                    for (var _n = 0; _n < array_length(_picks); _n++)
 +                        _lined = _lined || _picks[_n].l != -1;
 +
++                    // one line per phase, however many legs and classes have a line
 +                    if (_lined)
 +                    {
 +                        gnx_report_mod_error(arg3 + "." + _ph[_i] + ".body: line is not drawn on this cell");
 +                        _hit = true;
++                        break;
 +                    }
 +                }
 +            }
@@ -728,6 +730,29 @@
 +}
 +
 +
++// has monster arg1 at place arg2 of cell JSON arg0 an anal block, the placement's or the monster's (gnx_art_has_anal)? Then an anal
++// scene reads only anal blocks, and with no body there it draws no art
++function gnx_art_json_has_anal(arg0, arg1, arg2)
++{
++    var _m = gnx_art_json_block(arg0, arg1);
++
++    if (!is_struct(_m))
++        return false;
++
++    var _pk = string(arg2);
++
++    if (variable_struct_exists(_m, "placement") && is_struct(_m.placement) && variable_struct_exists(_m.placement, _pk))
++    {
++        var _pb = variable_struct_get(_m.placement, _pk);
++
++        if (is_struct(_pb) && variable_struct_exists(_pb, "anal") && is_struct(_pb.anal))
++            return true;
++    }
++
++    return variable_struct_exists(_m, "anal") && is_struct(_m.anal);
++}
++
++
 +// checks the parts of chain arg0 at arg1 frames, each part from the first block that has it (gnx_art_part_in): a block that gives the head
 +// does not give the body. arg2 = leave out the parts of the block named like the phase played (the caller checked every such block).
 +// arg3 = cell name, arg4 = "sprites" block, arg5 = the phase played, arg6 = the problems already reported (one problem once).
@@ -905,25 +930,26 @@
 +            continue;
 +
 +        _b.placement = {};
-+        var _ok = _id != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
++        var _why = "";
 +
 +        if (gnx_art_limit(arg4, _id, "body"))
++            _why = ": not drawn on this cell";
++        else if (variable_struct_exists(arg5, "mon_types") && is_array(arg5.mon_types) && !array_contains(arg5.mon_types, _id))
++            _why = ": this monster is not in the cell's mon_types";
++        else if (arg4 >= 100 && !gnx_art_called(arg5, arg4, _id))
++            _why = ": the game never calls this monster to this cell";
++
++        // a later mod's mon_types or mon_placements may still let the monster in: judged again once every cell is loaded
++        if (_why != "" && gnx_art_defer(arg4, _id, _mn, _src, arg1, arg2, arg3))
++            continue;
++
++        if (_why != "")
 +        {
-+            gnx_report_mod_error(_who + ": not drawn on this cell");
++            gnx_report_mod_error(_who + _why);
 +            continue;
 +        }
 +
-+        if (variable_struct_exists(arg5, "mon_types") && is_array(arg5.mon_types) && !array_contains(arg5.mon_types, _id))
-+        {
-+            gnx_report_mod_error(_who + ": this monster is not in the cell's mon_types");
-+            continue;
-+        }
-+
-+        if (arg4 >= 100 && !gnx_art_called(arg5, arg4, _id))
-+        {
-+            gnx_report_mod_error(_who + ": the game never calls this monster to this cell");
-+            continue;
-+        }
++        var _ok = _id != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
 +
 +        if (gnx_art_limits_hit(_b.phases, arg4, _id, _who))
 +            _ok = false;
@@ -1015,7 +1041,55 @@
 +            arg5.gnx_art = {};
 +
 +        variable_struct_set(arg5.gnx_art, string(_id), _b);
++
++        // this later block replaces one held back for the same cell and monster
++        if (variable_global_exists("gnx_art_pending") && is_struct(global.gnx_art_pending))
++            variable_struct_remove(global.gnx_art_pending, string(arg4) + ":" + string(_id));
 +    }
++}
++
++
++// while every mod's cells load (scr_gnx_load_mod_list), cell art for a monster the cell does not take yet is held back, keyed by cell
++// arg0 and monster arg1 (a later block for the pair replaces it), with what gnx_art_parse_cell needs: arg2 = monster name, arg3 = its
++// block, arg4 = sprites, arg5 = mod folder, arg6 = label. False when no cells are loading
++function gnx_art_defer(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
++{
++    if (!variable_global_exists("gnx_art_pending") || !is_struct(global.gnx_art_pending))
++        return false;
++
++    var _art = {};
++    variable_struct_set(_art, arg2, arg3);
++    var _mod = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++    variable_struct_set(global.gnx_art_pending, string(arg0) + ":" + string(arg1), { art: _art, spr: arg4, dir: arg5, who: arg6, h: arg0, mod_name: _mod });
++    return true;
++}
++
++
++// the art gnx_art_defer held back, judged now that every cell and patch of the mods is in (each with its mod's atlas)
++function gnx_art_pending_run()
++{
++    var _p = variable_global_exists("gnx_art_pending") ? global.gnx_art_pending : undefined;
++    global.gnx_art_pending = undefined;
++
++    if (!is_struct(_p))
++        return;
++
++    var _was = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++    var _k = variable_struct_get_names(_p);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _e = variable_struct_get(_p, _k[_i]);
++        var _cell = ds_map_find_value(global.cell_registry, _e.h);
++
++        if (_cell == undefined)
++            continue;
++
++        global.gnx_current_loading_mod = _e.mod_name;
++        gnx_art_parse_cell(_e.art, _e.spr, _e.dir, _e.who, _e.h, _cell);
++    }
++
++    global.gnx_current_loading_mod = _was;
 +}
 +
 +

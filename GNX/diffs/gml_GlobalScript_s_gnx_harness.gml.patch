@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7385 @@
+@@ -0,0 +1,7468 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -7167,6 +7167,89 @@
 +    gnx_art_release(_a);
 +    ds_map_destroy(global.gnx_art_rev);
 +    return _ok;
++}
++
++
++// for {"assert": "fn"}: 1 when a random hand_xscale keeps its side from loop into ej, for 16 new monsters, and both sides come up
++// (arg0 = cell, arg1 = monster type, arg2 = leg, arg3 = class)
++function gnx_scn_art_hand_kept(arg0, arg1, arg2, arg3)
++{
++    var _a = { cell: -1, saved: -1, mons: [], mons2: [] };
++    global.gnx_art_rev = gnx_art_rev_make();
++    gnx_art_borrow(_a);
++    var _mm = _a.mons[arg1];
++    var _c = _a.cell;
++    var _ok = 1;
++    var _seen = 0;
++
++    for (var _i = 0; _i < 16; _i++)
++    {
++        // a fresh spr_data each time, as at a new contact: no roll yet
++        gnx_art_apply(_a, arg0, [arg1, 2, arg2, arg3, 0, 0, 1, 0, -1], _mm);
++
++        with (_mm)
++        {
++            scr_set_mon_spr_data(_c, 2);
++            var _lo = mon_data.spr_data.hand_xscale;
++            scr_set_mon_spr_data(_c, 3);
++
++            if (mon_data.spr_data.hand_xscale != _lo)
++                _ok = 0;
++
++            _seen = _seen | ((_lo == 1) ? 1 : 2);
++        }
++    }
++
++    gnx_art_release(_a);
++    ds_map_destroy(global.gnx_art_rev);
++    return (_ok == 1 && _seen == 3) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: a real monster's list pick from cell arg0's art crosses a save. arg1 = 0: the first goblin standing in a cell
++// rolls through gnx_art_for (no roll forced) and its roll and head are kept; arg1 = 1 (after a reload): the goblin that has that roll
++// picks the same head and keeps the roll. 1 when so
++function gnx_scn_art_cell_roll(arg0, arg1)
++{
++    var _cell = ds_map_find_value(global.cell_registry, arg0);
++    var _r = 0;
++
++    if (arg1 == 0)
++    {
++        global.gnx_scn_cell_roll = undefined;
++
++        with (obj_mon)
++        {
++            if (_r == 0 && mon_data.mon_type == 0 && instance_exists(mon_data.slot_id) && is_struct(mon_data.spr_data) && !variable_struct_exists(mon_data.spr_data, "art_roll"))
++            {
++                var _p = gnx_art_for(_cell, arg0, 0, 0, 0, 2, 0, 1, mon_data.spr_data);
++
++                if (_p != undefined && variable_struct_exists(mon_data.spr_data, "art_roll"))
++                {
++                    global.gnx_scn_cell_roll = { roll: mon_data.spr_data.art_roll, head: _p.head };
++                    _r = 1;
++                }
++            }
++        }
++
++        return _r;
++    }
++
++    if (!variable_global_exists("gnx_scn_cell_roll") || !is_struct(global.gnx_scn_cell_roll))
++        return 0;
++
++    var _k = global.gnx_scn_cell_roll;
++
++    with (obj_mon)
++    {
++        if (_r == 0 && is_struct(mon_data.spr_data) && variable_struct_exists(mon_data.spr_data, "art_roll") && mon_data.spr_data.art_roll == _k.roll)
++        {
++            var _p2 = gnx_art_for(_cell, arg0, 0, 0, 0, 2, 0, 1, mon_data.spr_data);
++            _r = (_p2 != undefined && _p2.head == _k.head && mon_data.spr_data.art_roll == _k.roll) ? 1 : 0;
++        }
++    }
++
++    return _r;
 +}
 +
 +

@@ -33,6 +33,10 @@
 - `build_mod.py` did not copy the art that `sprite_replace` names, so a deployed mod lost it. It now copies the files that the manifest's `sprite_replace` and `monster_art` name, from any folder.
 - A `sprite_replace` after another mod's replacement of the same sprite compared size, origin and frame count with the earlier mod's art; it now compares with the game's own sprite.
 - A carrying ogre with its own walk art (an old `patrol` override, or a `mon_sprite_swap` of the carry walk) got that art's collision box and frame count after a save was loaded. After loading it now keeps the game's, the same as when the ogre starts carrying in play.
+- `monster_art`: `"hand_xscale": "random"` in a `loop` block could flip the hand when the ejaculation started, because the ejaculation also plays the loop's parts and picked again. Each monster now keeps one side for its whole scene, as a random list does.
+- `monster_art` in a cell: an anal block with no body for an intermission or for `ej_end` (only an `ej` pen, say) passed the frame check, but in the anal scene the cell then plays its other monster art at that phase's frame count, so it showed wrong frames. It is now a mod error, as it already was for the normal scene.
+- `monster_art` on cells 21 and 22: an ogre body with a line on several legs or classes gave the same mod error once per leg or class. It is now given once per phase.
+- `monster_art` in a cell was judged against the monsters the cell took when that mod loaded, so art for ogres on a cell that a later mod opens to them (`mon_types`, `mon_placements`) was refused. Cell art is now judged once every mod's cells are in.
 
 ### Contributed by Mav
 

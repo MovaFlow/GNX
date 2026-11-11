@@ -4466,7 +4466,7 @@ diff -uN gml_138/gml_GlobalScript_s_general.gml gml/gml_GlobalScript_s_general.g
 diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.gml
 --- gml_138/gml_GlobalScript_s_gnx_art.gml
 +++ gml/gml_GlobalScript_s_gnx_art.gml
-@@ -0,0 +1,2205 @@
+@@ -0,0 +1,2279 @@
 +// GNX: monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper
 +// (the functions are global, callable from any script)
 +
@@ -4969,10 +4969,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +                    for (var _n = 0; _n < array_length(_picks); _n++)
 +                        _lined = _lined || _picks[_n].l != -1;
 +
++                    // one line per phase, however many legs and classes have a line
 +                    if (_lined)
 +                    {
 +                        gnx_report_mod_error(arg3 + "." + _ph[_i] + ".body: line is not drawn on this cell");
 +                        _hit = true;
++                        break;
 +                    }
 +                }
 +            }
@@ -5194,6 +5196,29 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +}
 +
 +
++// has monster arg1 at place arg2 of cell JSON arg0 an anal block, the placement's or the monster's (gnx_art_has_anal)? Then an anal
++// scene reads only anal blocks, and with no body there it draws no art
++function gnx_art_json_has_anal(arg0, arg1, arg2)
++{
++    var _m = gnx_art_json_block(arg0, arg1);
++
++    if (!is_struct(_m))
++        return false;
++
++    var _pk = string(arg2);
++
++    if (variable_struct_exists(_m, "placement") && is_struct(_m.placement) && variable_struct_exists(_m.placement, _pk))
++    {
++        var _pb = variable_struct_get(_m.placement, _pk);
++
++        if (is_struct(_pb) && variable_struct_exists(_pb, "anal") && is_struct(_pb.anal))
++            return true;
++    }
++
++    return variable_struct_exists(_m, "anal") && is_struct(_m.anal);
++}
++
++
 +// checks the parts of chain arg0 at arg1 frames, each part from the first block that has it (gnx_art_part_in): a block that gives the head
 +// does not give the body. arg2 = leave out the parts of the block named like the phase played (the caller checked every such block).
 +// arg3 = cell name, arg4 = "sprites" block, arg5 = the phase played, arg6 = the problems already reported (one problem once).
@@ -5371,25 +5396,26 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +            continue;
 +
 +        _b.placement = {};
-+        var _ok = _id != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
++        var _why = "";
 +
 +        if (gnx_art_limit(arg4, _id, "body"))
++            _why = ": not drawn on this cell";
++        else if (variable_struct_exists(arg5, "mon_types") && is_array(arg5.mon_types) && !array_contains(arg5.mon_types, _id))
++            _why = ": this monster is not in the cell's mon_types";
++        else if (arg4 >= 100 && !gnx_art_called(arg5, arg4, _id))
++            _why = ": the game never calls this monster to this cell";
++
++        // a later mod's mon_types or mon_placements may still let the monster in: judged again once every cell is loaded
++        if (_why != "" && gnx_art_defer(arg4, _id, _mn, _src, arg1, arg2, arg3))
++            continue;
++
++        if (_why != "")
 +        {
-+            gnx_report_mod_error(_who + ": not drawn on this cell");
++            gnx_report_mod_error(_who + _why);
 +            continue;
 +        }
 +
-+        if (variable_struct_exists(arg5, "mon_types") && is_array(arg5.mon_types) && !array_contains(arg5.mon_types, _id))
-+        {
-+            gnx_report_mod_error(_who + ": this monster is not in the cell's mon_types");
-+            continue;
-+        }
-+
-+        if (arg4 >= 100 && !gnx_art_called(arg5, arg4, _id))
-+        {
-+            gnx_report_mod_error(_who + ": the game never calls this monster to this cell");
-+            continue;
-+        }
++        var _ok = _id != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
 +
 +        if (gnx_art_limits_hit(_b.phases, arg4, _id, _who))
 +            _ok = false;
@@ -5481,7 +5507,55 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +            arg5.gnx_art = {};
 +
 +        variable_struct_set(arg5.gnx_art, string(_id), _b);
++
++        // this later block replaces one held back for the same cell and monster
++        if (variable_global_exists("gnx_art_pending") && is_struct(global.gnx_art_pending))
++            variable_struct_remove(global.gnx_art_pending, string(arg4) + ":" + string(_id));
 +    }
++}
++
++
++// while every mod's cells load (scr_gnx_load_mod_list), cell art for a monster the cell does not take yet is held back, keyed by cell
++// arg0 and monster arg1 (a later block for the pair replaces it), with what gnx_art_parse_cell needs: arg2 = monster name, arg3 = its
++// block, arg4 = sprites, arg5 = mod folder, arg6 = label. False when no cells are loading
++function gnx_art_defer(arg0, arg1, arg2, arg3, arg4, arg5, arg6)
++{
++    if (!variable_global_exists("gnx_art_pending") || !is_struct(global.gnx_art_pending))
++        return false;
++
++    var _art = {};
++    variable_struct_set(_art, arg2, arg3);
++    var _mod = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++    variable_struct_set(global.gnx_art_pending, string(arg0) + ":" + string(arg1), { art: _art, spr: arg4, dir: arg5, who: arg6, h: arg0, mod_name: _mod });
++    return true;
++}
++
++
++// the art gnx_art_defer held back, judged now that every cell and patch of the mods is in (each with its mod's atlas)
++function gnx_art_pending_run()
++{
++    var _p = variable_global_exists("gnx_art_pending") ? global.gnx_art_pending : undefined;
++    global.gnx_art_pending = undefined;
++
++    if (!is_struct(_p))
++        return;
++
++    var _was = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++    var _k = variable_struct_get_names(_p);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _e = variable_struct_get(_p, _k[_i]);
++        var _cell = ds_map_find_value(global.cell_registry, _e.h);
++
++        if (_cell == undefined)
++            continue;
++
++        global.gnx_current_loading_mod = _e.mod_name;
++        gnx_art_parse_cell(_e.art, _e.spr, _e.dir, _e.who, _e.h, _cell);
++    }
++
++    global.gnx_current_loading_mod = _was;
 +}
 +
 +
@@ -6675,7 +6749,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cells.gml
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3463 @@
+@@ -0,0 +1,3469 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -8271,16 +8345,17 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +            {
 +                var _ch = gnx_art_json_chain(arg0, _art_i[s], n, an == 1, arg3);
 +                
++                // an anal scene with no anal block plays the normal art (checked above); with one but no body, no art
 +                if (gnx_art_chain_has_body(_ch))
 +                    _bad += gnx_art_check_chain(_ch, arg4, true, arg1, arg2, arg3, _seen);
-+                else if (an == 0)
++                else if (an == 0 || gnx_art_json_has_anal(arg0, _art_i[s], n))
 +                    _no_body = true;
 +            }
 +        }
 +        
 +        if (_no_body && arg4 != arg5)
 +        {
-+            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + arg3 + " has " + string(arg4) + " frames but monster_art." + gnx_art_monster_name(_art_i[s]) + " has no body for it at every place (in " + arg3 + " or the ej and loop blocks it falls back on), so the others use their " + arg6 + " art (" + string(arg5) + " frames); give the monster block or every placement one, or give both the same count");
++            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + arg3 + " has " + string(arg4) + " frames but monster_art." + gnx_art_monster_name(_art_i[s]) + " has no body for it at every place (in " + arg3 + " or the ej and loop blocks it falls back on, in the normal scene or, with an anal block, the anal one), so the others use their " + arg6 + " art (" + string(arg5) + " frames); give the monster block or every placement one, or give both the same count");
 +            _bad++;
 +        }
 +    }
@@ -8327,19 +8402,24 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +            // anal scene reads the anal blocks. Each part comes from the first block that has it. A chain without a body draws no art.
 +            // Art for the normal scene replaces the old set
 +            var _art_normal = false;
-+            
++            // an anal scene with an anal block but no body there plays the set below too
++            var _anal_old = false;
++
 +            for (var an = 0; an < 2; an++)
 +            {
 +                var _ach = gnx_art_json_chain(arg0, _s, n, an == 1, "ej_end");
-+                
++
 +                if (!gnx_art_chain_has_body(_ach))
++                {
++                    _anal_old = _anal_old || (an == 1 && gnx_art_json_has_anal(arg0, _s, n));
 +                    continue;
-+                
++                }
++
 +                _art_normal = _art_normal || an == 0;
 +                _bad += gnx_art_check_chain(_ach, _ef, false, arg1, arg2, "ej_end", _eseen);
 +            }
-+            
-+            if (_art_normal || arg5)
++
++            if ((_art_normal && !_anal_old) || arg5)
 +                continue;
 +            
 +            var _key = (_s == 1) ? "mon_spr_hob" : ((_s == 3) ? "mon_spr_ogr" : "mon_spr");
@@ -16579,7 +16659,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7385 @@
+@@ -0,0 +1,7468 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -23749,6 +23829,89 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
++// for {"assert": "fn"}: 1 when a random hand_xscale keeps its side from loop into ej, for 16 new monsters, and both sides come up
++// (arg0 = cell, arg1 = monster type, arg2 = leg, arg3 = class)
++function gnx_scn_art_hand_kept(arg0, arg1, arg2, arg3)
++{
++    var _a = { cell: -1, saved: -1, mons: [], mons2: [] };
++    global.gnx_art_rev = gnx_art_rev_make();
++    gnx_art_borrow(_a);
++    var _mm = _a.mons[arg1];
++    var _c = _a.cell;
++    var _ok = 1;
++    var _seen = 0;
++
++    for (var _i = 0; _i < 16; _i++)
++    {
++        // a fresh spr_data each time, as at a new contact: no roll yet
++        gnx_art_apply(_a, arg0, [arg1, 2, arg2, arg3, 0, 0, 1, 0, -1], _mm);
++
++        with (_mm)
++        {
++            scr_set_mon_spr_data(_c, 2);
++            var _lo = mon_data.spr_data.hand_xscale;
++            scr_set_mon_spr_data(_c, 3);
++
++            if (mon_data.spr_data.hand_xscale != _lo)
++                _ok = 0;
++
++            _seen = _seen | ((_lo == 1) ? 1 : 2);
++        }
++    }
++
++    gnx_art_release(_a);
++    ds_map_destroy(global.gnx_art_rev);
++    return (_ok == 1 && _seen == 3) ? 1 : 0;
++}
++
++
++// for {"assert": "fn"}: a real monster's list pick from cell arg0's art crosses a save. arg1 = 0: the first goblin standing in a cell
++// rolls through gnx_art_for (no roll forced) and its roll and head are kept; arg1 = 1 (after a reload): the goblin that has that roll
++// picks the same head and keeps the roll. 1 when so
++function gnx_scn_art_cell_roll(arg0, arg1)
++{
++    var _cell = ds_map_find_value(global.cell_registry, arg0);
++    var _r = 0;
++
++    if (arg1 == 0)
++    {
++        global.gnx_scn_cell_roll = undefined;
++
++        with (obj_mon)
++        {
++            if (_r == 0 && mon_data.mon_type == 0 && instance_exists(mon_data.slot_id) && is_struct(mon_data.spr_data) && !variable_struct_exists(mon_data.spr_data, "art_roll"))
++            {
++                var _p = gnx_art_for(_cell, arg0, 0, 0, 0, 2, 0, 1, mon_data.spr_data);
++
++                if (_p != undefined && variable_struct_exists(mon_data.spr_data, "art_roll"))
++                {
++                    global.gnx_scn_cell_roll = { roll: mon_data.spr_data.art_roll, head: _p.head };
++                    _r = 1;
++                }
++            }
++        }
++
++        return _r;
++    }
++
++    if (!variable_global_exists("gnx_scn_cell_roll") || !is_struct(global.gnx_scn_cell_roll))
++        return 0;
++
++    var _k = global.gnx_scn_cell_roll;
++
++    with (obj_mon)
++    {
++        if (_r == 0 && is_struct(mon_data.spr_data) && variable_struct_exists(mon_data.spr_data, "art_roll") && mon_data.spr_data.art_roll == _k.roll)
++        {
++            var _p2 = gnx_art_for(_cell, arg0, 0, 0, 0, 2, 0, 1, mon_data.spr_data);
++            _r = (_p2 != undefined && _p2.head == _k.head && mon_data.spr_data.art_roll == _k.roll) ? 1 : 0;
++        }
++    }
++
++    return _r;
++}
++
++
 +// for {"assert": "fn"}: 1 when class arg0's replacement of overlay arg1 (a game sprite name) is treated as a skin-3 overlay
 +function gnx_scn_mon_frame_skin3(arg0, arg1)
 +{
@@ -24287,7 +24450,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2947 @@
+@@ -0,0 +1,2949 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -26563,12 +26726,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    for (var _i = 0; _i < array_length(arg0); _i++)
 +        scr_gnx_load_mod(arg0[_i]);
 +    global.gnx_staged_load = false;
-+    // phase 2: cells of every mod
++    // phase 2: cells of every mod. GNX-ART: cell art for a monster a cell does not take yet waits for the other mods (gnx_art_defer)
++    global.gnx_art_pending = {};
 +    for (var _j = 0; _j < array_length(arg0); _j++)
 +    {
 +        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_j]))
 +            scr_gnx_load_mod_stage(arg0[_j], variable_struct_get(global.gnx_staged_manifests, arg0[_j]), 2);
 +    }
++    gnx_art_pending_run();
 +    // GNX-EXT: every cell of these mods exists now: classes other mods add to them ("extend") go in, whatever the
 +    // order of the mods (a second pass over the cells)
 +    gnx_cell_ext_apply_all();
@@ -46282,7 +46447,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
      var _mon_spr = 
      {
          head_b: -1,
-@@ -161,48 +203,291 @@
+@@ -161,48 +203,292 @@
      image_xscale = 1;
      depth = -700;
      
@@ -46299,7 +46464,8 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
 +        _mon_spr.pen = _gnx_art.pen;
 +        _touch = _gnx_art.touch;
 +        _enter = _gnx_art.enter;
-+        _spr_data.hand_xscale = _gnx_art.hand_random ? choose(1, -1) : 1;
++        // a random hand keeps its side for the whole scene (the ej reads the loop block too) and through a save: from the list roll
++        _spr_data.hand_xscale = _gnx_art.hand_random ? ((gnx_art_roll(_spr_data) >= 32768) ? -1 : 1) : 1;
 +        _set = true;
 +    }
 +
@@ -46592,7 +46758,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      if (mon_data.placement_num == 1)
                          image_xscale = -1;
                      
-@@ -212,105 +497,167 @@
+@@ -212,105 +498,167 @@
                      
                      switch (_class)
                      {
@@ -46802,7 +46968,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              break;
                      }
                      
-@@ -319,71 +666,101 @@
+@@ -319,71 +667,101 @@
                      _mood_y = 0;
                      break;
                  
@@ -46933,7 +47099,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      }
                      
                      _spr_data.mon_frame_c = 5;
-@@ -420,50 +797,74 @@
+@@ -420,50 +798,74 @@
                      _set = true;
                      break;
                  
@@ -47047,7 +47213,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      }
                      
                      _mood_x = floor(38.5);
-@@ -474,39 +875,64 @@
+@@ -474,39 +876,64 @@
                      _set = true;
                      break;
                  
@@ -47136,7 +47302,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      _spr_data.mon_frame_c = 5;
                      _spr_data.base_frame_c = 5;
                      _spr_data.start_frame = 0;
-@@ -514,24 +940,34 @@
+@@ -514,24 +941,34 @@
                      break;
              }
              
@@ -47177,7 +47343,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.body_b = spr_h_goblin_body_start_v1_alpha;
                                      break;
                              }
-@@ -544,49 +980,63 @@
+@@ -544,49 +981,63 @@
                              
                              switch (_class)
                              {
@@ -47250,7 +47416,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
                                      _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
                                      _touch = spr_h_goblin_touch_loop_v1;
-@@ -599,57 +1049,78 @@
+@@ -599,57 +1050,78 @@
                              
                              switch (_class)
                              {
@@ -47340,7 +47506,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.hand_b = -1;
                                  
                                  _mon_spr.head_b = -1;
-@@ -660,10 +1131,10 @@
+@@ -660,10 +1132,10 @@
                                  
                                  switch (_class)
                                  {
@@ -47353,7 +47519,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                              _mon_spr.hand_b = -1;
                                          else
                                              _mon_spr.hand_b = spr_h_goblin_hand_loop_cow_alpha;
-@@ -672,26 +1143,53 @@
+@@ -672,26 +1144,53 @@
                                          _enter = spr_h_goblin_enter_loop_cow;
                                          break;
                                      
@@ -47411,7 +47577,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              else
                              {
-@@ -699,19 +1197,19 @@
+@@ -699,19 +1198,19 @@
                                  
                                  switch (_leg)
                                  {
@@ -47434,7 +47600,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                          _mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
                                          _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
                                          _touch = spr_h_goblin_touch_loop_v1;
-@@ -724,33 +1222,60 @@
+@@ -724,33 +1223,60 @@
                                  
                                  switch (_class)
                                  {
@@ -47500,7 +47666,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              
                              break;
-@@ -760,20 +1285,20 @@
+@@ -760,20 +1286,20 @@
                  {
                      switch (arg1)
                      {
@@ -47525,7 +47691,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _touch = spr_h_goblin_touch_start_anal_v1;
                                      _mon_spr.body_b = spr_h_goblin_body_start_alpha_anal;
                                      break;
-@@ -786,32 +1311,45 @@
+@@ -786,32 +1312,45 @@
                              
                              switch (_class)
                              {
@@ -47577,7 +47743,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              _mon_spr.head_b = spr_h_goblin_head_loop_alpha_anal;
                              _mon_spr.hand_b = spr_h_goblin_hand_loop_alpha_anal;
                              _mon_spr.body_b = spr_h_goblin_body_loop_alpha_anal;
-@@ -822,38 +1360,59 @@
+@@ -822,38 +1361,59 @@
                              
                              switch (_class)
                              {
@@ -47644,7 +47810,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              {
                                  _mon_spr.body_b = spr_h_goblin_body_ej_alpha_anal;
                                  _mon_spr.hand_b = -1;
-@@ -865,33 +1424,60 @@
+@@ -865,33 +1425,60 @@
                                  
                                  switch (_class)
                                  {
@@ -47710,7 +47876,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              else
                              {
-@@ -905,33 +1491,60 @@
+@@ -905,33 +1492,60 @@
                                  
                                  switch (_class)
                                  {
@@ -47776,7 +47942,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              
                              break;
-@@ -941,35 +1554,35 @@
+@@ -941,35 +1555,35 @@
              
              switch (_spr_data.prop)
              {
@@ -47820,7 +47986,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      _mon_spr.prop = spr_bowl;
                      break;
              }
-@@ -977,63 +1590,95 @@
+@@ -977,63 +1591,95 @@
              _mood_y -= 18;
              break;
          
@@ -47949,7 +48115,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      }
                      
                      _spr_data.mon_frame_c = 5;
-@@ -1050,34 +1695,58 @@
+@@ -1050,34 +1696,58 @@
                      _set = true;
                      break;
                  
@@ -48032,7 +48198,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      }
                      
                      _spr_data.mon_frame_c = 5;
-@@ -1089,26 +1758,60 @@
+@@ -1089,26 +1759,60 @@
                      _set = true;
                      break;
                  
@@ -48108,7 +48274,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              break;
                      }
                      
-@@ -1117,41 +1820,41 @@
+@@ -1117,41 +1821,41 @@
                      _mood_y = 0;
                      break;
                  
@@ -48159,7 +48325,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.body_b = spr_h_hobgoblin_body_start_v3_alpha;
                                      break;
                              }
-@@ -1163,32 +1866,53 @@
+@@ -1163,32 +1867,53 @@
                              
                              switch (_class)
                              {
@@ -48219,7 +48385,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.body_b = spr_h_hobgoblin_body_loop_v3_alpha;
                                      _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
                                      break;
-@@ -1196,7 +1920,7 @@
+@@ -1196,7 +1921,7 @@
                              
                              _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha;
                              
@@ -48228,7 +48394,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                  _spr_data.hand_xscale = choose(1, -1);
                              else
                                  _spr_data.hand_xscale = 1;
-@@ -1207,52 +1931,73 @@
+@@ -1207,52 +1932,73 @@
                              
                              switch (_class)
                              {
@@ -48312,7 +48478,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                          _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
                                          break;
                                  }
-@@ -1260,7 +2005,7 @@
+@@ -1260,7 +2006,7 @@
                                  _mon_spr.head_b = -1;
                                  _mon_spr.body_b = spr_h_hobgoblin_body_ej_alpha;
                                  
@@ -48321,7 +48487,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.hand_b = spr_h_hobgoblin_hand_ej_alpha;
                                  else
                                      _spr_data.hand_xscale = 1;
-@@ -1271,49 +2016,76 @@
+@@ -1271,49 +2017,76 @@
                                  
                                  switch (_class)
                                  {
@@ -48406,7 +48572,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                          _mon_spr.body_b = spr_h_hobgoblin_body_loop_v1_alpha;
                                          _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
                                          break;
-@@ -1327,34 +2099,61 @@
+@@ -1327,34 +2100,61 @@
                                  
                                  switch (_class)
                                  {
@@ -48473,7 +48639,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              
                              break;
-@@ -1364,7 +2163,7 @@
+@@ -1364,7 +2164,7 @@
                  {
                      switch (arg1)
                      {
@@ -48482,7 +48648,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              _mon_spr.body_b = spr_h_hobgoblin_body_start_alpha_anal;
                              _spr_data.hand_xscale = 1;
                              _mon_spr.head_b = -1;
-@@ -1372,7 +2171,7 @@
+@@ -1372,7 +2172,7 @@
                              _mon_spr.pen = spr_h_hobgoblin_pen_start_anal;
                              break;
                          
@@ -48491,7 +48657,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha_anal;
                              _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_alpha_anal;
                              _mon_spr.body_b = spr_h_hobgoblin_body_loop_alpha_anal;
-@@ -1383,35 +2182,56 @@
+@@ -1383,35 +2183,56 @@
                              
                              switch (_class)
                              {
@@ -48554,7 +48720,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha_anal;
                              _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_alpha_anal;
                              _mon_spr.body_b = spr_h_hobgoblin_body_loop_alpha_anal;
-@@ -1426,52 +2246,81 @@
+@@ -1426,52 +2247,81 @@
              
              break;
          
@@ -48660,7 +48826,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              break;
                      }
                      
-@@ -1480,68 +2329,94 @@
+@@ -1480,68 +2330,94 @@
                      _mood_y = 0;
                      break;
                  
@@ -48767,7 +48933,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                  }
                  
                  _mon_spr.hand_b = -1;
-@@ -1553,11 +2428,56 @@
+@@ -1553,11 +2429,56 @@
              break;
      }
      
@@ -48824,7 +48990,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
      if (_mon_spr.prop != -1)
      {
          switch (_mon_spr.prop)
-@@ -1596,26 +2516,68 @@
+@@ -1596,26 +2517,68 @@
          }
      }
      
@@ -48895,7 +49061,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
  {
      var _line = -1;
      
-@@ -1961,36 +2923,24 @@
+@@ -1961,36 +2924,24 @@
      return _line;
  }
  
