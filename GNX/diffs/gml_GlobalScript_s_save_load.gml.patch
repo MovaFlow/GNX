@@ -371,7 +371,7 @@
                  if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
                      spr_base = spr_tent_back_full;
                  
-@@ -408,30 +637,123 @@
+@@ -408,30 +637,134 @@
                      global.slot_x[slot_data.slot_floor] += _diff;
                  }
                  
@@ -399,6 +399,17 @@
 +                    if (!is_struct(_pd))
 +                        continue;
 +                    
++                    // GNX-FIX (Discord #27): a prop whose instance was already gone when the game saved has no place
++                    // (x_pos ...) in the save, and reading it stopped the load ("x_pos not set before reading"). It
++                    // was not on screen any more, so it is left out (! = not)
++                    if (!variable_struct_exists(_pd, "x_pos"))
++                    {
++                        var _gnx_xl = gnx_log_open();
++                        gnx_log_write(_gnx_xl, "[GNX-WARN] load: a prop of type " + string(variable_struct_exists(_pd, "prop_type") ? _pd.prop_type : "?") + " was saved without its place (its instance was gone); left out\n");
++                        gnx_log_close(_gnx_xl);
++                        continue;
++                    }
++                    
 +                    // a prop kept aside does not come back into a row that holds another prop by now
 +                    if (_gnx_is_orph && variable_struct_exists(_pd, "prop_pos") && array_contains(_gnx_rows, _pd.prop_pos))
 +                    {
@@ -418,7 +429,9 @@
 +                    // load order (audit P10)
 +                    var _gnx_pt = gnx_prop_saved_type(_pd);
 +                    var _prop = (_gnx_pt == -1) ? -1 : scr_create_prop(id, _gnx_pt, _infant, _pd.prop_step);
-+                    
+                     
+-                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
+-                    _prop.prop_data = _data.slot_data.prop[ii];
 +                    // GNX-FIX: no prop made (its mod is missing): kept aside, not read (that stopped the load)
 +                    if (is_undefined(_prop) || _prop == -1 || !instance_exists(_prop))
 +                    {
@@ -434,9 +447,7 @@
 +                    
 +                    if (variable_struct_exists(_pd, "prop_pos"))
 +                        array_push(_gnx_rows, _pd.prop_pos);
-                     
--                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
--                    _prop.prop_data = _data.slot_data.prop[ii];
++                    
 +                    _prop.prop_data = _pd;
                      _prop.prop_data.prop_id = _prop;
 -                    _prop.x = _data.slot_data.prop[ii].x_pos;
@@ -506,7 +517,7 @@
              }
          }
          
-@@ -482,22 +804,14 @@
+@@ -482,22 +815,14 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -531,7 +542,7 @@
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +868,10 @@
+@@ -554,6 +879,10 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -542,7 +553,7 @@
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +885,68 @@
+@@ -567,7 +896,68 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -611,7 +622,7 @@
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +985,21 @@
+@@ -606,11 +996,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -634,7 +645,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1023,12 @@
+@@ -634,7 +1034,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -647,7 +658,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1048,395 @@
+@@ -654,8 +1059,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -1043,7 +1054,7 @@
      }
      
      return _load;
-@@ -663,6 +1444,7 @@
+@@ -663,6 +1455,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1051,7 +1062,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1464,25 @@
+@@ -682,33 +1475,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1096,7 +1107,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1507,119 @@
+@@ -733,3 +1518,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

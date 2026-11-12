@@ -371,6 +371,7 @@ This is one event of a mod's `quests.json` (`QUESTS_SCHEMA.md` describes the fil
 - **GNX 1.5** on **Goblin Nest 1.40**. Mods marked for game versions 1.38 and 1.39 are accepted too ([4.2](#42-the-version-check)).
 - Features new in 1.5 say so where they are described. A mod that uses them needs GNX 1.5; `CHANGELOG.md` lists every change.
 - **GNX 1.5.1** adds what [New stuff](#new-stuff-gnx-151) lists. Each item there says what GNX 1.5.0 does with the same JSON.
+- **GNX 1.5.2** adds what [New stuff (GNX 1.5.2)](#new-stuff-gnx-152) lists. Each item there says what GNX 1.5.1 does with the same JSON.
 - The statements in this guide were checked against the GNX source code.
 
 ### 1.3 JSON in two minutes

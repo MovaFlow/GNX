@@ -6,6 +6,8 @@
 
 ### Bug Fixes
 
+- A cell whose scene names a script the game does not have (misspelled, or from a newer GNX) was only a line in the log, and the game stopped with "Trying to execute non-existing script" once a scene reached it. It is now a mod error when the mod loads, and the cell ends that scene and idles instead.
+- Loading a save could stop with "x_pos not set before reading" when a cell listed a prop that was already gone when the game saved. That prop is now left out.
 - Raid map: the warning that a mod stage's button covers a vanilla stage's went by the vanilla places only, so on a map that hides or moves a vanilla stage (`map_info.vanilla_stages`) a stage on the old place got the warning, and one next to the new place did not. It now uses the vanilla stages where that map has them.
 - Atlas packing: `gnx_atlas_pack` stored every frame on the page, also the empty frames and the repeats of a layer drawn the same way over many frames. Identical frames are now stored once and share their place, which works with any GNX version. A large character mod went from 15 pages (about 960 MB of video memory) to 5 (about 320 MB) with the same pictures; mods packed again need less video memory, which a graphics card running out of it shows as `CreateTexture2D` failing with `0x8007000e`.
 - `monster_art`: `"hand_xscale": "random"` in a `loop` block could flip the hand when the ejaculation started, because the ejaculation also plays the loop's parts and picked again. Each monster now keeps one side for its whole scene, as a random list does.

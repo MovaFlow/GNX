@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_util.gml
 +++ gml/gml_GlobalScript_s_gnx_util.gml
-@@ -0,0 +1,603 @@
+@@ -0,0 +1,617 @@
 +// GNX: logging and small shared helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -587,6 +587,20 @@
 +{
 +    var _ui = scr_mouse_least_depth_obj(device_mouse_x_to_gui(0), device_mouse_y_to_gui(0), -1);
 +    return _ui != -1 && _ui.gui;
++}
++
++
++// true when arg0 can be given to script_execute: a method or a script that exists (a cell script whose name was
++// not found is -1, see gnx_resolve_script)
++function gnx_script_ok(arg0)
++{
++    if (is_method(arg0))
++        return true;
++    
++    if (is_string(arg0) || is_undefined(arg0) || is_struct(arg0) || is_array(arg0) || is_bool(arg0))
++        return false;
++    
++    return script_exists(arg0);
 +}
 +
 +

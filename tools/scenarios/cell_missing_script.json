@@ -1,0 +1,85 @@
+{
+  "about": "Discord #26: a cell scene step naming a script the game does not have was only a log warning, then 'Trying to execute non-existing script' stopped the game when the scene got there. Now a mod error at load, and the scene ends with the cell idling.",
+  "mods": [
+    "tools/scenarios/mods/harness_bad_script"
+  ],
+  "expect_dialog": "does not exist",
+  "expect_mod_errors": [
+    "script 'scr_slot_h_base_sloop_v2' does not exist"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "spawn_mon",
+        "species": 0,
+        "amount": 8
+      }
+    },
+    {
+      "open_build_menu": -1
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 0,
+        "num": 0
+      },
+      "why": "NEW"
+    },
+    {
+      "wait": 2
+    },
+    {
+      "press": {
+        "type": 1,
+        "num": 5
+      },
+      "why": "CUSTOM"
+    },
+    {
+      "wait": 20
+    },
+    {
+      "press": {
+        "type": 95,
+        "num": 9020
+      }
+    },
+    {
+      "wait": 10
+    },
+    {
+      "assert": "has_cell",
+      "h_type": 9020,
+      "count": 1
+    },
+    {
+      "occupy": {
+        "h_type": 9020,
+        "class": 0
+      }
+    },
+    {
+      "trace": 9020
+    },
+    {
+      "wait": 3000,
+      "why": "the scene reaches step 2 (the missing script) more than once"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_error_count",
+      "args": [
+        "scr_slot_h_base_sloop_v2"
+      ],
+      "is": 1,
+      "why": "one mod error, at load"
+    }
+  ]
+}

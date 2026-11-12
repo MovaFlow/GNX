@@ -1,20 +1,30 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,4811 @@
+@@ -0,0 +1,4821 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
 +function gnx_resolve_script(arg0)
 +{
-+    var _idx = asset_get_index(arg0);
-+    
-+    if (_idx < 0)
++    // GNX-FIX (Discord #26): a script name the game does not have (a typo, or one from a newer GNX) was only a log
++    // warning, and the cell then stopped the game with "Trying to execute non-existing script" when its scene got
++    // there. It is now a mod error (once per mod and name); the cell idles instead (gnx_script_ok in scr_slot_state)
++    var _mod = (variable_global_exists("gnx_current_loading_mod") && is_string(global.gnx_current_loading_mod)) ? global.gnx_current_loading_mod : "";
++
++    if (!is_string(arg0))
 +    {
-+        var _log = gnx_log_open();
-+        gnx_log_write(_log, "[GNX] WARNING: script not found: " + arg0 + "\n");
-+        gnx_log_close(_log);
++        gnx_report_mod_error_once("script " + _mod + " " + string(arg0), "Mod '" + _mod + "': a cell script is " + string(arg0) + ", not a script name; the cell skips that step");
++        return -1;
 +    }
-+    
++
++    var _idx = asset_get_index(arg0);
++
++    if (_idx < 0 || !script_exists(_idx))
++    {
++        gnx_report_mod_error_once("script " + _mod + " " + arg0, "Mod '" + _mod + "': script '" + arg0 + "' does not exist in this game or GNX version (misspelled, or from a newer GNX?); the cell skips that step");
++        return -1;
++    }
++
 +    return _idx;
 +}
 +

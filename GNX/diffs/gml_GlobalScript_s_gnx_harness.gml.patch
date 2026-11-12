@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7468 @@
+@@ -0,0 +1,7497 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -7452,6 +7452,35 @@
 +
 +    // && = and: a registered class_map cell with that class among its entries
 +    return is_struct(_c) && variable_struct_exists(_c, "human_spr") && is_struct(_c.human_spr) && variable_struct_exists(_c.human_spr, "classes") && is_struct(_c.human_spr.classes) && variable_struct_exists(_c.human_spr.classes, string(arg1));
++}
++
++
++// for {"call"} (Discord #27): removes x_pos from the first prop listed in the slot-9 save file (gnx_harness_save.json),
++// as a save writes a prop whose instance was already gone. Returns 1 when it found one, else 0
++function gnx_scn_strip_prop_place()
++{
++    var _b = buffer_load("gnx_harness_save.json");
++    var _d = json_parse(buffer_read(_b, buffer_text));
++    buffer_delete(_b);
++    var _done = 0;
++
++    for (var _i = 0; _i < array_length(_d.slot_list) && _done == 0; _i++)
++    {
++        var _sd = _d.slot_list[_i].slot_data;
++
++        if (is_struct(_sd) && variable_struct_exists(_sd, "prop") && is_array(_sd.prop) && array_length(_sd.prop) > 0 && is_struct(_sd.prop[0]))
++        {
++            variable_struct_remove(_sd.prop[0], "x_pos");
++            _done = 1;
++        }
++    }
++
++    var _s = json_stringify(_d);
++    var _o = buffer_create(string_byte_length(_s) + 1, buffer_fixed, 1);
++    buffer_write(_o, buffer_string, _s);
++    buffer_save(_o, "gnx_harness_save.json");
++    buffer_delete(_o);
++    return _done;
 +}
 +
 +
