@@ -421,7 +421,12 @@ window at startup.
 
 The full list is in [GNX_MODDING.md, Appendix B](GNX_MODDING.md#appendix-b-troubleshooting).
 
-**In-game checks**, once `gnx_debug.txt` looks clean:
+**In-game checks**, once `gnx_debug.txt` looks clean. These logs are off by
+default: first turn on verbose logging at **Settings → DEBUG → GNX DEBUG →
+VERBOSE**, then do what you are checking (place a captive, etc.). They are
+written when something is placed or changes state, not while units only
+animate. Toggling VERBOSE itself writes `[GNX-TOOL] set_var gnx_debug_verbose = 1`,
+a quick sign the menu works.
 - `[GNX] REG-STANDARD class=N phase=N head/breast/leg/head_c/leg_c=...` fires
   whenever a goblin is placed in a standard cell  - confirms your class's
   clothing maps resolve.
@@ -430,14 +435,7 @@ The full list is in [GNX_MODDING.md, Appendix B](GNX_MODDING.md#appendix-b-troub
   alike)  - the complete dispatch trace. `mode=fixed base_body=?` is normal for
   fixed-art cells like shrines (they have no `base_body`, so `?` just means
   "field not present"); `mode=class` is the normal clothing/naked path.
-
-**Turn these on first.** The two logs above (and the `[DRINK]`/`[PROP]` traces)
-are gated behind verbose logging, which is **off by default**. Enable it in-game
-at **Settings → DEBUG → GNX DEBUG → VERBOSE**, then trigger the action you're
-debugging (place a captive, etc.)  - they only fire on placement/state-change,
-not while units merely animate. The DEBUG entry itself always writes a
-`[GNX-TOOL] set_var gnx_debug_verbose = 1` line when you toggle it, which is a
-quick confirmation the menu is dispatching your clicks.
+- The `[DRINK]` and `[PROP]` traces need VERBOSE too.
 
 ---
 
@@ -554,14 +552,18 @@ New folder `GNX_mods/my_map/manifest.json`:
 - `map_start` is the state of a first visit: one extra floor, some gold, food
   and goblins, and a WALL1 cell (vanilla `h_type` 1) on floor 1.
 
-To start the map with one of your own cells, name it in `cells`
-(`{"h_type": "MY CELL", "floor": 1}`). `map_start` can also bring other monsters,
-captives and unlocked cells:
+To start the map with a cell, name it in `cells`. A plain name such as
+`"MY CELL"` means a cell from this map mod's own cells.json. For the cell you
+made in `my_mod` (§5), add the folder: `{"h_type": "my_mod.MY CELL", "floor": 1}`.
+`my_mod` has no `map` key, so it loads only on the village map; add
+`"map": "all"` to its manifest so its cell exists on this map too
+([GNX_MODDING.md 21.1](GNX_MODDING.md#211-map)).
+`map_start` can also bring other monsters, captives and unlocked cells:
 
 ```json
 "troops": [{"type": "hobgoblin", "num": 4}, {"type": "ogre", "num": 1}],
 "prisoners": [{"class": 3, "level": 2, "num": 2}],
-"unlock_cells": ["MY CELL", 2]
+"unlock_cells": ["my_mod.MY CELL", 2]
 ```
 
 Check the manifest before playing:
