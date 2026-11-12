@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7497 @@
+@@ -0,0 +1,7582 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -7481,6 +7481,91 @@
 +    buffer_save(_o, "gnx_harness_save.json");
 +    buffer_delete(_o);
 +    return _done;
++}
++
++
++// for {"call"} (Discord #2): gives every captive in a cell, cage, prison slot or the raid cage that has none a number
++// (unit field gnx_scn_id, kept by saves) and returns how many it tagged; gnx_scn_dup_captives looks for one number twice
++function gnx_scn_tag_captives()
++{
++    if (!variable_global_exists("gnx_scn_tag_next"))
++        global.gnx_scn_tag_next = 1;
++
++    var _n = 0;
++    var _list = [];
++
++    with (obj_slot)
++        array_push(_list, unit_data);
++
++    for (var _i = 0; _i < ds_list_size(global.unit_list); _i++)
++        array_push(_list, ds_list_find_value(global.unit_list, _i));
++
++    if (variable_struct_exists(global.val, "cage") && is_array(global.val.cage))
++    {
++        for (var _i = 0; _i < array_length(global.val.cage); _i++)
++            array_push(_list, global.val.cage[_i]);
++    }
++
++    for (var _i = 0; _i < array_length(_list); _i++)
++    {
++        if (is_struct(_list[_i]) && !variable_struct_exists(_list[_i], "gnx_scn_id"))
++        {
++            _list[_i].gnx_scn_id = global.gnx_scn_tag_next;
++            global.gnx_scn_tag_next++;
++            _n++;
++        }
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"} (Discord #2): "" when no tagged captive (gnx_scn_tag_captives) is in two places at once, else
++// each double's two places: every cell, passage and transfer cage (obj_slot unit_data), prison slot and the raid cage
++function gnx_scn_dup_captives()
++{
++    var _seen = ds_map_create();
++    var _dups = "";
++    var _log = gnx_log_open();
++    var _add = function(_map, _u, _where, _lg)
++    {
++        // only captives gnx_scn_tag_captives tagged: untagged ones (born or caught since) are skipped, and two
++        // random peasants can be equal field by field, so content is no identity (! = not, || = or)
++        if (!is_struct(_u) || !variable_struct_exists(_u, "gnx_scn_id"))
++            return "";
++
++        var _k = string(_u.gnx_scn_id);
++
++        if (ds_map_exists(_map, _k))
++        {
++            var _t = ds_map_find_value(_map, _k) + " = " + _where + " (class " + string(variable_struct_exists(_u, "class") ? _u.class : "?") + ")";
++            gnx_log_write(_lg, "[GNX-SCN] DUP captive " + _t + "\n");
++            return "; " + _t;
++        }
++
++        ds_map_add(_map, _k, _where);
++        return "";
++    };
++
++    with (obj_slot)
++    {
++        var _an = (is_struct(slot_data) && variable_struct_exists(slot_data, "anim_struct") && is_struct(slot_data.anim_struct)) ? slot_data.anim_struct : undefined;
++        var _w = "slot h" + string(variable_struct_exists(slot_data, "h_type") ? slot_data.h_type : "-") + " f" + string(variable_struct_exists(slot_data, "slot_floor") ? slot_data.slot_floor : "?") + " x" + string(x) + " cs" + string(_an != undefined ? _an.char_state : "-") + " st" + string(variable_struct_exists(slot_data, "h_step") ? slot_data.h_step : "-") + " carry" + string(variable_struct_exists(slot_data, "carry") ? slot_data.carry : "-") + " load" + string(variable_struct_exists(slot_data, "load") ? slot_data.load : "-");
++        _dups += _add(_seen, unit_data, _w, _log);
++    }
++
++    for (var _i = 0; _i < ds_list_size(global.unit_list); _i++)
++        _dups += _add(_seen, ds_list_find_value(global.unit_list, _i), "prison " + string(_i), _log);
++
++    if (variable_struct_exists(global.val, "cage") && is_array(global.val.cage))
++    {
++        for (var _i = 0; _i < array_length(global.val.cage); _i++)
++            _dups += _add(_seen, global.val.cage[_i], "raid cage " + string(_i), _log);
++    }
++
++    gnx_log_close(_log);
++    ds_map_destroy(_seen);
++    return _dups;
 +}
 +
 +
