@@ -8,8 +8,7 @@ one cell entry, ready to be copy-pasted into a mod's cells.json array.
 
 Field semantics and defaults are sourced from docs/GNX_MODDING.md (sections
 6-8: Custom Cells, Cell Physical Block, Cell Sprite Blocks) and
-docs/example_mod/cells.json (the "RITUAL" h_type 43 entry and the h_type 1
-vanilla-patch entry). The "Advanced physical fields" table in
+GNX/example_mod/cells.json (the "RITUAL" entry and the DAIRY vanilla patch). The "Advanced physical fields" table in
 docs/GNX_MODDING.md section 9 (read individually by scr_gnx_register_cell /
 scr_set_slot_h_data) is not covered here - add those fields by hand if your
 cell needs DAIRY/DRINK/tent/shrine-style mechanics.
@@ -65,8 +64,8 @@ def slugify(name):
 
 # ---------------------------------------------------------------------------
 # physical.layers helpers (GNX_MODDING.md section 9)
-# Standard 6-layer pattern, used by both RITUAL (h_type 43) and the WALL2
-# patch (h_type 1) in docs/example_mod/cells.json. Layers 0/2/5 are 4-element
+# Standard 6-layer pattern of vanilla WALL 1 (h_type 1), also used by RITUAL in
+# GNX/example_mod/cells.json. Layers 0/2/5 are 4-element
 # arrays (no trailing flag); layers 12/7/8 are 5-element (trailing `false`).
 # ---------------------------------------------------------------------------
 
@@ -224,9 +223,7 @@ def build_patch():
 
     if any(isinstance(v, str) and v.startswith("gnx:") for v in (bg, handc, extra)):
         print()
-        print("  NOTE: 'gnx:' sprite refs were entered. The only patch example in")
-        print("  docs/example_mod/cells.json uses vanilla sprite names (no gnx: refs, no")
-        print("  'sprites' dict). Whether a patch entry can declare its own 'sprites' dict")
+        print("  NOTE: 'gnx:' sprite refs were entered. Whether a patch entry can declare its own 'sprites' dict")
         print("  for gnx: refs is not confirmed by the docs - add a 'sprites' block")
         print("  yourself and verify in gnx_debug.txt before relying on it.")
 

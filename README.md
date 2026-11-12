@@ -14,11 +14,11 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Cells**  - custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Multi-monster cells (2+ goblins per cell with per-slot species, offsets, and sprite overrides), locked cells gated behind quest rewards, and `by_class`/`by_mon_type` sprite overrides for fixed-mode cells. Own frame counts, intermissions, second walls and own ejaculation poses (`phase_3`) per cell; underground cells. Hash-based h_type assignment, automatic unlock migration on save load.
 
-**Quests & Dialogs**  - event-driven quest chains with dialog popups, portrait sprites, 13 completion condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
+**Quests & Dialogs**  - event-driven quest chains with dialog popups, portrait sprites, 20+ condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
 
 **Raid & Boss Mechanics**  - custom raid encounter pools with conditional spawning, AP overrides, per-encounter limits, post-raid cage escape behaviors, birth-class mapping (human class to goblin troop class per species), and tower boss support (modded classes as endgame tower bosses via `tower_boss_condition`).
 
-**Tool System**  - mod-defined cheat/debug menus with 38 action types, keybind support (single keys, ranges, modifiers), toggle buttons with save-state persistence, guard conditions, and continuous effects.
+**Tool System**  - mod-defined cheat/debug menus with 40 action types, keybind support (single keys, ranges, modifiers), toggle buttons with save-state persistence, guard conditions, and continuous effects.
 
 **Sound & Voice**  - runtime-loaded moan voice banks and h-scene SFX (orgasm, plap, ejaculation, oral) via `sounds.json`, per-class voice assignment, positional 3D audio, and an in-game SOUND settings page (volume + frequency sliders). Sounds persist with the save.
 
@@ -65,7 +65,7 @@ To **install mods**: drag a mod `.zip` onto the exe.
 
 ### Verifying
 
-On first boot, `gnx_debug.txt` is written to `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt`. It should end with `[GNX-TEST] N/N passed`.
+On first boot, `gnx_debug.txt` is written to `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt`. It should contain `[GNX-TEST] N/N passed`, followed by a `[GNX-TEST] DROUTE:` line with `0 FAIL`.
 
 ---
 
@@ -83,16 +83,20 @@ GNX_mods/
     tools.json       ← optional
     props.json       ← optional
     sounds.json      ← optional
+    items.json       ← optional
+    raids.json       ← optional
+    sprites/         ← your per-frame PNGs (the packer turns them into strips/)
     strips/          ← packed sprite strips
     portraits/       ← quest dialog portraits
     sounds/          ← .ogg voice + sfx clips
+    lang/            ← optional translations
 ```
 
 **Docs:**
 - [`docs/TUTORIAL.md`](docs/TUTORIAL.md)  - step-by-step walkthrough, from skeleton mod to custom class and cell.
 - [`docs/GNX_MODDING.md`](docs/GNX_MODDING.md)  - full field-by-field reference for every JSON block.
 - [`docs/QUESTS_SCHEMA.md`](docs/QUESTS_SCHEMA.md)  - quest/dialog system reference (events, triggers, conditions).
-- [`docs/example_mod/`](docs/example_mod/)  - a reference mod showcasing every JSON feature (classes, cells, quests, tools, sounds, vanilla patches). Schema-complete; sprite/audio paths are placeholders.
+- [`GNX/example_mod/`](GNX/example_mod/)  - a reference mod showcasing every JSON feature (classes, cells, quests, tools, sounds, raid stages, a map, vanilla patches). Schema-complete; sprite/audio paths are placeholders.
 
 **Tools** (in `tools/`, require Python 3.9+ and `pip install Pillow`):
 
@@ -104,13 +108,15 @@ GNX_mods/
 | `generate_cell.py` | Interactive `cells.json` generator (also handles vanilla patches) |
 | `export_class_sprites.py` | Copy + rename a vanilla class's sprites as a starting point |
 | `gnx_pack_strips.py` | Pack per-frame PNG folders into sprite strips |
+| `gnx_atlas_pack/gnx_atlas_pack.py` (or `gnx_atlas_pack.exe`) | Pack a mod's strips into atlas pages (less video memory) |
+| `check_mod.py` | Find typos and wrong keys in a mod's JSON files |
 | `build_mod.py` | Pack sprites, verify, and deploy a mod to the game folder |
 
 ---
 
 ## Compatibility
 
-GNX targets game version **1.40** and still loads mods made for 1.38 and 1.39. Mods declare which versions they support in `manifest.json`  - a version mismatch causes the mod to be silently skipped (check `gnx_debug.txt`).
+GNX targets game version **1.40** and still loads mods made for 1.38 and 1.39. Mods declare which versions they support in `manifest.json`  - a mod that lists none of the accepted versions is not loaded, and the **Mod loading problem(s)** window at startup says so.
 
 ---
 
@@ -124,8 +130,8 @@ Mods can define custom tools, keybinds, and toggles via `tools.json`. See [`docs
 
 ## Development
 
-If you want to look at the code, just unpack the mod, the gml files are in there.
-The diffs are on the github under GNX\diffs for all modified files.
+The GML source of every file GNX changes is in the GNX package. The changes against the vanilla game are in
+[`GNX/diffs/`](GNX/diffs/) in this repository.
 
 ---
 

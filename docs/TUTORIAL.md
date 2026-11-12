@@ -1,10 +1,10 @@
 # GNX Modding Tutorial  - Building Your First Mod
 
-> **Compatibility:** GNX v1.4+ · Game version 1.40
+> **Compatibility:** GNX 1.5.2 · Game version 1.40 (mods made for 1.38 and 1.39 still load)
 
 This is a hands-on walkthrough for a new modder. It builds up a mod step by
 step, from "hello world" to a custom class and a custom cell, using
-[`example_mod/`](example_mod/) as the working reference.
+[`GNX/example_mod/`](../GNX/example_mod/) as the working reference.
 
 For the full field-by-field reference, see [GNX_MODDING.md](GNX_MODDING.md).
 This tutorial only explains *what to do, in what order, and how to tell if it
@@ -52,9 +52,8 @@ worked*.
 All commands in this tutorial reference `<tools>/`  - the folder containing the
 GNX modding scripts. Depending on how you got them:
 
-- **From G3M:** extract `tools.zip` (shipped alongside the GNX mod) to any
-  folder. That folder is `<tools>/`.
-- **From this repo:** the `tools/` directory in the repo root is `<tools>/`.
+- Download the GNX repository from GitHub ([github.com/MovaFlow/GNX](https://github.com/MovaFlow/GNX),
+  green **Code** button → **Download ZIP**) and extract it anywhere. Its `tools/` folder is `<tools>/`.
 
 Example  - if you extracted to `C:\GNX\tools\`:
 ```bash
@@ -73,7 +72,18 @@ python C:\GNX\tools\scaffold_class.py --name Barbarian ...
 GNX auto-discovers every subfolder that contains a `manifest.json` and loads
 them in alphabetical order. No index file needed.
 
-Everything below happens inside `<game folder>/GNX_mods/`.
+Everything below happens inside `<game folder>/GNX_mods/`: you edit the mod
+where the game reads it. (You can also keep your mod somewhere else and let
+`build_mod.py` copy it in, see [§9](#build_modpy--pack--verify--deploy).)
+
+**Running the commands on Windows:** open PowerShell in a folder (Shift +
+right-click on an empty spot of the folder, "Open PowerShell window here"; on
+Windows 11: right-click, "Open in Terminal") and type the command there;
+double-clicking a script does nothing useful. Some commands below are split
+over several lines with `\` at the line ends: in PowerShell or cmd, write the
+whole command on **one line** without the `\`. Replace each `<...>` with the
+real path, without the `<` `>`, and keep the quotes around any path that has
+spaces in it (`"C:\Games\Goblin Nest\GNX_mods\my_mod\sprites"`).
 
 ---
 
@@ -91,13 +101,14 @@ real content.
      "mod_id": "my_mod",
      "name": "My Mod",
      "version": "0.1.0",
-     "compatible_game_versions": ["1.33"],
-     "classes": "classes.json",
-     "cells": "cells.json"
+     "compatible_game_versions": ["1.40"]
    }
    ```
-   `mod_id` **must match the folder name**. If you have no classes or cells
-   yet, omit those two keys entirely (don't point to files that don't exist).
+   Use the folder name as `mod_id`. GNX makes the IDs of your classes and
+   cells from the folder name, so don't rename the folder once people play
+   with your mod. Each data file gets its own key later (`"cells":
+   "cells.json"` in §2, `"classes": "classes.json"` in §4); never name a file
+   that does not exist.
 
 2. Launch the game. Open `gnx_debug.txt`  - written to
    `%LOCALAPPDATA%\goblin_nest\gnx_debug.txt` (GameMaker's default sandbox
@@ -110,9 +121,12 @@ real content.
    ```
    followed by `[GNX-TEST] N/N passed`.
 
-If you see `[GNX] mods/ folder not found, no mods loaded`, the `GNX_mods/`
-directory is missing. If you see `[GNX] manifest not found: <path>`, your
-folder name doesn't match `mod_id`, or the `manifest.json` is missing.
+If something is wrong with a mod, a **Mod loading problem(s)** window lists it
+when the game starts, and the same text is in `gnx_debug.txt` as
+`[GNX] ERROR: ...` lines. For example `[GNX] ERROR: Mod 'my_mod': manifest.json
+not found` means the file is missing or named `manifest.json.txt`. If you see
+`[GNX] mods/ folder not found, no mods loaded`, the `GNX_mods/` folder itself
+is missing.
 
 **Stop here and confirm this works before moving on.** This step has zero
 gameplay effect, but if the mod isn't loading cleanly now, nothing else will
@@ -143,8 +157,8 @@ Add `my_mod/cells.json`:
   }
 ]
 ```
-This is the second entry in `example_mod/cells.json`. `h_type: 1` is a
-**vanilla** cell ID (0–42), so GNX treats this as a *patch*: only
+Then add `"cells": "cells.json"` to your `manifest.json`. `h_type: 1` is a
+**vanilla** cell ID (0–42; 1 is WALL 1), so GNX treats this as a *patch*: only
 `physical.layers` is replaced, everything else about the cell (price, income,
 h-scene logic) stays vanilla. See [GNX_MODDING.md §12](GNX_MODDING.md#12-patching-vanilla-cells-and-classes).
 
@@ -152,23 +166,27 @@ Relaunch and check `gnx_debug.txt`:
 ```
 [GNX] patched h=1 by mod=my_mod
 ```
-In-game, the WALL2 cell should now render with WALL1's background sprites.
-This confirms: cells.json is being read, and patching an existing `h_type`
-works.
+In-game, WALL 1 now has WALL 2's back wall (`spr_slot_wall_2_back` in place
+of `spr_slot_wall_1_back`); the other layers are WALL 1's own. This confirms:
+cells.json is being read, and patching an existing `h_type` works. The
+example mod has another vanilla patch: the DAIRY entry (`h_type` 36) in
+`GNX/example_mod/cells.json`.
 
 **Note on IDs:** vanilla `h_type` is 0–42, vanilla `class_id` is 0–13. For
-new cells and classes, **omit the numeric ID**  - GNX auto-assigns a stable
-hash-based value (`h_type` ≥100, `class_id` ≥14) derived from your mod folder
-name and entry name. Same ID every run, no coordination needed between mods.
-You can still supply an explicit ID (≥43 / ≥14) if you prefer, but omitting is
-the recommended approach.
+new cells and classes, **leave the numeric ID out**: GNX gives them a stable
+number made from your mod folder name and the entry's name (`h_type` 100 to
+9999, `class_id` 14 to 9999). It is the same every run, and mods don't need to
+agree on numbers. Other mods and your own files refer to them by name
+(`"my_mod.MY CELL"`). An `h_type` of a vanilla cell (or of another mod's cell)
+makes the entry a patch, as here; a `class_id` is read only with
+`"override": true` (§4).
 
 ---
 
 ## 3. Sprite pipeline basics
 
 Everything past this point needs sprites. The packer (`gnx_pack_strips.py`,
-documented in `gnx_pack_strips_doc.md`) turns a folder of numbered per-frame
+documented in [GNX_MODDING.md §5.8](GNX_MODDING.md#58-packing-tool-and-atlas)) turns a folder of numbered per-frame
 PNGs into a single strip image + metadata block.
 
 **Don't have custom art yet?** Use `export_class_sprites.py` (see
@@ -224,8 +242,8 @@ Two fields matter beyond `xorig`/`yorig`:
 
 ## 4. Custom class  - your own character
 
-Goal: a new selectable class (`class_id >= 14`) that goblins can interact
-with in cells.
+Goal: a new selectable class (ID 14 or higher, given by GNX) that goblins can
+interact with in cells. Add `"classes": "classes.json"` to your manifest.
 
 **Choosing a tool  - pick one:**
 
@@ -238,21 +256,19 @@ with in cells.
 - **No sprites yet / using custom art** → run `generate_class.py` instead
   (see [§9 → generate_class.py](#generate_classpy--interactive-classesjson-generator)).
   It walks you through the class fields interactively and writes a stub without
-  needing a `sprites/` folder at all. Use `example_mod/classes.json` as a
+  needing a `sprites/` folder at all. Use `GNX/example_mod/classes.json` as a
   reference for field semantics.
 
 **Steps:**
 
-1. **Choose a `sprite_prefix`** (e.g. `spr_h_mychar`). You can omit
-   `class_id` entirely  - GNX will hash-assign a stable ID. Only supply one if
-   you have a specific reason (e.g. cross-mod references by integer).
+1. **Choose a `sprite_prefix`** (e.g. `spr_h_mychar`). Leave `class_id` out:
+   GNX gives the class its number (see the note at the end of §2).
 2. **Decide `override`**:
-   - `false` = brand new class, fully separate from vanilla.
-   - `true` + a vanilla `class_id` (0–13) = reskin an existing class. Logged
-     as `[GNX] class_id <N> override`. Without `override: true`, registering
-     an already-used `class_id` is logged as
-     `[GNX] class_id <N> collision  - skipped` and your class is dropped
-     entirely.
+   - `false` (or left out) = brand new class, fully separate from vanilla. A
+     `class_id` you write is then ignored.
+   - `true` + the `class_id` of an existing class (vanilla 0–13, or another
+     mod's) = change that class: your keys are merged into it. Logged as
+     `[GNX] class_id <N> override (merge)`.
 3. **Declare every sprite your cells will need** in the `sprites` dict. The
    minimum set depends on which cell types your class will be placed in  -
    see [GNX_MODDING.md §7.1](GNX_MODDING.md#71-which-map-is-used-in-which-cell):
@@ -270,9 +286,10 @@ with in cells.
    `bap_mul`, `preg_c_override`, `preg_mon_type_override`, `raid_spawns`,
    `trade_stage`, `birth_class`.
 
-Pack sprites (step 3), then relaunch. Success looks like:
+Pack sprites (see §3), then relaunch. Success looks like this (your number
+will differ: it is somewhere from 14 to 9999):
 ```
-[GNX] class 14 registered: WITCH
+[GNX] class 4817 registered: WITCH
 ```
 Each sprite line should show `strip frames=N idx=ref sprite <N>` with frame
 counts matching what the cell-type table expects (e.g. 90 = 3 skins × 30
@@ -288,8 +305,8 @@ any vanilla cell its `mon_types`/`required_class` allow.
 
 ## 5. Custom cell  - your own room
 
-Goal: a new cell type (`h_type >= 43`) with its own background, hand-cursor
-animation, and h-scene sprites.
+Goal: a new cell type (ID 100 or higher, given by GNX) with its own
+background, hand-cursor animation, and h-scene sprites.
 
 **Choosing a tool  - pick one:**
 
@@ -316,18 +333,19 @@ This generates `cell_my_cell_scaffold.json`. The stub omits `h_type` so GNX
 hash-assigns a stable ID. Merge it into your `cells.json` array, create the
 sprite folders it lists, add your art, then pack (§3).
 
-**Key fields** (full reference: first entry in `example_mod/cells.json`, "RITUAL"):
+**Key fields** (full reference: the "RITUAL" entry in `GNX/example_mod/cells.json`):
 
 - `physical.layers`: background/foreground sprite layers  - see
   [GNX_MODDING.md §9](GNX_MODDING.md#9-the-physical-block-how-a-cell-behaves).
 - `physical.scr_idle` / `physical.scr_h`: state-machine script names.
   **These must already exist in the game's code**  - GNX cells reuse existing
   scripts (e.g. `scr_slot_h_base_*`), they don't let you inject new GML. If
-  you typo one, you'll see `[GNX] WARNING: script not found: <name>` and that
-  phase falls back silently.
-- `required_class`: restrict the cell to your custom class(es)  - e.g. `[14]`
-  to make it Witch-only. Accepts integer IDs or `"mod_id.ClassName"` string
-  refs, from any mod. A custom class listed here also treats the cell as its
+  you misspell one, the game shows a mod error when it starts
+  (`script '<name>' does not exist in this game or GNX version`) and the cell
+  skips that step of its scene.
+- `required_class`: restrict the cell to your custom class(es), e.g.
+  `["my_mod.WITCH"]` to make it Witch-only. Accepts class references by name
+  (`"<folder>.NAME"`, from any mod) or vanilla class numbers. A custom class listed here also treats the cell as its
   own: TRANSFER, birth and milking send it there first.
 - `mon_spr`: per-phase goblin sprite assignment (`start`/`loop`, each with
   `body`, `hand`, `pen`, `touch`, optional `head`/`enter`). Every `_alpha`
@@ -387,17 +405,21 @@ big changes.
 
 **Common log messages and what they mean:**
 
+Lines starting `[GNX] ERROR:` are also shown in the **Mod loading problem(s)**
+window at startup.
+
 | Message | Meaning | Fix |
 |---|---|---|
-| `mods/ folder not found, no mods loaded` | `GNX_mods/` directory missing | Create `<game_dir>/GNX_mods/` |
-| `manifest not found: <path>` | Folder name ≠ `mod_id`, or no `manifest.json` | Check folder/`mod_id` match |
-| `version mismatch: mod=<id> game=<ver>` | `compatible_game_versions` doesn't include the running game version | Add the version string to the array |
-| `cells file not found: <path>` | `manifest.json` points to a missing `cells.json` | Fix path or remove the `"cells"` key |
-| `WARNING: script not found: <name>` | `scr_idle`/`scr_h`/etc. references a nonexistent script | Use an existing vanilla script name |
-| `WARN <key>: no strip/path/frames, returning fallback` | Sprite not packed yet, or `strip` key wrong | Run `gnx_pack_strips.py` |
-| `class_id <N> collision  - skipped` | `class_id` already used, no `override` | Pick a free `class_id`, or set `override: true` |
-| `class_id <N> override` | Reskinning an existing `class_id` | Expected if intentional |
-| `patched h=<N> by mod=<id>` | `h_type` already registered (vanilla or earlier mod)  - only your fields applied | Expected for vanilla patches; omit `h_type` for new cells |
+| `[GNX] mods/ folder not found, no mods loaded` | `GNX_mods/` folder missing | Create `<game_dir>/GNX_mods/` |
+| `[GNX] ERROR: Mod '<folder>': manifest.json not found` | No `manifest.json` in that folder (or it is `manifest.json.txt`) | Rename or create the file |
+| `[GNX] ERROR: Mod '<folder>': incompatible with game version <v> (compatible: [...])` | `compatible_game_versions` doesn't include the running game version | Add `"1.40"` to the list |
+| `[GNX] ERROR: Mod '<folder>': cells file 'cells.json' not found` (also `classes file`) | `manifest.json` names a file that is not there | Fix the name, or remove the key |
+| `[GNX] ERROR: Mod '<folder>': script '<name>' does not exist in this game or GNX version ...` | `scr_idle`/`scr_h`/etc. names a script the game does not have | Use an existing vanilla script name; the cell skips that step until then |
+| `[GNX] WARN <key>: no strip/path/frames/folder, returning fallback` | Sprite not packed yet, or `strip` key wrong | Run `gnx_pack_strips.py` |
+| `[GNX] class_id <N> override (merge)` | Your `override: true` entry changed an existing class | Expected if intentional |
+| `[GNX] patched h=<N> by mod=<id>` | `h_type` already registered (vanilla or earlier mod), only your fields applied | Expected for vanilla patches; leave `h_type` out for new cells |
+
+The full list is in [GNX_MODDING.md, Appendix B](GNX_MODDING.md#appendix-b-troubleshooting).
 
 **In-game checks**, once `gnx_debug.txt` looks clean:
 - `[GNX] REG-STANDARD class=N phase=N head/breast/leg/head_c/leg_c=...` fires
@@ -411,7 +433,7 @@ big changes.
 
 **Turn these on first.** The two logs above (and the `[DRINK]`/`[PROP]` traces)
 are gated behind verbose logging, which is **off by default**. Enable it in-game
-at **Settings → DEBUG → GNX DEBUG → VERBOSE LOG**, then trigger the action you're
+at **Settings → DEBUG → GNX DEBUG → VERBOSE**, then trigger the action you're
 debugging (place a captive, etc.)  - they only fire on placement/state-change,
 not while units merely animate. The DEBUG entry itself always writes a
 `[GNX-TOOL] set_var gnx_debug_verbose = 1` line when you toggle it, which is a
@@ -544,7 +566,7 @@ captives and unlocked cells:
 
 Check the manifest before playing:
 ```
-python tools/build_mod.py my_map <game_dir> --skip-pack
+python <tools>/build_mod.py "<game_dir>/GNX_mods/my_map" "<game_dir>" --skip-pack
 --- Map mod checks ---
 OK - map 'my_map'
 ```
@@ -617,11 +639,7 @@ Full reference: [GNX_MODDING.md §27](GNX_MODDING.md#27-raid-stages-raidsjson).
 All scripts are in `<tools>/` (see [§0](#0-prerequisites) for how to find that
 path). Run them with Python 3. All require Pillow (`pip install Pillow`).
 
-**On Windows:** open PowerShell in a folder (Shift + right-click on an empty spot of the folder, "Open PowerShell
-window here") and type the command there; double-clicking a script does nothing useful. The commands below are
-split over several lines with `\` at the line ends: in PowerShell or cmd, write the whole command on **one line**
-without the `\`. Replace each `<...>` with the real path, without the `<` `>`, and keep the quotes around any path
-that has spaces in it (`"C:\Games\Goblin Nest\GNX_mods\my_mod\sprites"`).
+**On Windows:** see [Running the commands on Windows](#0-prerequisites) in §0: one line, no `\`.
 
 ---
 
@@ -785,8 +803,11 @@ once your mod is working and you want a clean deployment to the game folder.
 python <tools>/build_mod.py <mod_dir> <game_dir> [--dry-run] [--force] [--skip-pack]
 ```
 
-`<mod_dir>` is your source folder (outside the game install, contains
-`manifest.json`, `sprites/`, etc.). `<game_dir>` is the game's install folder.
+`<mod_dir>` is your mod's folder (it contains `manifest.json`, `sprites/`,
+etc.). `<game_dir>` is the game's install folder. If `<mod_dir>` is outside the
+game, build_mod.py copies the mod to `<game_dir>/GNX_mods/<mod_id>/`. If it
+already is that folder (the way this tutorial works), build_mod.py only checks
+and packs it and copies nothing.
 
 Steps it runs:
 
@@ -796,7 +817,8 @@ Steps it runs:
    key  - warns on leftovers that would ship as fallback sprites.
 3. Clean-rebuild `<game_dir>/GNX_mods/<mod_id>/` from `manifest.json`,
    the declared JSON files, and `strips/`. Source `sprites/` frames are not
-   copied  - only packed strips go to the game.
+   copied  - only packed strips go to the game. Skipped when `<mod_dir>` already
+   is that folder.
 
 Use `--dry-run` to preview what would be written without touching anything.
 After deploying, relaunch the game and check `gnx_debug.txt` as in §6.

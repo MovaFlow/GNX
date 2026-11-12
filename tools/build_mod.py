@@ -262,13 +262,14 @@ def main():
     elif mod_id != mod_dir.name:
         print(f"WARN: mod_id '{mod_id}' != folder name '{mod_dir.name}' (mod_id is used as the folder name in mods/)")
 
-    # the deploy clean-rebuilds GNX_mods/<mod_id>: a source that is that folder (or inside it) would be deleted
+    # the deploy clean-rebuilds GNX_mods/<mod_id>: a source that is that folder is only checked and packed (copying it
+    # onto itself deleted it); a source inside it would be deleted, so it is refused
     dest_dir = os.path.normcase(str((game_dir / "GNX_mods" / mod_id).resolve()))
     src_dir = os.path.normcase(str(mod_dir))
-    if src_dir == dest_dir or src_dir.startswith(dest_dir + os.sep):
-        sys.exit(f"Your mod folder {mod_dir} is the folder build_mod.py deploys to, and the deploy would delete it.\n"
-                 "Keep your mod's source outside <game>/GNX_mods/ (for example in a 'my_mods' folder) and run "
-                 "build_mod.py on that copy. Nothing was changed.")
+    in_place = src_dir == dest_dir
+    if src_dir.startswith(dest_dir + os.sep):
+        sys.exit(f"Your mod folder {mod_dir} is inside GNX_mods/{mod_id}, which the deploy deletes and rebuilds. "
+                 "Move your mod's source out of it and run build_mod.py again. Nothing was changed.")
 
     print(f"Mod: {manifest.get('name', mod_id)} v{manifest.get('version', '?')} (mod_id={mod_id})")
     print(f"Source: {mod_dir}")
@@ -330,6 +331,12 @@ def main():
         sys.exit("Blocking problems above: fix them, or deploy with --deploy-anyway.")
     print()
 
+    if in_place:
+        print(f"--- {mod_dir} already is GNX_mods/{mod_id}: checked{'' if args.skip_pack else ' and packed'}, nothing to copy ---")
+        print()
+        print("Done. The game loads the mod from this folder.")
+        return
+
     # 3. Deploy
     dest = game_dir / "GNX_mods" / mod_id
     print(f"--- Deploying to {dest} (GNX_mods/) ---")
@@ -384,7 +391,7 @@ def main():
     compat = manifest.get("compatible_game_versions", [])
     print(f"compatible_game_versions: {compat}")
     print("  -> must include the current game version (global.val.version), otherwise")
-    print("     scr_gnx_load_mod silently skips the mod (see compatible_game_versions in docs/GNX_MODDING.md).")
+    print("     GNX refuses the mod with a mod error at start (see compatible_game_versions in docs/GNX_MODDING.md).")
 
     print(f"\nDone.{' (dry run)' if args.dry_run else f' Mod deployed: {dest}'}")
 
