@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.3 (unreleased)
+
+**Game version:** 1.40
+
+### Bug Fixes
+
+- Atlas packing: `gnx_atlas_pack` stored every frame on the page, also the empty frames and the repeats of a layer drawn the same way over many frames. Identical frames are now stored once and share their place, which works with any GNX version. A large character mod went from 15 pages (about 960 MB of video memory) to 5 (about 320 MB) with the same pictures; mods packed again need less video memory, which a graphics card running out of it shows as `CreateTexture2D` failing with `0x8007000e`.
+- `monster_art`: `"hand_xscale": "random"` in a `loop` block could flip the hand when the ejaculation started, because the ejaculation also plays the loop's parts and picked again. Each monster now keeps one side for its whole scene, as a random list does.
+- `monster_art` in a cell: an anal block with no body for an intermission or for `ej_end` (only an `ej` pen, say) passed the frame check, but in the anal scene the cell then plays its other monster art at that phase's frame count, so it showed wrong frames. It is now a mod error, as it already was for the normal scene.
+- `monster_art` on cells 21 and 22: an ogre body with a line on several legs or classes gave the same mod error once per leg or class. It is now given once per phase.
+- `monster_art` in a cell was judged against the monsters the cell took when that mod loaded, so art for ogres on a cell that a later mod opens to them (`mon_types`, `mon_placements`) was refused. Cell art is now judged once every mod's cells are in.
+
 ## v1.5.2
 
 **Game version:** 1.40
@@ -18,7 +30,6 @@
 - Raid units on the first three stages came at higher levels than in the base game, which made early raids harder and captives worth more: GNX picked each level evenly where the game favours the lower one. They now have the game's odds. A mod's `raid_spawns` entries still pick any level from `min_lvl` to `max_lvl` evenly.
 - A stage's name on the raid map, shown while it is pointed at or selected, could be covered by the other stage buttons; that button is now drawn in front.
 - Atlas packing: when a mod's JSON and a strip's file name differed in capitals, `gnx_atlas_pack` ignored the declared `frames` and guessed, so birth, DAIRY and idle sprites could play wrong frames (a 30-frame strip of 45 x 90 cut into 15 frames of 90 x 90). The packer now ignores capitals and warns about every guess. GNX compares an atlas with the JSON: it uses the strip if the mod still ships it, otherwise a mod error asks the author to pack again.
-- Atlas packing: `gnx_atlas_pack` stored every frame on the page, also the empty frames and the repeats of a layer drawn the same way over many frames. Identical frames are now stored once and share their place, which works with any GNX version. A large character mod went from 15 pages (about 960 MB of video memory) to 5 (about 320 MB) with the same pictures; mods packed again need less video memory, which a graphics card running out of it shows as `CreateTexture2D` failing with `0x8007000e`.
 - Too many mods turned cells and characters invisible with no error: the game can show about 32,700 sprite frames from mods, and past that sprites load but draw nothing. Every frame of a strip counts, an atlas page counts as one. GNX now reports going over as a mod error naming the mods with the most frames, and the MODS page shows how full it is, as a percentage with the count.
 - The sprite and memory counts in the log and the perf HUD read 0 after a save was loaded or a map changed.
 - A mod installed by dragging its zip onto the installer got a folder named after its `mod_id`, not the zip's own folder as with a manual extract. Class and cell references written with the folder name (`"MyMod.GIRL"` in a folder `mymod`) then matched nothing, so quests never finished, with no error. The installer now uses the zip's folder and replaces an installed copy of the same mod; references also accept the mod's `mod_id` or `name`, so mods already installed that way work as they are (quests, cells and tool actions).
@@ -33,10 +44,6 @@
 - `build_mod.py` did not copy the art that `sprite_replace` names, so a deployed mod lost it. It now copies the files that the manifest's `sprite_replace` and `monster_art` name, from any folder.
 - A `sprite_replace` after another mod's replacement of the same sprite compared size, origin and frame count with the earlier mod's art; it now compares with the game's own sprite.
 - A carrying ogre with its own walk art (an old `patrol` override, or a `mon_sprite_swap` of the carry walk) got that art's collision box and frame count after a save was loaded. After loading it now keeps the game's, the same as when the ogre starts carrying in play.
-- `monster_art`: `"hand_xscale": "random"` in a `loop` block could flip the hand when the ejaculation started, because the ejaculation also plays the loop's parts and picked again. Each monster now keeps one side for its whole scene, as a random list does.
-- `monster_art` in a cell: an anal block with no body for an intermission or for `ej_end` (only an `ej` pen, say) passed the frame check, but in the anal scene the cell then plays its other monster art at that phase's frame count, so it showed wrong frames. It is now a mod error, as it already was for the normal scene.
-- `monster_art` on cells 21 and 22: an ogre body with a line on several legs or classes gave the same mod error once per leg or class. It is now given once per phase.
-- `monster_art` in a cell was judged against the monsters the cell took when that mod loaded, so art for ogres on a cell that a later mod opens to them (`mon_types`, `mon_placements`) was refused. Cell art is now judged once every mod's cells are in.
 
 ### Contributed by Mav
 
