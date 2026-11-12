@@ -32380,7 +32380,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml
 +++ gml/gml_GlobalScript_s_gnx_raid.gml
-@@ -0,0 +1,1860 @@
+@@ -0,0 +1,1873 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -33660,7 +33660,20 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +    // below pos (spr_stage_lvl / _num at y+16, spr_stage_lvl_bar at y+18, 4 px high, origin y 1)
 +    gnx_stage_check_bounds(arg0, arg1);
 +
-+    var _others = [[240, 92, "the Village"], [188, 108, "the Mountain"], [266, 50, "the Forest"], [272, 103, "the Castle"], [294, 80, "the Tower"]];
++    var _vanilla = [[240, 92, "the Village"], [188, 108, "the Mountain"], [266, 50, "the Forest"], [272, 103, "the Castle"], [294, 80, "the Tower"]];
++    var _others = [];
++
++    // GNX-FIX: the vanilla stages where this map has them: a map mod's vanilla_stages can hide or move them (1.5.2
++    // compared against the vanilla places only, so a stage on a map whose Village had moved was "covering" it)
++    for (var _i = 0; _i < 5; _i++)
++    {
++        var _ov = gnx_vstage_ov(_i);
++
++        if (_ov == undefined)
++            array_push(_others, _vanilla[_i]);
++        else if (!_ov.hidden)
++            array_push(_others, _ov.moved ? [_ov.x, _ov.y, _vanilla[_i][2]] : _vanilla[_i]);
++    }
 +
 +    for (var _i = 0; _i < array_length(global.gnx_stage_registry); _i++)
 +        array_push(_others, [global.gnx_stage_registry[_i].x, global.gnx_stage_registry[_i].y, "stage '" + global.gnx_stage_registry[_i].key + "'"]);

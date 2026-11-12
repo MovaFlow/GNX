@@ -1,0 +1,19 @@
+{
+  "about": "Discord #29: the overlap warning for mod stages uses the vanilla stages where the map has them. On harness_vs the Mountain is hidden and the Forest moved (map_info.vanilla_stages): a stage on their vanilla places does not warn, one next to the Forest's new place does. 1.5.2 compared against the vanilla places only.",
+  "mods": [
+    "tools/scenarios/mods/harness_map_vstages",
+    "tools/scenarios/mods/harness_vs_stages"
+  ],
+  "expect_dialog": "raid map",
+  "check_boot_suite": false,
+  "steps": [
+    { "wait": 10 },
+    { "travel": "harness_vs" },
+    { "wait": 40 },
+    { "assert": "active_map", "is": "harness_vs" },
+    { "assert": "fn", "name": "gnx_scn_mod_error_count", "args": ["stage 'NEAR_NEWFOREST': its button"], "is": 1, "why": "next to the Forest's new place (230,60)" },
+    { "assert": "fn", "name": "gnx_scn_mod_error_count", "args": ["covers the Forest"], "is": 1, "why": "only that one: ON_OLDFOREST sits where the Forest no longer is" },
+    { "assert": "fn", "name": "gnx_scn_mod_error_count", "args": ["covers the Mountain"], "is": 0, "why": "the Mountain is hidden here" },
+    { "assert": "fn", "name": "gnx_stage_index", "args": ["harness_vs_stages.ON_MOUNTAIN"], "is": 5, "why": "the stages load on this map" }
+  ]
+}

@@ -6,6 +6,7 @@
 
 ### Bug Fixes
 
+- Raid map: the warning that a mod stage's button covers a vanilla stage's went by the vanilla places only, so on a map that hides or moves a vanilla stage (`map_info.vanilla_stages`) a stage on the old place got the warning, and one next to the new place did not. It now uses the vanilla stages where that map has them.
 - Atlas packing: `gnx_atlas_pack` stored every frame on the page, also the empty frames and the repeats of a layer drawn the same way over many frames. Identical frames are now stored once and share their place, which works with any GNX version. A large character mod went from 15 pages (about 960 MB of video memory) to 5 (about 320 MB) with the same pictures; mods packed again need less video memory, which a graphics card running out of it shows as `CreateTexture2D` failing with `0x8007000e`.
 - `monster_art`: `"hand_xscale": "random"` in a `loop` block could flip the hand when the ejaculation started, because the ejaculation also plays the loop's parts and picked again. Each monster now keeps one side for its whole scene, as a random list does.
 - `monster_art` in a cell: an anal block with no body for an intermission or for `ej_end` (only an `ej` pen, say) passed the frame check, but in the anal scene the cell then plays its other monster art at that phase's frame count, so it showed wrong frames. It is now a mod error, as it already was for the normal scene.
