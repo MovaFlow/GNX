@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2947 @@
+@@ -0,0 +1,2949 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2276,12 +2276,14 @@
 +    for (var _i = 0; _i < array_length(arg0); _i++)
 +        scr_gnx_load_mod(arg0[_i]);
 +    global.gnx_staged_load = false;
-+    // phase 2: cells of every mod
++    // phase 2: cells of every mod. GNX-ART: cell art for a monster a cell does not take yet waits for the other mods (gnx_art_defer)
++    global.gnx_art_pending = {};
 +    for (var _j = 0; _j < array_length(arg0); _j++)
 +    {
 +        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_j]))
 +            scr_gnx_load_mod_stage(arg0[_j], variable_struct_get(global.gnx_staged_manifests, arg0[_j]), 2);
 +    }
++    gnx_art_pending_run();
 +    // GNX-EXT: every cell of these mods exists now: classes other mods add to them ("extend") go in, whatever the
 +    // order of the mods (a second pass over the cells)
 +    gnx_cell_ext_apply_all();

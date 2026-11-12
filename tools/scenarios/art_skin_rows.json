@@ -1,8 +1,9 @@
 {
-  "about": "Swapped monster overlay art over a captive with no skin tone (skin -1): the game's generic touch overlays hold 3 rows per cell, so gnx_mon_frame must skip to her cell's row x 3 for the swapped art too, as touch_skin_rows checks for game sprites (fixture WALL 3: row 6, 5 frames per row: frame 32 -> 92). A mod strip put in place of a listed overlay is flagged (gnx_skin3_marks); a vanilla overlay swapped in is listed already; art with no flag stays as it is; atlas art (a struct) carries its own flag.",
+  "about": "Swapped monster overlay art over a captive with no skin tone (skin -1): the game's generic touch overlays hold 3 rows per cell, so gnx_mon_frame must skip to her cell's row x 3 for the swapped art too, as touch_skin_rows checks for game sprites (fixture WALL 3: row 6, 5 frames per row: frame 32 -> 92). A mod strip put in place of a listed overlay is flagged (gnx_skin3_marks); a vanilla overlay swapped in is listed already; art with no flag stays as it is; atlas art (a struct) carries its own flag. An atlas entry swapped in for a listed overlay by a real class compile gets the flag too (harness_art_skin_atlas).",
   "fixture": "mid",
   "mods": [
-    "tools/scenarios/mods/harness_art_class"
+    "tools/scenarios/mods/harness_art_class",
+    "tools/scenarios/mods/harness_art_skin_atlas"
   ],
   "check_boot_suite": false,
   "expect_dialog": "monster_art",
@@ -81,6 +82,34 @@
       ],
       "is": 32,
       "why": "art with no flag (a class overlay nothing swaps): unchanged"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mon_frame_swapped",
+      "args": [
+        {
+          "class": "harness_art_skin_atlas.SKIN3 ATLAS"
+        },
+        "spr_h_goblin_touch_loop_v2",
+        32,
+        -1
+      ],
+      "is": 92,
+      "why": "an atlas entry the compile put in place of a listed overlay, skin -1: flagged, row 6 x 3"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mon_frame_swapped",
+      "args": [
+        {
+          "class": "harness_art_skin_atlas.SKIN3 ATLAS"
+        },
+        "spr_h_goblin_touch_loop_v2",
+        97,
+        1
+      ],
+      "is": 97,
+      "why": "the same atlas art, a captive with a skin tone: unchanged"
     },
     {
       "assert": "fn",

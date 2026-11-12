@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3463 @@
+@@ -0,0 +1,3469 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1596,16 +1596,17 @@
 +            {
 +                var _ch = gnx_art_json_chain(arg0, _art_i[s], n, an == 1, arg3);
 +                
++                // an anal scene with no anal block plays the normal art (checked above); with one but no body, no art
 +                if (gnx_art_chain_has_body(_ch))
 +                    _bad += gnx_art_check_chain(_ch, arg4, true, arg1, arg2, arg3, _seen);
-+                else if (an == 0)
++                else if (an == 0 || gnx_art_json_has_anal(arg0, _art_i[s], n))
 +                    _no_body = true;
 +            }
 +        }
 +        
 +        if (_no_body && arg4 != arg5)
 +        {
-+            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + arg3 + " has " + string(arg4) + " frames but monster_art." + gnx_art_monster_name(_art_i[s]) + " has no body for it at every place (in " + arg3 + " or the ej and loop blocks it falls back on), so the others use their " + arg6 + " art (" + string(arg5) + " frames); give the monster block or every placement one, or give both the same count");
++            gnx_report_mod_error("Cell '" + string(arg1) + "': intermission " + arg3 + " has " + string(arg4) + " frames but monster_art." + gnx_art_monster_name(_art_i[s]) + " has no body for it at every place (in " + arg3 + " or the ej and loop blocks it falls back on, in the normal scene or, with an anal block, the anal one), so the others use their " + arg6 + " art (" + string(arg5) + " frames); give the monster block or every placement one, or give both the same count");
 +            _bad++;
 +        }
 +    }
@@ -1652,19 +1653,24 @@
 +            // anal scene reads the anal blocks. Each part comes from the first block that has it. A chain without a body draws no art.
 +            // Art for the normal scene replaces the old set
 +            var _art_normal = false;
-+            
++            // an anal scene with an anal block but no body there plays the set below too
++            var _anal_old = false;
++
 +            for (var an = 0; an < 2; an++)
 +            {
 +                var _ach = gnx_art_json_chain(arg0, _s, n, an == 1, "ej_end");
-+                
++
 +                if (!gnx_art_chain_has_body(_ach))
++                {
++                    _anal_old = _anal_old || (an == 1 && gnx_art_json_has_anal(arg0, _s, n));
 +                    continue;
-+                
++                }
++
 +                _art_normal = _art_normal || an == 0;
 +                _bad += gnx_art_check_chain(_ach, _ef, false, arg1, arg2, "ej_end", _eseen);
 +            }
-+            
-+            if (_art_normal || arg5)
++
++            if ((_art_normal && !_anal_old) || arg5)
 +                continue;
 +            
 +            var _key = (_s == 1) ? "mon_spr_hob" : ((_s == 3) ? "mon_spr_ogr" : "mon_spr");

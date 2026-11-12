@@ -8,13 +8,13 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 
 | File | What it holds | Functions | Lines |
 |---|---|---|---|
-| `s_gnx_art.gml` | monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper | 60 | 2206 |
-| `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 90 | 3464 |
+| `s_gnx_art.gml` | monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper | 63 | 2280 |
+| `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 90 | 3470 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 87 | 4812 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 48 | 1619 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 316 | 7351 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 319 | 7469 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 316 |
-| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 57 | 2948 |
+| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 57 | 2950 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 27 | 826 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2343 |
 | `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 39 | 1799 |
@@ -47,6 +47,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_art_class_key` | `s_gnx_art.gml` |
 | `gnx_art_combos` | `s_gnx_harness.gml` |
 | `gnx_art_compile_swaps` | `s_gnx_art.gml` |
+| `gnx_art_defer` | `s_gnx_art.gml` |
 | `gnx_art_family_known` | `s_gnx_art.gml` |
 | `gnx_art_for` | `s_gnx_art.gml` |
 | `gnx_art_frames_of` | `s_gnx_art.gml` |
@@ -61,6 +62,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_art_json_chain` | `s_gnx_art.gml` |
 | `gnx_art_json_covers` | `s_gnx_art.gml` |
 | `gnx_art_json_eff` | `s_gnx_art.gml` |
+| `gnx_art_json_has_anal` | `s_gnx_art.gml` |
 | `gnx_art_json_has_any` | `s_gnx_art.gml` |
 | `gnx_art_limit` | `s_gnx_art.gml` |
 | `gnx_art_limits_hit` | `s_gnx_art.gml` |
@@ -81,6 +83,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_art_part` | `s_gnx_art.gml` |
 | `gnx_art_part_in` | `s_gnx_art.gml` |
 | `gnx_art_part_of` | `s_gnx_art.gml` |
+| `gnx_art_pending_run` | `s_gnx_art.gml` |
 | `gnx_art_phase` | `s_gnx_art.gml` |
 | `gnx_art_phase_names` | `s_gnx_art.gml` |
 | `gnx_art_phases` | `s_gnx_art.gml` |
@@ -461,7 +464,9 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_save_slot_at` | `s_gnx_nest.gml` |
 | `gnx_scene_time` | `s_gnx_cells.gml` |
 | `gnx_scn_art_blocks` | `s_gnx_harness.gml` |
+| `gnx_scn_art_cell_roll` | `s_gnx_harness.gml` |
 | `gnx_scn_art_frames_legacy` | `s_gnx_harness.gml` |
+| `gnx_scn_art_hand_kept` | `s_gnx_harness.gml` |
 | `gnx_scn_art_has` | `s_gnx_harness.gml` |
 | `gnx_scn_art_is_mod` | `s_gnx_harness.gml` |
 | `gnx_scn_art_limit_leaks` | `s_gnx_harness.gml` |
@@ -532,6 +537,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_button_num_nth` | `s_gnx_harness.gml` |
 | `gnx_scn_button_picture` | `s_gnx_harness.gml` |
 | `gnx_scn_button_texts` | `s_gnx_harness.gml` |
+| `gnx_scn_cage_to_cell` | `s_gnx_harness.gml` |
 | `gnx_scn_camera_on_occupied` | `s_gnx_harness.gml` |
 | `gnx_scn_can_sell` | `s_gnx_harness.gml` |
 | `gnx_scn_captive_table` | `s_gnx_harness.gml` |
