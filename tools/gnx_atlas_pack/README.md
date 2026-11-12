@@ -91,8 +91,8 @@ A strip with ambiguous detection (e.g. 1 frame instead of 15) is logged:
 
 These are typically single-frame sprites (hand, icon). Nothing to do.
 
-A strip with no `"frames"` prints a `[WARN]` with the count guessed. Names match without regard to capitals. If a real animated strip is misdetected, add an explicit `"frames": N` in
-your `classes.json` for that file.
+A strip with no `"frames"` prints a `[WARN]` with the count guessed. Names match without regard to capitals. If a real animated strip is misdetected, add an explicit `"frames": N` where your mod names that file
+(classes.json, cells.json, props.json, items.json or any other data file the manifest names, or `monster_art`).
 
 ## How GNX consumes the atlas
 

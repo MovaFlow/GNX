@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-gnx_pack_strips.py — GNX Mod Strip Packer
+gnx_pack_strips.py - GNX Mod Strip Packer
 Converts per-frame PNG arrays in mod JSON files into horizontal sprite strips.
 GMS2 loads a strip with one sprite_add call instead of one per frame.
 
@@ -67,7 +67,7 @@ def pack_sprite_strip(frames: list[str], mod_dir: Path, strips_dir: Path,
         img0.close()
         strip_path = strips_dir / f"{key}.png"
         rel = strip_path.relative_to(mod_dir).as_posix()
-        print(f"  [dry] {key}: {len(frames)} frames {w}x{h} → strips/{key}.png ({w * len(frames)}x{h})")
+        print(f"  [dry] {key}: {len(frames)} frames {w}x{h} -> strips/{key}.png ({w * len(frames)}x{h})")
         return rel, len(frames)
 
     # Load all frames
@@ -97,7 +97,7 @@ def pack_sprite_strip(frames: list[str], mod_dir: Path, strips_dir: Path,
                     img.close()
                     padded.append(canvas)
                 imgs = padded
-                print(f"  padded: {key} {w}x{h} → {cw}x{ch}")
+                print(f"  padded: {key} {w}x{h} -> {cw}x{ch}")
                 w, h = cw, ch
 
     # Build horizontal strip
@@ -153,14 +153,14 @@ def process_sprites_dict(sprites: dict, mod_dir: Path, strips_dir: Path,
                 discovered = sorted(sprite_dir.glob("*.png"), key=natural_sort_key)
                 if discovered:
                     frames = [str(p.relative_to(mod_dir).as_posix()) for p in discovered]
-                    print(f"  auto: {key} → {len(frames)} frames from sprites/{folder_name}/")
+                    print(f"  auto: {key} -> {len(frames)} frames from sprites/{folder_name}/")
                 else:
-                    print(f"  WARN [{key}]: sprites/{folder_name}/ exists but no PNGs found — skipping")
+                    print(f"  WARN [{key}]: sprites/{folder_name}/ exists but no PNGs found - skipping")
                     updated[key] = val
                     skipped += 1
                     continue
             else:
-                print(f"  WARN [{key}]: no folder found (tried sprites/{folder_name}/) — skipping")
+                print(f"  WARN [{key}]: no folder found (tried sprites/{folder_name}/) - skipping")
                 updated[key] = val
                 skipped += 1
                 continue
@@ -184,7 +184,7 @@ def process_sprites_dict(sprites: dict, mod_dir: Path, strips_dir: Path,
             updated[key] = new_val
             packed += 1
             if not dry_run:
-                print(f"  packed: {key} ({frame_count} frames → {strip_path})")
+                print(f"  packed: {key} ({frame_count} frames -> {strip_path})")
 
     return updated, packed, skipped
 

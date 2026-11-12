@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scaffold_cell.py — GNX cell scaffold generator.
+scaffold_cell.py - GNX cell scaffold generator.
 
 Generates a complete cells.json entry stub for a custom GNX cell.
 Unlike the class scaffold (which detects existing sprite folders), the cell
@@ -8,30 +8,30 @@ scaffold is a category-aware template: it defines the sprite folder naming
 convention and pre-wires all mon_spr / layer refs. Modder creates those
 folders, puts art in them, then runs gnx_pack_strips.py.
 
-── Full modding workflow ────────────────────────────────────────────────────────
+-- Full modding workflow --------------------------------------------------------
 
-  Step 1 — Generate the cell scaffold:
+  Step 1 - Generate the cell scaffold:
     python scaffold_cell.py --name "Vampire Cell" \\
         --category breed --cell-prefix vampire --mod-dir mods/my_mod
     # Omit --h-type: GNX assigns a stable hash-based ID from mod name + cell name.
 
-  Step 2 — Create the sprite folders listed in the output under mod/sprites/
+  Step 2 - Create the sprite folders listed in the output under mod/sprites/
             and place your art frames in them.
 
-  Step 3 — Fill in pixel positions (hand_x/y, sp_x/y, sq_x/y, hand_frames)
+  Step 3 - Fill in pixel positions (hand_x/y, sp_x/y, sq_x/y, hand_frames)
             and stats (price, mon_types, spawn_info) to match your art.
 
-  Step 4 — Merge the entry into cells.json.
+  Step 4 - Merge the entry into cells.json.
 
-  Step 5 — Pack strips:
+  Step 5 - Pack strips:
     python gnx_pack_strips.py mods/my_mod --force
 
-────────────────────────────────────────────────────────────────────────────────
+--------------------------------------------------------------------------------
 
-h_type: omit entirely to let GNX hash-assign a stable ID ≥ 100 from your mod
-folder name + cell name (recommended). Supply an explicit value ≥ 43 only if
+h_type: omit entirely to let GNX hash-assign a stable ID >= 100 from your mod
+folder name + cell name (recommended). Supply an explicit value >= 43 only if
 you have a specific reason (e.g. cross-mod references by integer).
-Vanilla uses 1–42, so mod cells never collide with vanilla regardless.
+Vanilla uses 1-42, so mod cells never collide with vanilla regardless.
 
 Output: <mod_dir>/cell_<cell_prefix>_scaffold.json
 """
@@ -41,7 +41,7 @@ import json
 from pathlib import Path
 
 
-# ─── Category templates ───────────────────────────────────────────────────────
+# --- Category templates -------------------------------------------------------
 
 # Phase scripts (scr_h) per category
 SCR_H = {
@@ -61,7 +61,7 @@ SCR_IDLE = {
     "breed": "scr_slot_h_state_idle",
 }
 
-# Layer stack per category — mirrors the vanilla WALL1/2 layout
+# Layer stack per category - mirrors the vanilla WALL1/2 layout
 # Format: [layer_id, sprite_or_gnx_ref, is_static, tint] or [..., 5th_flag]
 LAYERS = {
     "breed": [
@@ -84,15 +84,15 @@ GOB_SLOTS = {
         ("hand_start",     True),
         ("pen_start",      False),
         ("touch_start",    False),
-        # Loop phase — head (two directions)
+        # Loop phase - head (two directions)
         ("head_d1",        True),
         ("head_d2",        True),
-        # Loop phase — body / hand
+        # Loop phase - body / hand
         ("body_loop_v1",   True),
         ("body_loop_v2",   True),
         ("hand_loop_v1",   True),
         ("hand_loop_v2",   True),
-        # Loop phase — action sprites
+        # Loop phase - action sprites
         ("pen_loop",       False),
         ("touch_loop_v1",  False),
         ("enter_loop",     False),
@@ -105,7 +105,7 @@ BG_SLOTS = {
 }
 
 
-# ─── Builders ─────────────────────────────────────────────────────────────────
+# --- Builders -----------------------------------------------------------------
 
 def build_sprites(prefix: str, category: str) -> dict:
     """
@@ -183,7 +183,7 @@ def build_physical(category: str) -> dict:
         "scr_h":          SCR_H[category],
         "scr_draw":       "scr_draw_slot_gnx",
         "slot_range":     1,
-        # ── Pixel positions — set these to match your art ─────────────────────
+        # -- Pixel positions - set these to match your art ---------------------
         # hand_x/y: [leg_1_offset, leg_2_offset] in pixels from cell origin
         "hand_x":       [0, 0],
         "hand_y":       [0, 0],
@@ -207,7 +207,7 @@ def build_physical(category: str) -> dict:
     }
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+# --- Main ---------------------------------------------------------------------
 
 def main():
     ap = argparse.ArgumentParser(
@@ -229,8 +229,8 @@ Examples (omit --h-type for recommended hash-based ID assignment):
     ap.add_argument("--name",        required=True,
                     help="Display name shown in the game UI, e.g. 'Vampire Cell'")
     ap.add_argument("--h-type",      default=None, type=int, dest="h_type",
-                    help="Explicit h_type ID (≥ 43). Omit to let GNX hash-assign a stable "
-                         "ID ≥ 100 from your mod folder name + cell name (recommended).")
+                    help="Explicit h_type ID (>= 43). Omit to let GNX hash-assign a stable "
+                         "ID >= 100 from your mod folder name + cell name (recommended).")
     ap.add_argument("--category",    required=True, choices=list(SCR_H.keys()),
                     help="Cell category: " + ", ".join(SCR_H.keys()))
     ap.add_argument("--cell-prefix", required=True, dest="cell_prefix",
@@ -259,7 +259,7 @@ Examples (omit --h-type for recommended hash-based ID assignment):
     entry.update({
         "name":     args.name,
         "category": cat,
-        # ── Fill these in ─────────────────────────────────────────────────────
+        # -- Fill these in -----------------------------------------------------
         # mon_types: class_ids allowed in this cell (0 = vanilla goblin, 14+ = mod classes)
         "mon_types":  [0],
         "slot_type":  0,
@@ -294,10 +294,10 @@ Examples (omit --h-type for recommended hash-based ID assignment):
     for folder in all_folders:
         print(f"  {folder}/")
     print(f"\nOptional physical extensions (add to physical manually if needed):")
-    print(f"  required_class   — restrict to specific class_ids, e.g. [14, 15]")
-    print(f"  range_draw_func  — custom range indicator, e.g. \"scr_draw_l_shrine_range\"")
-    print(f"  scr_unoccupy     — called when goblin leaves, e.g. \"scr_gnx_unoccupy_log\"")
-    print(f"\nThen: fill hand_x/y + sp_x/y positions → merge into cells.json → "
+    print(f"  required_class   - restrict to specific class_ids, e.g. [14, 15]")
+    print(f"  range_draw_func  - custom range indicator, e.g. \"scr_draw_l_shrine_range\"")
+    print(f"  scr_unoccupy     - called when goblin leaves, e.g. \"scr_gnx_unoccupy_log\"")
+    print(f"\nThen: fill hand_x/y + sp_x/y positions -> merge into cells.json -> "
           f"python gnx_pack_strips.py {mod_dir} --force")
 
 

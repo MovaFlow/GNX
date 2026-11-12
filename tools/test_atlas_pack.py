@@ -72,6 +72,17 @@ if packer is not None:
         assert read_meta(d) == (({}, {}), "")
     print("test_atlas_pack: monster_art sprites and world OK")
 
+    # every data file the manifest names (props, items, ...) gives its frame counts, not only classes/cells
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "manifest.json"), "w").write(json.dumps({"name": "m", "props": "my_props.json", "items": "items.json"}))
+        open(os.path.join(d, "my_props.json"), "w").write(json.dumps(
+            {"props": [], "sprites": {"digits": {"strip": "strips/digits.png", "frames": 10, "xorig": 2, "yorig": 3}}}))
+        open(os.path.join(d, "items.json"), "w").write(json.dumps({"sprites": {"gem": {"strip": "strips/gem.png", "frames": 4}}}))
+        frame_map, origin_map = packer.read_manifest_sprite_meta(Path(d))
+        assert frame_map == {"digits.png": 10, "gem.png": 4}, frame_map
+        assert origin_map == {"digits.png": (2, 3)}, origin_map
+    print("test_atlas_pack: props and items frame counts OK")
+
     # identical frames, in one strip or across strips, are stored once and share a place; different ones are not
     with tempfile.TemporaryDirectory() as d:
         os.makedirs(os.path.join(d, "strips"))

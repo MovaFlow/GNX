@@ -143,3 +143,17 @@ with tempfile.TemporaryDirectory() as tmp:
     assert r.returncode == 0, r.stdout + r.stderr
     assert (game / "GNX_mods" / "inline_roles" / "manifest.json").is_file()
 print("inline roles ok")
+
+# a source mod that already is GNX_mods/<mod_id> (or sits inside it) is refused: the clean rebuild deleted it
+with tempfile.TemporaryDirectory() as tmp:
+    game = Path(tmp) / "game"
+    src = game / "GNX_mods" / "harness_map_full"
+    shutil.copytree(ROOT / "tools/scenarios/mods/harness_map_full", src)
+    (src / "sprites" / "keep.png").parent.mkdir(parents=True, exist_ok=True)
+    (src / "sprites" / "keep.png").write_bytes(b"x")
+    for extra in ([], ["--dry-run"]):
+        r = subprocess.run([sys.executable, str(ROOT / "tools/build_mod.py"), str(src), str(game), "--skip-pack"] + extra,
+                           capture_output=True, text=True)
+        assert r.returncode != 0 and "would delete" in (r.stdout + r.stderr), r.stdout + r.stderr
+        assert (src / "sprites" / "keep.png").is_file() and (src / "manifest.json").is_file(), "build_mod deleted its own source"
+print("self-deploy refused ok")

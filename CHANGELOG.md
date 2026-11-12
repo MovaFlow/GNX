@@ -14,6 +14,11 @@
 - `monster_art` in a cell: an anal block with no body for an intermission or for `ej_end` (only an `ej` pen, say) passed the frame check, but in the anal scene the cell then plays its other monster art at that phase's frame count, so it showed wrong frames. It is now a mod error, as it already was for the normal scene.
 - `monster_art` on cells 21 and 22: an ogre body with a line on several legs or classes gave the same mod error once per leg or class. It is now given once per phase.
 - `monster_art` in a cell was judged against the monsters the cell took when that mod loaded, so art for ogres on a cell that a later mod opens to them (`mon_types`, `mon_placements`) was refused. Cell art is now judged once every mod's cells are in.
+- Quests: the `side_effects` of a `"type": "quest"` event were never applied, only those of notifications (the example mod's witch quests unlocked nothing). They now run once, when the quest completes, before its `next_event`.
+- Quests: an event without `type`, or a quest without `quest_text`, stopped the game while the mod loaded, and a quest without `reward` stopped it when it fired. A missing `type` or `quest_text` is now a mod error (the event is left out, or the quest shows its name), and a quest without `reward` gives no reward.
+- `build_mod.py` run on a mod that already sits in `<game>/GNX_mods/<mod_id>` deleted that folder, sprites included, before copying it. It now refuses and changes nothing.
+- `gnx_atlas_pack` read frame counts and origins from classes.json, cells.json and `monster_art` only, so an animated strip named in props.json or items.json was packed with a guessed frame count. It now reads every data file the manifest names.
+- `scaffold_cell.py --help`, `gnx_pack_strips.py` and the other modder tools printed characters a default Windows console cannot show and stopped with `UnicodeEncodeError`. They print plain ASCII now.
 
 ## v1.5.2
 

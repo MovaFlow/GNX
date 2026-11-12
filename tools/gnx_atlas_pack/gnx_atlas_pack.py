@@ -76,7 +76,8 @@ def infer_frame_count(strip_w: int, strip_h: int) -> int:
 
 def read_manifest_sprite_meta(mod_dir: Path) -> tuple:
     """
-    Read classes.json / cells.json, and the manifest's monster_art ("sprites" and "world"), to extract explicit
+    Read every data file the manifest names (classes, cells, props, items ...) and the manifest's monster_art
+    ("sprites" and "world"), to extract explicit
     frame counts and origins.
     Returns (frame_map, origin_map) where:
       frame_map[filename] = int frame count
@@ -108,14 +109,23 @@ def read_manifest_sprite_meta(mod_dir: Path) -> tuple:
         raw = p.read_text(encoding="utf-8-sig")
         return json.loads(re.sub(r',\s*([}\]])', r'\1', raw))
 
-    for jf in ("classes.json", "cells.json"):
+    # every data file the manifest names (props, items ... have strips too), plus classes.json / cells.json by their usual names
+    data_files = {"classes.json", "cells.json"}
+    try:
+        man = read(mod_dir / "manifest.json")
+        for key in ("classes", "cells", "items", "props", "raids", "quests", "tools", "sounds"):
+            if isinstance(man.get(key), str):
+                data_files.add(man[key])
+    except (OSError, ValueError, AttributeError):
+        pass  # said below, with monster_art
+    for jf in sorted(data_files):
         p = mod_dir / jf
         if not p.exists():
             continue
         try:
             walk(read(p))
-        except Exception:
-            continue
+        except Exception as e:
+            print(f"  WARN: cannot read {jf} ({e}); frame counts of its strips are guessed")
 
     # the global monster_art file (a name or the object itself): its "sprites" list and its "world" entries. A world entry may name
     # a file in strips/ (the packer packs all of strips/); one outside it is simply never looked up. A manifest or art file that cannot

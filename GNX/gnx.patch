@@ -10889,7 +10889,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +    if (!variable_struct_exists(arg0, "physical") || !is_struct(arg0.physical))
 +    {
-+        gnx_report_mod_error("Mod '" + arg1 + "': cell '" + _cn + "' has no physical block (required for new cells, see GNX_MODDING.md section 7) - cell skipped");
++        gnx_report_mod_error("Mod '" + arg1 + "': cell '" + _cn + "' has no physical block (required for new cells, see GNX_MODDING.md section 9) - cell skipped");
 +        exit;
 +    }
 +
@@ -30702,7 +30702,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1798 @@
+@@ -0,0 +1,1822 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -30934,7 +30934,27 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            var _full_id = arg0 + "." + _ek;
 +            _edef.mod_name = arg0;
 +            _edef.event_id = _full_id;
-+            
++
++            // GNX-FIX: keys read without a check stopped the game: an event without type at load, a quest
++            // without quest_text at load, a quest without reward when it fired (! = not, || = or)
++            if (!variable_struct_exists(_edef, "type") || !is_string(_edef.type))
++            {
++                gnx_report_mod_error("Mod '" + arg0 + "': event '" + _full_id + "' has no type (\"notification\" or \"quest\"); event left out");
++                continue;
++            }
++
++            if (_edef.type == "quest")
++            {
++                if (!variable_struct_exists(_edef, "quest_text") || !is_string(_edef.quest_text))
++                {
++                    gnx_report_mod_error("Mod '" + arg0 + "': quest event '" + _full_id + "' has no quest_text; the quest log shows its name instead");
++                    _edef.quest_text = _ek;
++                }
++
++                if (!variable_struct_exists(_edef, "reward"))
++                    _edef.reward = undefined;
++            }
++
 +            if (variable_struct_exists(_edef, "dialog"))
 +            {
 +                var _dlines = _edef.dialog;
@@ -31796,7 +31816,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            var _log = gnx_log_open();
 +            gnx_log_write(_log, "[GNX-QUEST] quest complete: " + _q.gnx_event_id + "\n");
 +            gnx_log_close(_log);
-+            
++
++            // GNX-FIX: a quest's own side effects run once, when it completes (they were never applied)
++            if (variable_struct_exists(_evt, "side_effects"))
++                scr_gnx_apply_side_effects(_evt.side_effects, _q.gnx_mod_name);
++
 +            if (variable_struct_exists(_q, "gnx_next") && _q.gnx_next != undefined)
 +                scr_gnx_fire_event(_q.gnx_next);
 +        }

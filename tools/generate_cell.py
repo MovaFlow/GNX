@@ -10,7 +10,7 @@ Field semantics and defaults are sourced from docs/GNX_MODDING.md (sections
 6-8: Custom Cells, Cell Physical Block, Cell Sprite Blocks) and
 docs/example_mod/cells.json (the "RITUAL" h_type 43 entry and the h_type 1
 vanilla-patch entry). The "Advanced physical fields" table in
-docs/GNX_MODDING.md §7 (read individually by scr_gnx_register_cell /
+docs/GNX_MODDING.md section 9 (read individually by scr_gnx_register_cell /
 scr_set_slot_h_data) is not covered here - add those fields by hand if your
 cell needs DAIRY/DRINK/tent/shrine-style mechanics.
 
@@ -64,7 +64,7 @@ def slugify(name):
 
 
 # ---------------------------------------------------------------------------
-# physical.layers helpers (GNX_MODDING.md §7)
+# physical.layers helpers (GNX_MODDING.md section 9)
 # Standard 6-layer pattern, used by both RITUAL (h_type 43) and the WALL2
 # patch (h_type 1) in docs/example_mod/cells.json. Layers 0/2/5 are 4-element
 # arrays (no trailing flag); layers 12/7/8 are 5-element (trailing `false`).
@@ -83,7 +83,7 @@ def standard_layers(dirt_sprite, bg_sprite, bg_animated, handc_sprite, handc_ani
 
 
 def standard_scr_h():
-    """7-script h-scene state machine (GNX_MODDING.md §7)."""
+    """7-script h-scene state machine (GNX_MODDING.md section 9)."""
     return [
         "scr_slot_h_base_start",
         "scr_slot_h_base_wait",
@@ -191,7 +191,7 @@ def gen_mon_spr_and_sprites(mon_prefix, n_head_variants):
 
 def build_patch():
     print("--- Vanilla patch (h_type 0-42) ---")
-    print("Only physical.layers is generated. Per GNX_MODDING.md §10: 'Only")
+    print("Only physical.layers is generated. Per GNX_MODDING.md section 12: 'Only")
     print("physical.layers is replaced; all other cell properties remain vanilla.'")
     print()
     h_type = ask_int("h_type (vanilla, 0-42)", 1)
@@ -318,7 +318,7 @@ def build_new_cell():
         "anal": anal,
         "slot_dirt_init": slot_dirt_init,
         "character_row": character_row,
-        "_note_layers": "Rendering layers. Each: [layer_type, sprite, animated, shift_index, opt_flag]. See GNX_MODDING.md §7.",
+        "_note_layers": "Rendering layers. Each: [layer_type, sprite, animated, shift_index, opt_flag]. See GNX_MODDING.md section 9.",
         "layers": layers,
     }
 
@@ -330,7 +330,7 @@ def build_new_cell():
     else:
         physical["scr_idle"] = ask("scr_idle (state machine script)", "scr_slot_h_state_idle")
         physical["slot_h"] = False
-        print("  NOTE: slot_h=false - see GNX_MODDING.md §7 'Advanced physical fields' for")
+        print("  NOTE: slot_h=false - see GNX_MODDING.md section 9.10 'Advanced vanilla-pattern fields' for")
         print("  scr_slot_step / scr_slot_base overrides used by no-h-scene vanilla cells")
         print("  (S.SHRINE, F.SHRINE, R.SHRINE, CLEAN, CLONE_B).")
 
@@ -438,9 +438,9 @@ def main():
     if not is_patch:
         print("  - replace the 'strips/...' placeholders with your real strips (gnx_pack_strips.py)")
         print("  - verify xorig/yorig for each declared sprite, pad with canvas_w/canvas_h if needed")
-        print("  - review mon_spr / sprites against GNX_MODDING.md §8 before painting frames")
+        print("  - review mon_spr / sprites against GNX_MODDING.md section 10 before painting frames")
         print("  - if h_type collides with vanilla or another mod, GNX silently 'patches'")
-        print("    your entry instead of registering a new cell (GNX_MODDING.md §6)")
+        print("    your entry instead of registering a new cell (GNX_MODDING.md section 12)")
     print("  - check required_class / scr_idle / scr_h against your intended gameplay")
 
 

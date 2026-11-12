@@ -206,7 +206,10 @@ and ignores `value` in `cell_occupied`.
 | `create_unit` | `class` (string ref or int), `level` | puts a new captive into the prison when the event fires; with the prison full she is lost and the player sees `Prison is full!` (GNX 1.5.2) |
 
 Side effects are applied **immediately** (synchronous) when a notification
-event fires, before the dialog is displayed.
+event fires, before the dialog is displayed. On a quest event they run once,
+when the quest completes, before its `next_event` fires (GNX 1.5.3; older GNX
+ignores them on quests).
+
 
 ## Reward types
 

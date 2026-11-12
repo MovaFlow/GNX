@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scaffold_class.py — GNX class scaffold generator.
+scaffold_class.py - GNX class scaffold generator.
 
 Original by @kazull. Extended with GNX feature coverage (naked layer detection,
 carry_base_spr, naked_standard/big/tent builders).
@@ -9,23 +9,23 @@ Scans a mod's sprites/ folder and generates a complete classes.json entry stub
 with all sprite slots detected, all clothing sections pre-wired, and stat fields
 set to sensible defaults. Modder only needs to fill in stats and merge into classes.json.
 
-── Full modding workflow ────────────────────────────────────────────────────────
+-- Full modding workflow --------------------------------------------------------
 
-  Step 1 — Copy sprites from a vanilla class (skip if using fully custom art):
+  Step 1 - Copy sprites from a vanilla class (skip if using fully custom art):
     python export_class_sprites.py --src ranger --src-id 3 --dst vampire \\
         --sprites "GN Project/Sprites" --output "mods/my_mod/sprites"
 
-  Step 2 — Generate the full classes.json entry from detected sprites:
+  Step 2 - Generate the full classes.json entry from detected sprites:
     python scaffold_class.py --name Vampire \\
         --prefix spr_h_vampire --mod-dir mods/my_mod
 
-  Step 3 — Fill in stats (birth_classes, trade_stage, raid_spawns) in the
+  Step 3 - Fill in stats (birth_classes, trade_stage, raid_spawns) in the
             scaffold JSON, then merge the entry into classes.json.
 
-  Step 4 — Pack sprite strips:
+  Step 4 - Pack sprite strips:
     python gnx_pack_strips.py mods/my_mod --force
 
-────────────────────────────────────────────────────────────────────────────────
+--------------------------------------------------------------------------------
 
 Output: <mod_dir>/class_<name>_scaffold.json
 """
@@ -34,10 +34,10 @@ import argparse
 import json
 from pathlib import Path
 
-# ─── Sprite key catalogue ─────────────────────────────────────────────────────
-# key → (xorig, yorig, folder_template | None)
-# None      → default folder is "{prefix}_{key}"
-# template  → {prefix} and {name} are substituted at runtime
+# --- Sprite key catalogue -----------------------------------------------------
+# key -> (xorig, yorig, folder_template | None)
+# None      -> default folder is "{prefix}_{key}"
+# template  -> {prefix} and {name} are substituted at runtime
 SPRITES = {
     # Misc
     "hand":                (3,   1,   None),
@@ -172,7 +172,7 @@ SPRITES = {
 ICON_CANVAS = {"canvas_w": 21, "canvas_h": 26}
 
 
-# ─── Detection ────────────────────────────────────────────────────────────────
+# --- Detection ----------------------------------------------------------------
 
 def folder_for(key: str, prefix: str, name: str) -> str:
     """Return the expected sprites/ subfolder name for a given sprite key."""
@@ -198,7 +198,7 @@ def scan_sprites(mod_dir: Path, prefix: str, name: str) -> dict:
     return detected
 
 
-# ─── Clothing builders ────────────────────────────────────────────────────────
+# --- Clothing builders --------------------------------------------------------
 
 def R(key: str, det: dict):
     """Return gnx:key ref if sprite detected, else -1."""
@@ -434,7 +434,7 @@ def build_gb1_breast(det: dict):
     return R("gb1_breast_d2", det)
 
 
-# ─── Naked layer builders ──────────────────────────────────────────────────────────────
+# --- Naked layer builders --------------------------------------------------------------
 
 def _naked_phase(det, phase_prefix):
     keys = {"head": f"{phase_prefix}_head", "breast": f"{phase_prefix}_breast",
@@ -501,7 +501,7 @@ def build_carry_base_spr(det):
     return ref if ref != -1 else None
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+# --- Main ---------------------------------------------------------------------
 
 def main():
     ap = argparse.ArgumentParser(
@@ -516,7 +516,7 @@ Examples:
     )
     ap.add_argument("--name",     required=True, help="Class name, e.g. Vampire")
     ap.add_argument("--class-id", type=int, dest="class_id", default=None,
-                    help="Only needed for override: true classes — the vanilla slot (0–13) "
+                    help="Only needed for override: true classes - the vanilla slot (0-13) "
                          "to replace. New classes get a stable ID auto-assigned by the GNX "
                          "loader via hash; omit this arg for new classes.")
     ap.add_argument("--prefix",   required=True, help="Sprite prefix, e.g. spr_h_vampire")
@@ -549,7 +549,7 @@ Examples:
 
     for key in SPRITES:
         folder = folder_for(key, prefix, name)
-        mark   = "✓" if key in det else "✗"
+        mark   = "ok" if key in det else "--"
         print(f"  {mark} {key:<22} sprites/{folder}/")
 
     naked_count = sum(1 for k in det if k.startswith("naked_"))
@@ -560,7 +560,7 @@ Examples:
           f"naked={naked_count}  carry_base={has_carry_base}")
 
     # Build entry
-    # class_id is omitted for new classes — GNX loader assigns a stable ID via hash.
+    # class_id is omitted for new classes - GNX loader assigns a stable ID via hash.
     # Only add it if --class-id was supplied (i.e., override: true targeting a vanilla slot).
     entry = {}
     if args.class_id is not None:
@@ -596,7 +596,7 @@ Examples:
         entry["carry_base_spr"] = cbs
 
     entry.update({
-        # ── Fill these in before merging into classes.json ─────────────────
+        # -- Fill these in before merging into classes.json -----------------
         # birth_class: which class_id each of the 4 offspring slots produce
         "birth_class":       {"goblin": 0, "hobgoblin": 0, "tentacle": 0, "ogre": 0},
         # trade_stage: shop stage at which this class becomes available (1-3)
@@ -614,7 +614,7 @@ Examples:
     print(f"\nWrote: {out}")
     print("""
 Next steps:
-  1. Review the scaffold — check -1 refs for slots you expect to be filled.
+  1. Review the scaffold - check -1 refs for slots you expect to be filled.
   2. Set birth_classes, trade_stage, raid_spawns.
   3. Optionally add preg_mon_type_override / preg_c_override.
   4. Merge the entry into classes.json (append to the array).

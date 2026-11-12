@@ -1,5 +1,5 @@
 {
-  "about": "Quest runtime: a trigger with conditions (gold_gte + a state guard) fires a silent notification whose side effects (set_state, add_gold, unlock_cell) run at once and chain into a quest; the quest's frame-hook completion fires the next notification once; claiming adds the reward once; a dialog notification waits in the list; mod state and the waiting notification survive save/reload. Claiming mirrors vanilla's quest-window click (scr_check_quest_click).",
+  "about": "Quest runtime: a trigger with conditions (gold_gte + a state guard) fires a silent notification whose side effects (set_state, add_gold, unlock_cell) run at once and chain into a quest; the quest's frame-hook completion runs the quest's own side effects and fires the next notification once; claiming adds the reward once; a dialog notification waits in the list; mod state and the waiting notification survive save/reload. Claiming mirrors vanilla's quest-window click (scr_check_quest_click).",
   "mods": [
     "tools/scenarios/mods/harness_quests"
   ],
@@ -103,6 +103,22 @@
       "why": "q_intro chained into the quest"
     },
     {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_quests",
+        "quest_fx"
+      ],
+      "is": 0,
+      "why": "a quest's side effects wait for its completion"
+    },
+    {
+      "assert": "val",
+      "key": "food",
+      "is": 0,
+      "why": "no quest side effect at the start"
+    },
+    {
       "do": {
         "type": "fire_trigger",
         "hook": "cell_built"
@@ -145,7 +161,18 @@
     {
       "assert": "val",
       "key": "food",
-      "is": 30
+      "is": 35,
+      "why": "q_done add_food 30 + the quest's own side effect add_food 5"
+    },
+    {
+      "assert": "fn",
+      "name": "scr_gnx_get_state",
+      "args": [
+        "harness_quests",
+        "quest_fx"
+      ],
+      "is": 1,
+      "why": "the quest's own side effects ran at completion"
     },
     {
       "claim_quest": "harness_quests.q_gold"
@@ -165,8 +192,8 @@
     {
       "assert": "val",
       "key": "food",
-      "is": 30,
-      "why": "q_done ran only once"
+      "is": 35,
+      "why": "q_done and the quest's side effects ran only once"
     },
     {
       "do": {

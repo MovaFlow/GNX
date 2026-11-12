@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_mod.py — GNX Mod Builder
+build_mod.py - GNX Mod Builder
 
 Packs sprite strips and deploys a mod folder into the game's GNX_mods/ directory.
 
@@ -14,12 +14,13 @@ Usage:
 Steps:
   1. Pack sprite strips: gnx_pack_strips.py <mod_dir> [--force] [--dry-run]
   2. Verify every "sprites" entry referenced by classes.json/cells.json has
-     a "strip" key (warn on leftovers — these won't be deployed)
+     a "strip" key (warn on leftovers - these won't be deployed)
   3. Clean-rebuild <game_dir>/GNX_mods/<mod_id>/ from manifest.json,
      classes.json/cells.json (per manifest) and strips/
 """
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -260,6 +261,14 @@ def main():
               "if you rename the folder.")
     elif mod_id != mod_dir.name:
         print(f"WARN: mod_id '{mod_id}' != folder name '{mod_dir.name}' (mod_id is used as the folder name in mods/)")
+
+    # the deploy clean-rebuilds GNX_mods/<mod_id>: a source that is that folder (or inside it) would be deleted
+    dest_dir = os.path.normcase(str((game_dir / "GNX_mods" / mod_id).resolve()))
+    src_dir = os.path.normcase(str(mod_dir))
+    if src_dir == dest_dir or src_dir.startswith(dest_dir + os.sep):
+        sys.exit(f"Your mod folder {mod_dir} is the folder build_mod.py deploys to, and the deploy would delete it.\n"
+                 "Keep your mod's source outside <game>/GNX_mods/ (for example in a 'my_mods' folder) and run "
+                 "build_mod.py on that copy. Nothing was changed.")
 
     print(f"Mod: {manifest.get('name', mod_id)} v{manifest.get('version', '?')} (mod_id={mod_id})")
     print(f"Source: {mod_dir}")

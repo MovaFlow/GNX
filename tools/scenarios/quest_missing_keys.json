@@ -1,0 +1,48 @@
+{
+  "about": "Quest events missing keys stopped the game: an event without type at load, a quest without quest_text at load, a quest without reward when it fired. Now: no type = mod error, event left out; no quest_text = mod error, the quest shows its id; no reward = a quest without a reward.",
+  "mods": [
+    "tools/scenarios/mods/harness_quest_keys"
+  ],
+  "expect_dialog": "has no type",
+  "expect_mod_errors": [
+    "event 'harness_quest_keys.no_type' has no type",
+    "quest event 'harness_quest_keys.bare_quest' has no quest_text"
+  ],
+  "check_boot_suite": false,
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "do": {
+        "type": "fire_event",
+        "event_id": "harness_quest_keys.no_type"
+      },
+      "why": "left out at load: firing it is only a log line"
+    },
+    {
+      "do": {
+        "type": "fire_event",
+        "event_id": "harness_quest_keys.bare_quest"
+      }
+    },
+    {
+      "wait": 5
+    },
+    {
+      "assert": "quest",
+      "event": "harness_quest_keys.bare_quest",
+      "is": "clear",
+      "why": "gold_gte 0 holds at once"
+    },
+    {
+      "claim_quest": "harness_quest_keys.bare_quest"
+    },
+    {
+      "assert": "quest",
+      "event": "harness_quest_keys.bare_quest",
+      "is": "none",
+      "why": "a quest without reward can be claimed"
+    }
+  ]
+}
