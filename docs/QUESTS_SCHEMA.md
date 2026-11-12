@@ -1,8 +1,16 @@
-# GNX Quest System  - JSON Schema
+# GNX quests.json reference
+
+Quests, notifications (dialogs), triggers and their conditions, for GNX 1.5. A
+line that names a GNX version says which version added that part. The general
+mod reference is [GNX_MODDING.md](GNX_MODDING.md).
 
 ## manifest.json
 
-Add `"quests": "quests.json"` to your manifest. Quest state keys should be declared in `save_state.fields` with default values (typically 0 or -1).
+Add `"quests": "quests.json"` to your manifest. Declare every state key your
+quests use in `save_state.fields`, with its start value (typically 0 or -1),
+see [GNX_MODDING.md 4.3](GNX_MODDING.md#43-save_state). A key that is not
+declared has no value until a `set_state` writes it: until then no
+`state_equals`, `state_gte` or `state_lte` on it matches.
 
 ## quests.json structure
 
@@ -33,7 +41,9 @@ filename directly.
 
 In dialog lines, reference by key: `"portrait": "my_face"`. Use `-1` for
 vanilla Lilith portrait, or an integer (0-94) for vanilla sub-image indices.
-Portrait keys are mod-scoped (no cross-mod collisions).
+Portrait keys are mod-scoped (no cross-mod collisions). A key that is not in
+`portraits` shows Lilith's portrait, with no line in the log: check the
+spelling when a dialog shows the wrong face.
 
 ### popups
 
@@ -52,7 +62,26 @@ the tool action `popup` (`"text": "my_mod.<key>"`, modding guide 17.6).
 
 ### events
 
-Map of event_id → event definition. Two types: `notification` and `quest`.
+Map of event_id → event definition. Two types: `notification` (a dialog, or a
+silent step) and `quest` (an entry in the quest log).
+
+**Event IDs belong to your mod.** Write them without the folder name: GNX adds
+`<folder>.` to every event ID, `next_event` and trigger `event` of your
+quests.json, so they always point to events of your own mod. A quests.json
+cannot chain to or trigger another mod's event; the tool action `fire_event`
+([GNX_MODDING.md 17.6](GNX_MODDING.md#176-action-reference)) takes the full ID
+(`"other_mod.their_event"`) and can.
+
+| Key | Used by | Meaning | Without it |
+|-----|---------|---------|------------|
+| `type` | both | `"notification"` or `"quest"` | mod error, the event is left out (GNX 1.5.3; older GNX stops while loading) |
+| `dialog` | notification | lines `{"speaker", "portrait", "text"}` shown one after the other | the notification is silent |
+| `side_effects` | both | list of [side effects](#side-effect-types): on a notification when it fires, on a quest when it completes (GNX 1.5.3) | nothing happens |
+| `next_event` | both | the event fired next: after the dialog is closed, at once for a silent notification, when a quest completes | the chain ends (`null` does the same) |
+| `quest_text` | quest | the text in the quest log | mod error, the log shows the event's name (GNX 1.5.3; older GNX stops while loading) |
+| `completion` | quest | a [condition](#condition-types), or a list of them | mod error, the quest never completes |
+| `completion_hook` | quest | when `completion` is checked ([completion hooks](#completion-hooks-for-quest-events)) | `"frame"` |
+| `reward` | quest | a [reward](#reward-types) the player claims in the quest log | no reward (GNX 1.5.3; older GNX stops when the quest appears) |
 
 #### notification event
 
@@ -99,7 +128,9 @@ shown. Use this for invisible quest steps (e.g. moving a storyline on).
 }
 ```
 
-`next_event` can be `null` to end the chain.
+`next_event` can be `null` to end the chain. It fires as soon as the quest's
+`completion` holds, together with the quest's `side_effects`; the reward waits
+in the quest log until the player claims it.
 
 #### several objectives (GNX 1.5.2)
 
@@ -151,32 +182,37 @@ A trigger fires **every time** its hook runs and its conditions hold. For a one-
 
 ## Condition types
 
-Used in triggers, quest completion, and conditional raid_spawns.
+Used in triggers, quest completion, raid spawns (`raid_spawns` `condition`),
+cage escape, tower bosses, map unlocks (`map_info.unlock`), raid stage unlocks
+(raids.json) and tool guards. Keys in **bold** are required. A condition with an
+unknown `type`, or without a required key, never matches and is a mod error
+when the mod loads (GNX 1.5.3; older GNX said nothing about an unknown type, and
+stopped the game on a missing key when the condition was checked).
 
 | Type | Params | True when |
 |------|--------|-----------|
-| `state_equals` | `key`, `value` | mod save state key == value |
-| `state_gte` | `key`, `value` | mod save state key >= value |
-| `state_lte` | `key`, `value` | mod save state key <= value |
-| `unit_count` | `class` (optional), `value` (default 1) | units of that class >= value. Omit `class` to count all units |
-| `gold_gte` | `value` | `global.val.money >= value` |
+| `state_equals` | **`key`**, **`value`** | mod save state key == value |
+| `state_gte` | **`key`**, **`value`** | mod save state key >= value |
+| `state_lte` | **`key`**, **`value`** | mod save state key <= value |
+| `unit_count` | `class` (optional), `value` (default 1) | with `class`: captives of that class in the prison >= value (captives in cells are not counted). Without `class`: your monsters (goblins, hobgoblins, ogres, tentacles and troops) >= value |
+| `gold_gte` | **`value`** | `global.val.money >= value` |
 | `day_gte` | `value` (default 1) | the day counter (shown under the clock) >= value |
 | `day_every` | `value` (default 1), `offset` (default 0) | the day is a multiple of `value` (after subtracting `offset`): `{"value": 7}` on days 7, 14, 21...; `{"value": 1}` every day. Meant for the `day_start` hook |
-| `has_item` | `item`, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
-| `floor_gte` | `value` | `global.val.floor >= value` |
+| `has_item` | **`item`**, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
+| `floor_gte` | **`value`** | `global.val.floor >= value` |
 | `cell_count` | `h_type` and/or `category`, `value` (default 1) | count of built cells with that h_type >= value |
 | `build_count` | `h_type` and/or `category` (optional: any type without them), `value` | cells of that type the player built (build menu, CUSTOM, COPY DOWN) >= value. In a quest's `completion` it counts from the moment the quest appeared (kept in the save) and the quest text shows the progress, e.g. `(2/4)`; elsewhere every build of the save |
 | `cell_built` | `h_type` (string ref or int) and/or `category` | at least one cell with that h_type exists |
 | `cell_occupied` | `h_type` and/or `category`, `value` (default 1) | at least `value` cells with that h_type have a unit |
-| `stage_discovered` | `stage`: 0-4, `"vanilla.FOREST"`, a mod stage `"mod.ID"` or your own `"ID"` (modding guide 27.3) | that stage is discovered on the map the player is on (a stage not on it: false) |
-| `stage_cleared` | `stage` (as above), `min_level` | that stage's highest open level >= min_level (`stage_info[stage].max_lvl`) |
+| `stage_discovered` | **`stage`**: 0-4, `"vanilla.FOREST"`, a mod stage `"mod.ID"` or your own `"ID"` (modding guide 27.3) | that stage is discovered on the map the player is on (a stage not on it: false) |
+| `stage_cleared` | **`stage`** (as above), **`min_level`** | that stage's highest open level >= `min_level`, counted from 0: `"min_level": 2` holds once lvl 3 is open, that is after lvl 2 was won |
 | `last_raid` | `stage`, `level`, `won` (each optional) | the last raid on this map, once the cart is home: went to that stage (any stage name, as above), at that level (0 = lvl 1), and was won (`true`) or lost (`false`); keys left out match anything. Use it with the `post_raid` / `post_raid_win` hooks ("win at the Crypt") |
-| `boss_captured` | `class` (string ref or int) | unit with that class exists in cage |
-| `class_unlocked` | `class` (string ref or int) | an `unlock_class` side effect has unlocked that class in this save; without `class` it never matches |
+| `boss_captured` | **`class`** (string ref or int) | unit with that class exists in cage |
+| `class_unlocked` | **`class`** (string ref or int) | an `unlock_class` side effect has unlocked that class in this save |
 | `raid_won` | (none) | always true (only meaningful at post_raid_win hook) |
-| `on_map` | `map` | the player is on that map (`"vanilla"` = the village) |
-| `map_visited` | `map` | the player has been on that map (or is on it now) |
-| `map_unlocked` | `map` | that map can be travelled to: the village always; a mod map once its `map_info.unlock` held or `unlock_map` opened it (or when it has no `unlock`) |
+| `on_map` | **`map`** | the player is on that map (`"vanilla"` = the village) |
+| `map_visited` | **`map`** | the player has been on that map (or is on it now) |
+| `map_unlocked` | **`map`** | that map can be travelled to: the village always; a mod map once its `map_info.unlock` held or `unlock_map` opened it (or when it has no `unlock`) |
 
 String refs (`"mod_id.ClassName"`) are pre-resolved to integer IDs at load
 time. You can use string refs or integer IDs interchangeably in `class` and
@@ -203,7 +239,7 @@ and ignores `value` in `cell_occupied`.
 | `unlock_cell` | `h_type` (string ref or int) | unlocks cell in build menu |
 | `unlock_class` | `class` (string ref or int) | unlocks the class: saved, and shared by every map like the game's own unlocks. On its own it changes nothing in raids; gate a `raid_spawns` entry on it with `"condition": {"type": "class_unlocked", "class": "my_mod.NAME"}` so the class only appears once unlocked |
 | `unlock_map` | `map` | opens a mod map in the travel menu for good, as its `map_info.unlock` would (saved, shared by every map, announced with `New map: <label>`). A map without a travel entry (its mod is off) is logged and ignored |
-| `create_unit` | `class` (string ref or int), `level` | puts a new captive into the prison when the event fires; with the prison full she is lost and the player sees `Prison is full!` (GNX 1.5.2) |
+| `create_unit` | `class` (string ref or int), `level` (default 1; `lvl` also works) | puts a new captive into the prison when the side effect runs and shows `<class> added!`; with the prison full she is lost and the player sees `Prison is full!` (GNX 1.5.2). `level`: 0-4 or 6 for a normal class, anything higher becomes 4; a special class gets 5 unless you write 6 or 7 |
 
 Side effects are applied **immediately** (synchronous) when a notification
 event fires, before the dialog is displayed. On a quest event they run once,
@@ -217,10 +253,10 @@ ignores them on quests).
 |------|--------|-------|
 | `gold` | `amount` | Adds gold |
 | `food` | `amount` | Adds food |
-| `blueprint` | `h_type`, optional `fragment`, optional `lvl` | Default: complete blueprint (instant unlock, lvl=3). With `"fragment": true`: single fragment (need 3 to combine), `lvl` controls pip display (default 1) |
-| `prop` | `prop_id` | Unlocks a prop in the customization menu |
+| `blueprint` | **`h_type`**, optional `fragment`, optional `lvl` | Default: complete blueprint (instant unlock). With `"fragment": true`: a single fragment (3 make a blueprint); `lvl` (default 1) is the number drawn on the fragment's icon. Without `h_type` it is a mod error and gives no reward |
+| `prop` | **`prop_id`** | Unlocks a prop in the customization menu. `prop_id` is the prop's name (`"iron_candle"` for a prop of your mod, `"other_mod.iron_candle"`) or its number; prefer the name |
 | `item` | `item`, `amount` (default 1) | A mod item (items.json), `"NAME"` of the quest's mod or `"mod.NAME"` |
-| `unit` | `class`, `level` | A captive (GNX 1.5.2). `class`: a class name of the mod, `"mod.NAME"` or a class ID; `level`: special classes 5, 6 or 7, others 0-4 or 6. Shown as her head in the quest log; claiming puts her into the prison. She is made when the quest appears and kept in the save until claimed; with the prison full the reward stays (`Prison is full!`). An unknown class is a mod error and gives no reward |
+| `unit` | `class`, `level` | A captive (GNX 1.5.2). `class`: a class name of the mod, `"mod.NAME"` or a class ID; `level`: as for the side effect `create_unit` (0-4 or 6; special classes 5, 6 or 7). Shown as her head in the quest log; claiming puts her into the prison. She is made when the quest appears and kept in the save until claimed; with the prison full the reward stays (`Prison is full!`). An unknown class is a mod error and gives no reward |
 
 ## Hook points (triggers)
 
@@ -229,7 +265,7 @@ ignores them on quests).
 | `post_raid_win` | after winning a raid | boss intro triggers, post-victory events |
 | `post_raid` | after any raid return | stage-based quest completions |
 | `post_raid_loss` | after losing a raid | loss-specific events |
-| `cell_built` | when any cell is placed via build menu | construction-gated triggers |
+| `cell_built` | when the player builds a cell (build menu, CUSTOM, COPY DOWN) | construction-gated triggers |
 | `day_start` | when a new day starts (the clock wraps; only once the game's day clock runs, after the early tutorial quest), before that day's autosave. Days skipped at once (a trip's day cost, the SET DAY tool) do not fire it | daily income or upkeep, events on a given day: combine with `day_every` / `day_gte`. Quests with `"completion_hook": "day_start"` are checked then too |
 | `map_arrive` | once after every trip, when the destination is up (after its `map_start` and what was taken along) | map storylines: combine with `on_map` / `map_visited`, and guard with a state key for once-only events |
 
@@ -242,11 +278,16 @@ are shared, rather than with state keys.
 ## Completion hooks (for quest events)
 
 `completion_hook` determines when the quest's completion condition is checked:
-- `"frame"`  - checked every frame during gameplay
-- `"post_raid"`  - checked after any raid return
-- `"post_raid_win"`  - checked after winning a raid only
-- `"cell_built"`  - checked when any cell is placed via build menu
+- `"frame"` (default): checked every frame during gameplay
+- `"post_raid"`: checked after any raid return
+- `"post_raid_win"`: checked after winning a raid only
+- `"cell_built"`: checked when the player builds a cell (build menu, CUSTOM, COPY DOWN)
+- `"day_start"`: checked when a new day starts
+
+`map_arrive` and `post_raid_loss` are trigger hooks only. Any other text here
+(including those two, or a typo) is never checked, so the quest never
+completes.
 
 ## Event chaining
 
-Events chain via `next_event`. When a notification is dismissed (textbox closed), the next event fires. When a quest is completed and reward claimed, the next event fires. Silent notifications (no dialog) chain immediately without player interaction. This replicates vanilla's `event_after` pattern.
+Events chain via `next_event`. When a notification is dismissed (textbox closed), the next event fires. When a quest's completion holds, its side effects run and the next event fires at once; the reward is claimed later, on its own. Silent notifications (no dialog) chain immediately without player interaction. This replicates vanilla's `event_after` pattern.

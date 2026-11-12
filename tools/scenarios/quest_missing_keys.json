@@ -1,12 +1,14 @@
 {
-  "about": "Quest events missing keys stopped the game: an event without type at load, a quest without quest_text at load, a quest without reward when it fired. Now: no type = mod error, event left out; no quest_text = mod error, the quest shows its id; no reward = a quest without a reward.",
+  "about": "Quest events missing keys stopped the game: an event without type at load, a quest without quest_text at load, a quest without reward when it fired. Now: no type = mod error, event left out; no quest_text = mod error, the quest shows its id; no reward = a quest without a reward. A condition without a key its type needs (gold_gte without value) stopped the game when checked, and an unknown condition type (state_equal) was silent: both are mod errors now and never match.",
   "mods": [
     "tools/scenarios/mods/harness_quest_keys"
   ],
   "expect_dialog": "has no type",
   "expect_mod_errors": [
     "event 'harness_quest_keys.no_type' has no type",
-    "quest event 'harness_quest_keys.bare_quest' has no quest_text"
+    "quest event 'harness_quest_keys.bare_quest' has no quest_text",
+    "condition gold_gte has no \"value\"",
+    "'state_equal' is not a condition type"
   ],
   "check_boot_suite": false,
   "steps": [
@@ -43,6 +45,44 @@
       "event": "harness_quest_keys.bare_quest",
       "is": "none",
       "why": "a quest without reward can be claimed"
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "food",
+        "value": 0
+      }
+    },
+    {
+      "do": {
+        "type": "set_val",
+        "key": "money",
+        "value": 5000
+      }
+    },
+    {
+      "do": {
+        "type": "fire_trigger",
+        "hook": "cell_built"
+      }
+    },
+    {
+      "wait": 2
+    },
+    {
+      "assert": "val",
+      "key": "food",
+      "is": 0,
+      "why": "neither broken trigger fires"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_mod_error_count",
+      "args": [
+        "gold_gte has no"
+      ],
+      "is": 1,
+      "why": "reported once, though conditions are read twice at load"
     }
   ]
 }

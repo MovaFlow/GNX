@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1822 @@
+@@ -0,0 +1,1899 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -357,6 +357,47 @@
 +}
 +
 +
++/// GNX: the keys condition type arg0 cannot do without (a list, maybe empty), or undefined when arg0 is no
++/// condition type. The cell conditions' h_type / category rule is checked on its own.
++function gnx_cond_required(arg0)
++{
++    switch (arg0)
++    {
++        case "state_equals":
++        case "state_gte":
++        case "state_lte":
++            return ["key", "value"];
++        case "gold_gte":
++        case "floor_gte":
++            return ["value"];
++        case "stage_discovered":
++            return ["stage"];
++        case "stage_cleared":
++            return ["stage", "min_level"];
++        case "boss_captured":
++        case "class_unlocked":
++            return ["class"];
++        case "has_item":
++            return ["item"];
++        case "on_map":
++        case "map_visited":
++        case "map_unlocked":
++            return ["map"];
++        case "day_gte":
++        case "day_every":
++        case "last_raid":
++        case "cell_built":
++        case "cell_occupied":
++        case "cell_count":
++        case "build_count":
++        case "unit_count":
++        case "raid_won":
++            return [];
++    }
++
++    return undefined;
++}
++
 +function scr_gnx_resolve_condition_refs(arg0, arg1)
 +{
 +    // GNX-FIX: a condition (quests, triggers, raid spawns, cage escape, tower boss, map unlock) must be an object
@@ -371,7 +412,29 @@
 +    // GNX-FIX: an object without "type" matches nothing either (! = not)
 +    if (!variable_struct_exists(arg0, "type"))
 +        gnx_report_mod_error("Mod '" + string(arg1) + "': a condition has no \"type\"; it never matches");
-+    
++
++    // GNX-FIX: an unknown type, or a type without a key it needs, never matches; both were silent (a missing key
++    // stopped the game when the condition was checked)
++    if (variable_struct_exists(arg0, "type"))
++    {
++        var _req = gnx_cond_required(arg0.type);
++
++        // == undefined: no such condition type
++        if (_req == undefined)
++        {
++            gnx_report_mod_error_once("cond type " + string(arg1) + " " + string(arg0.type), "Mod '" + string(arg1) + "': '" + string(arg0.type) + "' is not a condition type (see QUESTS_SCHEMA.md); it never matches");
++        }
++        else
++        {
++            for (var _ri = 0; _ri < array_length(_req); _ri++)
++            {
++                // ! = not
++                if (!variable_struct_exists(arg0, _req[_ri]))
++                    gnx_report_mod_error_once("cond key " + string(arg1) + " " + string(arg0.type) + " " + _req[_ri], "Mod '" + string(arg1) + "': condition " + string(arg0.type) + " has no \"" + _req[_ri] + "\"; it never matches");
++            }
++        }
++    }
++
 +    // GNX-FIX: cell_built, cell_occupied and cell_count need the cell's h_type; without it the condition never
 +    // matches (is_struct: a condition is an object; && = and, || = or, ! = not)
 +    // GNX-CELLSET: or a category (a build tab), which names every cell of it
@@ -573,7 +636,21 @@
 +        return false;
 +    
 +    var _type = arg0.type;
-+    
++
++    // GNX-FIX: a key the type needs is missing: no match (reading it stopped the game); reported at load
++    // (scr_gnx_resolve_condition_refs). An unknown type falls through the switch: no match either
++    var _need_keys = gnx_cond_required(_type);
++
++    if (_need_keys != undefined)
++    {
++        for (var _nk = 0; _nk < array_length(_need_keys); _nk++)
++        {
++            // ! = not
++            if (!variable_struct_exists(arg0, _need_keys[_nk]))
++                return false;
++        }
++    }
++
 +    switch (_type)
 +    {
 +        case "state_equals":
