@@ -234,7 +234,7 @@ def pack_mod(mod_dir: Path, atlas_size: int, padding: int, dry_run: bool = False
         else:
             n = infer_frame_count(w, h)
             if n > 1:
-                print(f"[WARN] {png.name}: no \"frames\" for it in classes.json or cells.json, guessed {n}. Check it.")
+                print(f"[WARN] {png.name}: no \"frames\" for it in the files the manifest names, guessed {n}. Check it.")
             if n == 1 and w > h * 1.5:
                 stats["unknown_stride"].append(png.name)
 

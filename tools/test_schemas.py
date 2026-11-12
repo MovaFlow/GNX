@@ -45,6 +45,9 @@ EXPECTED = {
     ("harness_art_replace_atlas", "manifest.json", "monster_art.goblin.world.idle"),
     ("harness_art_bad", "cells.json", "[16].monster_art"),  # a monster_art that is a number: a mod error on purpose
     ("harness_art_bad", "cells.json", "[38].mon_types[0]"),  # a mon_types entry that is a text, on purpose
+    ("harness_quest_keys", "quests.json", "events.no_type"),  # quest_missing_keys: an event without type, on purpose
+    ("harness_quest_keys", "quests.json", "triggers[0].conditions[0]"),  # gold_gte without value, on purpose
+    ("harness_quest_keys", "quests.json", "triggers[1].conditions[0].type"),  # misspelled condition type, on purpose
 }
 # real problems found in community mods, reported and waiting for their authors: exact paths, so a new
 # problem in the same files still fails the test
