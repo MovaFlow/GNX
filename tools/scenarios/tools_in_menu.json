@@ -1,0 +1,15 @@
+{
+  "about": "Tool actions that touch the raid window (reroll_shop, reroll_trade, reroll_encounters, the on_screen guard) run in the menu room, where obj_np has no obj_raid: they must do nothing instead of stopping the game. gnx_raid_window() is noone there.",
+  "start": "menu",
+  "timeout": 60,
+  "check_boot_suite": false,
+  "steps": [
+    {"wait": 5},
+    {"call": "scr_gnx_exec_tool_action", "args": [{"type": "reroll_shop"}, "_gnx"]},
+    {"call": "scr_gnx_exec_tool_action", "args": [{"type": "reroll_trade"}, "_gnx"]},
+    {"call": "scr_gnx_exec_tool_action", "args": [{"type": "reroll_encounters"}, "_gnx"]},
+    {"assert": "fn", "name": "scr_gnx_eval_tool_guard", "args": [{"type": "on_screen"}, "_gnx"], "is": 0,
+     "why": "on_screen is false in the menu"},
+    {"assert": "fn", "name": "gnx_raid_window", "args": [], "is": -4, "why": "no raid window in the menu room"}
+  ]
+}

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml
 +++ gml/gml_GlobalScript_s_gnx_tools.gml
-@@ -0,0 +1,1807 @@
+@@ -0,0 +1,1822 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1189,7 +1189,7 @@
 +            break;
 +
 +        case "reroll_shop":
-+            with (obj_np.obj_raid)
++            with (gnx_raid_window())
 +            {
 +                if (activate)
 +                    scr_choose_shop_item();
@@ -1198,7 +1198,7 @@
 +            break;
 +        
 +        case "reroll_trade":
-+            with (obj_np.obj_raid)
++            with (gnx_raid_window())
 +            {
 +                if (activate)
 +                    scr_choose_trade_item();
@@ -1207,9 +1207,9 @@
 +            break;
 +        
 +        case "reroll_encounters":
-+            var _raid = obj_np.obj_raid;
++            var _raid = gnx_raid_window();
 +            
-+            if (_raid.activate)
++            if (_raid != noone && _raid.activate)
 +            {
 +                var _stage = _raid.raid_data.stage;
 +                var _lvl = global.val.stage_lvl_sel[_stage];
@@ -1360,6 +1360,16 @@
 +}
 +
 +
++// GNX-FIX: the raid window exists only in the game room (the menu room has obj_np and obj_control but no obj_raid);
++// tool actions and keybinds read it through this, noone when it is not there
++function gnx_raid_window()
++{
++    if (!instance_exists(obj_np) || !variable_instance_exists(obj_np, "obj_raid"))
++        return noone;
++    
++    return instance_exists(obj_np.obj_raid) ? obj_np.obj_raid : noone;
++}
++
 +function scr_gnx_eval_tool_guard(arg0, arg1)
 +{
 +    var _type = arg0.type;
@@ -1386,7 +1396,8 @@
 +            return false;
 +        
 +        case "on_screen":
-+            return obj_np.obj_raid.activate;
++            var _rw = gnx_raid_window();
++            return _rw != noone && _rw.activate;
 +        
 +        default:
 +            return scr_gnx_eval_condition(arg0, arg1);
@@ -1400,6 +1411,10 @@
 +        exit;
 +    
 +    if (global.click_lock || global.trans_lock)
++        exit;
++    
++    // GNX-FIX: keybinds act on a running game only (in the menu they crashed on the missing raid window)
++    if (room != rm_game)
 +        exit;
 +    
 +    var _binds = global.gnx_keybinds;

@@ -6,6 +6,8 @@
 
 ### Bug Fixes
 
+- LILITH SHRINE with Lilith or another base game boss: the goblin, hobgoblin and ogre were drawn without the game's shrine enter and touch sprites, so the goblin's groin looked wrong. Only mod special classes without shrine art leave them out now.
+- A mod keyboard shortcut pressed on the main menu could stop the game with "obj_raid not set before reading" (tool actions that reroll the shop, the trader or the encounters, and the `on_screen` guard, read the raid window, which only exists in a running game). Shortcuts now act only in a running game, and those actions do nothing when there is no raid window.
 - A cell whose scene names a script the game does not have (misspelled, or from a newer GNX) was only a line in the log, and the game stopped with "Trying to execute non-existing script" once a scene reached it. It is now a mod error when the mod loads, and the cell ends that scene and idles instead.
 - Loading a save could stop with "x_pos not set before reading" when a cell listed a prop that was already gone when the game saved. That prop is now left out.
 - Raid map: the warning that a mod stage's button covers a vanilla stage's went by the vanilla places only, so on a map that hides or moves a vanilla stage (`map_info.vanilla_stages`) a stage on the old place got the warning, and one next to the new place did not. It now uses the vanilla stages where that map has them.

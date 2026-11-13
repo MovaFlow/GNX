@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7582 @@
+@@ -0,0 +1,7623 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -3886,6 +3886,7 @@
 +            ["travel", "gnx_scn_st_travel"],
 +            ["atlas_draw_parity", "gnx_scn_st_atlas_draw_parity"],
 +            ["mon_spr_probe", "gnx_scn_st_mon_spr_probe"],
++            ["shrine_enter_probe", "gnx_scn_st_shrine_enter_probe"],
 +            ["shrine_hand_probe", "gnx_scn_st_shrine_hand_probe"],
 +            ["draw_probe", "gnx_scn_st_draw_probe"],
 +            ["site_list_probe", "gnx_scn_st_site_list_probe"],
@@ -4303,6 +4304,46 @@
 +
 +        _mc.slot_data.h_type = _old_h;
 +        scr_gnx_scn_check("mon_spr_probe", _flag == _mp.ogre_alpha, "h_type " + string(gnx_scn_ref(_mp.cell)) + " mon_type " + string(_mp.mon_type) + " gnx_ogre_alpha=" + string(_flag) + " body_l=" + string(_bl));
++    }
++
++    return false;
++}
++
++
++function gnx_scn_st_shrine_enter_probe(_s, _st)
++{
++    // {"shrine_enter_probe": {"class": 8, "mon_type": 0, "enter": "spr_h_goblin_shrine_enter"}}: the real
++    // scr_set_mon_spr_data (phase 2) for a monster of that type in a borrowed occupied LILITH SHRINE whose unit is given
++    // that class; the cell's spr_enter must be that sprite ("-1" = none). Everything is put back afterwards.
++    var _sp = _st.shrine_enter_probe;
++    var _sc = gnx_scn_occupied_cell(39);
++
++    if (_sc == -1)
++    {
++        scr_gnx_scn_check("shrine_enter_probe", false, "no occupied LILITH SHRINE to borrow");
++    }
++    else
++    {
++        var _o_cls = _sc.unit_data.class;
++        var _o_enter = _sc.slot_data.spr_enter;
++        var _o_touch = _sc.slot_data.spr_touch;
++        _sc.unit_data.class = gnx_scn_ref(_sp.class);
++        _sc.slot_data.spr_enter = -1;
++        var _mm = scr_create_mon(_sp.mon_type, _sc.x, _sc.y, _sc.slot_data.slot_floor, -1, 0);
++
++        with (_mm)
++        {
++            mon_data.slot_id = _sc;
++            scr_set_mon_spr_data(_sc, 2);
++            instance_destroy();
++        }
++
++        var _got = _sc.slot_data.spr_enter;
++        var _name = sprite_exists(_got) ? sprite_get_name(_got) : string(_got);
++        _sc.unit_data.class = _o_cls;
++        _sc.slot_data.spr_enter = _o_enter;
++        _sc.slot_data.spr_touch = _o_touch;
++        scr_gnx_scn_check("shrine_enter_probe", _name == _sp.enter, "class " + string(gnx_scn_ref(_sp.class)) + " mon_type " + string(_sp.mon_type) + " spr_enter=" + _name);
 +    }
 +
 +    return false;
