@@ -16669,7 +16669,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7623 @@
+@@ -0,0 +1,7679 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -20556,6 +20556,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +            ["atlas_draw_parity", "gnx_scn_st_atlas_draw_parity"],
 +            ["mon_spr_probe", "gnx_scn_st_mon_spr_probe"],
 +            ["shrine_enter_probe", "gnx_scn_st_shrine_enter_probe"],
++            ["outfit_check", "gnx_scn_st_outfit_check"],
 +            ["shrine_hand_probe", "gnx_scn_st_shrine_hand_probe"],
 +            ["draw_probe", "gnx_scn_st_draw_probe"],
 +            ["site_list_probe", "gnx_scn_st_site_list_probe"],
@@ -20975,6 +20976,61 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        scr_gnx_scn_check("mon_spr_probe", _flag == _mp.ogre_alpha, "h_type " + string(gnx_scn_ref(_mp.cell)) + " mon_type " + string(_mp.mon_type) + " gnx_ogre_alpha=" + string(_flag) + " body_l=" + string(_bl));
 +    }
 +
++    return false;
++}
++
++
++function gnx_scn_st_outfit_check(_s, _st)
++{
++    // {"outfit_check": {"h_type": h, "is": "0 1 0 0", "worn_same": true}}: the clothing variant chosen per layer
++    // of the first cell of that type (slot_data.gnx_outfit); the clothing buttons (mod_index) and worn sprites are logged
++    var _oc = _st.outfit_check;
++    var _h = gnx_scn_ref(_oc.h_type);
++    var _c = -1;
++
++    with (obj_slot)
++    {
++        if (_c == -1 && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == _h)
++            _c = id;
++    }
++
++    if (_c == -1)
++    {
++        scr_gnx_scn_check("outfit_check", false, "no cell h=" + string(_h));
++        return false;
++    }
++
++    var _o = variable_struct_exists(_c.slot_data, "gnx_outfit") ? _c.slot_data.gnx_outfit : -1;
++    var _os = "";
++
++    if (is_array(_o))
++    {
++        for (var i = 0; i < array_length(_o); i++)
++            _os += (i > 0 ? " " : "") + string(_o[i]);
++    }
++    else
++        _os = "none";
++
++    var _ms = "";
++
++    for (var i = 0; i < array_length(_c.slot_data.mod_index); i++)
++        _ms += (i > 0 ? " " : "") + string(_c.slot_data.mod_index[i]);
++
++    // the clothing each layer draws now (place 3 of spr_slot; the cape's place 1)
++    var _ws = "";
++
++    for (var i = 0; i < array_length(_c.spr_slot); i++)
++    {
++        var _w = is_array(_c.spr_slot[i]) ? ((_c.spr_slot[i][0] == 11) ? _c.spr_slot[i][1] : _c.spr_slot[i][3]) : -1;
++        _ws += (i > 0 ? " " : "") + (sprite_exists(_w) ? sprite_get_name(_w) : string(_w));
++    }
++
++    _ms += " | worn " + _ws;
++    // "worn_same": true = each layer draws what it drew at the previous outfit_check (e.g. across a reload)
++    var _prev = variable_global_exists("gnx_scn_last_worn") ? global.gnx_scn_last_worn : "";
++    var _ok = _os == _oc.is && (!variable_struct_exists(_oc, "worn_same") || _ws == _prev);
++    global.gnx_scn_last_worn = _ws;
++    scr_gnx_scn_check("outfit_check", _ok, "h=" + string(_h) + " gnx_outfit=" + _os + " mod_index=" + _ms + " want " + _oc.is);
 +    return false;
 +}
 +
@@ -35099,7 +35155,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tests.gml
 --- gml_138/gml_GlobalScript_s_gnx_tests.gml
 +++ gml/gml_GlobalScript_s_gnx_tests.gml
-@@ -0,0 +1,2260 @@
+@@ -0,0 +1,2263 @@
 +// GNX: boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -35134,10 +35190,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 +    {
 +        for (var _i = 0; _i < array_length(arg0); _i++)
 +        {
-+            if (!scr_gnx_spr_ok(arg0[_i]))
++            // GNX-OUTFIT: a clothing variant list (gnx_c_var) holds lists: each of their sprites is checked
++            if (is_array(arg0[_i]))
++                _bad += scr_gnx_collect_bad_spr(arg0[_i], arg1 + "[" + string(_i) + "]");
++            else if (!scr_gnx_spr_ok(arg0[_i]))
 +                _bad += (arg1 + "[" + string(_i) + "] ");
 +        }
-+        
++
 +        return _bad;
 +    }
 +    
@@ -54666,7 +54725,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                  if (_data.slot_data.slot_type == UnknownEnum.Value_2 && _data.slot_data.base_type == UnknownEnum.Value_5)
                      spr_base = spr_tent_back_full;
                  
-@@ -408,30 +637,134 @@
+@@ -408,30 +637,139 @@
                      global.slot_x[slot_data.slot_floor] += _diff;
                  }
                  
@@ -54809,10 +54868,15 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +                            slot_data.mod_index[_mi] = 0;
 +                    }
 +                }
++                
++                // GNX-OUTFIT: scr_occupy_slot above set the layers up before the saved slot_data came back, so
++                // they show the clothing; the saved choice of clothing variants (slot_data.gnx_outfit) is shown now
++                if (variable_instance_exists(id, "gnx_c_var"))
++                    gnx_outfit_apply();
              }
          }
          
-@@ -482,22 +815,14 @@
+@@ -482,22 +820,14 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -54837,7 +54901,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +879,10 @@
+@@ -554,6 +884,10 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -54848,7 +54912,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +896,68 @@
+@@ -567,7 +901,68 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -54917,7 +54981,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +996,21 @@
+@@ -606,11 +1001,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -54940,7 +55004,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1034,12 @@
+@@ -634,7 +1039,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -54953,7 +55017,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1059,395 @@
+@@ -654,8 +1064,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -55349,7 +55413,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1455,7 @@
+@@ -663,6 +1460,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -55357,7 +55421,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1475,25 @@
+@@ -682,33 +1480,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -55402,7 +55466,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1518,119 @@
+@@ -733,3 +1523,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
