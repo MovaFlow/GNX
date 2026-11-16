@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7679 @@
+@@ -0,0 +1,7758 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -4308,6 +4308,85 @@
 +    }
 +
 +    return false;
++}
++
++
++// F48 checks (scenario voice_reroll): the captives of the prison, the cage and the cells, as gnx_reroll_voices sees them
++function gnx_scn_all_captives()
++{
++    var _a = [];
++
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        var _u = ds_list_find_value(global.unit_list, i);
++
++        if (is_struct(_u))
++            array_push(_a, _u);
++    }
++
++    for (var i = 0; i < array_length(global.val.cage); i++)
++    {
++        if (is_struct(global.val.cage[i]))
++            array_push(_a, global.val.cage[i]);
++    }
++
++    with (obj_slot)
++    {
++        if (is_struct(unit_data))
++            array_push(_a, unit_data);
++    }
++
++    return _a;
++}
++
++
++// {"call": "gnx_scn_voice_set_all", "args": ["x.bank"]}: every captive gets that moan voice; returns how many
++function gnx_scn_voice_set_all(arg0)
++{
++    var _a = gnx_scn_all_captives();
++
++    for (var i = 0; i < array_length(_a); i++)
++    {
++        _a[i].moan_voice = arg0;
++        _a[i].moan_pitch = 1;
++    }
++
++    return array_length(_a);
++}
++
++
++// how many captives have moan voice arg0 ("*real" = a bank that is loaded)
++function gnx_scn_voice_count(arg0)
++{
++    var _a = gnx_scn_all_captives();
++    var _n = 0;
++
++    for (var i = 0; i < array_length(_a); i++)
++    {
++        var _v = variable_struct_exists(_a[i], "moan_voice") ? _a[i].moan_voice : -1;
++
++        if ((arg0 == "*real") ? (is_string(_v) && ds_map_exists(global.gnx_voice_banks, _v)) : (_v == arg0))
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// true when there are captives and every one has a loaded bank
++function gnx_scn_voice_all_real()
++{
++    var _n = array_length(gnx_scn_all_captives());
++    return _n > 0 && gnx_scn_voice_count("*real") == _n;
++}
++
++
++// scr_gnx_check_voice on a captive whose voice is arg0: true when she has a loaded bank afterwards
++function gnx_scn_voice_checked_real(arg0)
++{
++    var _u = { class: 1, lvl: 2, moan_voice: arg0, moan_pitch: 1 };
++    scr_gnx_check_voice(_u);
++    return is_string(_u.moan_voice) && ds_map_exists(global.gnx_voice_banks, _u.moan_voice);
 +}
 +
 +

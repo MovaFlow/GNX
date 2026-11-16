@@ -3874,13 +3874,14 @@ GNX builds both after all mods have loaded.
 
 A button list whose buttons include one starting with `create_unit` (also in your own categories) gets a **RANK** selector on the left: `1`–`5` (stars), `MAX`, `CLONE`, `SPECIAL` (internally 0–7). `create_unit` uses it when it has no `level` ([§17.6](#176-action-reference)).
 
-**GNX DEBUG** holds ten test switches and one button, RELOAD MODS; the switches' ON/OFF state is never saved.
+**GNX DEBUG** holds ten test switches and two buttons, RELOAD MODS and NEW VOICES; the switches' ON/OFF state is never saved.
 
 | Button | What it turns on (its ON popup) |
 |---|---|
 | PERF LOG | `Perf logging ON (gnx_debug.txt)`: a performance line every 120 frames (about 2 seconds). |
 | VERBOSE | `Verbose debug logging ON`: many extra trace lines; use it when a cell or class draws wrong. |
 | RELOAD MODS | A button, not a switch. Saves the game to the autosave slot, reads every mod's files again (JSON, sprites, sounds) and loads the autosave back, without the menu: edit a mod, press it, see the change. Refused while a raid is out or during a trip. The autosave it replaces is kept as `save_file_a.json.bak_reload`. The previous load's images and sounds stay in memory (a cell loaded back mid-scene can still show one until its next phase), so restart the game after many reloads. |
+| NEW VOICES | A button, not a switch. Gives every captive (prison, cage, cells) a new moan voice, picked as when she first got one: her class's `voice_map` / `voice_bank` when it has one, otherwise a random voice; bosses always random. Use it after installing or updating a moan mod: captives keep the voice they got, so new voices are otherwise heard only from new captives. A captive whose voice belongs to a removed mod gets a new one by herself. Needs at least one sound mod. |
 | FREE COPY | `Floor copies are free`: COPY DOWN in a floor's FLOOR menu (on its starting pillar) costs nothing. |
 | CAPT100 | `Raid capture rate forced to 100%`: every capture roll succeeds (except in `no_capture` encounters, [21.2](#212-map_info)). |
 | RAID ROUTES | `Mod raid routes shown on the raid map`: draws every mod stage's cart route, path points and button area on the raid map ([27.4](#274-cart-routes)). |
@@ -4046,7 +4047,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **40** a
 
 **Travel (1):** `travel_map` (`target`, required; `label`, default `target`) opens the travel selector for the map `target` ([§21](#21-multi-map-travel)). It is refused, with a message, while a raid is out, a window is open or the player holds something.
 
-**Debug (1):** `reload_mods` (no fields) does what the GNX DEBUG button RELOAD MODS does ([§17.3](#173-built-in-menus-spawn-and-gnx-debug)): it saves to the autosave slot, reads every mod's files again and loads the autosave back. While a raid is out or during a trip it is refused with `Reload refused: wait for the raid or the trip to end`.
+**Debug (2):** `reroll_voices` (no fields) does what the GNX DEBUG button NEW VOICES does: every captive gets a new moan voice. `reload_mods` (no fields) does what the GNX DEBUG button RELOAD MODS does ([§17.3](#173-built-in-menus-spawn-and-gnx-debug)): it saves to the autosave slot, reads every mod's files again and loads the autosave back. While a raid is out or during a trip it is refused with `Reload refused: wait for the raid or the trip to end`.
 
 ### 17.7 Guards
 

@@ -16669,7 +16669,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7679 @@
+@@ -0,0 +1,7758 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -20980,6 +20980,85 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
++// F48 checks (scenario voice_reroll): the captives of the prison, the cage and the cells, as gnx_reroll_voices sees them
++function gnx_scn_all_captives()
++{
++    var _a = [];
++
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        var _u = ds_list_find_value(global.unit_list, i);
++
++        if (is_struct(_u))
++            array_push(_a, _u);
++    }
++
++    for (var i = 0; i < array_length(global.val.cage); i++)
++    {
++        if (is_struct(global.val.cage[i]))
++            array_push(_a, global.val.cage[i]);
++    }
++
++    with (obj_slot)
++    {
++        if (is_struct(unit_data))
++            array_push(_a, unit_data);
++    }
++
++    return _a;
++}
++
++
++// {"call": "gnx_scn_voice_set_all", "args": ["x.bank"]}: every captive gets that moan voice; returns how many
++function gnx_scn_voice_set_all(arg0)
++{
++    var _a = gnx_scn_all_captives();
++
++    for (var i = 0; i < array_length(_a); i++)
++    {
++        _a[i].moan_voice = arg0;
++        _a[i].moan_pitch = 1;
++    }
++
++    return array_length(_a);
++}
++
++
++// how many captives have moan voice arg0 ("*real" = a bank that is loaded)
++function gnx_scn_voice_count(arg0)
++{
++    var _a = gnx_scn_all_captives();
++    var _n = 0;
++
++    for (var i = 0; i < array_length(_a); i++)
++    {
++        var _v = variable_struct_exists(_a[i], "moan_voice") ? _a[i].moan_voice : -1;
++
++        if ((arg0 == "*real") ? (is_string(_v) && ds_map_exists(global.gnx_voice_banks, _v)) : (_v == arg0))
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// true when there are captives and every one has a loaded bank
++function gnx_scn_voice_all_real()
++{
++    var _n = array_length(gnx_scn_all_captives());
++    return _n > 0 && gnx_scn_voice_count("*real") == _n;
++}
++
++
++// scr_gnx_check_voice on a captive whose voice is arg0: true when she has a loaded bank afterwards
++function gnx_scn_voice_checked_real(arg0)
++{
++    var _u = { class: 1, lvl: 2, moan_voice: arg0, moan_pitch: 1 };
++    scr_gnx_check_voice(_u);
++    return is_string(_u.moan_voice) && ds_map_exists(global.gnx_voice_banks, _u.moan_voice);
++}
++
++
 +function gnx_scn_st_outfit_check(_s, _st)
 +{
 +    // {"outfit_check": {"h_type": h, "is": "0 1 0 0", "worn_same": true}}: the clothing variant chosen per layer
@@ -24671,7 +24750,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2949 @@
+@@ -0,0 +1,2962 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -26580,6 +26659,19 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +                    type: "reload_mods"
 +                }],
 +                popup: "",
++                toggle: "",
++                undo_actions: [],
++                undo_popup: "",
++                guard: -1,
++                guard_fail_popup: ""
++            },
++            {
++                label: "NEW VOICES",
++                actions: [
++                {
++                    type: "reroll_voices"
++                }],
++                popup: "Every captive has a new moan voice",
 +                toggle: "",
 +                undo_actions: [],
 +                undo_popup: "",
@@ -34579,7 +34671,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sound.gml
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml
 +++ gml/gml_GlobalScript_s_gnx_sound.gml
-@@ -0,0 +1,572 @@
+@@ -0,0 +1,617 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -35049,6 +35141,48 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +}
 +
 +
++/// GNX-VOICE: a new moan voice for one captive (unit_data struct), as when she first got one: her class's
++/// voice_map / voice_bank when it has one, else a random bank; bosses (level 6 and 7) always random
++function gnx_reroll_voice(arg0)
++{
++    if (!is_struct(arg0))
++        return 0;
++    
++    var _class = variable_struct_exists(arg0, "class") ? arg0.class : 0;
++    var _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 0;
++    var _v = scr_gnx_generate_voice(_class, _lvl == 6 || _lvl == 7);
++    arg0.moan_voice = _v.moan_voice;
++    arg0.moan_pitch = _v.moan_pitch;
++    return 1;
++}
++
++
++/// GNX-VOICE: every captive gets a new moan voice (tool action "reroll_voices", GNX DEBUG > NEW VOICES): the
++/// prison, the cage and the cells (a captive being carried is still in her cell's unit_data). For a moan mod
++/// installed or updated after the captives got their voices. Returns how many captives got one.
++function gnx_reroll_voices()
++{
++    if (!global.gnx_has_sounds)
++        return 0;
++    
++    var _n = 0;
++    
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++        _n += gnx_reroll_voice(ds_list_find_value(global.unit_list, i));
++    
++    if (variable_struct_exists(global.val, "cage") && is_array(global.val.cage))
++    {
++        for (var i = 0; i < array_length(global.val.cage); i++)
++            _n += gnx_reroll_voice(global.val.cage[i]);
++    }
++    
++    with (obj_slot)
++        _n += gnx_reroll_voice(unit_data);
++    
++    return _n;
++}
++
++
 +function scr_gnx_check_voice(arg0)
 +{
 +    if (!global.gnx_has_sounds)
@@ -35062,6 +35196,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +    if (!variable_struct_exists(arg0, "moan_voice") || !variable_struct_exists(arg0, "moan_pitch"))
 +        _needs_gen = true;
 +    else if (arg0.moan_voice == -1 || arg0.moan_pitch == -1)
++        _needs_gen = true;
++    // GNX-VOICE: her bank's mod was removed (or renamed it): a new voice instead of a silent captive
++    else if (!ds_map_exists(global.gnx_voice_banks, arg0.moan_voice))
 +        _needs_gen = true;
 +    
 +    if (_needs_gen)
@@ -36088,7 +36225,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 +// T37
 +function scr_gnx_test_t37(_r, _log)
 +{
-+    var _known_types = ["add_gold", "add_food", "add_milk", "add_orbs", "give_item", "give_blueprint", "give_prop", "spawn_mon", "set_troop_level", "add_troop_exp", "set_skill_level", "set_troop_size", "create_unit", "create_unit_cage", "unlock_boss", "unlock_stage_next", "unlock_breeds", "unlock_cell", "unlock_prop", "unlock_raid", "unlock_all_cells", "add_floor", "set_day", "add_day_time", "set_speed", "swap_mouse", "show_debug_overlay", "set_val", "set_var", "reroll_shop", "reroll_trade", "reroll_encounters", "reload_mods", "set_state", "set_continuous", "fire_event", "fire_trigger", "popup", "play_sfx", "travel_map"];
++    var _known_types = ["add_gold", "add_food", "add_milk", "add_orbs", "give_item", "give_blueprint", "give_prop", "spawn_mon", "set_troop_level", "add_troop_exp", "set_skill_level", "set_troop_size", "create_unit", "create_unit_cage", "unlock_boss", "unlock_stage_next", "unlock_breeds", "unlock_cell", "unlock_prop", "unlock_raid", "unlock_all_cells", "add_floor", "set_day", "add_day_time", "set_speed", "swap_mouse", "show_debug_overlay", "set_val", "set_var", "reroll_shop", "reroll_trade", "reroll_encounters", "reload_mods", "reroll_voices", "set_state", "set_continuous", "fire_event", "fire_trigger", "popup", "play_sfx", "travel_map"];
 +    var _bad37 = "";
 +    
 +    for (var _mi = 0; _mi < array_length(global.gnx_tool_registry); _mi++)
@@ -37422,7 +37559,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_tools.gml
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml
 +++ gml/gml_GlobalScript_s_gnx_tools.gml
-@@ -0,0 +1,1822 @@
+@@ -0,0 +1,1826 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -38608,6 +38745,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +        
 +        case "reload_mods":
 +            gnx_reload_mods();  // GNX-RELOAD
++            break;
++
++        case "reroll_voices":
++            gnx_reroll_voices();  // GNX-VOICE: every captive gets a new moan voice
 +            break;
 +
 +        case "reroll_shop":

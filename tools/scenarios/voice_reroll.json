@@ -1,0 +1,66 @@
+{
+ "about": "Tool action reroll_voices (GNX DEBUG > NEW VOICES): every captive (prison, cage, cells) gets a new moan voice from the loaded banks. And a captive whose bank is gone (its mod removed) gets a new voice when checked instead of staying silent.",
+ "fixture": "mid",
+ "timeout": 120,
+ "mods": [
+  "tools/scenarios/mods/harness_voice"
+ ],
+ "local_files": [
+  {
+   "from": "harness_game/test_mods/moan_mod/sounds/snd_fmoan0_1.ogg",
+   "to": "harness_voice/sounds/clip.ogg"
+  }
+ ],
+ "check_boot_suite": false,
+ "why_no_boot_suite": "VOICE CLASS (harness_voice) ships no sprite files, so the boot suite's class sprite checks fail by design",
+ "steps": [
+  {
+   "wait": 30
+  },
+  {
+   "call": "gnx_scn_voice_set_all",
+   "args": [
+    "old_mod.voice"
+   ]
+  },
+  {
+   "assert": "fn",
+   "name": "gnx_scn_voice_count",
+   "args": [
+    "*real"
+   ],
+   "is": 0,
+   "why": "every captive has a bank that is not loaded"
+  },
+  {
+   "do": {
+    "type": "reroll_voices"
+   }
+  },
+  {
+   "assert": "fn",
+   "name": "gnx_scn_voice_count",
+   "args": [
+    "old_mod.voice"
+   ],
+   "is": 0,
+   "why": "nobody kept the old voice"
+  },
+  {
+   "assert": "fn",
+   "name": "gnx_scn_voice_all_real",
+   "args": [],
+   "is": true,
+   "why": "every captive has a loaded bank now"
+  },
+  {
+   "assert": "fn",
+   "name": "gnx_scn_voice_checked_real",
+   "args": [
+    "removed_mod.voice"
+   ],
+   "is": true,
+   "why": "a voice of a removed mod is replaced when checked (it stayed, and the captive was silent)"
+  }
+ ]
+}

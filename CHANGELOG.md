@@ -4,8 +4,13 @@
 
 **Game version:** 1.40
 
+### New Features
+
+- GNX DEBUG > NEW VOICES (tool action `reroll_voices`): every captive gets a new moan voice, picked as when she first got one. Captives keep their voice, so a moan mod installed or updated later was heard only from new captives.
+
 ### Bug Fixes
 
+- A captive whose moan voice came from a mod that was removed stayed silent. She now gets a new voice.
 - A cell's clothing variant came back as the plain clothing after loading a save. The choice was saved, but the cell set up its layers before the saved choice was read back; it is now shown again once the save has loaded.
 - The boot test T21 reported every fixed-mode cell with clothing variant lists as having bad sprites. It now checks each sprite inside the lists.
 - LILITH SHRINE with Lilith or another base game boss: the goblin, hobgoblin and ogre were drawn without the game's shrine enter and touch sprites, so the goblin's groin looked wrong. Only mod special classes without shrine art leave them out now.

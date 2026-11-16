@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml
 +++ gml/gml_GlobalScript_s_gnx_sound.gml
-@@ -0,0 +1,572 @@
+@@ -0,0 +1,617 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -470,6 +470,48 @@
 +}
 +
 +
++/// GNX-VOICE: a new moan voice for one captive (unit_data struct), as when she first got one: her class's
++/// voice_map / voice_bank when it has one, else a random bank; bosses (level 6 and 7) always random
++function gnx_reroll_voice(arg0)
++{
++    if (!is_struct(arg0))
++        return 0;
++    
++    var _class = variable_struct_exists(arg0, "class") ? arg0.class : 0;
++    var _lvl = variable_struct_exists(arg0, "lvl") ? arg0.lvl : 0;
++    var _v = scr_gnx_generate_voice(_class, _lvl == 6 || _lvl == 7);
++    arg0.moan_voice = _v.moan_voice;
++    arg0.moan_pitch = _v.moan_pitch;
++    return 1;
++}
++
++
++/// GNX-VOICE: every captive gets a new moan voice (tool action "reroll_voices", GNX DEBUG > NEW VOICES): the
++/// prison, the cage and the cells (a captive being carried is still in her cell's unit_data). For a moan mod
++/// installed or updated after the captives got their voices. Returns how many captives got one.
++function gnx_reroll_voices()
++{
++    if (!global.gnx_has_sounds)
++        return 0;
++    
++    var _n = 0;
++    
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++        _n += gnx_reroll_voice(ds_list_find_value(global.unit_list, i));
++    
++    if (variable_struct_exists(global.val, "cage") && is_array(global.val.cage))
++    {
++        for (var i = 0; i < array_length(global.val.cage); i++)
++            _n += gnx_reroll_voice(global.val.cage[i]);
++    }
++    
++    with (obj_slot)
++        _n += gnx_reroll_voice(unit_data);
++    
++    return _n;
++}
++
++
 +function scr_gnx_check_voice(arg0)
 +{
 +    if (!global.gnx_has_sounds)
@@ -483,6 +525,9 @@
 +    if (!variable_struct_exists(arg0, "moan_voice") || !variable_struct_exists(arg0, "moan_pitch"))
 +        _needs_gen = true;
 +    else if (arg0.moan_voice == -1 || arg0.moan_pitch == -1)
++        _needs_gen = true;
++    // GNX-VOICE: her bank's mod was removed (or renamed it): a new voice instead of a silent captive
++    else if (!ds_map_exists(global.gnx_voice_banks, arg0.moan_voice))
 +        _needs_gen = true;
 +    
 +    if (_needs_gen)
