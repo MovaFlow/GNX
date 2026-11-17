@@ -48,6 +48,18 @@ EXPECTED = {
     ("harness_quest_keys", "quests.json", "events.no_type"),  # quest_missing_keys: an event without type, on purpose
     ("harness_quest_keys", "quests.json", "triggers[0].conditions[0]"),  # gold_gte without value, on purpose
     ("harness_quest_keys", "quests.json", "triggers[1].conditions[0].type"),  # misspelled condition type, on purpose
+    # harness_type_bad: one break per bad entry the schema can see (goblin, wolf and hob are only seen by the loader)
+    ("harness_type_bad", "monsters.json", "(top)"),  # 'Bad Name'
+    ("harness_type_bad", "monsters.json", "nolike"),
+    ("harness_type_bad", "monsters.json", "squid.like"),
+    ("harness_type_bad", "monsters.json", "dragon.like"),
+    ("harness_type_bad", "monsters.json", "glutton.food"),
+    ("harness_type_bad", "monsters.json", "weak.stat"),
+    ("harness_type_bad", "monsters.json", "slow.speed"),
+    ("harness_type_bad", "monsters.json", "slow.speed[0]"),
+    ("harness_type_bad", "monsters.json", "typo"),
+    ("harness_type_bad", "monsters.json", "notobj"),
+    ("harness_type_bad", "cells.json", "[0].mon_types[0]"),  # a mon_types number 4: custom types are named, on purpose
 }
 # real problems found in community mods, reported and waiting for their authors: exact paths, so a new
 # problem in the same files still fails the test
@@ -138,6 +150,7 @@ TYPOS = [
     ("cells", "GNX/example_mod/cells.json", [0], "category"),
     ("cells", "GNX/example_mod/cells.json", [0, "physical"], "max_mon_num"),
     ("cells", "GNX/example_mod/cells.json", [0, "mon_spr", "loop"], "body"),
+    ("monsters", "tools/scenarios/mods/harness_type_a/monsters.json", ["wolf"], "like"),
 ]
 
 
@@ -292,6 +305,7 @@ SYNC += [
     ("s_gnx_content", "_hspr", "cells", ["definitions", "cell", "properties", "human_spr"], "scr_gnx_register_cell"),
     ("s_gnx_content", "_s", "cells", ["definitions", "mon_start"], "gnx_resolve_mon_spr"),
     ("s_gnx_content", "_lo", "cells", ["definitions", "mon_phase"], "gnx_resolve_mon_spr"),
+    ("s_gnx_content", "_d", "monsters", ["definitions", "monster"], "scr_gnx_load_monsters"),
     ("s_gnx_content", "arg0", "cells", ["definitions", "cell", "properties", "mon_spr"], "gnx_resolve_mon_spr"),
 ]
 GML_ONLY = {"mod_name"}  # filled in by the loader

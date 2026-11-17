@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/MovaFlow/GNX/main/tools/schemas/monsters.schema.json",
+  "title": "GNX monsters.json",
+  "description": "Monster types a mod adds, by name: {\"wolf\": {\"like\": \"goblin\"}}. Everything left out comes from like.",
+  "type": "object",
+  "propertyNames": {
+    "pattern": "^([a-z][a-z0-9_]*|_.*)$"
+  },
+  "patternProperties": {
+    "^_": {}
+  },
+  "additionalProperties": {
+    "$ref": "#/definitions/monster"
+  },
+  "definitions": {
+    "monster": {
+      "type": "object",
+      "required": ["like"],
+      "properties": {
+        "like": {
+          "enum": ["goblin", "hobgoblin", "ogre"],
+          "description": "The game monster this type behaves like (walking, art switch, birth art)."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name shown in the game."
+        },
+        "food": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Food per unit per day (goblin 0.5, hobgoblin 0.7, ogre 1)."
+        },
+        "stat": {
+          "type": "array",
+          "items": {"type": "number"},
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "Raid AP of each of the 4 classes."
+        },
+        "speed": {
+          "type": "array",
+          "items": {"type": "number", "exclusiveMinimum": 0},
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Walking speed [min, max], 0 < min <= max."
+        },
+        "idle": {"$ref": "common.schema.json#/definitions/sprite"},
+        "walk": {"$ref": "common.schema.json#/definitions/sprite"},
+        "b_walk": {"$ref": "common.schema.json#/definitions/sprite"},
+        "icon": {"$ref": "common.schema.json#/definitions/sprite"},
+        "heads": {"$ref": "common.schema.json#/definitions/sprite"},
+        "infant_head": {"$ref": "common.schema.json#/definitions/sprite"},
+        "range": {
+          "type": "array",
+          "items": {"type": "array"},
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "Raid rows of each of the 4 classes."
+        },
+        "skills": {
+          "type": "array",
+          "items": {"type": "integer", "minimum": 0, "maximum": 15},
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "Raid skill ID of each of the 4 classes."
+        }
+      },
+      "patternProperties": {
+        "^_": {}
+      },
+      "additionalProperties": false
+    }
+  }
+}

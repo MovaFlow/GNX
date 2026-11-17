@@ -1,0 +1,25 @@
+{
+  "about": "Custom types P1, setup for type_mod_removed_load_b_load: 10 wolves (harness_type_a), one in cell A, one walking, a captive in cell B carrying a wolf. Kept as fixture 'type_removed' (also read by type_mod_removed_load_menu).",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a", "tools/scenarios/mods/harness_type_cell"],
+  "save_fixture_as": "type_removed",
+  "steps": [
+    {"wait": 60},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 10, "class": 0}},
+    {"call": "gnx_scn_build_on_last", "args": [0]},
+    {"call": "gnx_scn_set_last_cell", "args": [{"cell": "harness_type_cell.TYPE CELL A"}]},
+    {"call": "gnx_scn_build_on_last", "args": [0]},
+    {"call": "gnx_scn_set_last_cell", "args": [{"cell": "harness_type_cell.TYPE CELL B"}]},
+    {"wait": 5},
+    {"occupy": {"h_type": {"cell": "harness_type_cell.TYPE CELL A"}, "class": 0, "level": 1}},
+    {"wait": 900},
+    {"assert": "fn", "name": "gnx_scn_occupied_has", "args": [{"mon": "wolf"}], "is": 1, "why": "a wolf sits in cell A"},
+    {"occupy": {"h_type": {"cell": "harness_type_cell.TYPE CELL B"}, "class": 0, "level": 1, "preg": {"mon": "wolf"}}},
+    {"assert": "fn", "name": "gnx_scn_preg_at_occupied", "args": [], "is": 4, "why": "the captive in cell B carries a wolf"},
+    {"assert": "fn", "name": "gnx_scn_spawn_walker", "args": ["wolf"], "is": 1},
+    {"wait": 5},
+    {"assert": "fn", "name": "gnx_scn_mon_live", "args": ["wolf"], "is": 2, "why": "the wolf in cell A and the walker"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 10},
+    {"save": 9}
+  ]
+}

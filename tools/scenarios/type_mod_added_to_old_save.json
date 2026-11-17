@@ -1,0 +1,30 @@
+{
+  "about": "Custom types P1: an old save with a type mod added: the vanilla data is untouched, the wolf gets locked counts, can be spawned, eats, can starve, and keeps its numbers through save/reload.",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a"],
+  "steps": [
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_scn_type_lens", "args": [], "is": "5 6 1 1"},
+    {"assert": "fn", "name": "gnx_scn_vanilla_nums", "args": [], "is": "[ 175,5,0,2 ] [ 22,28,122,6 ] [ 55,5,16,7 ] [ 18,5,5,36 ]"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 0},
+    {"assert": "fn", "name": "gnx_types_food_sum", "args": [], "is": 0},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 8, "class": 0}},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 4, "class": 2}},
+    {"assert": "mons", "type": {"mon": "wolf"}, "class": 0, "is": 8},
+    {"assert": "mons", "type": {"mon": "wolf"}, "class": 2, "is": 4},
+    {"assert": "mons", "type": {"mon": "wolf"}, "class": 1, "is": 0},
+    {"assert": "fn", "name": "gnx_types_food_sum", "args": [], "is": 3},
+    {"do": {"type": "set_troop_level", "species": "wolf", "class": 0, "value": 3}},
+    {"save": 9},
+    {"wait": 3},
+    {"assert": "fn", "name": "gnx_scn_save_type_shape", "args": [], "is": "5 6 wolf wolf"},
+    {"reload": 9},
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_scn_type_lens", "args": [], "is": "5 6 1 1"},
+    {"assert": "fn", "name": "gnx_scn_vanilla_nums", "args": [], "is": "[ 175,5,0,2 ] [ 22,28,122,6 ] [ 55,5,16,7 ] [ 18,5,5,36 ]"},
+    {"assert": "mons", "type": {"mon": "wolf"}, "class": 0, "is": 8},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 12},
+    {"assert": "fn", "name": "gnx_scn_starve_probe", "args": [7, 30], "is": "left=0 g=[ 173,4,0,1 ] h=[ 20,28,120,2 ] t=[ 54,5,14,7 ] o=[ 16,3,1,35 ] m=[ 178,170,80,55,6 ] c=wolf:[ 5,-1,1,-1 ]"},
+    {"assert": "fn", "name": "gnx_scn_starve_probe", "args": [11, 2000], "is": "left=1597 g=[ 38,0,0,0 ] h=[ 0,0,48,0 ] t=[ 0,0,0,0 ] o=[ 0,0,0,0 ] m=[ 38,48,0,0,0 ] c=wolf:[ 0,-1,0,-1 ]"}
+  ]
+}

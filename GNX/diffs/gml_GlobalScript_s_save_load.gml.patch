@@ -424,14 +424,14 @@
 -                        _infant = _data.slot_data.prop[ii].mon_data;
 +                    if (_pd.prop_type == UnknownEnum.Value_40)
 +                        _infant = _pd.mon_data;
-+                    
+                     
+-                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
+-                    _prop.prop_data = _data.slot_data.prop[ii];
 +                    // GNX-PROP: a mod prop is found by its saved name; its number can change with the mod
 +                    // load order (audit P10)
 +                    var _gnx_pt = gnx_prop_saved_type(_pd);
 +                    var _prop = (_gnx_pt == -1) ? -1 : scr_create_prop(id, _gnx_pt, _infant, _pd.prop_step);
-                     
--                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
--                    _prop.prop_data = _data.slot_data.prop[ii];
++                    
 +                    // GNX-FIX: no prop made (its mod is missing): kept aside, not read (that stopped the load)
 +                    if (is_undefined(_prop) || _prop == -1 || !instance_exists(_prop))
 +                    {
@@ -558,10 +558,14 @@
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +901,68 @@
+@@ -567,7 +901,72 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
++        // GNX-TYPES: before val_fix stamps this boot's table; or the pre-pass remapped / kept aside monster types
++        var _gnx_types_moved = gnx_types_set_changed(global.val) || (variable_global_exists("gnx_types_load_moved") && global.gnx_types_load_moved);
++        global.gnx_types_load_moved = false;
++        gnx_types_val_fix(global.val, true);  // GNX-TYPES: this boot's types (monsters are already recreated above)
 +        
 +        // GNX: saves before 1.4.10 did not keep the mod birth list
 +        if (!variable_struct_exists(global.val, "gnx_br_unlock") || !is_array(global.val.gnx_br_unlock) || array_length(global.val.gnx_br_unlock) < 4)
@@ -627,7 +631,20 @@
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +1001,21 @@
+@@ -585,7 +984,11 @@
+         
+         for (var i = 0; i < _num; i++)
+             ds_list_add(global.back_row, _global.back_row[i]);
+-        
++
++        // GNX-TYPES: a type mod added or removed since the save: the population counts only installed types now
++        if (_gnx_types_moved)
++            global.val.nest_num[0] = scr_all_mon_num_cal();
++
+         ds_list_clear(global.new_button_list);
+         _num = array_length(_global.new_button_list);
+         
+@@ -606,11 +1009,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -650,7 +667,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1039,12 @@
+@@ -634,7 +1047,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -663,7 +680,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1064,395 @@
+@@ -654,8 +1072,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -1059,7 +1076,7 @@
      }
      
      return _load;
-@@ -663,6 +1460,7 @@
+@@ -663,6 +1468,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1067,7 +1084,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1480,25 @@
+@@ -682,33 +1488,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1112,7 +1129,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1523,119 @@
+@@ -733,3 +1531,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

@@ -4426,7 +4426,17 @@ diff -uN gml_138/gml_GlobalScript_s_draw_gui.gml gml/gml_GlobalScript_s_draw_gui
 diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
 --- gml_138/gml_GlobalScript_s_food.gml
 +++ gml/gml_GlobalScript_s_food.gml
-@@ -80,7 +80,7 @@
+@@ -32,7 +32,8 @@
+         }
+     }
+     
+-    var _cost = ceil(((_mon_num[UnknownEnum.Value_0] + _mon_num[UnknownEnum.Value_2]) * 0.5) + ((_unit_num + max(0, _mon_num[UnknownEnum.Value_1])) * 0.7) + max(0, _mon_num[UnknownEnum.Value_3]));
++    // GNX-TYPES: + the custom types' rations (0 with none: the same cost)
++    var _cost = ceil(((_mon_num[UnknownEnum.Value_0] + _mon_num[UnknownEnum.Value_2]) * 0.5) + ((_unit_num + max(0, _mon_num[UnknownEnum.Value_1])) * 0.7) + max(0, _mon_num[UnknownEnum.Value_3]) + gnx_types_food_sum());
+     return _cost;
+ }
+ 
+@@ -80,7 +81,7 @@
                  break;
              
              case UnknownEnum.Value_4:
@@ -4435,10 +4445,103 @@ diff -uN gml_138/gml_GlobalScript_s_food.gml gml/gml_GlobalScript_s_food.gml
                  _consume = "Consumidas al final del día";
                  break;
              
+@@ -114,19 +115,26 @@
+ function scr_reset_nest_num()
+ {
+     var _mon_ar = [0, 0, 0];
+-    
++
++    // GNX-TYPES: custom types out of the nest go to nest_num[type + 1]
++    for (var _t = 4; _t < gnx_mon_type_count(); _t++)
++        global.val.nest_num[_t + 1] = 0;
++
+     if (instance_exists(obj_mon))
+     {
+         with (obj_mon)
+         {
+             if (mon_data.mon_type == UnknownEnum.Value_0)
+                 _mon_ar[0]++;
+-            
++
+             if (mon_data.mon_type == UnknownEnum.Value_1)
+                 _mon_ar[1]++;
+-            
++
+             if (mon_data.mon_type == UnknownEnum.Value_3)
+                 _mon_ar[2]++;
++
++            if (mon_data.mon_type >= 4)
++                global.val.nest_num[mon_data.mon_type + 1]++;
+         }
+     }
+     
+@@ -153,12 +161,19 @@
+ 
+ function scr_kill_mon(arg0)
+ {
+-    var _free_mon = global.val.nest_num[0] - global.val.nest_num[1] - global.val.nest_num[2] - global.val.nest_num[3] - global.val.nest_num[4] - scr_calculate_troop_size();
++    // GNX-TYPES: every type's monsters out of the nest (nest_num[1] to [4] with no custom type)
++    var _free_mon = global.val.nest_num[0];
++
++    for (var _ni = 1; _ni < array_length(global.val.nest_num); _ni++)
++        _free_mon -= global.val.nest_num[_ni];
++
++    _free_mon -= scr_calculate_troop_size();
+     var _kill_num = min(arg0, _free_mon);
+-    
++
+     while (_kill_num > 0)
+     {
+-        var _choose = irandom_range(0, 3);
++        // GNX-TYPES: the game's own draw unless a custom type has units
++        var _choose = gnx_types_any_units() ? irandom_range(0, gnx_mon_type_count() - 1) : irandom_range(0, 3);
+         
+         if (global.val.mon_num[_choose] > 0)
+         {
+@@ -222,7 +237,24 @@
+                             _del = true;
+                         }
+                     }
+-                    
++
++                    break;
++
++                default:
++                    // GNX-TYPES: a custom type starves as the hobgoblin (mon_num > 0, so some class has units)
++                    var _kmd = gnx_mon_data(_choose);
++
++                    while (!_del)
++                    {
++                        var _class_ch = irandom_range(0, 3);
++
++                        if (_kmd.num[_class_ch] > 0)
++                        {
++                            _kmd.num[_class_ch]--;
++                            _del = true;
++                        }
++                    }
++
+                     break;
+             }
+             
 diff -uN gml_138/gml_GlobalScript_s_general.gml gml/gml_GlobalScript_s_general.gml
 --- gml_138/gml_GlobalScript_s_general.gml
 +++ gml/gml_GlobalScript_s_general.gml
-@@ -306,10 +306,22 @@
+@@ -192,8 +192,12 @@
+         case UnknownEnum.Value_3:
+             _array = global.val.ogre;
+             break;
++
++        default:
++            _array = gnx_mon_data(arg0);  // GNX-TYPES: a custom type's global.val.gnx_mon.<name>
++            break;
+     }
+-    
++
+     return _array;
+ }
+ 
+@@ -306,10 +310,22 @@
  
  function scr_choose_track(arg0)
  {
@@ -7339,21 +7442,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +}
 +
 +
-+// map_start helpers: a monster type given as a name or a number (-1 = unknown)
++// map_start helpers: a monster type given as a name or a number 0-3 (-1 = unknown; GNX-TYPES: the type table's rule,
++// a number 4 and up is a mod error, a name no installed mod declares a warning)
 +function gnx_mon_type_ref(arg0)
 +{
-+    if (is_real(arg0))
-+        return (arg0 >= 0 && arg0 <= 3) ? arg0 : -1;
-+
-+    switch (arg0)
-+    {
-+        case "goblin": return 0;
-+        case "hobgoblin": return 1;
-+        case "tentacle": return 2;
-+        case "ogre": return 3;
-+    }
-+
-+    return -1;
++    return gnx_mon_type_json(arg0, "map_start");
 +}
 +
 +
@@ -7610,9 +7703,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +    }
 +    
 +    var _sets = ["mon_spr", "mon_spr_hob", "mon_spr_ogr"];
++
++    // GNX-TYPES: and each custom type's own set, mon_spr_<name>
++    for (var _gt = 4; _gt < gnx_mon_type_count(); _gt++)
++        array_push(_sets, "mon_spr_" + gnx_mon_type_name(_gt));
++
 +    var _all = [];
-+    
-+    for (var s = 0; s < 3; s++)
++
++    for (var s = 0; s < array_length(_sets); s++)
 +    {
 +        array_push(_all, _sets[s]);
 +        
@@ -7642,18 +7740,23 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +    
 +    // a monster type without its own start or loop strips is drawn from the vanilla sheets (2 / 5 frames)
 +    var _types = variable_struct_exists(arg0, "mon_types") ? arg0.mon_types : [0, 1, 2, 3];
-+    var _tname = ["goblin", "hobgoblin", "tentacle", "ogre"];
-+    
++
 +    for (var m = 0; m < array_length(_types); m++)
 +    {
-+        var _t = gnx_json_num(_types[m], -1);
-+        
-+        if (_t < 0 || _t > 3)
++        // GNX-TYPES: the cell JSON's entry, a type name or a number (gnx_cell_mon_check reports bad ones, not this)
++        var _t = (is_string(_types[m]) && gnx_mon_type_id(_types[m]) >= 0) ? gnx_mon_type_id(_types[m]) : gnx_json_num(_types[m], -1);
++
++        if (_t < 0 || _t >= gnx_mon_type_count() || _t != floor(_t))
 +            continue;
-+        
-+        // as in scr_set_mon_spr_data: hobgoblin and ogre sets, else the goblin set (mon_spr)
-+        var _key = (_t == 1) ? "mon_spr_hob" : ((_t == 3) ? "mon_spr_ogr" : "mon_spr");
-+        
++
++        // as in scr_set_mon_spr_data: a custom type's own set, else the set of its "like": hobgoblin and ogre
++        // sets, else the goblin set (mon_spr); the vanilla frame counts below are the like's
++        var _lk = gnx_mon_like(_t);
++        var _key = (_lk == 1) ? "mon_spr_hob" : ((_lk == 3) ? "mon_spr_ogr" : "mon_spr");
++
++        if (_t >= 4 && variable_struct_exists(arg0, "mon_spr_" + gnx_mon_type_name(_t)))
++            _key = "mon_spr_" + gnx_mon_type_name(_t);
++
 +        if (!variable_struct_exists(arg0, _key))
 +            _key = "mon_spr";
 +        
@@ -7665,9 +7768,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +            var _vanilla = (p == 0) ? 2 : 5;
 +            
 +            // GNX-ART: a phase that monster_art has a block for, at every place, has strips (anal scenes without anal art play these)
-+            if (_need != _vanilla && (!is_struct(_set) || !variable_struct_exists(_set, _ph[p])) && !gnx_art_json_covers(arg0, _t, _ph[p], _max_mon))
++            if (_need != _vanilla && (!is_struct(_set) || !variable_struct_exists(_set, _ph[p])) && !gnx_art_json_covers(arg0, _lk, _ph[p], _max_mon))
 +            {
-+                gnx_report_mod_error("Cell '" + string(arg1) + "': the " + _ph[p] + " has " + string(_need) + " frames but " + _tname[_t] + "s have no " + _ph[p] + " strips in mon_spr (the vanilla ones have " + string(_vanilla) + ")");
++                gnx_report_mod_error("Cell '" + string(arg1) + "': the " + _ph[p] + " has " + string(_need) + " frames but " + gnx_mon_type_name(_t) + "s have no " + _ph[p] + " strips in mon_spr (the vanilla ones have " + string(_vanilla) + ")");
 +                _bad++;
 +            }
 +        }
@@ -10222,7 +10325,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,4821 @@
+@@ -0,0 +1,5304 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -10632,6 +10735,466 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    
 +    variable_struct_set(global.gnx_err_once, arg0, true);
 +    gnx_report_mod_error(arg1);
++}
++
++
++// GNX-TYPES: the monster type table. Entries 0-3 are the game's four types; mods add 4 and up (monsters.json),
++// numbered at each boot in load order. Each entry's "like" (0 goblin, 1 hobgoblin, 3 ogre) is the vanilla code path
++// the type uses. Called once per scr_create_initials, before any mod loads; a late map mod load appends.
++function gnx_types_reset()
++{
++    // "mod" is a GML operator word: the field is only read and written by name (variable_struct_get / _set)
++    global.gnx_mon_types = [{name: "goblin", like: 0}, {name: "hobgoblin", like: 1}, {name: "tentacle", like: 2}, {name: "ogre", like: 3}];
++
++    for (var _i = 0; _i < 4; _i++)
++        variable_struct_set(global.gnx_mon_types[_i], "mod", "");
++
++    global.gnx_mon_type_ids = {goblin: 0, hobgoblin: 1, tentacle: 2, ogre: 3};
++}
++
++
++function gnx_mon_type_count()
++{
++    return array_length(global.gnx_mon_types);
++}
++
++
++// GNX-TYPES: index of type arg0 (a name, or a number already in the table), -1 when there is none
++function gnx_mon_type_id(arg0)
++{
++    if (is_string(arg0))
++        return variable_struct_exists(global.gnx_mon_type_ids, arg0) ? variable_struct_get(global.gnx_mon_type_ids, arg0) : -1;
++
++    if (is_numeric(arg0) && arg0 == floor(arg0) && arg0 >= 0 && arg0 < array_length(global.gnx_mon_types))
++        return arg0;
++
++    return -1;
++}
++
++
++function gnx_mon_type_name(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    return (_t >= 0) ? global.gnx_mon_types[_t].name : "";
++}
++
++
++// GNX-TYPES: the vanilla type whose code path type arg0 uses. 0-3 come back exactly as passed, so a vanilla site
++// rewritten with this function reads the same value as before; an unknown type is a goblin.
++function gnx_mon_like(arg0)
++{
++    if (is_numeric(arg0) && arg0 >= 0 && arg0 <= 3)
++        return arg0;
++
++    var _t = gnx_mon_type_id(arg0);
++    return (_t >= 0) ? global.gnx_mon_types[_t].like : 0;
++}
++
++
++function gnx_mon_type_def(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    return (_t >= 0) ? global.gnx_mon_types[_t] : undefined;
++}
++
++
++// GNX-TYPES: a monster type written in a mod's JSON (arg0), for the message prefix arg1: a game number 0-3 (also as
++// text, "3"), or a type name. Gives its index, or -1 with a mod error (a number 4 and up: custom types are named,
++// their numbers change between boots) or a log warning (a name no installed mod declares).
++function gnx_mon_type_json(arg0, arg1)
++{
++    var _v = arg0;
++
++    // a name starts with a-z; other text ("3", "-1", "1.5", "") is a number written as text and gets the number rule
++    if (is_string(_v) && (_v == "" || ord(string_char_at(_v, 1)) < ord("a") || ord(string_char_at(_v, 1)) > ord("z")))
++        _v = gnx_json_num(_v, -1);
++
++    if (is_string(_v))
++    {
++        var _t = gnx_mon_type_id(_v);
++
++        if (_t < 0)
++        {
++            var _l = gnx_log_open();
++            gnx_log_write(_l, "[GNX-WARN] " + string(arg1) + ": monster type '" + _v + "' is not installed; left out\n");
++            gnx_log_close(_l);
++        }
++
++        return _t;
++    }
++
++    if (is_numeric(_v) && _v >= 0 && _v <= 3 && _v == floor(_v))
++        return real(_v);
++
++    gnx_report_mod_error(string(arg1) + ": mon_types entry " + string(arg0) + " is no monster (0-3 or a type name); left out");
++    return -1;
++}
++
++
++// GNX-TYPES: the load pre-pass, first in scr_patch_update_pre (saves and travel snapshots). The parsed save arg0
++// numbered its custom monster types in the boot it was made in (val.gnx_types[k] = number k + 4); they get this
++// boot's numbers, found by name. A type no installed mod declares, or a number the table does not list (Mav's old
++// wolf build saved 4 with no table): its monsters are taken off the board, its pregnancies and infants become its
++// "like". Their counts stay in val.gnx_mon; mon_num / nest_num are rebuilt after the load by gnx_types_val_fix.
++// When every number keeps its value nothing is written (always so with no custom type ever installed).
++function gnx_types_save_remap(arg0)
++{
++    var _v = arg0.global_list.val;
++    var _saved = (variable_struct_exists(_v, "gnx_types") && is_array(_v.gnx_types)) ? _v.gnx_types : [];
++    // per saved number n (index n - 4): this boot's number (-1 = not installed), like, name, monsters taken off,
++    // pregnancies and infants given the like
++    var _st = {to: [], like: [], nm: [], off: [], pg: []};
++
++    for (var _k = 0; _k < array_length(_saved); _k++)
++    {
++        var _e = _saved[_k];
++        var _name = (is_struct(_e) && variable_struct_exists(_e, "name") && is_string(_e.name)) ? _e.name : "";
++        var _lk = (is_struct(_e) && variable_struct_exists(_e, "like")) ? _e.like : 0;
++        var _t = gnx_mon_type_id(_name);
++        gnx_types_remap_k(_st, _k + 4);
++        _st.to[_k] = (_t >= 4) ? _t : -1;
++        _st.like[_k] = (is_numeric(_lk) && (_lk == 0 || _lk == 1 || _lk == 3)) ? _lk : 0;
++
++        if (_name != "")
++            _st.nm[_k] = _name;
++    }
++
++    // monsters (from the end: array_delete moves the next ones)
++    for (var _i = array_length(arg0.mon_list) - 1; _i >= 0; _i--)
++    {
++        var _md = arg0.mon_list[_i].mon_data;
++
++        if (!is_numeric(_md.mon_type) || _md.mon_type < 4)
++            continue;
++
++        var _k = gnx_types_remap_k(_st, _md.mon_type);
++
++        if (_st.to[_k] >= 0)
++        {
++            _md.mon_type = _st.to[_k];
++        }
++        else
++        {
++            array_delete(arg0.mon_list, _i, 1);
++            _st.off[_k] = _st.off[_k] + 1;
++        }
++    }
++
++    // pregnancies: captives in cells, the prison and the cage; infants: props and props kept aside
++    for (var _i = 0; _i < array_length(arg0.slot_list); _i++)
++    {
++        var _s = arg0.slot_list[_i];
++        gnx_types_remap_unit(_st, _s.unit_data);
++        if (variable_struct_exists(_s.slot_data, "prop"))
++            gnx_types_remap_props(_st, _s.slot_data.prop);
++
++        if (variable_struct_exists(_s.slot_data, "gnx_orphan_props"))
++            gnx_types_remap_props(_st, _s.slot_data.gnx_orphan_props);
++    }
++
++    var _g = arg0.global_list;
++
++    for (var _i = 0; _i < array_length(_g.unit_list); _i++)
++        gnx_types_remap_unit(_st, _g.unit_list[_i]);
++
++    if (variable_struct_exists(_v, "cage") && is_array(_v.cage))
++    {
++        for (var _i = 0; _i < array_length(_v.cage); _i++)
++            gnx_types_remap_unit(_st, _v.cage[_i]);
++    }
++
++    var _lg = -1;
++    var _likes = ["goblin", "hobgoblin", "tentacle", "ogre"];
++
++    for (var _k = 0; _k < array_length(_st.to); _k++)
++    {
++        if (_st.to[_k] == _k + 4)
++            continue;
++
++        // scr_load_slot recounts the population (also for a save with numbers and no table, Mav's old wolf build)
++        global.gnx_types_load_moved = true;
++
++        if (_lg == -1)
++            _lg = gnx_log_open();
++
++        if (_st.to[_k] >= 0)
++            gnx_log_write(_lg, "[GNX] load: monster type '" + _st.nm[_k] + "' was " + string(_k + 4) + ", is now " + string(_st.to[_k]) + "\n");
++        else
++            gnx_log_write(_lg, "[GNX] load: monster type '" + _st.nm[_k] + "' not installed: " + string(_st.off[_k]) + " monster(s) taken off the board, " + string(_st.pg[_k]) + " pregnancies and infants become " + _likes[_st.like[_k]] + "; its counts stay in the save\n");
++    }
++
++    if (_lg != -1)
++        gnx_log_close(_lg);
++}
++
++
++// GNX-TYPES: gnx_types_save_remap's index for saved number arg1 (4 and up) in remap state arg0; a number past the
++// saved table gets its entry here: not installed, like goblin, named by its number
++function gnx_types_remap_k(arg0, arg1)
++{
++    var _k = arg1 - 4;
++
++    for (var _j = array_length(arg0.to); _j <= _k; _j++)
++    {
++        arg0.to[_j] = -1;
++        arg0.like[_j] = 0;
++        arg0.nm[_j] = string(_j + 4);
++        arg0.off[_j] = 0;
++        arg0.pg[_j] = 0;
++    }
++
++    return _k;
++}
++
++
++// GNX-TYPES: a saved pregnancy or infant type arg1 (4 and up) under remap state arg0: this boot's number, else its like
++function gnx_types_remap_kid(arg0, arg1)
++{
++    var _k = gnx_types_remap_k(arg0, arg1);
++
++    if (arg0.to[_k] >= 0)
++        return arg0.to[_k];
++
++    arg0.pg[_k] = arg0.pg[_k] + 1;
++    return arg0.like[_k];
++}
++
++
++// GNX-TYPES: the pregnancy of saved unit arg1 (a struct, or -1) under remap state arg0
++function gnx_types_remap_unit(arg0, arg1)
++{
++    if (is_struct(arg1) && variable_struct_exists(arg1, "preg") && is_numeric(arg1.preg) && arg1.preg >= 4)
++        arg1.preg = gnx_types_remap_kid(arg0, arg1.preg);
++}
++
++
++// GNX-TYPES: the infants (prop 40, mon_data.mon_type) of saved prop list arg1 under remap state arg0
++function gnx_types_remap_props(arg0, arg1)
++{
++    if (!is_array(arg1))
++        exit;
++
++    for (var _i = 0; _i < array_length(arg1); _i++)
++    {
++        var _pd = arg1[_i];
++
++        if (is_struct(_pd) && variable_struct_exists(_pd, "mon_data") && is_struct(_pd.mon_data) && variable_struct_exists(_pd.mon_data, "mon_type") && is_numeric(_pd.mon_data.mon_type) && _pd.mon_data.mon_type >= 4)
++            _pd.mon_data.mon_type = gnx_types_remap_kid(arg0, _pd.mon_data.mon_type);
++    }
++}
++
++
++// GNX-TYPES: reads monsters.json (arg1) of mod arg0: {"wolf": {"like": "goblin", ...}}. Every bad entry is a mod
++// error and is left out; the good ones are added to the type table in name order.
++function scr_gnx_load_monsters(arg0, arg1)
++{
++    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
++    var _p = "Mod '" + arg0 + "' monsters.json: ";
++
++    if (!file_exists(_path))
++    {
++        gnx_report_mod_error(_p + "file '" + arg1 + "' not found");
++        exit;
++    }
++
++    var _f = file_text_open_read(_path);
++    var _json = "";
++
++    while (!file_text_eof(_f))
++        _json += file_text_readln(_f);
++
++    file_text_close(_f);
++    var _defs;
++
++    try
++    {
++        _defs = json_parse(_json);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error(_p + arg1 + " invalid (" + string(_e.message) + ")");
++        exit;
++    }
++
++    if (!is_struct(_defs))
++    {
++        gnx_report_mod_error(_p + "must be an object like {\"wolf\": {\"like\": \"goblin\"}}");
++        exit;
++    }
++
++    var _vanilla = ["goblin", "hobgoblin", "tentacle", "ogre"];
++    var _likes = ["goblin", "hobgoblin", "ogre"];
++    var _like_ids = [0, 1, 3];
++    var _like_food = [0.5, 0.7, 1];
++    var _like_walk = [spr_goblin_walk, spr_hobgoblin_walk, spr_ogre_walk];
++    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills"];
++    var _spr_keys = ["idle", "walk", "b_walk"];
++    var _base_dir = global.gnx_mods_root + arg0 + "/";
++    var _names = variable_struct_get_names(_defs);
++    array_sort(_names, true);  // numbering does not depend on the runtime's struct order
++    var _log = gnx_log_open();
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++    {
++        var _k = _names[_i];
++        var _d = variable_struct_get(_defs, _k);
++
++        if (!is_struct(_d))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': must be an object like {\"like\": \"goblin\"}; left out");
++            continue;
++        }
++
++        if (array_contains(_vanilla, _k))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': a game monster, it cannot be declared again; left out");
++            continue;
++        }
++
++        // ^[a-z][a-z0-9_]*$
++        var _shape = string_length(_k) > 0;
++
++        for (var _c = 1; _c <= string_length(_k) && _shape; _c++)
++        {
++            var _o = ord(string_char_at(_k, _c));
++            var _low = _o >= ord("a") && _o <= ord("z");
++            _shape = _low || (_c > 1 && ((_o >= ord("0") && _o <= ord("9")) || _o == ord("_")));
++        }
++
++        if (!_shape)
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': names use a-z, 0-9 and _ (starting with a letter); left out");
++            continue;
++        }
++
++        // hob, ogr, pN and <name>_pN would clash with the cell keys mon_spr_hob, mon_spr_ogr and mon_spr_<type>_pN
++        var _rsv = _k == "hob" || _k == "ogr";
++        var _tail = string_delete(_k, 1, 1);  // after a leading "p"
++
++        if (!_rsv && string_char_at(_k, 1) == "p" && _tail != "")
++            _rsv = string_digits(_tail) == _tail;
++
++        var _pn = string_last_pos("_p", _k);
++        _tail = (_pn > 0) ? string_delete(_k, 1, _pn + 1) : "";  // after the last "_p"
++
++        if (!_rsv && _tail != "")
++            _rsv = string_digits(_tail) == _tail;
++
++        if (_rsv)
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': reserved name (cell keys mon_spr_hob, mon_spr_ogr and mon_spr_pN use it); left out");
++            continue;
++        }
++
++        if (variable_struct_exists(global.gnx_mon_type_ids, _k))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': already declared by '" + variable_struct_get(global.gnx_mon_types[variable_struct_get(global.gnx_mon_type_ids, _k)], "mod") + "'; left out");
++            continue;
++        }
++
++        if (!variable_struct_exists(_d, "like"))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': needs \"like\": \"goblin\", \"hobgoblin\" or \"ogre\"; left out");
++            continue;
++        }
++
++        var _lk = -1;
++
++        for (var _l = 0; _l < 3; _l++)
++        {
++            if (is_string(_d.like) && _d.like == _likes[_l])
++                _lk = _l;
++        }
++
++        if (_lk < 0)
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': like '" + string(_d.like) + "' is not goblin, hobgoblin or ogre" + ((string(_d.like) == "tentacle") ? " (tentacles have no walking body)" : "") + "; left out");
++            continue;
++        }
++
++        var _keys = variable_struct_get_names(_d);
++        var _unknown = "";
++
++        for (var _u = 0; _u < array_length(_keys) && _unknown == ""; _u++)
++        {
++            if (!array_contains(_known, _keys[_u]) && string_char_at(_keys[_u], 1) != "_")
++                _unknown = _keys[_u];
++        }
++
++        if (_unknown != "")
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills); left out");
++            continue;
++        }
++
++        if (variable_struct_exists(_d, "food") && !(is_numeric(_d.food) && _d.food >= 0))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': food must be a number of 0 or more; left out");
++            continue;
++        }
++
++        if (variable_struct_exists(_d, "stat") && !(is_array(_d.stat) && array_length(_d.stat) == 4 && is_numeric(_d.stat[0]) && is_numeric(_d.stat[1]) && is_numeric(_d.stat[2]) && is_numeric(_d.stat[3])))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': stat must be 4 numbers, one per class; left out");
++            continue;
++        }
++
++        if (variable_struct_exists(_d, "speed") && !(is_array(_d.speed) && array_length(_d.speed) == 2 && is_numeric(_d.speed[0]) && is_numeric(_d.speed[1]) && _d.speed[0] > 0 && _d.speed[0] <= _d.speed[1]))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': speed must be [min, max] with 0 < min <= max; left out");
++            continue;
++        }
++
++        // name, icon, heads, infant_head, range and skills are read by later phases, not stored here
++        var _entry = {name: _k, like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, own_art: false};
++
++        for (var _s = 0; _s < 3; _s++)
++        {
++            var _sk = _spr_keys[_s];
++
++            if (!variable_struct_exists(_d, _sk))
++                continue;
++
++            var _v = variable_struct_get(_d, _sk);
++            var _spr = -1;
++
++            if (is_string(_v))
++            {
++                // a game sprite by name
++                if (asset_get_type(_v) == asset_sprite)
++                    _spr = asset_get_index(_v);
++            }
++            else if (is_struct(_v) && !(variable_struct_exists(_v, "strip") && !file_exists(_base_dir + string(_v.strip))))
++            {
++                _spr = gnx_sprref_bake(gnx_resolve_sprite(_d, _sk, _base_dir, -1));  // an atlas entry becomes a real sprite
++
++                if (variable_struct_exists(_v, "strip") && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
++                {
++                    // a mod strip (only: a shared or cached sprite keeps its origin and speed): the like's walk speed, and without xorig / yorig the origin at the bottom centre
++                    sprite_set_speed(_spr, sprite_get_speed(_like_walk[_lk]), sprite_get_speed_type(_like_walk[_lk]));
++                    var _ox = variable_struct_exists(_v, "xorig") ? sprite_get_xoffset(_spr) : floor(sprite_get_width(_spr) / 2);
++                    var _oy = variable_struct_exists(_v, "yorig") ? sprite_get_yoffset(_spr) : sprite_get_height(_spr);
++                    sprite_set_offset(_spr, _ox, _oy);
++                }
++            }
++
++            if (is_struct(_spr) || _spr == -1 || !sprite_exists(_spr))
++            {
++                gnx_log_write(_log, "[GNX-WARN] monsters.json '" + _k + "' " + _sk + ": sprite not loaded, " + _likes[_lk] + " art used\n");
++                continue;
++            }
++
++            variable_struct_set(_entry, "spr_" + _sk, _spr);
++        }
++
++        _entry.own_art = _entry.spr_idle != -1 && _entry.spr_walk != -1;
++        variable_struct_set(_entry, "mod", arg0);
++        array_push(global.gnx_mon_types, _entry);
++        variable_struct_set(global.gnx_mon_type_ids, _k, array_length(global.gnx_mon_types) - 1);
++        gnx_log_write(_log, "[GNX] monster type '" + _k + "' = " + string(array_length(global.gnx_mon_types) - 1) + " (like " + _likes[_lk] + ") from " + arg0 + "\n");
++    }
++
++    gnx_log_close(_log);
 +}
 +
 +
@@ -11415,7 +11978,21 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +                variable_struct_set(_cell, _ppk, gnx_resolve_mon_spr(variable_struct_get(arg0, _ppk), _sprites_dict, _base_dir));
 +        }
 +    }
-+    
++
++    // GNX-TYPES: a custom type's own set, mon_spr_<name> and mon_spr_<name>_p0.._p2
++    for (var _gt = 4; _gt < gnx_mon_type_count(); _gt++)
++    {
++        var _gtk = "mon_spr_" + gnx_mon_type_name(_gt);
++
++        for (var _gtn = -1; _gtn < 3; _gtn++)
++        {
++            var _gtkp = (_gtn < 0) ? _gtk : (_gtk + "_p" + string(_gtn));
++
++            if (variable_struct_exists(arg0, _gtkp))
++                variable_struct_set(_cell, _gtkp, gnx_resolve_mon_spr(variable_struct_get(arg0, _gtkp), _sprites_dict, _base_dir));
++        }
++    }
++
 +    if (variable_struct_exists(arg0, "mon_types"))
 +        _cell.mon_types = arg0.mon_types;
 +    
@@ -12169,7 +12746,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    
 +    if (variable_struct_exists(arg1, "mon_spr_ogr"))
 +        _cell.mon_spr_ogr = gnx_resolve_mon_spr(arg1.mon_spr_ogr, _sprites_dict, _base_dir);
-+    
++
++    // GNX-TYPES: a custom type's own set, mon_spr_<name>
++    for (var _gt = 4; _gt < gnx_mon_type_count(); _gt++)
++    {
++        var _gtk = "mon_spr_" + gnx_mon_type_name(_gt);
++
++        if (variable_struct_exists(arg1, _gtk))
++            variable_struct_set(_cell, _gtk, gnx_resolve_mon_spr(variable_struct_get(arg1, _gtk), _sprites_dict, _base_dir));
++    }
++
 +    if (variable_struct_exists(arg1, "mon_types"))
 +        _cell.mon_types = arg1.mon_types;
 +    
@@ -14440,8 +15026,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +
 +/// GNX-FIX: checks a mod cell's monster rules once at registration (arg0 = the cell, arg1 = its name):
-+/// mon_types and every mon_placements entry must be species 0-3 (goblin, hobgoblin, tentacle, ogre);
-+/// anything else is dropped with a mod error. A place left with no species gets the cell's mon_types (or
++/// mon_types and every mon_placements entry must be species 0-3 (goblin, hobgoblin, tentacle, ogre) or a
++/// monster type name (GNX-TYPES, stored as its index); anything else is dropped (gnx_mon_type_json). A place left with no species gets the cell's mon_types (or
 +/// goblins), since an empty place stopped the game when a monster was called. A mon_placements list of
 +/// another length than max_mon_num is cut or filled to max_mon_num places, with a log line. (audit P5, 16 B)
 +function gnx_cell_mon_check(arg0, arg1, arg2 = "")
@@ -14459,13 +15045,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        {
 +            for (var i = 0; i < array_length(arg0.mon_types); i++)
 +            {
-+                var _v = gnx_json_num(arg0.mon_types[i], -1);
-+                
-+                // a species is a whole number 0-3
-+                if (_v >= 0 && _v <= 3 && _v == floor(_v))
++                // GNX-TYPES: a game number 0-3 or a type name (gnx_mon_type_json reports anything else)
++                var _v = gnx_mon_type_json(arg0.mon_types[i], "Cell '" + string(arg1) + "'");
++
++                if (_v >= 0)
 +                    array_push(_new_mt, _v);
-+                else
-+                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_types entry " + string(arg0.mon_types[i]) + " is no species (0-3); left out");
 +            }
 +        }
 +        else
@@ -14505,10 +15089,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        {
 +            for (var i = 0; i < array_length(_e); i++)
 +            {
-+                var _v = gnx_json_num(_e[i], -1);
-+                
-+                if (!(_v >= 0 && _v <= 3 && _v == floor(_v)))
-+                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] entry " + string(_e[i]) + " is no species (0-3); left out");
++                var _v = gnx_mon_type_json(_e[i], "Cell '" + string(arg1) + "': mon_placements[" + string(p) + "]");
++
++                if (_v < 0)
++                {
++                    // reported by gnx_mon_type_json
++                }
 +                else if (is_array(_mt) && !array_contains(_mt, _v))
 +                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] has species " + string(_v) + ", which is not in mon_types (it would be invisible); left out");
 +                else
@@ -16669,7 +17255,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7758 @@
+@@ -0,0 +1,8097 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -17382,8 +17968,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +
 +function gnx_scn_as_mons(arg0)
 +{
-+    // {"assert": "mons", "type": 0, "class": 0, "is": n} or "min": n: monsters of a kind on this map
-+    var _mh = gnx_mon_have(arg0.type, arg0.class);
++    // {"assert": "mons", "type": 0 | {"mon": "wolf"}, "class": 0, "is": n} or "min": n: monsters of a kind on this map
++    var _mh = gnx_mon_have(gnx_scn_ref(arg0.type), arg0.class);
 +    var _m_ok = variable_struct_exists(arg0, "is") ? (_mh == arg0.is) : (_mh >= arg0.min);
 +    scr_gnx_scn_check("mons", _m_ok, "type " + string(arg0.type) + " class " + string(arg0.class) + " = " + string(_mh) + " want " + (variable_struct_exists(arg0, "is") ? string(arg0.is) : ">= " + string(arg0.min)) + " on '" + global.gnx_active_map + "'");
 +}
@@ -18267,7 +18853,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
-+// a scenario argument: {"class": "mod_folder.NAME"} -> class id, {"cell": "mod_folder.NAME"} -> h_type, else as is
++// a scenario argument: {"class": "mod_folder.NAME"} -> class id, {"cell": "mod_folder.NAME"} -> h_type,
++// {"mon": "name"} -> monster type, else as is
 +function gnx_scn_ref(arg0)
 +{
 +    if (is_struct(arg0))
@@ -18282,6 +18869,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        {
 +            var _hv = ds_map_find_value(global.gnx_cell_name_to_id, arg0.cell);
 +            return is_undefined(_hv) ? -999 : _hv;
++        }
++
++        if (variable_struct_exists(arg0, "mon"))  // {"mon": "wolf"} -> monster type index
++        {
++            var _mv = gnx_mon_type_id(arg0.mon);
++            return (_mv < 0) ? -999 : _mv;
 +        }
 +    }
 +
@@ -19178,6 +19771,325 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +{
 +    var _v = global.val;
 +    return string(array_length(_v.stage_info)) + " " + string(array_length(_v.stage_lvl_sel)) + " " + string(array_length(_v.stage_item)) + " " + string(array_length(global.base_raid_time)) + " " + string(array_length(global.reward)) + " " + string(array_length(_v.gnx_stage_keys)) + " " + string(array_length(variable_struct_get_names(_v.gnx_stage_saved)));
++}
++
++
++// for {"assert": "fn"}: the custom monster types as "name=index/like" in index order ("" when there is none)
++function gnx_scn_type_ids()
++{
++    var _s = "";
++
++    for (var _i = 4; _i < gnx_mon_type_count(); _i++)
++        _s += ((_i > 4) ? " " : "") + global.gnx_mon_types[_i].name + "=" + string(_i) + "/" + string(global.gnx_mon_types[_i].like);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: "<len val.mon_num> <len val.nest_num> <0|1 has val.gnx_mon> <0|1 has val.gnx_types>" of the live game
++function gnx_scn_type_lens()
++{
++    var _v = global.val;
++    return string(array_length(_v.mon_num)) + " " + string(array_length(_v.nest_num)) + " " + string(variable_struct_exists(_v, "gnx_mon") ? 1 : 0) + " " + string(variable_struct_exists(_v, "gnx_types") ? 1 : 0);
++}
++
++
++// for {"assert": "fn"}: the same from the slot-9 save file; fields 3-4 are the sorted names under val.gnx_mon / in val.gnx_types ("-" when absent)
++function gnx_scn_save_type_shape()
++{
++    var _b = buffer_load("gnx_harness_save.json");
++    var _d = json_parse(buffer_read(_b, buffer_text));
++    buffer_delete(_b);
++    var _v = _d.global_list.val;
++    var _s = string(array_length(_v.mon_num)) + " " + string(array_length(_v.nest_num));
++    var _keys = ["gnx_mon", "gnx_types"];
++    
++    for (var _k = 0; _k < 2; _k++)
++    {
++        var _names = [];
++        
++        if (variable_struct_exists(_v, _keys[_k]))
++        {
++            var _o = variable_struct_get(_v, _keys[_k]);
++            
++            if (is_struct(_o))
++                _names = variable_struct_get_names(_o);
++            else if (is_array(_o))  // val.gnx_types: [{name, like}]
++            {
++                for (var _e = 0; _e < array_length(_o); _e++)
++                    array_push(_names, is_struct(_o[_e]) ? string(_o[_e].name) : "?");
++            }
++        }
++        
++        array_sort(_names, true);
++        var _j = "";
++        
++        for (var _i = 0; _i < array_length(_names); _i++)
++            _j += ((_i > 0) ? "," : "") + _names[_i];
++        
++        _s += " " + ((_j == "") ? "-" : _j);
++    }
++    
++    return _s;
++}
++
++
++// for {"assert": "fn"}: seeds the random stream, kills n free monsters and reports what is left, to prove the starvation stream is unchanged
++function gnx_scn_starve_probe(arg0, arg1)
++{
++    random_set_seed(arg0);
++    var _left = scr_kill_mon(arg1);
++    var _v = global.val;
++    var _s = "left=" + string(_left) + " g=" + string(_v.goblin.num) + " h=" + string(_v.hobgoblin.num) + " t=" + string(_v.tentacle.num) + " o=" + string(_v.ogre.num) + " m=" + string(_v.mon_num);
++
++    if (gnx_mon_type_count() > 4)  // custom types: " c=wolf:[ ... ],bear:[ ... ]" (nothing added without one)
++    {
++        _s += " c=";
++
++        for (var _t = 4; _t < gnx_mon_type_count(); _t++)
++            _s += ((_t > 4) ? "," : "") + global.gnx_mon_types[_t].name + ":" + string(gnx_mon_data(_t).num);
++    }
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: units kept in global.val.gnx_mon.<arg0> (sum of the open classes), -1 when it has no entry
++function gnx_scn_kept_num(arg0)
++{
++    if (!variable_struct_exists(global.val, "gnx_mon") || !is_struct(global.val.gnx_mon) || !variable_struct_exists(global.val.gnx_mon, arg0))
++        return -1;
++
++    var _num = variable_struct_get(global.val.gnx_mon, arg0).num;
++    var _k = 0;
++
++    for (var _c = 0; _c < array_length(_num); _c++)
++        _k += max(0, _num[_c]);
++
++    return _k;
++}
++
++
++// {"call": "gnx_scn_spawn_walker", "args": ["wolf"]}: one monster of type arg0 (name or index) out of the nest door of
++// floor 0, wandering (state 5, as a free monster); counted out of the nest as scr_slot_call_mon counts one it sends.
++// Kept in global.gnx_scn_walker. 1 when made, 0 when the type or the door is missing
++function gnx_scn_spawn_walker(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _d = -1;
++
++    with (obj_slot)
++    {
++        if (_d == -1 && slot_data.slot_type == 3 && slot_data.slot_floor == 0)
++            _d = id;
++    }
++
++    if (_t < 0 || _d == -1)
++        return 0;
++
++    var _mm = scr_create_mon(_t, _d.x + floor(_d.image_xscale * 0.5), _d.y, 0, -1, 0);
++    global.val.nest_num[_t + 1]++;
++
++    with (_mm)
++        mon_data.mon_state = 5;
++
++    global.gnx_scn_walker = _mm;
++    return 1;
++}
++
++
++// for {"assert": "fn"}: "<sprite name> <image_blend>" of the gnx_scn_spawn_walker monster, "gone" when it is not there
++function gnx_scn_walker_info()
++{
++    if (!variable_global_exists("gnx_scn_walker") || !instance_exists(global.gnx_scn_walker))
++        return "gone";
++
++    var _w = global.gnx_scn_walker;
++    return sprite_get_name(_w.sprite_index) + " " + string(_w.image_blend);
++}
++
++
++// for {"assert": "fn"}: live monsters (obj_mon) of type arg0 (name or index)
++function gnx_scn_mon_live(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == _t)
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: live monsters of every custom type (4 and up)
++function gnx_scn_mon_live_custom()
++{
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type >= 4)
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: global.val.nest_num of type arg0 (name or index): its monsters out of the nest
++function gnx_scn_nest_out(arg0)
++{
++    return global.val.nest_num[gnx_mon_type_id(arg0) + 1];
++}
++
++
++// for {"assert": "fn"}: the registry mon_types of cell arg0, joined by spaces ("-" when it has none)
++function gnx_scn_cell_mon_types(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++
++    if (is_undefined(_c) || !variable_struct_exists(_c, "mon_types") || !is_array(_c.mon_types))
++        return "-";
++
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_c.mon_types); _i++)
++        _s += ((_i > 0) ? " " : "") + string(_c.mon_types[_i]);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: 1 when a monster of type arg0 (name or index) is inside or on its way to the cell the last
++// occupy step filled, else 0
++function gnx_scn_occupied_has(arg0)
++{
++    var _c = global.gnx_scn_occupied;
++    var _t = gnx_mon_type_id(arg0);
++    var _r = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == _t && (mon_data.slot_id == _c || array_contains(_c.h_unit_list, id)))
++            _r = 1;
++    }
++
++    return _r;
++}
++
++
++// 1 when unit arg0 carries a custom type (preg 4 and up)
++function gnx_scn_preg_is_custom(arg0)
++{
++    return is_struct(arg0) && variable_struct_exists(arg0, "preg") && is_numeric(arg0.preg) && arg0.preg >= 4;
++}
++
++
++// for {"assert": "fn"}: captives carrying a custom type (preg 4 and up) in cells, in the prison and in the cage
++function gnx_scn_preg_custom()
++{
++    var _n = 0;
++
++    with (obj_slot)
++    {
++        if (gnx_scn_preg_is_custom(unit_data))
++            _n++;
++    }
++
++    for (var _i = 0; _i < ds_list_size(global.unit_list); _i++)
++    {
++        if (gnx_scn_preg_is_custom(ds_list_find_value(global.unit_list, _i)))
++            _n++;
++    }
++
++    for (var _i = 0; _i < array_length(global.val.cage); _i++)
++    {
++        if (gnx_scn_preg_is_custom(global.val.cage[_i]))
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: unit_data.preg of the captive in the cell the last occupy step filled
++function gnx_scn_preg_at_occupied()
++{
++    return global.gnx_scn_occupied.unit_data.preg;
++}
++
++
++// {"call": "gnx_scn_occupied_at", "args": [h]}: the first occupied cell of type h becomes the "last occupied" cell
++// (a chain's later run has none of its own); 1 when found
++function gnx_scn_occupied_at(arg0)
++{
++    var _c = gnx_scn_occupied_cell(arg0);
++
++    if (_c == -1)
++        return 0;
++
++    global.gnx_scn_occupied = _c;
++    global.gnx_scn_occupied_pos = [_c.slot_data.slot_floor, ds_list_find_index(global.slot_list[_c.slot_data.slot_floor], _c)];
++    return 1;
++}
++
++
++// for {"assert": "fn"}: 1 when the population (nest_num[0]) matches scr_all_mon_num_cal
++function gnx_scn_pop_ok()
++{
++    return (global.val.nest_num[0] == scr_all_mon_num_cal()) ? 1 : 0;
++}
++
++
++// {"assert": "fn", "name": "gnx_scn_open_door_window", "is": 1}: the nest entrance (door, slot_type 3) window of
++// floor 0, as a click on the door opens it (s_mouse_action); 1 when the door was found
++function gnx_scn_open_door_window()
++{
++    var _d = -1;
++
++    with (obj_slot)
++    {
++        if (_d == -1 && slot_data.slot_type == 3 && slot_data.slot_floor == 0)
++            _d = id;
++    }
++
++    if (_d == -1)
++        return 0;
++
++    scr_create_window_slot_mod(_d, _d.x, _d.y - 4, false);
++    return 1;
++}
++
++
++// for {"assert": "fn"}: the type rows (icon_array) of the open door window joined by spaces, "none" when it is not open
++function gnx_scn_door_window_icons()
++{
++    var _s = "none";
++
++    with (obj_window)
++    {
++        if (variable_instance_exists(id, "icon_array") && scr_window_draw == scr_draw_mod_door_window)
++        {
++            _s = "";
++
++            for (var _i = 0; _i < array_length(icon_array); _i++)
++                _s += ((_i > 0) ? " " : "") + string(icon_array[_i]);
++        }
++    }
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the game types' num arrays, "<goblin> <hobgoblin> <tentacle> <ogre>"
++function gnx_scn_vanilla_nums()
++{
++    var _v = global.val;
++    return string(_v.goblin.num) + " " + string(_v.hobgoblin.num) + " " + string(_v.tentacle.num) + " " + string(_v.ogre.num);
 +}
 +
 +
@@ -20947,7 +21859,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +function gnx_scn_st_mon_spr_probe(_s, _st)
 +{
 +    // {"mon_spr_probe": {"cell": {...}, "mon_type": 3, "phase": 1, "ogre_alpha": true}}: the real
-+    // scr_set_mon_spr_data for a monster in that cell type (an occupied small cell is borrowed, then put back)
++    // scr_set_mon_spr_data for a monster in that cell type (an occupied small cell is borrowed, then put back).
++    // mon_type may be {"mon": "wolf"}; "body": "name" checks mon_spr.body_b too (a mod sprite is "mod:<path>");
++    // ogre_alpha is checked only when given
 +    var _mp = _st.mon_spr_probe;
 +    var _mc = gnx_scn_occupied_cell(-1);
 +
@@ -20959,9 +21873,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    {
 +        var _old_h = _mc.slot_data.h_type;
 +        _mc.slot_data.h_type = gnx_scn_ref(_mp.cell);
-+        var _mm = scr_create_mon(_mp.mon_type, _mc.x, _mc.y, _mc.slot_data.slot_floor, -1, 0);
++        var _mt = gnx_scn_ref(_mp.mon_type);
++        var _mm = scr_create_mon(_mt, _mc.x, _mc.y, _mc.slot_data.slot_floor, -1, 0);
 +        var _flag = undefined;
 +        var _bl = -1;
++        var _bb = -1;
 +
 +        with (_mm)
 +        {
@@ -20969,11 +21885,20 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +            scr_set_mon_spr_data(_mc, _mp.phase);
 +            _flag = gnx_opt(mon_data, "gnx_ogre_alpha", undefined);
 +            _bl = mon_spr.body_l;
++            _bb = mon_spr.body_b;
 +            instance_destroy();
 +        }
 +
 +        _mc.slot_data.h_type = _old_h;
-+        scr_gnx_scn_check("mon_spr_probe", _flag == _mp.ogre_alpha, "h_type " + string(gnx_scn_ref(_mp.cell)) + " mon_type " + string(_mp.mon_type) + " gnx_ogre_alpha=" + string(_flag) + " body_l=" + string(_bl));
++        var _rev = gnx_art_rev_make();
++        var _bn = ds_map_find_value(_rev, string(_bb));
++        ds_map_destroy(_rev);
++
++        if (is_undefined(_bn))
++            _bn = (!is_struct(_bb) && sprite_exists(_bb)) ? sprite_get_name(_bb) : string(_bb);
++
++        var _ok = (!variable_struct_exists(_mp, "ogre_alpha") || _flag == _mp.ogre_alpha) && (!variable_struct_exists(_mp, "body") || _bn == _mp.body);
++        scr_gnx_scn_check("mon_spr_probe", _ok, "h_type " + string(gnx_scn_ref(_mp.cell)) + " mon_type " + string(_mt) + " gnx_ogre_alpha=" + string(_flag) + " body_l=" + string(_bl) + " body_b=" + _bn);
 +    }
 +
 +    return false;
@@ -22719,8 +23644,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    {
 +        var _oc_u = scr_create_unit_base(_oc_cls, gnx_opt(_st.occupy, "level", 1));
 +
-+        if (variable_struct_exists(_st.occupy, "preg"))  // "preg": mon type she carries (0 goblin, 1 hobgoblin)
-+            _oc_u.preg = _st.occupy.preg;
++        if (variable_struct_exists(_st.occupy, "preg"))  // "preg": mon type she carries (0 goblin, 1 hobgoblin, {"mon": "wolf"})
++            _oc_u.preg = gnx_scn_ref(_st.occupy.preg);
 +
 +        scr_occupy_slot(_oc_c, _oc_u, false, 1);
 +        global.gnx_scn_occupied = _oc_c;  // the cell the last occupy step filled
@@ -24750,7 +25675,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2962 @@
+@@ -0,0 +1,3061 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -24999,10 +25924,54 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +                gnx_usage_add(arg1, _cr.mod_name, "units");
 +        }
 +    }
++
++    // GNX-TYPES: monsters of a custom type (val.gnx_mon counts) go to the mod that declares the type, as "mons";
++    // a name no installed mod declares is skipped
++    var _gm = undefined;
++
++    if (variable_struct_exists(arg0, "global_list") && is_struct(arg0.global_list) && variable_struct_exists(arg0.global_list, "val") && is_struct(arg0.global_list.val) && variable_struct_exists(arg0.global_list.val, "gnx_mon"))
++        _gm = arg0.global_list.val.gnx_mon;
++
++    if (is_struct(_gm))
++    {
++        var _names = variable_struct_get_names(_gm);
++
++        for (var _i = 0; _i < array_length(_names); _i++)
++        {
++            var _t = gnx_mon_type_id(_names[_i]);
++            var _md = variable_struct_get(_gm, _names[_i]);
++
++            if (_t < 4 || !is_struct(_md) || !variable_struct_exists(_md, "num") || !is_array(_md.num))
++                continue;
++
++            var _sum = 0;
++
++            for (var _c = 0; _c < array_length(_md.num); _c++)
++            {
++                if (is_real(_md.num[_c]))
++                    _sum += max(0, _md.num[_c]);
++            }
++
++            if (_sum <= 0)
++                continue;
++
++            var _u = gnx_usage_add(arg1, variable_struct_get(global.gnx_mon_types[_t], "mod"), "");
++            variable_struct_set(_u, "mons", gnx_rec_mons(_u) + _sum);  // only there once counted
++        }
++    }
 +}
 +
 +
-+// arg0 usage struct, arg1 mod folder, arg2 "cells" / "units" / "" (only make sure the entry exists)
++// GNX-TYPES: the monsters counted in mod record or usage entry arg0 (0 when it has no "mons": the key is only
++// written when > 0)
++function gnx_rec_mons(arg0)
++{
++    return (variable_struct_exists(arg0, "mons") && is_real(arg0.mons)) ? arg0.mons : 0;
++}
++
++
++// arg0 usage struct, arg1 mod folder, arg2 "cells" / "units" / "" (only make sure the entry exists); "mons" is
++// added by scr_gnx_count_mod_usage when it counts some, never to a new entry
 +function gnx_usage_add(arg0, arg1, arg2)
 +{
 +    if (!variable_struct_exists(arg0, arg1))
@@ -25057,7 +26026,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            continue;
 +
 +        var _u = variable_struct_exists(_use, _e.folder) ? variable_struct_get(_use, _e.folder) : { cells: 0, units: 0, maps: [] };
-+        array_push(_rec, { id: _e.folder, name: _e.name, version: _e.version, cells: _u.cells, units: _u.units, maps: _u.maps });
++        var _ent = { id: _e.folder, name: _e.name, version: _e.version, cells: _u.cells, units: _u.units, maps: _u.maps };
++
++        // GNX-TYPES: "mons" only for a mod whose monsters the save holds (a record without them stays as it was)
++        if (gnx_rec_mons(_u) > 0)
++            variable_struct_set(_ent, "mons", _u.mons);
++
++        array_push(_rec, _ent);
 +    }
 +
 +    if (variable_global_exists("gnx_loaded_mod_record") && is_array(global.gnx_loaded_mod_record))
@@ -25079,6 +26054,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +
 +            if (_kept)
 +                continue;
++
++            // GNX-TYPES: a removed type mod whose monsters wait in val.gnx_mon keeps its entry (and its warning)
++            if (gnx_rec_mons(_old) > 0)
++            {
++                array_push(_rec, _old);
++                continue;
++            }
 +
 +            for (var _m = 0; _m < array_length(_old.maps); _m++)
 +            {
@@ -25164,7 +26146,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +
 +/// GNX-FIX: the mod records of a save (arg0, its gnx_mods list) that the menus can read: objects with an
 +/// "id"; name (default the id), version (default "?"), cells and units (numbers, default 0) and maps (a
-+/// list, default empty) are filled in where missing or of the wrong type. Other entries are dropped.
++/// list, default empty) are filled in where missing or of the wrong type. Other entries are dropped. A missing
++/// "mons" stays missing (gnx_rec_mons reads it as 0).
 +function gnx_save_recs_clean(arg0)
 +{
 +    var _out = [];
@@ -25282,14 +26265,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            if (!is_struct(_r) || !variable_struct_exists(_r, "id"))
 +                continue;
 +
-+            var _used = _r.cells + _r.units + array_length(_r.maps);
++            var _used = _r.cells + _r.units + array_length(_r.maps) + gnx_rec_mons(_r);
 +            var _e = gnx_mod_entry(_r.id);
 +
 +            if (_used <= 0 || (_e != undefined && _e.status == "on"))
 +                continue;
 +
 +            var _why = (_e == undefined) ? "not installed" : ((_e.status == "off") ? "off" : _e.why);
-+            array_push(_out, { id: _r.id, name: _r.name, why: _why, cells: _r.cells, units: _r.units, maps: _r.maps });
++            array_push(_out, { id: _r.id, name: _r.name, why: _why, cells: _r.cells, units: _r.units, maps: _r.maps, mons: gnx_rec_mons(_r) });
 +        }
 +
 +        return _out;
@@ -25336,7 +26319,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    }
 +
 +    if (_cells + _units > 0)
-+        array_push(_out, { id: "", name: "unknown mods", why: "saved before GNX 1.4.8, or a mod was removed", cells: _cells, units: _units, maps: [] });
++        array_push(_out, { id: "", name: "unknown mods", why: "saved before GNX 1.4.8, or a mod was removed", cells: _cells, units: _units, maps: [], mons: 0 });
 +
 +    return _out;
 +}
@@ -25353,6 +26336,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +
 +    if (arg0.units > 0)
 +        array_push(_parts, string(arg0.units) + " character" + ((arg0.units == 1) ? "" : "s"));
++
++    var _mons = gnx_rec_mons(arg0);
++
++    if (_mons > 0)
++        array_push(_parts, string(_mons) + " monster" + ((_mons == 1) ? "" : "s"));
 +
 +    if (array_length(arg0.maps) > 0)
 +        array_push(_parts, "its map");
@@ -25877,6 +26865,17 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +
 +    array_push(_lines, "Their cells become basic cells and their characters");
 +    array_push(_lines, "peasants. Loading is safe; saving makes it permanent.");
++    var _any_mons = false;
++
++    for (var _i = 0; _i < array_length(_miss); _i++)
++    {
++        if (gnx_rec_mons(_miss[_i]) > 0)
++            _any_mons = true;
++    }
++
++    // GNX-TYPES: monsters are not converted: their counts are kept (gnx_types_save_remap)
++    if (_any_mons)
++        array_push(_lines, "Their monsters wait in the save until the mod is back.");
 +    scr_gnx_mod_confirm(_lines, ["LOAD", "CANCEL", "MODS"], "load:" + string(arg0.button_num), arg0);
 +    return true;
 +}
@@ -27029,15 +28028,29 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +}
 +
 +
-+// Mav (1.4.7.5): loads a list of mods in three phases, so references between mods do not depend on folder names:
-+// 1) manifest + classes of every mod, 2) cells of every mod, 3) quests, tools, sounds, props.
-+// Mods that failed or are deferred to another map store no manifest, so phases 2-3 skip them.
++// Mav (1.4.7.5): loads a list of mods in phases, so references between mods do not depend on folder names:
++// 1) manifest of every mod, 0) monsters of every mod, 1) classes of every mod, 2) cells of every mod,
++// 3) quests, tools, sounds, props. Mods that failed or are deferred to another map store no manifest, so the
++// later phases skip them.
 +function scr_gnx_load_mod_list(arg0)
 +{
 +    global.gnx_staged_load = true;
 +    global.gnx_staged_manifests = {};
 +    for (var _i = 0; _i < array_length(arg0); _i++)
 +        scr_gnx_load_mod(arg0[_i]);
++    // GNX-TYPES: monster types of every mod before any class, so classes and cells can name them. The staged flag
++    // stays on through the classes, as when they were phase 1: gnx_ref_missing reports no cell name before any
++    // mod cell exists
++    for (var _m = 0; _m < array_length(arg0); _m++)
++    {
++        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_m]))
++            scr_gnx_load_mod_stage(arg0[_m], variable_struct_get(global.gnx_staged_manifests, arg0[_m]), 0);
++    }
++    for (var _c = 0; _c < array_length(arg0); _c++)
++    {
++        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_c]))
++            scr_gnx_load_mod_stage(arg0[_c], variable_struct_get(global.gnx_staged_manifests, arg0[_c]), 1);
++    }
 +    global.gnx_staged_load = false;
 +    // phase 2: cells of every mod. GNX-ART: cell art for a monster a cell does not take yet waits for the other mods (gnx_art_defer)
 +    global.gnx_art_pending = {};
@@ -27391,34 +28404,24 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +        }
 +    }
 +    
-+    var _tmp_t0 = get_timer();
-+    
-+    if (variable_struct_exists(_manifest, "classes"))
-+    {
-+        global.gnx_loading_classes = true;
-+        scr_gnx_load_classes(arg0, _manifest.classes);
-+        global.gnx_loading_classes = false;
-+    }
-+    
-+    var _tmp_lg = gnx_log_open();
-+    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " classes = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
-+    gnx_log_close(_tmp_lg);
-+    _tmp_t0 = get_timer();
-+    
-+    // Mav (1.4.7.5): in a staged load (scr_gnx_load_mod_list) phase 1 (manifest + classes) ends here.
-+    // The manifest is kept; scr_gnx_load_mod_stage loads cells and the rest once ALL mods' classes are known.
++    // Mav (1.4.7.5): in a staged load (scr_gnx_load_mod_list) phase 1 (the manifest) ends here.
++    // The manifest is kept; scr_gnx_load_mod_stage loads monsters, classes, cells and the rest once every
++    // manifest is read (GNX-TYPES: classes were phase 1 before, they are stage 1 now, after monsters)
 +    if (variable_global_exists("gnx_staged_load") && global.gnx_staged_load)
 +    {
 +        variable_struct_set(global.gnx_staged_manifests, arg0, _manifest);
 +        exit;
 +    }
-+    // one mod on its own (old path): phases 2 and 3 right away
++    // one mod on its own (old path): every stage right away
++    scr_gnx_load_mod_stage(arg0, _manifest, 0);
++    scr_gnx_load_mod_stage(arg0, _manifest, 1);
 +    scr_gnx_load_mod_stage(arg0, _manifest, 2);
 +    scr_gnx_load_mod_stage(arg0, _manifest, 3);
 +}
 +
-+// Mav (1.4.7.5): phase 2 or 3 of loading mod arg0 with manifest arg1.
-+// arg2 == 2: cells.json; arg2 == 3: quests, tools, sounds, props (+ warnings and the loaded-mods entry).
++// Mav (1.4.7.5): a stage of loading mod arg0 with manifest arg1. arg2 == 0: monsters.json (GNX-TYPES);
++// arg2 == 1: classes.json; arg2 == 2: cells.json; arg2 == 3: quests, tools, sounds, props (+ warnings and the
++// loaded-mods entry).
 +function scr_gnx_load_mod_stage(arg0, arg1, arg2)
 +{
 +    var _manifest = arg1;
@@ -27428,6 +28431,27 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    gnx_frames_note(global.gnx_current_loading_mod);
 +    global.gnx_current_loading_mod = arg0;
 +    global.gnx_loading_manifest = _manifest;
++    if (arg2 == 0)
++    {
++        if (variable_struct_exists(_manifest, "monsters"))
++            scr_gnx_load_monsters(arg0, _manifest.monsters);
++
++        exit;
++    }
++    if (arg2 == 1)
++    {
++        if (variable_struct_exists(_manifest, "classes"))
++        {
++            global.gnx_loading_classes = true;
++            scr_gnx_load_classes(arg0, _manifest.classes);
++            global.gnx_loading_classes = false;
++        }
++
++        _tmp_lg = gnx_log_open();
++        gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " classes = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++        gnx_log_close(_tmp_lg);
++        exit;
++    }
 +    if (arg2 == 2)
 +    {
 +        if (variable_struct_exists(_manifest, "cells"))
@@ -27484,8 +28508,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
 +    gnx_log_close(_tmp_lg);
 +    // GNX-FIX: raids.json too (1.5.1 left it out)
-+    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json", "items.json", "raids.json"];
-+    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props", "items", "raids"];
++    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json", "items.json", "raids.json", "monsters.json"];
++    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props", "items", "raids", "monsters"];
 +    var _mod_dir = global.gnx_mods_root + arg0 + "/";
 +    
 +    for (var _wi = 0; _wi < array_length(_data_files); _wi++)
@@ -27716,7 +28740,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 diff -uN gml_138/gml_GlobalScript_s_gnx_nest.gml gml/gml_GlobalScript_s_gnx_nest.gml
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml
 +++ gml/gml_GlobalScript_s_gnx_nest.gml
-@@ -0,0 +1,825 @@
+@@ -0,0 +1,1005 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -28525,6 +29549,186 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_nest.gml gml/gml_GlobalScript_s_gnx_nest
 +    }
 +    
 +    return _r;
++}
++
++
++// GNX-TYPES: the per-class data of monster type arg0: global.val.goblin / hobgoblin / tentacle / ogre for 0-3,
++// global.val.gnx_mon.<name> for a registered custom type (made if missing), else undefined
++function gnx_mon_data(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++
++    switch (_t)
++    {
++        case -1:
++            return undefined;
++
++        case 0:
++            return global.val.goblin;
++
++        case 1:
++            return global.val.hobgoblin;
++
++        case 2:
++            return global.val.tentacle;
++
++        case 3:
++            return global.val.ogre;
++    }
++
++    var _name = global.gnx_mon_types[_t].name;
++
++    if (!variable_struct_exists(global.val, "gnx_mon") || !is_struct(global.val.gnx_mon) || !variable_struct_exists(global.val.gnx_mon, _name))
++        gnx_types_val_fix(global.val, false);
++
++    return variable_struct_get(global.val.gnx_mon, _name);
++}
++
++
++// GNX-TYPES: new per-class data of custom type arg0, every class locked; stats from monsters.json, else a copy of
++// the like's stats in val arg1
++function gnx_types_new_data(arg0, arg1)
++{
++    var _def = global.gnx_mon_types[arg0];
++    var _st = _def.stat;
++
++    if (!is_array(_st))
++    {
++        var _lk = [arg1.goblin, arg1.hobgoblin, arg1.tentacle, arg1.ogre];
++        _st = _lk[_def.like].stat;
++    }
++
++    return {num: [-1, -1, -1, -1], stat: [_st[0], _st[1], _st[2], _st[3]], lvl: [0, 0, 0, 0], expe: [0, 0, 0, 0], skill_lvl: [0, 0, 0, 0], skill_exp: [0, 0, 0, 0]};
++}
++
++
++// GNX-TYPES: makes a global.val fit this boot's monster types. With no custom type it only
++// trims arrays a removed type made longer, so a vanilla val is left exactly as it is.
++// arg1: count the live monsters of each custom type into nest_num (after a load recreated them)
++function gnx_types_val_fix(arg0, arg1)
++{
++    var _n = gnx_mon_type_count();
++
++    if (array_length(arg0.mon_num) > 4)
++        array_resize(arg0.mon_num, 4);
++
++    if (array_length(arg0.nest_num) > 5)
++        array_resize(arg0.nest_num, 5);
++
++    if (_n <= 4)
++    {
++        if (variable_struct_exists(arg0, "gnx_types"))
++            variable_struct_remove(arg0, "gnx_types");
++
++        return;  // gnx_mon stays: counts of an uninstalled type wait for its mod
++    }
++
++    if (!variable_struct_exists(arg0, "gnx_mon") || !is_struct(arg0.gnx_mon))
++        arg0.gnx_mon = {};
++
++    var _tab = [];
++
++    for (var _t = 4; _t < _n; _t++)
++    {
++        var _def = global.gnx_mon_types[_t];
++
++        if (!variable_struct_exists(arg0.gnx_mon, _def.name))
++            variable_struct_set(arg0.gnx_mon, _def.name, gnx_types_new_data(_t, arg0));
++
++        var _md = variable_struct_get(arg0.gnx_mon, _def.name);
++
++        if (is_array(_def.stat))
++            _md.stat = [_def.stat[0], _def.stat[1], _def.stat[2], _def.stat[3]];
++
++        var _sum = 0;
++        var _open = false;
++
++        for (var _c = 0; _c < 4; _c++)
++        {
++            if (_md.num[_c] != -1)
++            {
++                _open = true;
++                _sum += _md.num[_c];
++            }
++        }
++
++        arg0.mon_num[_t] = _open ? _sum : -1;
++        var _out = 0;
++
++        if (arg1)
++        {
++            with (obj_mon)
++            {
++                if (mon_data.mon_type == _t)
++                    _out++;
++            }
++        }
++
++        arg0.nest_num[_t + 1] = _out;
++        array_push(_tab, {name: _def.name, like: _def.like});
++    }
++
++    arg0.gnx_types = _tab;
++    // nest_num[0] is recounted by scr_load_slot when the type set changed (after the formation rows are restored)
++}
++
++
++// GNX-TYPES: true when save val arg0 was made with other custom types than this boot's (the names in its
++// val.gnx_types, in order, against the table's 4 and up): a type mod was added or removed. Also true when its
++// mon_num is not as long as the type table (Mav's old wolf build counted wolves in mon_num[4] with no table)
++function gnx_types_set_changed(arg0)
++{
++    if (array_length(arg0.mon_num) != gnx_mon_type_count())
++        return true;
++
++    var _sv = (variable_struct_exists(arg0, "gnx_types") && is_array(arg0.gnx_types)) ? arg0.gnx_types : [];
++    var _n = gnx_mon_type_count() - 4;
++
++    if (array_length(_sv) != _n)
++        return true;
++
++    for (var _k = 0; _k < _n; _k++)
++    {
++        if (!is_struct(_sv[_k]) || !variable_struct_exists(_sv[_k], "name") || _sv[_k].name != global.gnx_mon_types[_k + 4].name)
++            return true;
++    }
++
++    return false;
++}
++
++
++// GNX-TYPES: rations the custom types eat per day: sum of food x units (0 with none)
++function gnx_types_food_sum()
++{
++    var _f = 0;
++
++    for (var _t = 4; _t < gnx_mon_type_count(); _t++)
++    {
++        var _md = gnx_mon_data(_t);
++        var _u = 0;
++
++        for (var _c = 0; _c < 4; _c++)
++            _u += max(0, _md.num[_c]);
++
++        _f += global.gnx_mon_types[_t].food * _u;
++    }
++
++    return _f;
++}
++
++
++// GNX-TYPES: true when some custom type has units (starvation then picks among every type)
++function gnx_types_any_units()
++{
++    var _len = array_length(global.val.mon_num);
++
++    for (var _t = 4; _t < gnx_mon_type_count() && _t < _len; _t++)
++    {
++        if (global.val.mon_num[_t] > 0)
++            return true;
++    }
++
++    return false;
 +}
 +
 +
@@ -35292,7 +36496,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tests.gml
 --- gml_138/gml_GlobalScript_s_gnx_tests.gml
 +++ gml/gml_GlobalScript_s_gnx_tests.gml
-@@ -0,0 +1,2263 @@
+@@ -0,0 +1,2363 @@
 +// GNX: boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -35432,7 +36636,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 +        "scr_gnx_test_t83",
 +        "scr_gnx_test_t84",
 +        "scr_gnx_test_t85",
-+        "scr_gnx_test_t86"
++        "scr_gnx_test_t86",
++        "scr_gnx_test_t87",
++        "scr_gnx_test_t88"
 +    ];
 +
 +    // each test function logs its PASS / FAIL lines and counts them in _r
@@ -37333,6 +38539,104 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 +}
 +
 +
++function scr_gnx_test_t87(_r, _log)
++{
++    // T87: the monster type table: 0-3 are the game's types with like == index; every mod type is like 0, 1 or 3,
++    // has its mod, and its name maps back to its index; the name map holds exactly the table's names
++    var _bad87 = "";
++    var _van87 = ["goblin", "hobgoblin", "tentacle", "ogre"];
++    var _n87 = gnx_mon_type_count();
++
++    for (var _i87 = 0; _i87 < _n87; _i87++)
++    {
++        var _e87 = global.gnx_mon_types[_i87];
++
++        if (_i87 < 4)
++        {
++            if (_e87.name != _van87[_i87] || _e87.like != _i87)
++                _bad87 += string(_i87) + " is " + string(_e87.name) + "/" + string(_e87.like) + " ";
++        }
++        else if (!(_e87.like == 0 || _e87.like == 1 || _e87.like == 3) || string(variable_struct_get(_e87, "mod")) == "" || gnx_mon_type_id(_e87.name) != _i87)
++            _bad87 += string(_i87) + " " + string(_e87.name) + " ";
++    }
++
++    if (array_length(variable_struct_get_names(global.gnx_mon_type_ids)) != _n87)
++        _bad87 += "name map holds " + string(array_length(variable_struct_get_names(global.gnx_mon_type_ids))) + " names for " + string(_n87) + " types";
++
++    // the boot val fits the table: mon_num / nest_num one per type (+ population), custom data by name; a vanilla
++    // boot (fresh val, no custom type) has no GNX-TYPES key at all
++    var _v87 = global.val;
++
++    if (array_length(_v87.mon_num) != _n87 || array_length(_v87.nest_num) != _n87 + 1)
++        _bad87 += "val mon_num/nest_num " + string(array_length(_v87.mon_num)) + "/" + string(array_length(_v87.nest_num)) + " for " + string(_n87) + " types ";
++
++    if (_n87 > 4)
++    {
++        for (var _j87 = 4; _j87 < _n87; _j87++)
++        {
++            if (!variable_struct_exists(_v87, "gnx_mon") || !variable_struct_exists(_v87.gnx_mon, global.gnx_mon_types[_j87].name))
++                _bad87 += "val.gnx_mon lacks " + global.gnx_mon_types[_j87].name + " ";
++        }
++    }
++    else if (variable_struct_exists(_v87, "gnx_mon") || variable_struct_exists(_v87, "gnx_types"))
++        _bad87 += "vanilla boot val has gnx_mon/gnx_types ";
++
++    gnx_test_check(_r, _log, _bad87 == "", "T87 monster type table consistent", "T87 monster type table: " + _bad87);
++}
++
++
++function scr_gnx_test_t88(_r, _log)
++{
++    // T88: every registered mod cell's mon_types and physical.mon_placements hold monster types as numbers 0 .. count - 1
++    // (gnx_cell_mon_check turns type names into their index and leaves anything else out)
++    var _bad88 = "";
++    var _n88 = gnx_mon_type_count();
++    var _k88 = ds_map_find_first(global.cell_registry);
++
++    while (_k88 != undefined)
++    {
++        var _c88 = ds_map_find_value(global.cell_registry, _k88);
++
++        if (is_struct(_c88) && variable_struct_exists(_c88, "mod_name"))
++        {
++            var _lists88 = [];
++
++            if (variable_struct_exists(_c88, "mon_types"))
++                array_push(_lists88, _c88.mon_types);
++
++            if (variable_struct_exists(_c88, "physical") && is_struct(_c88.physical) && variable_struct_exists(_c88.physical, "mon_placements") && is_array(_c88.physical.mon_placements))
++            {
++                for (var _p88 = 0; _p88 < array_length(_c88.physical.mon_placements); _p88++)
++                    array_push(_lists88, _c88.physical.mon_placements[_p88]);
++            }
++
++            for (var _l88 = 0; _l88 < array_length(_lists88); _l88++)
++            {
++                var _a88 = _lists88[_l88];
++
++                if (!is_array(_a88))
++                {
++                    _bad88 += string(_k88) + " (not a list) ";
++                    continue;
++                }
++
++                for (var _i88 = 0; _i88 < array_length(_a88); _i88++)
++                {
++                    var _v88 = _a88[_i88];
++
++                    if (!is_numeric(_v88) || _v88 < 0 || _v88 >= _n88 || _v88 != floor(_v88))
++                        _bad88 += string(_k88) + ":" + string(_v88) + " ";
++                }
++            }
++        }
++
++        _k88 = ds_map_find_next(global.cell_registry, _k88);
++    }
++
++    gnx_test_check(_r, _log, _bad88 == "", "T88 cell mon_types are known monster types", "T88 cell mon_types: " + _bad88);
++}
++
++
 +function scr_gnx_dump_coverage()
 +{
 +    var _log = gnx_log_open();
@@ -37559,7 +38863,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_tools.gml
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml
 +++ gml/gml_GlobalScript_s_gnx_tools.gml
-@@ -0,0 +1,1826 @@
+@@ -0,0 +1,1777 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -38144,32 +39448,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +            break;
 +        
 +        case "spawn_mon":
-+            var _sp = arg0.species;
++            // GNX-TYPES: species is 0-3 or a monster type name
++            var _sp = gnx_mon_type_id(arg0.species);
++            
++            if (_sp < 0)
++                exit;
++            
 +            var _amt = arg0.amount;
-+            var _sp_struct;
-+            
-+            switch (_sp)
-+            {
-+                case 0:
-+                    _sp_struct = global.val.goblin;
-+                    break;
-+                
-+                case 1:
-+                    _sp_struct = global.val.hobgoblin;
-+                    break;
-+                
-+                case 2:
-+                    _sp_struct = global.val.tentacle;
-+                    break;
-+                
-+                case 3:
-+                    _sp_struct = global.val.ogre;
-+                    break;
-+                
-+                default:
-+                    exit;
-+            }
-+            
++            var _sp_struct = scr_mon_type_construct(_sp);
 +            var _gc_start = 0;
 +            var _gc_end = 3;
 +            
@@ -38199,62 +39485,31 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 +            break;
 +        
 +        case "set_troop_level":
-+            var _sp_struct;
++            var _sp = gnx_mon_type_id(arg0.species);
 +            
-+            switch (arg0.species)
-+            {
-+                case 0:
-+                    _sp_struct = global.val.goblin;
-+                    break;
-+                
-+                case 1:
-+                    _sp_struct = global.val.hobgoblin;
-+                    break;
-+                
-+                case 2:
-+                    _sp_struct = global.val.tentacle;
-+                    break;
-+                
-+                case 3:
-+                    _sp_struct = global.val.ogre;
-+                    break;
-+                
-+                default:
-+                    exit;
-+            }
++            if (_sp < 0)
++                exit;
 +            
++            var _sp_struct = scr_mon_type_construct(_sp);
 +            _sp_struct.lvl[arg0.class] = arg0.value;
 +            break;
 +        
 +        case "add_troop_exp":
-+            scr_mon_exp_edit(arg0.species, arg0.class, 99, arg0.amount, false);
++            var _sp = gnx_mon_type_id(arg0.species);
++            
++            if (_sp < 0)
++                exit;
++            
++            scr_mon_exp_edit(_sp, arg0.class, 99, arg0.amount, false);
 +            break;
 +        
 +        case "set_skill_level":
-+            var _sp_struct;
++            var _sp = gnx_mon_type_id(arg0.species);
 +            
-+            switch (arg0.species)
-+            {
-+                case 0:
-+                    _sp_struct = global.val.goblin;
-+                    break;
-+                
-+                case 1:
-+                    _sp_struct = global.val.hobgoblin;
-+                    break;
-+                
-+                case 2:
-+                    _sp_struct = global.val.tentacle;
-+                    break;
-+                
-+                case 3:
-+                    _sp_struct = global.val.ogre;
-+                    break;
-+                
-+                default:
-+                    exit;
-+            }
++            if (_sp < 0)
++                exit;
 +            
++            var _sp_struct = scr_mon_type_construct(_sp);
 +            _sp_struct.skill_lvl[arg0.class] = arg0.value;
 +            break;
 +        
@@ -42445,7 +43700,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +192,3261 @@
+@@ -167,12 +192,3263 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -45641,9 +46896,11 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +    
 +    global.gnx_staged_load = false;
 +    global.gnx_staged_manifests = {};
++    gnx_types_reset();  // GNX-TYPES: the 4 game monster types; monsters.json adds to them
 +    scr_gnx_init_encounter_pools();
 +    scr_gnx_init_stages();
 +    scr_gnx_load_mods();
++    gnx_types_val_fix(global.val, false);  // GNX-TYPES: a custom type's counts (vanilla val untouched)
 +    scr_gnx_stage_apply();  // GNX-STAGE: this map's mod stages after the vanilla 5 (a load re-maps them again)
 +    var _gnx_ak = ds_map_find_first(global.cell_registry);
 +    
@@ -45709,7 +46966,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +3457,9 @@
+@@ -183,42 +3459,9 @@
      Value_3,
      Value_4,
      Value_5,
@@ -46957,17 +48214,21 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
      var _mon_spr = 
      {
          head_b: -1,
-@@ -161,48 +205,292 @@
+@@ -161,48 +205,297 @@
      image_xscale = 1;
      depth = -700;
      
+-    switch (_mon_type)
 +    // GNX-ART: a cell's monster_art, for this monster and call; undefined keeps everything below as it was
-+    var _gnx_art = gnx_art_for(ds_map_find_value(global.cell_registry, _slot_type), _slot_type, _mon_type, mon_data.placement_num, _anal, _gnx_inter_ph, _class, _leg, _spr_data);
++    // GNX-TYPES: a custom type uses its "like"'s monster_art (0-3 are their own)
++    var _gnx_art = gnx_art_for(ds_map_find_value(global.cell_registry, _slot_type), _slot_type, gnx_mon_like(_mon_type), mon_data.placement_num, _anal, _gnx_inter_ph, _class, _leg, _spr_data);
 +    var _gnx_art_hit = _gnx_art != undefined;
 +    var _gnx_art_anal = _gnx_art_hit && _gnx_art.from_anal;
 +
 +    if (_gnx_art_hit)
-+    {
+     {
+-        case UnknownEnum.Value_0:
+-            switch (_slot_type)
 +        _mon_spr.body_b = _gnx_art.body;
 +        _mon_spr.hand_b = _gnx_art.hand;
 +        _mon_spr.head_b = _gnx_art.head;
@@ -46986,12 +48247,16 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
 +        if (_gcell_g != undefined)
 +        {
 +            var _ms_key = "mon_spr";
-+            
-+            if (_mon_type == 1)
++            // GNX-TYPES: a custom type's own set mon_spr_<name> (or its _p<place>); without one, the set of its "like"
++            var _ms_like = gnx_mon_like(_mon_type);
++
++            if (_mon_type >= 4 && (variable_struct_exists(_gcell_g, "mon_spr_" + gnx_mon_type_name(_mon_type)) || variable_struct_exists(_gcell_g, "mon_spr_" + gnx_mon_type_name(_mon_type) + "_p" + string(mon_data.placement_num))))
++                _ms_key = "mon_spr_" + gnx_mon_type_name(_mon_type);
++            else if (_ms_like == 1)
 +                _ms_key = "mon_spr_hob";
-+            else if (_mon_type == 3)
++            else if (_ms_like == 3)
 +                _ms_key = "mon_spr_ogr";
-+            
++
 +            var _ms_key_p = _ms_key + "_p" + string(mon_data.placement_num);
 +            
 +            if (variable_struct_exists(_gcell_g, _ms_key_p))
@@ -47005,9 +48270,12 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
 +            var _allowed_g = (!variable_struct_exists(_gcell_g, "mon_types") || _gcell_g.mon_types == undefined) ? true : array_contains(_gcell_g.mon_types, _mon_type);
 +            
 +            if (_allowed_g && _gnx_ms2 != undefined && _gnx_ms2 != -1)
-+            {
+             {
+-                case UnknownEnum.Value_1:
+-                    if (!_anal && _spr_data.prop == -1)
+-                        _spr_data.prop = choose(UnknownEnum.Value_0, UnknownEnum.Value_2);
 +                _gnx_ms = _gnx_ms2;
-+                var _mt_c = (_mon_type == 1) ? "h" : ((_mon_type == 3) ? "o" : "g");
++                var _mt_c = (_ms_like == 1) ? "h" : ((_ms_like == 3) ? "o" : "g");
 +                var _ph_c = (arg1 == 0) ? "s" : ((arg1 == 3) ? "ej" : "lo");
 +                gnx_cov_hit("d." + _mt_c + "." + _ph_c);
 +                gnx_first_hit(_slot_type, _mt_c, _ph_c, _class);
@@ -47016,7 +48284,8 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
 +                if (!_p1_skip)
 +                {
 +                    var _pfx, _pfx_fb;
-+                    
+                     
+-                    break;
 +                    // GNX-INTER: the intermission's own prefix (it already holds the fallback strips)
 +                    if (_gnx_inter_pfx != "")
 +                    {
@@ -47190,31 +48459,25 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
 +                        _spr_data.hand_xscale = 1;
 +                    }
 +                }
-+                
+                 
+-                case UnknownEnum.Value_2:
+-                    if (!_anal && _spr_data.prop == -1)
+-                        _spr_data.prop = choose(UnknownEnum.Value_0, UnknownEnum.Value_2);
 +                _set = _p1_skip || _mon_spr.body_b != -1;
 +                gnx_cov_hit(_p1_skip ? "set.p1skip" : (_set ? "set.ok" : "set.miss"));
 +            }
 +        }
 +    }
 +    
-     switch (_mon_type)
-     {
--        case UnknownEnum.Value_0:
++    switch (gnx_mon_like(_mon_type))  // GNX-TYPES: a custom type takes its "like"'s branch
++    {
 +        case 0:
-             switch (_slot_type)
-             {
--                case UnknownEnum.Value_1:
--                    if (!_anal && _spr_data.prop == -1)
--                        _spr_data.prop = choose(UnknownEnum.Value_0, UnknownEnum.Value_2);
++            switch (_slot_type)
++            {
 +                case 1:
 +                case 2:
 +                    var _skip_prop = _anal && (!_set || _gnx_art_anal);
-                     
--                    break;
--                
--                case UnknownEnum.Value_2:
--                    if (!_anal && _spr_data.prop == -1)
--                        _spr_data.prop = choose(UnknownEnum.Value_0, UnknownEnum.Value_2);
++                    
 +                    if (!_skip_prop && _spr_data.prop == -1)
 +                        _spr_data.prop = choose(0, 2);
 +                    else if (_skip_prop && _spr_data.prop != -1)
@@ -47268,7 +48531,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      if (mon_data.placement_num == 1)
                          image_xscale = -1;
                      
-@@ -212,105 +500,167 @@
+@@ -212,105 +505,167 @@
                      
                      switch (_class)
                      {
@@ -47478,7 +48741,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              break;
                      }
                      
-@@ -319,71 +669,101 @@
+@@ -319,71 +674,101 @@
                      _mood_y = 0;
                      break;
                  
@@ -47609,7 +48872,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      }
                      
                      _spr_data.mon_frame_c = 5;
-@@ -420,50 +800,74 @@
+@@ -420,50 +805,74 @@
                      _set = true;
                      break;
                  
@@ -47723,7 +48986,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      }
                      
                      _mood_x = floor(38.5);
-@@ -474,39 +878,64 @@
+@@ -474,39 +883,64 @@
                      _set = true;
                      break;
                  
@@ -47812,7 +49075,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      _spr_data.mon_frame_c = 5;
                      _spr_data.base_frame_c = 5;
                      _spr_data.start_frame = 0;
-@@ -514,24 +943,34 @@
+@@ -514,24 +948,34 @@
                      break;
              }
              
@@ -47853,7 +49116,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.body_b = spr_h_goblin_body_start_v1_alpha;
                                      break;
                              }
-@@ -544,49 +983,63 @@
+@@ -544,49 +988,63 @@
                              
                              switch (_class)
                              {
@@ -47926,7 +49189,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
                                      _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
                                      _touch = spr_h_goblin_touch_loop_v1;
-@@ -599,57 +1052,78 @@
+@@ -599,57 +1057,78 @@
                              
                              switch (_class)
                              {
@@ -48016,7 +49279,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.hand_b = -1;
                                  
                                  _mon_spr.head_b = -1;
-@@ -660,10 +1134,10 @@
+@@ -660,10 +1139,10 @@
                                  
                                  switch (_class)
                                  {
@@ -48029,7 +49292,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                              _mon_spr.hand_b = -1;
                                          else
                                              _mon_spr.hand_b = spr_h_goblin_hand_loop_cow_alpha;
-@@ -672,26 +1146,53 @@
+@@ -672,26 +1151,53 @@
                                          _enter = spr_h_goblin_enter_loop_cow;
                                          break;
                                      
@@ -48087,7 +49350,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              else
                              {
-@@ -699,19 +1200,19 @@
+@@ -699,19 +1205,19 @@
                                  
                                  switch (_leg)
                                  {
@@ -48110,7 +49373,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                          _mon_spr.body_b = spr_h_goblin_body_loop_v1_alpha;
                                          _mon_spr.hand_b = spr_h_goblin_hand_loop_v1_alpha;
                                          _touch = spr_h_goblin_touch_loop_v1;
-@@ -724,33 +1225,60 @@
+@@ -724,33 +1230,60 @@
                                  
                                  switch (_class)
                                  {
@@ -48176,7 +49439,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              
                              break;
-@@ -760,20 +1288,20 @@
+@@ -760,20 +1293,20 @@
                  {
                      switch (arg1)
                      {
@@ -48201,7 +49464,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _touch = spr_h_goblin_touch_start_anal_v1;
                                      _mon_spr.body_b = spr_h_goblin_body_start_alpha_anal;
                                      break;
-@@ -786,32 +1314,45 @@
+@@ -786,32 +1319,45 @@
                              
                              switch (_class)
                              {
@@ -48253,7 +49516,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              _mon_spr.head_b = spr_h_goblin_head_loop_alpha_anal;
                              _mon_spr.hand_b = spr_h_goblin_hand_loop_alpha_anal;
                              _mon_spr.body_b = spr_h_goblin_body_loop_alpha_anal;
-@@ -822,38 +1363,59 @@
+@@ -822,38 +1368,59 @@
                              
                              switch (_class)
                              {
@@ -48320,7 +49583,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              {
                                  _mon_spr.body_b = spr_h_goblin_body_ej_alpha_anal;
                                  _mon_spr.hand_b = -1;
-@@ -865,33 +1427,60 @@
+@@ -865,33 +1432,60 @@
                                  
                                  switch (_class)
                                  {
@@ -48386,7 +49649,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              else
                              {
-@@ -905,33 +1494,60 @@
+@@ -905,33 +1499,60 @@
                                  
                                  switch (_class)
                                  {
@@ -48452,7 +49715,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              
                              break;
-@@ -941,35 +1557,35 @@
+@@ -941,35 +1562,35 @@
              
              switch (_spr_data.prop)
              {
@@ -48496,7 +49759,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      _mon_spr.prop = spr_bowl;
                      break;
              }
-@@ -977,63 +1593,95 @@
+@@ -977,63 +1598,95 @@
              _mood_y -= 18;
              break;
          
@@ -48625,7 +49888,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      }
                      
                      _spr_data.mon_frame_c = 5;
-@@ -1050,34 +1698,58 @@
+@@ -1050,34 +1703,58 @@
                      _set = true;
                      break;
                  
@@ -48708,7 +49971,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                      }
                      
                      _spr_data.mon_frame_c = 5;
-@@ -1089,26 +1761,60 @@
+@@ -1089,26 +1766,60 @@
                      _set = true;
                      break;
                  
@@ -48784,7 +50047,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              break;
                      }
                      
-@@ -1117,41 +1823,41 @@
+@@ -1117,41 +1828,41 @@
                      _mood_y = 0;
                      break;
                  
@@ -48835,7 +50098,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.body_b = spr_h_hobgoblin_body_start_v3_alpha;
                                      break;
                              }
-@@ -1163,32 +1869,53 @@
+@@ -1163,32 +1874,53 @@
                              
                              switch (_class)
                              {
@@ -48895,7 +50158,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.body_b = spr_h_hobgoblin_body_loop_v3_alpha;
                                      _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
                                      break;
-@@ -1196,7 +1923,7 @@
+@@ -1196,7 +1928,7 @@
                              
                              _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha;
                              
@@ -48904,7 +50167,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                  _spr_data.hand_xscale = choose(1, -1);
                              else
                                  _spr_data.hand_xscale = 1;
-@@ -1207,52 +1934,73 @@
+@@ -1207,52 +1939,73 @@
                              
                              switch (_class)
                              {
@@ -48988,7 +50251,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                          _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
                                          break;
                                  }
-@@ -1260,7 +2008,7 @@
+@@ -1260,7 +2013,7 @@
                                  _mon_spr.head_b = -1;
                                  _mon_spr.body_b = spr_h_hobgoblin_body_ej_alpha;
                                  
@@ -48997,7 +50260,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                      _mon_spr.hand_b = spr_h_hobgoblin_hand_ej_alpha;
                                  else
                                      _spr_data.hand_xscale = 1;
-@@ -1271,49 +2019,76 @@
+@@ -1271,49 +2024,76 @@
                                  
                                  switch (_class)
                                  {
@@ -49082,7 +50345,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                                          _mon_spr.body_b = spr_h_hobgoblin_body_loop_v1_alpha;
                                          _mon_spr.hand_b = choose(spr_h_hobgoblin_hand_loop_v1_alpha, spr_h_hobgoblin_hand_loop_v1_d1_alpha);
                                          break;
-@@ -1327,34 +2102,61 @@
+@@ -1327,34 +2107,61 @@
                                  
                                  switch (_class)
                                  {
@@ -49149,7 +50412,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              }
                              
                              break;
-@@ -1364,7 +2166,7 @@
+@@ -1364,7 +2171,7 @@
                  {
                      switch (arg1)
                      {
@@ -49158,7 +50421,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              _mon_spr.body_b = spr_h_hobgoblin_body_start_alpha_anal;
                              _spr_data.hand_xscale = 1;
                              _mon_spr.head_b = -1;
-@@ -1372,7 +2174,7 @@
+@@ -1372,7 +2179,7 @@
                              _mon_spr.pen = spr_h_hobgoblin_pen_start_anal;
                              break;
                          
@@ -49167,7 +50430,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha_anal;
                              _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_alpha_anal;
                              _mon_spr.body_b = spr_h_hobgoblin_body_loop_alpha_anal;
-@@ -1383,35 +2185,56 @@
+@@ -1383,35 +2190,56 @@
                              
                              switch (_class)
                              {
@@ -49230,7 +50493,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              _mon_spr.head_b = spr_h_hobgoblin_head_loop_alpha_anal;
                              _mon_spr.hand_b = spr_h_hobgoblin_hand_loop_alpha_anal;
                              _mon_spr.body_b = spr_h_hobgoblin_body_loop_alpha_anal;
-@@ -1426,52 +2249,81 @@
+@@ -1426,52 +2254,81 @@
              
              break;
          
@@ -49336,7 +50599,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                              break;
                      }
                      
-@@ -1480,68 +2332,94 @@
+@@ -1480,68 +2337,94 @@
                      _mood_y = 0;
                      break;
                  
@@ -49443,7 +50706,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
                  }
                  
                  _mon_spr.hand_b = -1;
-@@ -1553,11 +2431,56 @@
+@@ -1553,11 +2436,57 @@
              break;
      }
      
@@ -49496,11 +50759,12 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
 +    // Vanilla draws the ogre as one opaque sprite (no line layer): this flag switches it
 +    // in scr_draw_mon_slot to the goblin path: alpha + line + the monster transparency settings.
 +    // Ogres with only "alpha" (older mods) keep the old path: the flag is false then.
-+    mon_data.gnx_ogre_alpha = (_mon_type == 3 && ((is_struct(_gnx_ms) && _gnx_body_l != -1) || (_gnx_art_hit && _gnx_art.body_l != -1)));
++    // GNX-TYPES: an ogre-like custom type too
++    mon_data.gnx_ogre_alpha = (gnx_mon_like(_mon_type) == 3 && ((is_struct(_gnx_ms) && _gnx_body_l != -1) || (_gnx_art_hit && _gnx_art.body_l != -1)));
      if (_mon_spr.prop != -1)
      {
          switch (_mon_spr.prop)
-@@ -1596,26 +2519,68 @@
+@@ -1596,26 +2525,68 @@
          }
      }
      
@@ -49571,7 +50835,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
  {
      var _line = -1;
      
-@@ -1961,36 +2926,24 @@
+@@ -1961,36 +2932,24 @@
      return _line;
  }
  
@@ -49670,7 +50934,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
              _row_type = mon_data.placement_num;
          else
              _row_type = _spr_data.h_type - _spr_data.spr_row_pos - 1;
-@@ -17,7 +41,10 @@
+@@ -17,75 +41,105 @@
          var _mon_index = (_row_type * _base_frame_c) + mon_data.index;
          _mon_index -= _spr_data.start_frame;
          
@@ -49678,11 +50942,14 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
 +        // Mav (1.4.7.5): an ogre with a "line" layer from the cell JSON is drawn like a goblin (see gnx_ogre_alpha in scr_set_mon_spr_data)
 +        // older saves do not have the field
 +        var _gnx_ogre_alpha = variable_struct_exists(mon_data, "gnx_ogre_alpha") && mon_data.gnx_ogre_alpha;
-+        if (mon_data.mon_type != 3 || _gnx_ogre_alpha || mon_data.slot_id.slot_data.h_type == 39 || mon_data.slot_id.slot_data.h_type == 37)
++        // GNX-TYPES: a custom type draws as its "like" (0-3 are their own)
++        if (gnx_mon_like(mon_data.mon_type) != 3 || _gnx_ogre_alpha || mon_data.slot_id.slot_data.h_type == 39 || mon_data.slot_id.slot_data.h_type == 37)
          {
-             var _mon_alpha_c = global.mon_alpha_c[mon_data.mon_type];
+-            var _mon_alpha_c = global.mon_alpha_c[mon_data.mon_type];
++            var _mon_alpha_c = global.mon_alpha_c[gnx_mon_like(mon_data.mon_type)];
              var _x = x;
-@@ -26,66 +53,92 @@
+             var _y = y;
+             var _x_flip = abs(sign(image_xscale - 1) * _spr_data.slot_width);
              var _x_hand_flip = abs(sign(_spr_data.hand_xscale - 1) * _spr_data.slot_width);
              
              if (_mon_spr.pen != -1)
@@ -49799,7 +51066,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
                      break;
              }
              
-@@ -96,30 +149,30 @@
+@@ -96,30 +150,30 @@
                  
                  switch (global.val.crate_alpha_type)
                  {
@@ -49840,7 +51107,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
          }
          
          if (arg0 && mon_data.slot_id.hover)
-@@ -157,11 +210,18 @@
+@@ -157,11 +211,18 @@
      draw_sprite_ext(spr_hobgoblin_log, 0, x, (y - 48) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
      draw_sprite_ext(spr_carry, image_index, x + 45, y, image_xscale, image_yscale, image_angle, image_blend, 1);
      
@@ -49859,7 +51126,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
          var _final_index = max(0, _unit_data.skin) * 2;
          var _hair_index = max(0, _unit_data.hair) * 2;
          var _dist = 39;
-@@ -171,49 +231,49 @@
+@@ -171,49 +232,49 @@
          for (var i = 0; i < _num; i++)
          {
              var _replace = false;
@@ -49924,7 +51191,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
                          
                          break;
                  }
-@@ -226,14 +286,24 @@
+@@ -226,14 +287,24 @@
  
  function scr_tent_draw()
  {
@@ -49951,7 +51218,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
      
      if (spr_unit != -1)
      {
-@@ -241,35 +311,17 @@
+@@ -241,35 +312,17 @@
          var _hair = spr_unit.hair;
          var _hair_c = spr_unit.hair_c;
          var _spr_c = 8;
@@ -49996,7 +51263,67 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
 diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_function.gml
 --- gml_138/gml_GlobalScript_s_mon_function.gml
 +++ gml/gml_GlobalScript_s_mon_function.gml
-@@ -292,17 +292,29 @@
+@@ -58,8 +58,9 @@
+         }
+         
+         var _state;
+-        
+-        switch (arg0)
++
++        // GNX-TYPES: a custom type takes the branch of its "like" (0-3 are their own); mon_type stays arg0
++        switch (gnx_mon_like(arg0))
+         {
+             case UnknownEnum.Value_0:
+                 if (_slot_h_type == UnknownEnum.Value_4)
+@@ -161,7 +162,35 @@
+                 };
+                 break;
+         }
+-        
++
++        // GNX-TYPES: a custom type walks as its "like", with its own sprites, speed, or a blue tint
++        // when it brings no walk art (so a clone can be told apart)
++        if (arg0 >= 4)
++        {
++            var _gdef = gnx_mon_type_def(arg0);
++
++            if (!is_undefined(_gdef))
++            {
++                if (_gdef.spr_idle != -1)
++                    spr_idle = _gdef.spr_idle;
++
++                if (_gdef.spr_walk != -1)
++                {
++                    spr_walk = _gdef.spr_walk;
++                    spr_b_walk = _gdef.spr_walk;
++                }
++
++                if (_gdef.spr_b_walk != -1)
++                    spr_b_walk = _gdef.spr_b_walk;
++
++                if (!_gdef.own_art)
++                    image_blend = make_color_rgb(150, 170, 255);
++
++                if (is_array(_gdef.speed))
++                    mon_data.spd = random_range(_gdef.speed[0], _gdef.speed[1]);
++            }
++        }
++
+         mon_data.mon_state = _state;
+         scr_mon_step = scr_mon_state;
+         sprite_index = spr_empty;
+@@ -263,7 +292,9 @@
+     
+     for (var i = 0; i < array_length(arg1); i++)
+     {
+-        if (_allow_ar[arg1[i]])
++        // GNX-TYPES: a type whose _allow_ar entry is true is taken out; the list that comes back holds the types
++        // that may pass. A custom type (4 and up) has no door switch and always passes: it stays (&& = and)
++        if (arg1[i] < array_length(_allow_ar) && _allow_ar[arg1[i]])
+         {
+             array_delete(arg1, i, 1);
+             i--;
+@@ -292,17 +323,29 @@
      var _slot_width = -1;
      var _carry = false;
      var _set_spr = false;
@@ -50027,7 +51354,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
          case UnknownEnum.Value_0:
              mon_data.mon_state = UnknownEnum.Value_1;
              mon_data.ff = true;
-@@ -312,9 +324,9 @@
+@@ -312,9 +355,9 @@
              {
                  if (slot_data.anal != -1)
                  {
@@ -50039,7 +51366,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
                          slot_data.anal = true;
                      else
                          slot_data.anal = false;
-@@ -339,7 +351,7 @@
+@@ -339,7 +382,7 @@
                  }
              }
              
@@ -50048,7 +51375,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
              break;
          
          case UnknownEnum.Value_1:
-@@ -393,6 +405,14 @@
+@@ -393,6 +436,14 @@
                          break;
                      
                      case UnknownEnum.Value_17:
@@ -50063,7 +51390,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
                          var _set_move = true;
                          
                          for (var i = 0; i < slot_data.max_mon_num; i++)
-@@ -553,6 +573,8 @@
+@@ -553,6 +604,8 @@
          }
      }
      
@@ -50072,7 +51399,44 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
      if (_set_spr)
          scr_set_mon_spr_data(mon_data.slot_id, -1);
  }
-@@ -687,7 +709,7 @@
+@@ -627,7 +680,35 @@
+                 if (global.val.ogre.num[i] != -1)
+                     _num += global.val.ogre.num[i];
+             }
+-            
++
++            break;
++
++        default:
++            // GNX-TYPES: a custom type, as the hobgoblin; no open class at all stays -1 (as gnx_types_val_fix)
++            var _md = gnx_mon_data(arg0);
++
++            if (is_undefined(_md))
++                exit;
++
++            if (_md.num[arg1] != -1)
++                _md.num[arg1] = max(0, _md.num[arg1] + arg2);
++            else
++                _md.num[arg1] = 1;
++
++            var _open = false;
++
++            for (var i = 0; i < 4; i++)
++            {
++                if (_md.num[i] != -1)
++                {
++                    _open = true;
++                    _num += _md.num[i];
++                }
++            }
++
++            if (!_open)
++                _num = -1;
++
+             break;
+     }
+     
+@@ -687,7 +768,7 @@
          {
              spd_b = 0.75;
              
@@ -51393,8 +52757,10 @@ diff -uN gml_138/gml_GlobalScript_s_particle_function.gml gml/gml_GlobalScript_s
 diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_patch_updates.gml
 --- gml_138/gml_GlobalScript_s_patch_updates.gml
 +++ gml/gml_GlobalScript_s_patch_updates.gml
-@@ -2,7 +2,7 @@
+@@ -1,8 +1,9 @@
+ function scr_patch_update_pre(arg0)
  {
++    gnx_types_save_remap(arg0);  // GNX-TYPES: the save's custom monster types to this boot's numbers (first: later steps see them)
      var _var = arg0.global_list.val.version;
      
 -    while (_var < 1.38)
@@ -51402,7 +52768,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
      {
          switch (_var)
          {
-@@ -18,10 +18,10 @@
+@@ -18,10 +19,10 @@
                      
                      for (var ii = 0; ii < _prop_num; ii++)
                      {
@@ -51416,7 +52782,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              else
                                  arg0.slot_list[i].slot_data.prop[ii].prop_type += 23;
                          }
-@@ -33,8 +33,8 @@
+@@ -33,8 +34,8 @@
              case 1.08:
                  for (var i = 0; i < array_length(arg0.slot_list); i++)
                  {
@@ -51427,7 +52793,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  }
                  
                  break;
-@@ -48,21 +48,275 @@
+@@ -48,21 +49,275 @@
          _var += 0.01;
      }
      
@@ -51706,7 +53072,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      global.val.crate_alpha = 1;
                  }
                  
-@@ -73,7 +327,7 @@
+@@ -73,7 +328,7 @@
                  
                  with (obj_slot)
                  {
@@ -51715,7 +53081,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _a = slot_data.mod_index[3];
                          slot_data.mod_index[3] = 0;
-@@ -86,7 +340,7 @@
+@@ -86,7 +341,7 @@
                  
                  for (var i = 0; i < _num; i++)
                  {
@@ -51724,7 +53090,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists++;
                          
-@@ -104,7 +358,7 @@
+@@ -104,7 +359,7 @@
                  
                  for (var i = 0; i < _num; i++)
                  {
@@ -51733,7 +53099,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists++;
                          
-@@ -116,7 +370,7 @@
+@@ -116,7 +371,7 @@
                              
                              for (var ii = 0; ii < array_length(obj_np.obj_raid.raid_data.shop_item); ii++)
                              {
@@ -51742,7 +53108,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                                      obj_np.obj_raid.raid_data.shop_item[ii] = -1;
                              }
                          }
-@@ -133,7 +387,7 @@
+@@ -133,7 +388,7 @@
                  
                  for (var i = 0; i < array_length(global.unlock.utility); i++)
                  {
@@ -51751,7 +53117,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists = true;
                          i = array_length(global.unlock.utility);
-@@ -142,27 +396,27 @@
+@@ -142,27 +397,27 @@
                  
                  if (_exists)
                  {
@@ -51786,7 +53152,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  
                  break;
              
-@@ -182,15 +436,15 @@
+@@ -182,15 +437,15 @@
                  global.val.ogre.expe = [0, 0, 0, 0];
                  global.val.ogre.skill_lvl = [0, 0, 0, 0];
                  global.val.ogre.skill_exp = [0, 0, 0, 0];
@@ -51806,7 +53172,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              depth = -751;
                              
-@@ -245,7 +499,7 @@
+@@ -245,7 +500,7 @@
                  
                  with (obj_slot)
                  {
@@ -51815,7 +53181,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -253,7 +507,7 @@
+@@ -253,7 +508,7 @@
                          _l_num++;
                      }
                      
@@ -51824,7 +53190,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -266,7 +520,7 @@
+@@ -266,7 +521,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -51833,7 +53199,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -274,7 +528,7 @@
+@@ -274,7 +529,7 @@
                          _l_num++;
                      }
                      
@@ -51842,7 +53208,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -287,7 +541,7 @@
+@@ -287,7 +542,7 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -51851,7 +53217,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              global.val.cage[i] = -1;
-@@ -295,7 +549,7 @@
+@@ -295,7 +550,7 @@
                          _l_num++;
                      }
                      
@@ -51860,7 +53226,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              global.val.cage[i] = -1;
-@@ -308,7 +562,7 @@
+@@ -308,7 +563,7 @@
                  {
                      with (obj_button)
                      {
@@ -51869,7 +53235,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              instance_destroy();
                      }
                      
-@@ -316,7 +570,7 @@
+@@ -316,7 +571,7 @@
                      
                      with (obj_button)
                      {
@@ -51878,7 +53244,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              image_index = (button_num * 2) + 1;
                              switch_type = true;
-@@ -354,7 +608,7 @@
+@@ -354,7 +609,7 @@
                  
                  with (obj_slot)
                  {
@@ -51887,7 +53253,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_h_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -362,7 +616,7 @@
+@@ -362,7 +617,7 @@
                          _h_num++;
                      }
                      
@@ -51896,7 +53262,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_n_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -370,7 +624,7 @@
+@@ -370,7 +625,7 @@
                          _n_num++;
                      }
                      
@@ -51905,7 +53271,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_s_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -378,7 +632,7 @@
+@@ -378,7 +633,7 @@
                          _s_num++;
                      }
                      
@@ -51914,7 +53280,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_b_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -386,7 +640,7 @@
+@@ -386,7 +641,7 @@
                          _b_num++;
                      }
                      
@@ -51923,7 +53289,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -394,7 +648,7 @@
+@@ -394,7 +649,7 @@
                          _m_num++;
                      }
                      
@@ -51932,7 +53298,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -407,7 +661,7 @@
+@@ -407,7 +662,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -51941,7 +53307,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_h_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -415,7 +669,7 @@
+@@ -415,7 +670,7 @@
                          _h_num++;
                      }
                      
@@ -51950,7 +53316,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_n_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -423,7 +677,7 @@
+@@ -423,7 +678,7 @@
                          _n_num++;
                      }
                      
@@ -51959,7 +53325,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_s_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -431,7 +685,7 @@
+@@ -431,7 +686,7 @@
                          _s_num++;
                      }
                      
@@ -51968,7 +53334,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -439,7 +693,7 @@
+@@ -439,7 +694,7 @@
                          _m_num++;
                      }
                      
@@ -51977,7 +53343,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_b_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -447,7 +701,7 @@
+@@ -447,7 +702,7 @@
                          _b_num++;
                      }
                      
@@ -51986,7 +53352,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -461,13 +715,13 @@
+@@ -461,13 +716,13 @@
              case 1.13:
                  with (obj_slot)
                  {
@@ -52002,7 +53368,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              bar_glow_rep = -1;
                      }
                  }
-@@ -476,7 +730,7 @@
+@@ -476,7 +731,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -52011,7 +53377,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _new = scr_create_unit_base(_id.class, 7);
                          ds_list_replace(global.unit_list, i, _new);
-@@ -487,7 +741,7 @@
+@@ -487,7 +742,7 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -52020,7 +53386,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _new = scr_create_unit_base(_id.class, 7);
                          global.val.cage[i] = _new;
-@@ -498,7 +752,7 @@
+@@ -498,7 +753,7 @@
                  {
                      with (obj_button)
                      {
@@ -52029,7 +53395,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              instance_destroy();
                      }
                      
-@@ -506,7 +760,7 @@
+@@ -506,7 +761,7 @@
                      
                      with (obj_button)
                      {
@@ -52038,7 +53404,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              image_index = (button_num * 2) + 1;
                              switch_type = true;
-@@ -522,10 +776,10 @@
+@@ -522,10 +777,10 @@
                  
                  with (obj_slot)
                  {
@@ -52052,7 +53418,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          array_insert(slot_data.mod_index, 1, 0);
                  }
                  
-@@ -533,9 +787,9 @@
+@@ -533,9 +788,9 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -52064,7 +53430,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          ds_list_set(global.unit_list, i, _id);
                      }
                  }
-@@ -544,9 +798,9 @@
+@@ -544,9 +799,9 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -52076,7 +53442,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          global.val.cage[i] = _id;
                      }
                  }
-@@ -556,13 +810,13 @@
+@@ -556,13 +811,13 @@
              case 1.15:
                  with (obj_slot)
                  {
@@ -52092,7 +53458,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              {
                                  with (slot_data.prop[i].prop_id)
                                      instance_destroy();
-@@ -583,7 +837,7 @@
+@@ -583,7 +838,7 @@
              case 1.16:
                  with (obj_slot)
                  {
@@ -52101,7 +53467,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          array_push(slot_data.mod_index, false);
                          array_push(slot_data.mod_index, false);
-@@ -597,7 +851,7 @@
+@@ -597,7 +852,7 @@
              case 1.23:
                  with (obj_slot)
                  {
@@ -52110,7 +53476,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _unit_id = unit_data;
                          scr_occupy_slot(id, -1, false, -1);
-@@ -614,23 +868,23 @@
+@@ -614,23 +869,23 @@
                  if (!variable_struct_exists(global.val, "old_t_lvl"))
                      global.val.old_t_lvl = 0;
                  
@@ -52143,7 +53509,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  }
                  
                  break;
-@@ -638,7 +892,7 @@
+@@ -638,7 +893,7 @@
              case 1.29:
                  with (obj_slot)
                  {
@@ -52152,7 +53518,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          array_push(slot_data.mod_index, 0);
                  }
                  
-@@ -723,6 +977,21 @@
+@@ -723,6 +978,21 @@
          global.val.version += 0.01;
      }
      
@@ -52174,7 +53540,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
      return arg0;
  }
  
-@@ -736,7 +1005,7 @@
+@@ -736,7 +1006,7 @@
          
          for (var i = 0; i < _num; i++)
          {
@@ -52183,7 +53549,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
              {
                  _exists = true;
                  i = _num;
-@@ -749,7 +1018,7 @@
+@@ -749,7 +1019,7 @@
              
              for (var i = 0; i < _num; i++)
              {
@@ -52192,7 +53558,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  {
                      _exists = true;
                      i = _num;
-@@ -758,10 +1027,10 @@
+@@ -758,10 +1028,10 @@
          }
          
          if (_exists)
@@ -52206,7 +53572,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
          
          var _a = global.val.shop_item[0];
          scr_set_shop_list();
-@@ -794,17 +1063,17 @@
+@@ -794,17 +1064,17 @@
          global.val.stage_item[0][0] = _st_1_1;
          global.val.stage_item[0][1] = _st_1_2;
          global.val.stage_item[1][0] = _st_2_1;
@@ -52227,7 +53593,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          scr_create_textbox(_noti, -1, obj_np);
                          instance_destroy();
-@@ -815,32 +1084,3 @@
+@@ -815,32 +1085,3 @@
          }
      }
  }
@@ -54919,14 +56285,14 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 -                        _infant = _data.slot_data.prop[ii].mon_data;
 +                    if (_pd.prop_type == UnknownEnum.Value_40)
 +                        _infant = _pd.mon_data;
-+                    
+                     
+-                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
+-                    _prop.prop_data = _data.slot_data.prop[ii];
 +                    // GNX-PROP: a mod prop is found by its saved name; its number can change with the mod
 +                    // load order (audit P10)
 +                    var _gnx_pt = gnx_prop_saved_type(_pd);
 +                    var _prop = (_gnx_pt == -1) ? -1 : scr_create_prop(id, _gnx_pt, _infant, _pd.prop_step);
-                     
--                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
--                    _prop.prop_data = _data.slot_data.prop[ii];
++                    
 +                    // GNX-FIX: no prop made (its mod is missing): kept aside, not read (that stopped the load)
 +                    if (is_undefined(_prop) || _prop == -1 || !instance_exists(_prop))
 +                    {
@@ -55053,10 +56419,14 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +901,68 @@
+@@ -567,7 +901,72 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
++        // GNX-TYPES: before val_fix stamps this boot's table; or the pre-pass remapped / kept aside monster types
++        var _gnx_types_moved = gnx_types_set_changed(global.val) || (variable_global_exists("gnx_types_load_moved") && global.gnx_types_load_moved);
++        global.gnx_types_load_moved = false;
++        gnx_types_val_fix(global.val, true);  // GNX-TYPES: this boot's types (monsters are already recreated above)
 +        
 +        // GNX: saves before 1.4.10 did not keep the mod birth list
 +        if (!variable_struct_exists(global.val, "gnx_br_unlock") || !is_array(global.val.gnx_br_unlock) || array_length(global.val.gnx_br_unlock) < 4)
@@ -55122,7 +56492,20 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +1001,21 @@
+@@ -585,7 +984,11 @@
+         
+         for (var i = 0; i < _num; i++)
+             ds_list_add(global.back_row, _global.back_row[i]);
+-        
++
++        // GNX-TYPES: a type mod added or removed since the save: the population counts only installed types now
++        if (_gnx_types_moved)
++            global.val.nest_num[0] = scr_all_mon_num_cal();
++
+         ds_list_clear(global.new_button_list);
+         _num = array_length(_global.new_button_list);
+         
+@@ -606,11 +1009,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -55145,7 +56528,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1039,12 @@
+@@ -634,7 +1047,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -55158,7 +56541,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1064,395 @@
+@@ -654,8 +1072,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -55554,7 +56937,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1460,7 @@
+@@ -663,6 +1468,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -55562,7 +56945,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1480,25 @@
+@@ -682,33 +1488,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -55607,7 +56990,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1523,119 @@
+@@ -733,3 +1531,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
@@ -64326,32 +65709,32 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
 -            _type_ar = [UnknownEnum.Value_3];
 +        case 21:
 +            _type_ar = [3];
-             break;
-         
--        case UnknownEnum.Value_22:
--            _type_ar = [UnknownEnum.Value_3];
++            break;
++        
 +        case 22:
 +            _type_ar = [3];
              break;
          
--        case UnknownEnum.Value_20:
+-        case UnknownEnum.Value_22:
 -            _type_ar = [UnknownEnum.Value_3];
 +        case 20:
 +            _type_ar = [3];
              break;
          
+-        case UnknownEnum.Value_20:
+-            _type_ar = [UnknownEnum.Value_3];
++        case 39:
++            _type_ar = [0, 1, 3];
+             break;
+         
 -        case UnknownEnum.Value_39:
 -            _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1, UnknownEnum.Value_3];
-+        case 39:
++        case 37:
 +            _type_ar = [0, 1, 3];
              break;
          
 -        case UnknownEnum.Value_37:
 -            _type_ar = [UnknownEnum.Value_0, UnknownEnum.Value_1, UnknownEnum.Value_3];
-+        case 37:
-+            _type_ar = [0, 1, 3];
-+            break;
-+        
 +        default:
 +            if (ds_map_exists(global.cell_registry, slot_data.h_type))
 +            {
@@ -64456,34 +65839,41 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      if (_exists)
      {
          var _a = irandom_range(0, array_length(_type_ar) - 1);
-@@ -2297,8 +2771,157 @@
+@@ -2297,8 +2771,164 @@
      }
  }
  
 +/// GNX-FIX (audit 25, 26): which species a call from a cell on floor arg0 can bring right now, as
-+/// [goblin, hobgoblin, tentacle, ogre] true / false, by the tests scr_slot_call_mon uses: a free monster
++/// [goblin, hobgoblin, tentacle, ogre, custom types...] true / false, by the tests scr_slot_call_mon uses: a free monster
 +/// wandering on that floor (only when arg1 is true: scr_slot_call_mon(true) sends such monsters, (false)
 +/// does not), or one in the nest that is not out (mon_num - nest_num) and may come through the doors of
 +/// that floor. One pass over the monsters and one door check for all four species, so a call costs the
 +/// same however many places it looks at.
 +function gnx_free_mask(arg0, arg1)
 +{
-+    var _m = [false, false, false, false];
-+    
++    // GNX-TYPES: one entry per monster type, custom types (4 and up) included
++    var _cnt = gnx_mon_type_count();
++    var _m = array_create(_cnt, false);
++
 +    if (arg1)
 +    {
 +        with (obj_mon)
 +        {
 +            // the test scr_slot_call_mon uses for a wandering monster it can send (&& = and)
-+            if (mon_data.mon_state == 5 && mon_data.slot_id == -1 && mon_data.mon_floor == arg0 && mon_data.task == 0 && is_numeric(mon_data.mon_type) && mon_data.mon_type >= 0 && mon_data.mon_type <= 3)
++            if (mon_data.mon_state == 5 && mon_data.slot_id == -1 && mon_data.mon_floor == arg0 && mon_data.task == 0 && is_numeric(mon_data.mon_type) && mon_data.mon_type >= 0 && mon_data.mon_type < _cnt)
 +                _m[mon_data.mon_type] = true;
 +        }
 +    }
-+    
++
 +    // scr_check_door_allow keeps the species the doors of that floor let through
-+    var _door = scr_check_door_allow(arg0, [0, 1, 2, 3]);
-+    
-+    for (var i = 0; i < 4; i++)
++    var _all = array_create(_cnt, 0);
++
++    for (var i = 0; i < _cnt; i++)
++        _all[i] = i;
++
++    var _door = scr_check_door_allow(arg0, _all);
++
++    for (var i = 0; i < _cnt; i++)
 +    {
 +        // ! = not: not found wandering, so from the nest: one there that is not out, and a door for it
 +        if (!_m[i] && (global.val.mon_num[i] - global.val.nest_num[i + 1]) > 0 && array_contains(_door, i))
@@ -64506,8 +65896,8 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
 +    {
 +        var _t = arg0[i];
 +        
-+        // a species is 0-3 and is taken once (! = not, || = or, && = and)
-+        if (is_numeric(_t) && _t >= 0 && _t <= 3 && arg1[_t] && !array_contains(_out, _t))
++        // a species is one of the mask's types (GNX-TYPES: 0-3 and the custom ones) and is taken once (! = not, || = or, && = and)
++        if (is_numeric(_t) && _t >= 0 && _t < array_length(arg1) && arg1[_t] && !array_contains(_out, _t))
 +            array_push(_out, _t);
 +    }
 +    
@@ -64614,7 +66004,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      var _num = array_length(h_unit_list);
      
      if (_num < slot_data.max_mon_num && !slot_data.carry)
-@@ -2308,7 +2931,9 @@
+@@ -2308,7 +2938,9 @@
          if (slot_data.h_wait <= 0)
          {
              slot_data.h_wait = irandom_range(240, 360);
@@ -64625,7 +66015,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              
              if (_ar != -1)
              {
-@@ -2322,13 +2947,22 @@
+@@ -2322,13 +2954,22 @@
                  {
                      with (obj_mon)
                      {
@@ -64650,7 +66040,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                              break;
                          }
                      }
-@@ -2340,7 +2974,7 @@
+@@ -2340,7 +2981,7 @@
                      var _y = y;
                      var _door = -1;
                      
@@ -64659,7 +66049,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                      {
                          _door = scr_find_nearest_door(_x, _y, _floor);
                      }
-@@ -2420,17 +3054,21 @@
+@@ -2420,17 +3061,21 @@
          
          if (unit_data.scr_wait >= 240)
          {
@@ -64685,7 +66075,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      var _floor = arg0.slot_data.slot_floor;
      var _pos = ds_list_find_index(global.slot_list[_floor], arg0);
      var _start_pos = max(0, _pos - (arg1 * 2));
-@@ -2446,8 +3084,21 @@
+@@ -2446,8 +3091,21 @@
          var _c_pos = _start_pos + i;
          var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
          
@@ -64709,7 +66099,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              var _num = array_length(_slot_id.h_unit_list);
              
              if (abs(_pos - _c_pos) < _slot_dist)
-@@ -2456,7 +3107,7 @@
+@@ -2456,7 +3114,7 @@
                  
                  switch (_slot_id.slot_data.h_type)
                  {
@@ -64718,7 +66108,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                          _check = true;
                          
                          if (_num == 1)
-@@ -2467,10 +3118,10 @@
+@@ -2467,10 +3125,10 @@
                          
                          break;
                      
@@ -64731,7 +66121,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2478,10 +3129,10 @@
+@@ -2478,10 +3136,10 @@
                          
                          break;
                      
@@ -64744,7 +66134,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                          {
                              _slot_dist = abs(_pos - _c_pos);
                              _target_id = _slot_id;
-@@ -2509,7 +3160,7 @@
+@@ -2509,7 +3167,7 @@
  {
      var _exists = false;
      
@@ -64753,7 +66143,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          _exists = true;
      
      if (_exists)
-@@ -2527,7 +3178,7 @@
+@@ -2527,7 +3185,7 @@
      
      switch (arg0)
      {
@@ -64762,7 +66152,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2535,7 +3186,7 @@
+@@ -2535,7 +3193,7 @@
              
              break;
          
@@ -64771,7 +66161,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1 && !_unit_data.milk)
-@@ -2543,7 +3194,7 @@
+@@ -2543,7 +3201,7 @@
              
              break;
          
@@ -64780,7 +66170,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2558,7 +3209,7 @@
+@@ -2558,7 +3216,7 @@
              
              break;
          
@@ -64789,7 +66179,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              _slot = true;
              
              if (floor(_unit_data.preg_c) == 0)
-@@ -2573,12 +3224,28 @@
+@@ -2573,12 +3231,28 @@
              
              break;
          
@@ -64819,7 +66209,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      if (!_slot && slot_data.allow_preg)
      {
          if (floor(_unit_data.preg_c) == 0 && _unit_data.preg == -1)
-@@ -2587,7 +3254,7 @@
+@@ -2587,7 +3261,7 @@
      
      if (_scr_check != -1)
      {
@@ -64828,7 +66218,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          var _floor = slot_data.slot_floor;
          var _h_type = slot_data.h_type;
          var _pos = ds_list_find_index(global.slot_list[_floor], id);
-@@ -2602,7 +3269,7 @@
+@@ -2602,7 +3276,7 @@
              var _c_pos = _start_pos + i;
              var _slot_id = ds_list_find_value(global.slot_list[_floor], _c_pos);
              
@@ -64837,7 +66227,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              {
                  i = _dist;
                  _frog = true;
-@@ -2623,8 +3290,8 @@
+@@ -2623,8 +3297,8 @@
                  ds_list_set(global.unit_list, _swap_pos, -1);
                  scr_insert_unit_to_list(_unit_data, _swap_pos, -1);
                  var _button = scr_reset_single_unit_window(_swap_pos);
@@ -64848,7 +66238,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  scr_create_slot_head(true, id);
                  scr_swap_emitter(x + round(image_xscale * 0.5), y - 30, false);
                  scr_swap_emitter(_button.x, _button.y, true);
-@@ -2641,7 +3308,7 @@
+@@ -2641,7 +3315,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -64857,7 +66247,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2662,14 +3329,14 @@
+@@ -2662,14 +3336,14 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -64874,7 +66264,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
      return _swap_pos;
  }
  
-@@ -2681,18 +3348,27 @@
+@@ -2681,18 +3355,27 @@
      var _class = arg0.class;
      var _same_check = false;
      var _tent = false;
@@ -64905,7 +66295,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          {
              _swap_pos = i;
              i = _num;
-@@ -2700,13 +3376,13 @@
+@@ -2700,13 +3383,13 @@
          }
      }
      
@@ -64921,7 +66311,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2725,7 +3401,7 @@
+@@ -2725,7 +3408,7 @@
      var _class = arg0.class;
      var _same_check = false;
      
@@ -64930,7 +66320,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          _hold_pos = obj_control.hold_id.button_num;
      
      for (var i = 0; i < _num; i++)
-@@ -2746,7 +3422,7 @@
+@@ -2746,7 +3429,7 @@
          {
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
@@ -64939,7 +66329,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              {
                  _swap_pos = i;
                  i = _num;
-@@ -2773,23 +3449,30 @@
+@@ -2773,23 +3456,30 @@
          }
          else
          {
@@ -64976,7 +66366,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          }
      }
      
-@@ -2804,23 +3487,30 @@
+@@ -2804,23 +3494,30 @@
          }
          else
          {
@@ -65013,7 +66403,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          }
      }
  }
-@@ -2832,67 +3522,94 @@
+@@ -2832,67 +3529,94 @@
      
      switch (arg0.slot_data.slot_type)
      {
@@ -65130,7 +66520,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              break;
      }
      
-@@ -2929,35 +3646,167 @@
+@@ -2929,35 +3653,167 @@
      ds_list_destroy(_new_list_1);
      ds_list_destroy(_new_list_2);
      
@@ -65313,7 +66703,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
  }
  
  function scr_slot_anim_base()
-@@ -2978,49 +3827,3 @@
+@@ -2978,49 +3834,3 @@
              bar_glow_rep = 0;
      }
  }
@@ -69324,7 +70714,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
                      {
                          _icon_array[_num] = i;
                          _pos_array[_num] = ii;
-@@ -95,17 +95,25 @@
+@@ -95,23 +95,32 @@
                      }
                  }
                  
@@ -69353,7 +70743,15 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
          {
              scr_window_draw = scr_draw_mod_door_window;
              
-@@ -121,21 +129,22 @@
+             for (var i = 0; i < array_length(global.val.mon_num); i++)
+             {
+-                if (global.val.mon_num[i] != -1 && i != 2)
++                // GNX-TYPES: custom types (4 and up) have no door toggle (the door's mod_index holds the game's types only)
++                if (global.val.mon_num[i] != -1 && i != 2 && i < 4)
+                 {
+                     array_push(icon_array, i);
+                     array_push(pos_array, i + 1);
+@@ -121,21 +130,22 @@
              
              var _scale = (7 * (_num - 1)) + (3 * max(0, sign(_num - skip_row)));
              image_yscale = max(1, 1.4 + (_scale * 0.1) + _ext);
@@ -69380,7 +70778,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
              {
                  var _data = scr_h_slot_text_data(arg0.slot_data.h_type);
                  reward_info = _data.spawn_info;
-@@ -154,8 +163,8 @@
+@@ -154,8 +164,8 @@
              
              if (_num > 0)
              {
@@ -69391,7 +70789,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
                  scr_create_button_layout(-8, 4 + _y_shift, depth - 1, _num, 1, 0, _height_dist, 0, spr_mod_icon, -1, id, false, scr_create_mod_icon, -1, -1);
              }
              
-@@ -163,12 +172,12 @@
+@@ -163,12 +173,12 @@
                  scr_create_button_mod_range(id, arg0);
          }
          
@@ -69407,7 +70805,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
      }
  }
  
-@@ -180,7 +189,7 @@
+@@ -180,7 +190,7 @@
      {
          image_xscale = 0;
          image_yscale = 0;
@@ -69416,7 +70814,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
          source_id = arg0;
          var _set = true;
          var _floor = arg1.slot_data.slot_floor;
-@@ -188,15 +197,29 @@
+@@ -188,15 +198,29 @@
          
          switch (arg1.slot_data.h_type)
          {
@@ -69448,7 +70846,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
              var _slot_x_max = global.slot_x[_floor];
              var _last_pos = ds_list_size(global.slot_list[_floor]) - 1;
              var _pos = ds_list_find_index(global.slot_list[_floor], arg1);
-@@ -205,30 +228,7 @@
+@@ -205,30 +229,7 @@
              var _end_slot = ds_list_find_value(global.slot_list[_floor], _end_pos);
              start_x = max(0, ds_list_find_value(global.slot_list[_floor], _start_pos).x);
              end_x = min(_slot_x_max, _end_slot.x + _end_slot.image_xscale) - start_x;
@@ -74326,7 +75724,6 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 --- gml_138/gml_Object_obj_control_Step_0.gml
 +++ gml/gml_Object_obj_control_Step_0.gml
 @@ -1 +1,137 @@
--scr_mouse_control();
 +if (global.gnx_multimap_enabled && variable_global_exists("gnx_trigger_load") && global.gnx_trigger_load)
 +{
 +    global.gnx_trigger_load = false;
@@ -74380,7 +75777,7 @@ diff -uN gml_138/gml_Object_obj_control_Step_0.gml gml/gml_Object_obj_control_St
 +    exit;
 +}
 +
-+scr_mouse_control();
+ scr_mouse_control();
 +
 +if (variable_global_exists("gnx_pending_notice") && global.gnx_pending_notice != "" && instance_exists(obj_slot))
 +{

@@ -40,7 +40,7 @@
              _row_type = mon_data.placement_num;
          else
              _row_type = _spr_data.h_type - _spr_data.spr_row_pos - 1;
-@@ -17,7 +41,10 @@
+@@ -17,75 +41,105 @@
          var _mon_index = (_row_type * _base_frame_c) + mon_data.index;
          _mon_index -= _spr_data.start_frame;
          
@@ -48,11 +48,14 @@
 +        // Mav (1.4.7.5): an ogre with a "line" layer from the cell JSON is drawn like a goblin (see gnx_ogre_alpha in scr_set_mon_spr_data)
 +        // older saves do not have the field
 +        var _gnx_ogre_alpha = variable_struct_exists(mon_data, "gnx_ogre_alpha") && mon_data.gnx_ogre_alpha;
-+        if (mon_data.mon_type != 3 || _gnx_ogre_alpha || mon_data.slot_id.slot_data.h_type == 39 || mon_data.slot_id.slot_data.h_type == 37)
++        // GNX-TYPES: a custom type draws as its "like" (0-3 are their own)
++        if (gnx_mon_like(mon_data.mon_type) != 3 || _gnx_ogre_alpha || mon_data.slot_id.slot_data.h_type == 39 || mon_data.slot_id.slot_data.h_type == 37)
          {
-             var _mon_alpha_c = global.mon_alpha_c[mon_data.mon_type];
+-            var _mon_alpha_c = global.mon_alpha_c[mon_data.mon_type];
++            var _mon_alpha_c = global.mon_alpha_c[gnx_mon_like(mon_data.mon_type)];
              var _x = x;
-@@ -26,66 +53,92 @@
+             var _y = y;
+             var _x_flip = abs(sign(image_xscale - 1) * _spr_data.slot_width);
              var _x_hand_flip = abs(sign(_spr_data.hand_xscale - 1) * _spr_data.slot_width);
              
              if (_mon_spr.pen != -1)
@@ -169,7 +172,7 @@
                      break;
              }
              
-@@ -96,30 +149,30 @@
+@@ -96,30 +150,30 @@
                  
                  switch (global.val.crate_alpha_type)
                  {
@@ -210,7 +213,7 @@
          }
          
          if (arg0 && mon_data.slot_id.hover)
-@@ -157,11 +210,18 @@
+@@ -157,11 +211,18 @@
      draw_sprite_ext(spr_hobgoblin_log, 0, x, (y - 48) + _shift_y, image_xscale, image_yscale, image_angle, image_blend, 1);
      draw_sprite_ext(spr_carry, image_index, x + 45, y, image_xscale, image_yscale, image_angle, image_blend, 1);
      
@@ -229,7 +232,7 @@
          var _final_index = max(0, _unit_data.skin) * 2;
          var _hair_index = max(0, _unit_data.hair) * 2;
          var _dist = 39;
-@@ -171,49 +231,49 @@
+@@ -171,49 +232,49 @@
          for (var i = 0; i < _num; i++)
          {
              var _replace = false;
@@ -294,7 +297,7 @@
                          
                          break;
                  }
-@@ -226,14 +286,24 @@
+@@ -226,14 +287,24 @@
  
  function scr_tent_draw()
  {
@@ -321,7 +324,7 @@
      
      if (spr_unit != -1)
      {
-@@ -241,35 +311,17 @@
+@@ -241,35 +312,17 @@
          var _hair = spr_unit.hair;
          var _hair_c = spr_unit.hair_c;
          var _spr_c = 8;

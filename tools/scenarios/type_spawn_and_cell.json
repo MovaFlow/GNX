@@ -1,0 +1,33 @@
+{
+  "about": "Custom types P1: a wolf (harness_type_a, like goblin, own hobgoblin walk art) walks out of the nest door with its own sprites and no tint, is called through the doors into a mod cell that lists only it, by name (cell A), draws there with the cell's mon_spr_wolf set (cell A) or the plain mon_spr set (cell B), and is still in the cell after save/reload, with the out-of-nest count equal to the live wolves.",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a", "tools/scenarios/mods/harness_type_cell"],
+  "steps": [
+    {"wait": 60},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 10, "class": 0}},
+    {"call": "gnx_scn_spawn_walker", "args": ["wolf"]},
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_walker_info", "args": [], "is": "spr_hobgoblin_idle 16777215", "why": "own idle art, no tint (image_blend c_white)"},
+    {"call": "gnx_scn_build_on_last", "args": [0]},
+    {"call": "gnx_scn_set_last_cell", "args": [{"cell": "harness_type_cell.TYPE CELL A"}]},
+    {"call": "gnx_scn_build_on_last", "args": [0]},
+    {"call": "gnx_scn_set_last_cell", "args": [{"cell": "harness_type_cell.TYPE CELL B"}]},
+    {"wait": 5},
+    {"assert": "fn", "name": "gnx_scn_cell_mon_types", "args": [{"cell": "harness_type_cell.TYPE CELL C"}], "is": "4 0", "why": "\"wolf\" read by name, 0 kept (cell C, never occupied)"},
+    {"occupy": {"h_type": {"cell": "harness_type_cell.TYPE CELL A"}, "class": 0, "level": 1}},
+    {"wait": 900},
+    {"assert": "fn", "name": "gnx_scn_occupied_called", "args": [], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_occupied_has", "args": [{"mon": "wolf"}], "is": 1, "why": "a wolf came through the doors into cell A"},
+    {"mon_spr_probe": {"cell": {"cell": "harness_type_cell.TYPE CELL A"}, "mon_type": {"mon": "wolf"}, "phase": 0, "body": "spr_h_goblin_body_start_v1_alpha"}, "why": "cell A's mon_spr_wolf start strip"},
+    {"mon_spr_probe": {"cell": {"cell": "harness_type_cell.TYPE CELL B"}, "mon_type": {"mon": "wolf"}, "phase": 0, "body": "mod:GNX_mods/harness_type_cell/strips/opt_gob_start_a.png#2@0,90"}, "why": "cell B has no mon_spr_wolf: the plain mon_spr start strip"},
+    {"save": 9},
+    {"wait": 3},
+    {"reload": 9},
+    {"call": "gnx_scn_refind_occupied"},
+    {"wait": 120},
+    {"assert": "fn", "name": "gnx_scn_occupied_has", "args": [{"mon": "wolf"}], "is": 1, "why": "the wolf is still in cell A"},
+    {"assert": "fn", "name": "gnx_scn_type_lens", "args": [], "is": "5 6 1 1"},
+    {"assert": "fn", "name": "gnx_scn_nest_out", "args": ["wolf"], "is": 1, "why": "nest_num[5] after load = the live wolves (gnx_scn_mon_live below)"},
+    {"assert": "fn", "name": "gnx_scn_mon_live", "args": ["wolf"], "is": 1}
+  ]
+}

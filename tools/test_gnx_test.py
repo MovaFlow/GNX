@@ -180,3 +180,12 @@ errs = ["Cell 4 monster_art.ogre: not drawn on this cell", "Cell 5 monster_art.o
 assert unexpected_dialog_errors(sc, errs) == ["Cell 5 monster_art.ogre: extra"]
 assert unexpected_dialog_errors({"expect_dialog": "monster_art"}, errs) == []  # only with both keys
 assert unexpected_dialog_errors({"expect_mod_errors": ["a"]}, errs) == []
+
+# shape_same_as: two saves whose global_list.val differ by one key give a difference, identical ones none
+import json
+from gnx_test import shape_check
+_d = Path(tempfile.mkdtemp())
+for _n, _v in (("a", {"x": 1}), ("b", {"x": 1}), ("c", {"x": 1, "extra": 2})):
+    (_d / (_n + ".json")).write_text(json.dumps({"global_list": {"val": _v}}), encoding="utf-8")
+assert shape_check(_d / "a.json", _d / "b.json") == []
+assert shape_check(_d / "a.json", _d / "c.json") != []

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,2962 @@
+@@ -0,0 +1,3061 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -249,10 +249,54 @@
 +                gnx_usage_add(arg1, _cr.mod_name, "units");
 +        }
 +    }
++
++    // GNX-TYPES: monsters of a custom type (val.gnx_mon counts) go to the mod that declares the type, as "mons";
++    // a name no installed mod declares is skipped
++    var _gm = undefined;
++
++    if (variable_struct_exists(arg0, "global_list") && is_struct(arg0.global_list) && variable_struct_exists(arg0.global_list, "val") && is_struct(arg0.global_list.val) && variable_struct_exists(arg0.global_list.val, "gnx_mon"))
++        _gm = arg0.global_list.val.gnx_mon;
++
++    if (is_struct(_gm))
++    {
++        var _names = variable_struct_get_names(_gm);
++
++        for (var _i = 0; _i < array_length(_names); _i++)
++        {
++            var _t = gnx_mon_type_id(_names[_i]);
++            var _md = variable_struct_get(_gm, _names[_i]);
++
++            if (_t < 4 || !is_struct(_md) || !variable_struct_exists(_md, "num") || !is_array(_md.num))
++                continue;
++
++            var _sum = 0;
++
++            for (var _c = 0; _c < array_length(_md.num); _c++)
++            {
++                if (is_real(_md.num[_c]))
++                    _sum += max(0, _md.num[_c]);
++            }
++
++            if (_sum <= 0)
++                continue;
++
++            var _u = gnx_usage_add(arg1, variable_struct_get(global.gnx_mon_types[_t], "mod"), "");
++            variable_struct_set(_u, "mons", gnx_rec_mons(_u) + _sum);  // only there once counted
++        }
++    }
 +}
 +
 +
-+// arg0 usage struct, arg1 mod folder, arg2 "cells" / "units" / "" (only make sure the entry exists)
++// GNX-TYPES: the monsters counted in mod record or usage entry arg0 (0 when it has no "mons": the key is only
++// written when > 0)
++function gnx_rec_mons(arg0)
++{
++    return (variable_struct_exists(arg0, "mons") && is_real(arg0.mons)) ? arg0.mons : 0;
++}
++
++
++// arg0 usage struct, arg1 mod folder, arg2 "cells" / "units" / "" (only make sure the entry exists); "mons" is
++// added by scr_gnx_count_mod_usage when it counts some, never to a new entry
 +function gnx_usage_add(arg0, arg1, arg2)
 +{
 +    if (!variable_struct_exists(arg0, arg1))
@@ -307,7 +351,13 @@
 +            continue;
 +
 +        var _u = variable_struct_exists(_use, _e.folder) ? variable_struct_get(_use, _e.folder) : { cells: 0, units: 0, maps: [] };
-+        array_push(_rec, { id: _e.folder, name: _e.name, version: _e.version, cells: _u.cells, units: _u.units, maps: _u.maps });
++        var _ent = { id: _e.folder, name: _e.name, version: _e.version, cells: _u.cells, units: _u.units, maps: _u.maps };
++
++        // GNX-TYPES: "mons" only for a mod whose monsters the save holds (a record without them stays as it was)
++        if (gnx_rec_mons(_u) > 0)
++            variable_struct_set(_ent, "mons", _u.mons);
++
++        array_push(_rec, _ent);
 +    }
 +
 +    if (variable_global_exists("gnx_loaded_mod_record") && is_array(global.gnx_loaded_mod_record))
@@ -329,6 +379,13 @@
 +
 +            if (_kept)
 +                continue;
++
++            // GNX-TYPES: a removed type mod whose monsters wait in val.gnx_mon keeps its entry (and its warning)
++            if (gnx_rec_mons(_old) > 0)
++            {
++                array_push(_rec, _old);
++                continue;
++            }
 +
 +            for (var _m = 0; _m < array_length(_old.maps); _m++)
 +            {
@@ -414,7 +471,8 @@
 +
 +/// GNX-FIX: the mod records of a save (arg0, its gnx_mods list) that the menus can read: objects with an
 +/// "id"; name (default the id), version (default "?"), cells and units (numbers, default 0) and maps (a
-+/// list, default empty) are filled in where missing or of the wrong type. Other entries are dropped.
++/// list, default empty) are filled in where missing or of the wrong type. Other entries are dropped. A missing
++/// "mons" stays missing (gnx_rec_mons reads it as 0).
 +function gnx_save_recs_clean(arg0)
 +{
 +    var _out = [];
@@ -532,14 +590,14 @@
 +            if (!is_struct(_r) || !variable_struct_exists(_r, "id"))
 +                continue;
 +
-+            var _used = _r.cells + _r.units + array_length(_r.maps);
++            var _used = _r.cells + _r.units + array_length(_r.maps) + gnx_rec_mons(_r);
 +            var _e = gnx_mod_entry(_r.id);
 +
 +            if (_used <= 0 || (_e != undefined && _e.status == "on"))
 +                continue;
 +
 +            var _why = (_e == undefined) ? "not installed" : ((_e.status == "off") ? "off" : _e.why);
-+            array_push(_out, { id: _r.id, name: _r.name, why: _why, cells: _r.cells, units: _r.units, maps: _r.maps });
++            array_push(_out, { id: _r.id, name: _r.name, why: _why, cells: _r.cells, units: _r.units, maps: _r.maps, mons: gnx_rec_mons(_r) });
 +        }
 +
 +        return _out;
@@ -586,7 +644,7 @@
 +    }
 +
 +    if (_cells + _units > 0)
-+        array_push(_out, { id: "", name: "unknown mods", why: "saved before GNX 1.4.8, or a mod was removed", cells: _cells, units: _units, maps: [] });
++        array_push(_out, { id: "", name: "unknown mods", why: "saved before GNX 1.4.8, or a mod was removed", cells: _cells, units: _units, maps: [], mons: 0 });
 +
 +    return _out;
 +}
@@ -603,6 +661,11 @@
 +
 +    if (arg0.units > 0)
 +        array_push(_parts, string(arg0.units) + " character" + ((arg0.units == 1) ? "" : "s"));
++
++    var _mons = gnx_rec_mons(arg0);
++
++    if (_mons > 0)
++        array_push(_parts, string(_mons) + " monster" + ((_mons == 1) ? "" : "s"));
 +
 +    if (array_length(arg0.maps) > 0)
 +        array_push(_parts, "its map");
@@ -1127,6 +1190,17 @@
 +
 +    array_push(_lines, "Their cells become basic cells and their characters");
 +    array_push(_lines, "peasants. Loading is safe; saving makes it permanent.");
++    var _any_mons = false;
++
++    for (var _i = 0; _i < array_length(_miss); _i++)
++    {
++        if (gnx_rec_mons(_miss[_i]) > 0)
++            _any_mons = true;
++    }
++
++    // GNX-TYPES: monsters are not converted: their counts are kept (gnx_types_save_remap)
++    if (_any_mons)
++        array_push(_lines, "Their monsters wait in the save until the mod is back.");
 +    scr_gnx_mod_confirm(_lines, ["LOAD", "CANCEL", "MODS"], "load:" + string(arg0.button_num), arg0);
 +    return true;
 +}
@@ -2279,15 +2353,29 @@
 +}
 +
 +
-+// Mav (1.4.7.5): loads a list of mods in three phases, so references between mods do not depend on folder names:
-+// 1) manifest + classes of every mod, 2) cells of every mod, 3) quests, tools, sounds, props.
-+// Mods that failed or are deferred to another map store no manifest, so phases 2-3 skip them.
++// Mav (1.4.7.5): loads a list of mods in phases, so references between mods do not depend on folder names:
++// 1) manifest of every mod, 0) monsters of every mod, 1) classes of every mod, 2) cells of every mod,
++// 3) quests, tools, sounds, props. Mods that failed or are deferred to another map store no manifest, so the
++// later phases skip them.
 +function scr_gnx_load_mod_list(arg0)
 +{
 +    global.gnx_staged_load = true;
 +    global.gnx_staged_manifests = {};
 +    for (var _i = 0; _i < array_length(arg0); _i++)
 +        scr_gnx_load_mod(arg0[_i]);
++    // GNX-TYPES: monster types of every mod before any class, so classes and cells can name them. The staged flag
++    // stays on through the classes, as when they were phase 1: gnx_ref_missing reports no cell name before any
++    // mod cell exists
++    for (var _m = 0; _m < array_length(arg0); _m++)
++    {
++        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_m]))
++            scr_gnx_load_mod_stage(arg0[_m], variable_struct_get(global.gnx_staged_manifests, arg0[_m]), 0);
++    }
++    for (var _c = 0; _c < array_length(arg0); _c++)
++    {
++        if (variable_struct_exists(global.gnx_staged_manifests, arg0[_c]))
++            scr_gnx_load_mod_stage(arg0[_c], variable_struct_get(global.gnx_staged_manifests, arg0[_c]), 1);
++    }
 +    global.gnx_staged_load = false;
 +    // phase 2: cells of every mod. GNX-ART: cell art for a monster a cell does not take yet waits for the other mods (gnx_art_defer)
 +    global.gnx_art_pending = {};
@@ -2641,34 +2729,24 @@
 +        }
 +    }
 +    
-+    var _tmp_t0 = get_timer();
-+    
-+    if (variable_struct_exists(_manifest, "classes"))
-+    {
-+        global.gnx_loading_classes = true;
-+        scr_gnx_load_classes(arg0, _manifest.classes);
-+        global.gnx_loading_classes = false;
-+    }
-+    
-+    var _tmp_lg = gnx_log_open();
-+    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " classes = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
-+    gnx_log_close(_tmp_lg);
-+    _tmp_t0 = get_timer();
-+    
-+    // Mav (1.4.7.5): in a staged load (scr_gnx_load_mod_list) phase 1 (manifest + classes) ends here.
-+    // The manifest is kept; scr_gnx_load_mod_stage loads cells and the rest once ALL mods' classes are known.
++    // Mav (1.4.7.5): in a staged load (scr_gnx_load_mod_list) phase 1 (the manifest) ends here.
++    // The manifest is kept; scr_gnx_load_mod_stage loads monsters, classes, cells and the rest once every
++    // manifest is read (GNX-TYPES: classes were phase 1 before, they are stage 1 now, after monsters)
 +    if (variable_global_exists("gnx_staged_load") && global.gnx_staged_load)
 +    {
 +        variable_struct_set(global.gnx_staged_manifests, arg0, _manifest);
 +        exit;
 +    }
-+    // one mod on its own (old path): phases 2 and 3 right away
++    // one mod on its own (old path): every stage right away
++    scr_gnx_load_mod_stage(arg0, _manifest, 0);
++    scr_gnx_load_mod_stage(arg0, _manifest, 1);
 +    scr_gnx_load_mod_stage(arg0, _manifest, 2);
 +    scr_gnx_load_mod_stage(arg0, _manifest, 3);
 +}
 +
-+// Mav (1.4.7.5): phase 2 or 3 of loading mod arg0 with manifest arg1.
-+// arg2 == 2: cells.json; arg2 == 3: quests, tools, sounds, props (+ warnings and the loaded-mods entry).
++// Mav (1.4.7.5): a stage of loading mod arg0 with manifest arg1. arg2 == 0: monsters.json (GNX-TYPES);
++// arg2 == 1: classes.json; arg2 == 2: cells.json; arg2 == 3: quests, tools, sounds, props (+ warnings and the
++// loaded-mods entry).
 +function scr_gnx_load_mod_stage(arg0, arg1, arg2)
 +{
 +    var _manifest = arg1;
@@ -2678,6 +2756,27 @@
 +    gnx_frames_note(global.gnx_current_loading_mod);
 +    global.gnx_current_loading_mod = arg0;
 +    global.gnx_loading_manifest = _manifest;
++    if (arg2 == 0)
++    {
++        if (variable_struct_exists(_manifest, "monsters"))
++            scr_gnx_load_monsters(arg0, _manifest.monsters);
++
++        exit;
++    }
++    if (arg2 == 1)
++    {
++        if (variable_struct_exists(_manifest, "classes"))
++        {
++            global.gnx_loading_classes = true;
++            scr_gnx_load_classes(arg0, _manifest.classes);
++            global.gnx_loading_classes = false;
++        }
++
++        _tmp_lg = gnx_log_open();
++        gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " classes = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
++        gnx_log_close(_tmp_lg);
++        exit;
++    }
 +    if (arg2 == 2)
 +    {
 +        if (variable_struct_exists(_manifest, "cells"))
@@ -2734,8 +2833,8 @@
 +    gnx_log_write(_tmp_lg, "[GNX-TIME] " + arg0 + " props = " + string((get_timer() - _tmp_t0) / 1000) + " ms\n");
 +    gnx_log_close(_tmp_lg);
 +    // GNX-FIX: raids.json too (1.5.1 left it out)
-+    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json", "items.json", "raids.json"];
-+    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props", "items", "raids"];
++    var _data_files = ["classes.json", "cells.json", "quests.json", "tools.json", "sounds.json", "props.json", "items.json", "raids.json", "monsters.json"];
++    var _data_keys = ["classes", "cells", "quests", "tools", "sounds", "props", "items", "raids", "monsters"];
 +    var _mod_dir = global.gnx_mods_root + arg0 + "/";
 +    
 +    for (var _wi = 0; _wi < array_length(_data_files); _wi++)
