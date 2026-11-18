@@ -1,0 +1,29 @@
+{
+  "about": "Custom types P2: a captive pregnant with a wolf (harness_type_a, like goblin) gives birth in the vanilla birth cells. BIRTH 2 (auto): the wolf count of monster class 0 (a class 0 captive, the goblin's vanilla rule) becomes 1. BIRTH 1 keeps the infant for pickup: its prop has the goblin's birth sprite and the wolf's infant head (screenshot). The infant probes run every father type, custom ones included. Counts survive a save/reload.",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a"],
+  "steps": [
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_type_num", "args": [{"mon": "wolf"}, 0], "is": -1, "why": "control: no wolf of class 0 yet"},
+    {"occupy": {"h_type": 12, "class": 0, "preg": {"mon": "wolf"}}},
+    {"wait": 900},
+    {"assert": "fn", "name": "gnx_scn_type_num", "args": [{"mon": "wolf"}, 0], "is": 1, "why": "the BIRTH 2 birth gave a wolf of monster class 0"},
+    {"assert": "infants", "h_type": 12},
+    {"call": "gnx_scn_build_on_last", "args": [0]},
+    {"call": "gnx_scn_set_last_cell", "args": [5], "why": "the 'mid' fixture has no empty BIRTH 1 cell: build one"},
+    {"wait": 5},
+    {"occupy": {"h_type": 5, "class": 0, "preg": {"mon": "wolf"}}},
+    {"wait": 600},
+    {"assert": "infants", "h_type": 5},
+    {"birth_probe": {"h_type": 5}, "why": "BIRTH 1: a wolf infant gets the goblin's birth sprite"},
+    {"birth_probe": {"h_type": 12}, "why": "BIRTH 2"},
+    {"call": "gnx_scn_camera_on_occupied"},
+    {"wait": 5},
+    {"screenshot": "wolf_infant"},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_type_num", "args": [{"mon": "wolf"}, 0], "is": 1, "why": "kept by the save"},
+    {"assert": "infants", "h_type": 5}
+  ]
+}

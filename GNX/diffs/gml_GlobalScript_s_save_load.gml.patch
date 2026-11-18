@@ -424,9 +424,7 @@
 -                        _infant = _data.slot_data.prop[ii].mon_data;
 +                    if (_pd.prop_type == UnknownEnum.Value_40)
 +                        _infant = _pd.mon_data;
-                     
--                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
--                    _prop.prop_data = _data.slot_data.prop[ii];
++                    
 +                    // GNX-PROP: a mod prop is found by its saved name; its number can change with the mod
 +                    // load order (audit P10)
 +                    var _gnx_pt = gnx_prop_saved_type(_pd);
@@ -442,7 +440,9 @@
 +                        gnx_log_close(_gnx_pl);
 +                        continue;
 +                    }
-+                    
+                     
+-                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
+-                    _prop.prop_data = _data.slot_data.prop[ii];
 +                    array_push(_gnx_kept, _pd);
 +                    
 +                    if (variable_struct_exists(_pd, "prop_pos"))
@@ -631,11 +631,22 @@
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -585,7 +984,11 @@
+@@ -585,7 +984,22 @@
          
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row, _global.back_row[i]);
 -        
++
++        // GNX-TYPES: the load pre-pass dropped a live row of a type not installed (its troops went back to the kept
++        // counts): the raid's AP, skills and haste are recomputed from the rows left, also for a raid out (vanilla
++        // freezes them on the outbound leg, but those troops are no longer in it). Never set without a custom type.
++        if (variable_global_exists("gnx_types_rows_dropped") && global.gnx_types_rows_dropped)
++        {
++            global.gnx_types_rows_dropped = false;
++
++            with (obj_np.obj_raid)
++                scr_calculate_group_stat(-1);
++        }
 +
 +        // GNX-TYPES: a type mod added or removed since the save: the population counts only installed types now
 +        if (_gnx_types_moved)
@@ -644,7 +655,7 @@
          ds_list_clear(global.new_button_list);
          _num = array_length(_global.new_button_list);
          
-@@ -606,11 +1009,21 @@
+@@ -606,11 +1020,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -667,7 +678,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1047,12 @@
+@@ -634,7 +1058,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -680,7 +691,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1072,395 @@
+@@ -654,8 +1083,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -1076,7 +1087,7 @@
      }
      
      return _load;
-@@ -663,6 +1468,7 @@
+@@ -663,6 +1479,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1084,7 +1095,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1488,25 @@
+@@ -682,33 +1499,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1129,7 +1140,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1531,119 @@
+@@ -733,3 +1542,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

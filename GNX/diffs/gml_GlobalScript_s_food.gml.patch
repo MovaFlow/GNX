@@ -1,12 +1,21 @@
 --- gml_138/gml_GlobalScript_s_food.gml
 +++ gml/gml_GlobalScript_s_food.gml
+@@ -7,7 +7,7 @@
+ function scr_all_cost()
+ {
+     var _unit_num = scr_all_fem_num_cal();
+-    var _mon_num = [0, 0, 0, 0];
++    var _mon_num = array_create(max(4, gnx_mon_type_count()), 0);  // GNX-TYPES: a slot per type (4 with none)
+     _mon_num[UnknownEnum.Value_0] = max(0, global.val.goblin.num[0]) + max(0, global.val.goblin.num[1]) + max(0, global.val.goblin.num[2]) + max(0, global.val.goblin.num[3]);
+     _mon_num[UnknownEnum.Value_2] = max(0, global.val.tentacle.num[0]) + max(0, global.val.tentacle.num[1]) + max(0, global.val.tentacle.num[2]) + max(0, global.val.tentacle.num[3]);
+     _mon_num[UnknownEnum.Value_1] = max(0, global.val.hobgoblin.num[0]) + max(0, global.val.hobgoblin.num[1]) + max(0, global.val.hobgoblin.num[2]) + max(0, global.val.hobgoblin.num[3]);
 @@ -32,7 +32,8 @@
          }
      }
      
 -    var _cost = ceil(((_mon_num[UnknownEnum.Value_0] + _mon_num[UnknownEnum.Value_2]) * 0.5) + ((_unit_num + max(0, _mon_num[UnknownEnum.Value_1])) * 0.7) + max(0, _mon_num[UnknownEnum.Value_3]));
-+    // GNX-TYPES: + the custom types' rations (0 with none: the same cost)
-+    var _cost = ceil(((_mon_num[UnknownEnum.Value_0] + _mon_num[UnknownEnum.Value_2]) * 0.5) + ((_unit_num + max(0, _mon_num[UnknownEnum.Value_1])) * 0.7) + max(0, _mon_num[UnknownEnum.Value_3]) + gnx_types_food_sum());
++    // GNX-TYPES: + the custom types' rations, in the nest and in the raid rows (0 with none: the same cost)
++    var _cost = ceil(((_mon_num[UnknownEnum.Value_0] + _mon_num[UnknownEnum.Value_2]) * 0.5) + ((_unit_num + max(0, _mon_num[UnknownEnum.Value_1])) * 0.7) + max(0, _mon_num[UnknownEnum.Value_3]) + gnx_types_food_sum() + gnx_types_row_food(_mon_num));
      return _cost;
  }
  
@@ -49,7 +58,7 @@
          }
      }
      
-@@ -153,12 +161,19 @@
+@@ -153,12 +161,24 @@
  
  function scr_kill_mon(arg0)
  {
@@ -67,12 +76,17 @@
      while (_kill_num > 0)
      {
 -        var _choose = irandom_range(0, 3);
++        // GNX-TYPES: nothing left to kill (a resynced custom count can leave _kill_num above what exists).
++        // No custom type registered: never true, no random call, the game's own loop
++        if (gnx_mon_type_count() > 4 && gnx_types_mon_total() <= 0)
++            break;
++
 +        // GNX-TYPES: the game's own draw unless a custom type has units
 +        var _choose = gnx_types_any_units() ? irandom_range(0, gnx_mon_type_count() - 1) : irandom_range(0, 3);
          
          if (global.val.mon_num[_choose] > 0)
          {
-@@ -222,7 +237,24 @@
+@@ -222,7 +242,32 @@
                              _del = true;
                          }
                      }
@@ -81,8 +95,16 @@
 +                    break;
 +
 +                default:
-+                    // GNX-TYPES: a custom type starves as the hobgoblin (mon_num > 0, so some class has units)
++                    // GNX-TYPES: a custom type starves as the hobgoblin
 +                    var _kmd = gnx_mon_data(_choose);
++
++                    // GNX-TYPES: a desynced count (mon_num[t] > 0, no class has units): resync it instead of looping forever.
++                    // -1 (locked) only when every class is -1, as gnx_types_val_fix keeps it; the switch break leaves _del false
++                    if (is_undefined(_kmd) || max(_kmd.num[0], _kmd.num[1], _kmd.num[2], _kmd.num[3]) <= 0)
++                    {
++                        global.val.mon_num[_choose] = (is_undefined(_kmd) || max(_kmd.num[0], _kmd.num[1], _kmd.num[2], _kmd.num[3]) < 0) ? -1 : 0;
++                        break;
++                    }
 +
 +                    while (!_del)
 +                    {

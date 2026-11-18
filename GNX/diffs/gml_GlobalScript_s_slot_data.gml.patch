@@ -921,18 +921,18 @@
 -                    break;
 +                if (variable_struct_exists(_rp, "clone_wait"))
 +                    slot_data.clone_wait = _rp.clone_wait;
-+                
-+                if (variable_struct_exists(_rp, "bar_glow_rep"))
-+                    bar_glow_rep = _rp.bar_glow_rep;
-+                
-+                if (variable_struct_exists(_rp, "extra_spawn_part") && _rp.extra_spawn_part)
-+                    array_push(spawn_part, false);
                  
 -                case UnknownEnum.Value_39:
 -                    slot_data.max_mon_num = 1;
 -                    slot_data.spr_row_pos = UnknownEnum.Value_16;
 -                    slot_data.slot_dirt = 0;
 -                    slot_range = 1;
++                if (variable_struct_exists(_rp, "bar_glow_rep"))
++                    bar_glow_rep = _rp.bar_glow_rep;
++                
++                if (variable_struct_exists(_rp, "extra_spawn_part") && _rp.extra_spawn_part)
++                    array_push(spawn_part, false);
++                
 +                if (variable_struct_exists(_rp, "dirt_fix_inc") && _rp.dirt_fix_inc)
                      global.dirt_fix++;
 -                    slot_data.allow_preg = true;
@@ -1912,15 +1912,18 @@
      }
  }
  
-@@ -926,196 +1130,260 @@
+@@ -926,196 +1130,265 @@
      var _mon_type = arg0.mon_type;
      var _unit_class = arg0.class;
      var _unit_lvl = arg0.lvl;
 -    var _mon_class;
 +    var _mon_class = 0;
-+    
-+    if (_mon_type < 0 || _mon_type > 3)
-+    {
+     
+-    switch (_mon_type)
++    if (_mon_type < 0 || _mon_type >= gnx_mon_type_count())  // GNX-TYPES: custom types are born too
+     {
+-        case UnknownEnum.Value_0:
+-            _mon_class = UnknownEnum.Value_0;
 +        var _f = gnx_log_open();
 +        gnx_log_write(_f, "[GNX] scr_mon_birth: invalid mon_type=" + string(_mon_type) + " class=" + string(_unit_class) + "  - skipping birth");
 +        gnx_log_writeln(_f);
@@ -1933,15 +1936,20 @@
 +        var _gnx_rc = ds_map_find_value(global.class_registry, _unit_class);
 +        var _has_bc = false;
 +        
-+        // GNX-FIX: _mon_type < array_length(...) = only read entries the list really has
-+        if (variable_struct_exists(_gnx_rc, "birth_class") && is_array(_gnx_rc.birth_class) && _mon_type < array_length(_gnx_rc.birth_class))
++        // GNX-TYPES: birth_class through gnx_birth_class_for (a custom type's own entry, else its like's; -1 = none);
++        // the list birth_classes is 4 long, a custom type reads its like's entry
++        // GNX-FIX: _lk < array_length(...) = only read entries the list really has
++        var _bc_for = gnx_birth_class_for(_gnx_rc, _mon_type);
++        var _lk = gnx_mon_like(_mon_type);
++
++        if (_bc_for != -1)
 +        {
-+            _mon_class = _gnx_rc.birth_class[_mon_type];
++            _mon_class = _bc_for;
 +            _has_bc = true;
 +        }
-+        else if (variable_struct_exists(_gnx_rc, "birth_classes") && is_array(_gnx_rc.birth_classes) && _mon_type < array_length(_gnx_rc.birth_classes))
++        else if (variable_struct_exists(_gnx_rc, "birth_classes") && is_array(_gnx_rc.birth_classes) && _lk < array_length(_gnx_rc.birth_classes))
 +        {
-+            _mon_class = _gnx_rc.birth_classes[_mon_type];
++            _mon_class = _gnx_rc.birth_classes[_lk];
 +            _has_bc = true;
 +        }
 +        
@@ -1969,7 +1977,7 @@
 +        
 +        if (_has_bc)
 +        {
-+            var _gnx_list = global.val.gnx_br_unlock[_mon_type][_mon_class];
++            var _gnx_list = gnx_br_list(_mon_type, _mon_class);  // GNX-TYPES: a custom type's own list
 +            
 +            if (!array_contains(_gnx_list, _unit_class))
 +                array_push(_gnx_list, _unit_class);
@@ -1982,11 +1990,9 @@
 +        
 +        exit;
 +    }
-     
-     switch (_mon_type)
-     {
--        case UnknownEnum.Value_0:
--            _mon_class = UnknownEnum.Value_0;
++
++    switch (gnx_mon_like(_mon_type))  // GNX-TYPES: a custom type takes its like's rule; the counts stay its own
++    {
 +        case 0:
 +            _mon_class = 0;
              
@@ -2246,7 +2252,7 @@
                      scr_mon_br_check(_mon_type, _mon_class, _unit_class, 1);
                      break;
              }
-@@ -1127,7 +1395,7 @@
+@@ -1127,57 +1400,14 @@
      scr_mon_exp_edit(_mon_type, _mon_class, _unit_lvl, 3, false);
      scr_mon_num_edit(_mon_type, _mon_class, 1, true);
      global.val.nest_num[0]++;
@@ -2255,7 +2261,10 @@
  }
  
  function scr_mon_br_check(arg0, arg1, arg2, arg3)
-@@ -1135,49 +1403,3 @@
+ {
++    if (arg0 >= 4)
++        exit;  // GNX-TYPES: br_unlock is the game's 4 types only; a custom type has no vanilla unlock
++
      if (global.val.br_unlock[arg0][arg1][arg3] == -1)
          global.val.br_unlock[arg0][arg1][arg3] = arg2;
  }

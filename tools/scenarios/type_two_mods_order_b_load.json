@@ -1,14 +1,17 @@
 {
-  "about": "Custom types P1: the save of type_two_mods_order_a_setup (wolf 4, bear 5) loaded without the wolf mod: the bear is 4 now and the saved 5s become 4s (the walker), the wolf counts are kept aside.",
+  "about": "Custom types P1: the save of type_two_mods_order_a_setup (wolf 4, bear 5) loaded without the wolf mod: the bear is 4 now and the saved 5s become 4s (the walker), the wolf counts are kept aside, the live and the saved formation rows of bear (5) are the bear (4) now, the goblin row is untouched.",
   "fixture": "type_order_ab",
   "mods": ["tools/scenarios/mods/harness_type_b", "tools/scenarios/mods/harness_type_cell"],
   "steps": [
     {"wait": 60},
     {"assert": "fn", "name": "gnx_scn_type_ids", "args": [], "is": "bear=4/3"},
-    {"assert": "mons", "type": {"mon": "bear"}, "class": 1, "is": 6},
+    {"assert": "mons", "type": {"mon": "bear"}, "class": 1, "is": 3, "why": "3 of the 6 bears are in the live row"},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [{"mon": "bear"}, 0], "is": 3, "why": "the live row's unit_data.mon_type was renumbered 5 -> 4 (Review Focus 1, the write side)"},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [0, 1], "is": 20, "why": "the goblin row is untouched"},
     {"assert": "fn", "name": "gnx_scn_mon_live", "args": ["bear"], "is": 1, "why": "the walker saved as 5 is the bear (4) now"},
     {"assert": "fn", "name": "gnx_scn_mon_live_custom", "args": [], "is": 1, "why": "only the bear walker; no wolf was ever on the board"},
     {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 3},
+    {"assert": "fn", "name": "gnx_scn_saved_row_types", "args": [], "is": "bear", "why": "the saved formation row was renumbered 5 -> 4"},
     {"save": 9},
     {"assert": "fn", "name": "gnx_scn_save_type_shape", "args": [], "is": "5 6 bear,wolf bear"}
   ]

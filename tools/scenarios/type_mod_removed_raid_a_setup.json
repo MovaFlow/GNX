@@ -1,0 +1,29 @@
+{
+  "about": "Custom types P2, setup for type_mod_removed_raid_b_load: a raid out (state 1) with a front row of 40 wolves (harness_type_a, every spawned wolf, so none is kept in the nest) and a back row of 150 hobgoblins; the raid window's category is wolf. Kept as fixture 'type_raid_out'.",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a"],
+  "save_fixture_as": "type_raid_out",
+  "seed": 5,
+  "timeout": 180,
+  "steps": [
+    {"wait": 60},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 40, "class": 0}},
+    {"open_raid": true},
+    {"wait": 5},
+    {"raid_stage": 0},
+    {"wait": 10},
+    {"raid_clear_formation": true},
+    {"raid_formation": {"front": [[0, 40]], "cat": {"mon": "wolf"}}},
+    {"raid_formation": {"back": [[0, 150]], "cat": 1}},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [{"mon": "wolf"}, 0], "is": 40},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [1, 1], "is": 150},
+    {"raid_go": true},
+    {"wait": 10},
+    {"assert": "raid", "state": 1},
+    {"assert": "fn", "name": "gnx_scn_set_raid_cat", "args": ["wolf"], "is": 1, "why": "only code puts a custom category in the raid window until Phase 3"},
+    {"assert": "fn", "name": "gnx_scn_raid_cat", "args": [], "is": "wolf"},
+    {"assert": "fn", "name": "gnx_scn_raid_ap", "args": [0], "min": 1, "why": "control: the wolf row gives the front row its AP"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 0, "why": "V = 0: all 40 wolves are in the row"},
+    {"save": 9}
+  ]
+}

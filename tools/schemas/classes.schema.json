@@ -134,10 +134,18 @@
           "description": "How many times a unit can get pregnant; -1 = unlimited."
         },
         "preg_mon_type_override": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 3,
-          "description": "Species of every child: 0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre."
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            }
+          ],
+          "description": "Species of every child: 0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre, or a monster type name (\"wolf\"). A name no installed mod declares keeps the father's type (log warning)."
         },
         "sprites": {
           "$ref": "common.schema.json#/definitions/sprites"
@@ -732,10 +740,15 @@
             }
           },
           "patternProperties": {
-            "^_": {}
+            "^_": {},
+            "^[a-z][a-z0-9_]*$": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            }
           },
           "additionalProperties": false,
-          "description": "Troop type (0-3) of children of each species (guide 14.2)."
+          "description": "Troop type (0-3) of children of each species (guide 14.2); a custom monster type by its name (\"wolf\": 2), else it uses its like's entry."
         },
         "birth_classes": {
           "type": "array",
@@ -764,9 +777,13 @@
                 }
               },
               "patternProperties": {
-                "^_": {}
+                "^_": {},
+                "^[a-z][a-z0-9_]*$": {
+                  "$ref": "#/definitions/spr"
+                }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "description": "Infant sprite per father type: the 4 game types or a custom type name; a custom type without its own entry uses its like's."
             },
             "birth_2": {
               "type": "object",
@@ -785,9 +802,13 @@
                 }
               },
               "patternProperties": {
-                "^_": {}
+                "^_": {},
+                "^[a-z][a-z0-9_]*$": {
+                  "$ref": "#/definitions/spr"
+                }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "description": "Infant sprite per father type: the 4 game types or a custom type name; a custom type without its own entry uses its like's."
             },
             "bind_1": {
               "$ref": "#/definitions/spr"

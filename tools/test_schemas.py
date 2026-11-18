@@ -59,6 +59,11 @@ EXPECTED = {
     ("harness_type_bad", "monsters.json", "slow.speed[0]"),
     ("harness_type_bad", "monsters.json", "typo"),
     ("harness_type_bad", "monsters.json", "notobj"),
+    ("harness_type_bad", "monsters.json", "badrange.range[1][0]"),
+    ("harness_type_bad", "monsters.json", "badskill.skills[3]"),
+    ("harness_type_bad", "monsters.json", "badart.icon"),
+    ("harness_type_bad", "monsters.json", "badart.heads"),
+    ("harness_type_bad", "monsters.json", "badart.infant_head"),
     ("harness_type_bad", "cells.json", "[0].mon_types[0]"),  # a mon_types number 4: custom types are named, on purpose
 }
 # real problems found in community mods, reported and waiting for their authors: exact paths, so a new
@@ -264,6 +269,34 @@ def test_art_checks(js):
     return bad
 
 
+def test_type_names(js):
+    """classes.json: monster types named in preg_mon_type_override, birth_class and birth_spr (custom types P2)"""
+    base = {"name": "T", "override": False, "is_special": False, "has_hair": False}
+    cases = [  # (class keys, clean?)
+        ({"preg_mon_type_override": "wolf"}, True),
+        ({"preg_mon_type_override": 2}, True),
+        ({"preg_mon_type_override": 4}, False),
+        ({"preg_mon_type_override": "Wolf"}, False),
+        ({"preg_mon_type_override": 1.5}, False),
+        ({"birth_class": {"goblin": 1, "wolf": 2, "_note": "x"}}, True),
+        ({"birth_class": {"wolf": 4}}, False),
+        ({"birth_class": {"Wolf": 1}}, False),
+        ({"birth_spr": {"birth_1": {"wolf": "spr_h_ogre_giant_birth"}, "birth_2": {"ogre": -1, "wolf_b": "gnx:x"}}}, True),
+        ({"birth_spr": {"birth_2": {"Wolf": "spr_x"}}}, False),
+    ]
+    bad = []
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Path(tmp) / "classes.json"
+        for keys, clean in cases:
+            f.write_text(json.dumps([dict(base, **keys)]), encoding="utf-8")
+            got = []
+            check_mod.check_file(f, "classes", js, lambda p, where, msg, b: got.append(f"{where}: {msg}"))
+            if clean == bool(got):
+                bad.append(f"  type names: {keys} should be {'clean' if clean else 'reported'}: {got}")
+    print(f"type names: {len(cases)} cases, {len(bad)} wrong")
+    return bad
+
+
 # loader function -> (schema, json pointer of the object schema whose properties must cover the keys read
 # from GML variable `var`)
 SYNC = [
@@ -338,7 +371,7 @@ def test_sync():
 def main():
     os.chdir(ROOT)
     import jsonschema
-    bad = test_corpus(jsonschema) + test_typos(jsonschema) + test_sync() + test_art_checks(jsonschema)
+    bad = test_corpus(jsonschema) + test_typos(jsonschema) + test_sync() + test_art_checks(jsonschema) + test_type_names(jsonschema)
     for b in bad:
         print(b)
     print("test_schemas: " + ("OK" if not bad else f"{len(bad)} FAIL"))

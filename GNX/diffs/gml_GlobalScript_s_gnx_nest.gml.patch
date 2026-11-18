@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml
 +++ gml/gml_GlobalScript_s_gnx_nest.gml
-@@ -0,0 +1,1005 @@
+@@ -0,0 +1,1111 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -858,7 +858,7 @@
 +        _st = _lk[_def.like].stat;
 +    }
 +
-+    return {num: [-1, -1, -1, -1], stat: [_st[0], _st[1], _st[2], _st[3]], lvl: [0, 0, 0, 0], expe: [0, 0, 0, 0], skill_lvl: [0, 0, 0, 0], skill_exp: [0, 0, 0, 0]};
++    return {num: [-1, -1, -1, -1], stat: [_st[0], _st[1], _st[2], _st[3]], lvl: [0, 0, 0, 0], expe: [0, 0, 0, 0], skill_lvl: [0, 0, 0, 0], skill_exp: [0, 0, 0, 0], br: [[], [], [], []]};
 +}
 +
 +
@@ -897,6 +897,9 @@
 +
 +        var _md = variable_struct_get(arg0.gnx_mon, _def.name);
 +
++        if (!variable_struct_exists(_md, "br"))  // a Phase 1 save
++            _md.br = [[], [], [], []];
++
 +        if (is_array(_def.stat))
 +            _md.stat = [_def.stat[0], _def.stat[1], _def.stat[2], _def.stat[3]];
 +
@@ -930,6 +933,85 @@
 +
 +    arg0.gnx_types = _tab;
 +    // nest_num[0] is recounted by scr_load_slot when the type set changed (after the formation rows are restored)
++}
++
++
++// GNX-TYPES (P2): raid and birth tables
++
++// rows 4 and up of global.mon_range / global.mon_skill: the type's own, else a copy of its like's row.
++// Runs after every loader pass (scr_create_initials, the deferred map-mod load); 4 rows when no custom type.
++function gnx_types_tables_fix()
++{
++    array_resize(global.mon_range, 4);
++    array_resize(global.mon_skill, 4);
++
++    for (var _t = 4; _t < gnx_mon_type_count(); _t++)
++    {
++        var _d = global.gnx_mon_types[_t];
++        var _r = is_array(_d.range) ? _d.range : global.mon_range[_d.like];
++        var _s = is_array(_d.skills) ? _d.skills : global.mon_skill[_d.like];
++        global.mon_range[_t] = [gnx_array_copy(_r[0]), gnx_array_copy(_r[1]), gnx_array_copy(_r[2]), gnx_array_copy(_r[3])];
++        global.mon_skill[_t] = [_s[0], _s[1], _s[2], _s[3]];
++    }
++}
++
++
++// a new array with arg0's items (the tables must not share rows with the like's)
++function gnx_array_copy(arg0)
++{
++    var _o = array_create(array_length(arg0));
++    array_copy(_o, 0, arg0, 0, array_length(arg0));
++    return _o;
++}
++
++
++// [sprite, frame] of type arg0's icon: its own icon frame 0, else the game's icon sheet at the like's frame.
++// Own art is only read for custom types: table entries 0-3 hold no sprite fields.
++function gnx_mon_icon(arg0)
++{
++    if (arg0 >= 4 && global.gnx_mon_types[arg0].spr_icon != -1 && scr_gnx_spr_ok(global.gnx_mon_types[arg0].spr_icon))
++        return [global.gnx_mon_types[arg0].spr_icon, 0];
++
++    return [spr_mon_icon, gnx_mon_like(arg0) + 1];
++}
++
++
++// [sprite, frame] of the pickup head of type arg0, class arg1
++function gnx_mon_head(arg0, arg1)
++{
++    if (arg0 >= 4 && global.gnx_mon_types[arg0].spr_heads != -1 && scr_gnx_spr_ok(global.gnx_mon_types[arg0].spr_heads))
++        return [global.gnx_mon_types[arg0].spr_heads, arg1];
++
++    return [spr_mon_icon_head, gnx_mon_like(arg0) * 4 + arg1];
++}
++
++
++// [sprite, frame] of the infant head of type arg0
++function gnx_mon_infant_head(arg0)
++{
++    if (arg0 >= 4 && global.gnx_mon_types[arg0].spr_infant_head != -1 && scr_gnx_spr_ok(global.gnx_mon_types[arg0].spr_infant_head))
++        return [global.gnx_mon_types[arg0].spr_infant_head, 0];
++
++    return [spr_infant_ui_head, gnx_mon_like(arg0)];
++}
++
++
++// the unit classes born from type arg0, class arg1: val.gnx_br_unlock[t][c] for 0-3, the type's own br list above.
++// It returns the stored array itself, so array_push on the result writes into the save.
++function gnx_br_list(arg0, arg1)
++{
++    if (arg0 < 4)
++        return global.val.gnx_br_unlock[arg0][arg1];
++
++    var _d = gnx_mon_data(arg0);
++
++    if (is_undefined(_d))
++        return [];  // a type not installed: an empty list, a write to it is dropped
++
++    if (!variable_struct_exists(_d, "br"))
++        _d.br = [[], [], [], []];
++
++    return _d.br[arg1];
 +}
 +
 +
@@ -974,6 +1056,30 @@
 +    }
 +
 +    return _f;
++}
++
++
++// GNX-TYPES: rations of the custom types in the raid rows; arg0 = troops per type (scr_all_cost's _mon_num), 0 with none
++function gnx_types_row_food(arg0)
++{
++    var _f = 0;
++
++    for (var _t = 4; _t < gnx_mon_type_count() && _t < array_length(arg0); _t++)
++        _f += global.gnx_mon_types[_t].food * max(0, arg0[_t]);
++
++    return _f;
++}
++
++
++// GNX-TYPES: monsters of every type counted in global.val.mon_num (locked -1 counts as 0); no random call
++function gnx_types_mon_total()
++{
++    var _n = 0;
++
++    for (var _t = 0; _t < array_length(global.val.mon_num); _t++)
++        _n += max(0, global.val.mon_num[_t]);
++
++    return _n;
 +}
 +
 +
