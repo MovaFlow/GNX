@@ -1,0 +1,32 @@
+{
+  "about": "A raids.json level with no units brings no enemies (harness_raid_a's CRYPT levels are {}). GNX once filled each encounter with 1-2 peasants: the empty pool fell back to class 0. A raid to it is still won, with nobody to capture.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_raid_a"
+  ],
+  "timeout": 120,
+  "steps": [
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_stage_index", "args": ["harness_raid_a.CRYPT"], "is": 5},
+    {"call": "gnx_scn_stage_open", "args": ["harness_raid_a.CRYPT", 0]},
+    {"assert": "fn", "name": "gnx_scn_enc_count", "args": ["harness_raid_a.CRYPT", 0, -1], "is": 0, "why": "no units: no enemies, not peasants"},
+    {"open_raid": true},
+    {"wait": 5},
+    {"raid_stage": 5},
+    {"wait": 10},
+    {"assert": "raid", "state": 0, "stage": 5},
+    {"wait": 20},
+    {"screenshot": "crypt_selected"},
+    {"raid_clear_formation": true},
+    {"wait": 2},
+    {"raid_formation": {"front": [[0, 40]], "back": [[1, 20]]}},
+    {"wait": 3},
+    {"raid_go": true},
+    {"wait": 5},
+    {"assert": "raid", "state": 1},
+    {"raid_finish": 1200},
+    {"wait": 5},
+    {"assert": "raid", "state": 0, "cage": 0, "why": "won, nobody to capture"},
+    {"assert": "fn", "name": "gnx_scn_stage_exp", "args": ["harness_raid_a.CRYPT"], "is": "0 1", "why": "the raid counts as a win"}
+  ]
+}

@@ -16669,7 +16669,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7758 @@
+@@ -0,0 +1,7777 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -24411,6 +24411,25 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    gnx_log_close(_log);
 +    ds_map_destroy(_seen);
 +    return _dups;
++}
++
++
++// for {"call"}: a monster outside any cell keeps a cell's sprite data (spr_data with spr_type), as one that left a
++// cell or walks to another floor can; the next save/reload once stopped there. Returns how many were set (max 3)
++function gnx_scn_mon_stale_spr()
++{
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (_n < 3 && mon_data.slot_id == -1)
++        {
++            mon_data.spr_data = { spr_type: 1, mon_step: 1 };
++            _n++;
++        }
++    }
++
++    return _n;
 +}
 +
 +
@@ -32794,7 +32813,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml
 +++ gml/gml_GlobalScript_s_gnx_raid.gml
-@@ -0,0 +1,1873 @@
+@@ -0,0 +1,1878 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -33897,6 +33916,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +    var _boss = _L.boss != undefined && !(_L.boss.until_captured && gnx_boss_was_captured(gnx_stage_boss_key(arg1, _lvl))) && irandom_range(1, 100) <= _L.boss.chance && (_L.boss.condition == undefined || scr_gnx_eval_condition(_L.boss.condition, arg1.mod_name));
 +    // an encounter holds 5 units at most, the boss included
 +    var _num = min(irandom_range(_L.count[0], _L.count[1]), _boss ? 4 : 5);
++    // GNX-FIX: a level with no units (no pool for it) brings no enemies; gnx_pool_pick would make each one a peasant
++    var _pk = (arg0 * 100) + _lvl;
++
++    if (!ds_map_exists(global.gnx_encounter_pools, _pk) || ds_list_size(ds_map_find_value(global.gnx_encounter_pools, _pk)) == 0)
++        _num = 0;
 +    _en_ap[0] += irandom_range(_L.hp[0], _L.hp[1]) + _num;
 +    _en_ap[1] += irandom_range(_L.ap[0], _L.ap[1]) + _num;
 +
@@ -52410,10 +52434,11 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
          for (var i = 0; i < array_length(global.val.cage); i++)
          {
              var _unit_list2 = [];
-@@ -277,13 +280,31 @@
+@@ -277,13 +280,35 @@
              
              var _c_rate = ((((_over_diff - 1) / (1 + (_max_lvl * 0.3))) * 100) + (_cap_mul * 100)) * _cap_start;
              _c_rate = max(floor(_c_rate), 0);
+-            
 +
 +            // GNX: the GNX DEBUG toggle CAPTURE100 (its flag was set but never read)
 +            if (global.gnx_force_capture_100)
@@ -52431,7 +52456,11 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
 +                if (_gnx_boss_at == -1)
 +                    _c_rate = 0;
 +            }
-             
++
++            // GNX-FIX: an encounter with no units (a mod stage level without units) has nobody to capture
++            if (_list_num == 0)
++                _c_rate = 0;
++
              if (irandom_range(1, 100) <= _c_rate)
              {
                  var _a = irandom_range(0, _list_num - 1);
@@ -52443,7 +52472,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  {
                      var _aa = _a;
                      
-@@ -294,6 +315,14 @@
+@@ -294,6 +319,14 @@
                      _a = _aa;
                  }
                  
@@ -52458,7 +52487,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  _cap_start = _cap_start * 0.9;
                  var _lvl_mul = scr_check_skill_data(UnknownEnum.Value_10);
                  
-@@ -307,6 +336,7 @@
+@@ -307,6 +340,7 @@
                  global.val.cap_num++;
                  scr_check_steam_achievement(UnknownEnum.Value_5);
                  global.val.cage[_cage_num] = _unit_data;
@@ -52466,7 +52495,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  array_delete(_data.unit_list, _a, 1);
                  _cage_num++;
                  
-@@ -366,6 +396,13 @@
+@@ -366,6 +400,13 @@
                      }
                  }
                  
@@ -52480,7 +52509,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  if (array_length(_data.unit_list) == 0)
                      i = array_length(global.val.cage);
              }
-@@ -488,6 +525,8 @@
+@@ -488,6 +529,8 @@
                          _m_lvl = 1;
                  }
                  
@@ -52489,7 +52518,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  scr_add_milk_item(_m_lvl, 1);
              }
          }
-@@ -499,6 +538,10 @@
+@@ -499,6 +542,10 @@
          
          if (_selene_grace)
              scr_pop_up_create(UnknownEnum.Value_27);
@@ -55017,7 +55046,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
              }
          }
          
-@@ -482,22 +820,14 @@
+@@ -482,22 +820,16 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -55030,7 +55059,9 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 -                            break;
 -                    }
 -                }
-+                if (_spr_data != -1 && is_struct(_spr_data) && variable_struct_exists(_spr_data, "spr_type"))
++                // GNX-FIX: only for a monster still in a cell; one saved outside a cell (slot_id -1) with the cell
++                // sprite data it kept stopped the load with "<unknown_object>.slot_data not set before reading"
++                if (_spr_data != -1 && is_struct(_spr_data) && variable_struct_exists(_spr_data, "spr_type") && mon_data.slot_id != -1 && instance_exists(mon_data.slot_id))
 +                    scr_set_mon_spr_data(mon_data.slot_id, _spr_data.spr_type);
                  
                  if (mon_data.task == UnknownEnum.Value_3)
@@ -55042,7 +55073,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +884,10 @@
+@@ -554,6 +886,10 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -55053,7 +55084,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +901,68 @@
+@@ -567,7 +903,68 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -55122,7 +55153,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -606,11 +1001,21 @@
+@@ -606,11 +1003,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -55145,7 +55176,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1039,12 @@
+@@ -634,7 +1041,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -55158,7 +55189,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1064,395 @@
+@@ -654,8 +1066,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -55554,7 +55585,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1460,7 @@
+@@ -663,6 +1462,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -55562,7 +55593,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1480,25 @@
+@@ -682,33 +1482,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -55607,7 +55638,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1523,119 @@
+@@ -733,3 +1525,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

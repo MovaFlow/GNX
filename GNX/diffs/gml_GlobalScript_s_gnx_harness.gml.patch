@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7758 @@
+@@ -0,0 +1,7777 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -7742,6 +7742,25 @@
 +    gnx_log_close(_log);
 +    ds_map_destroy(_seen);
 +    return _dups;
++}
++
++
++// for {"call"}: a monster outside any cell keeps a cell's sprite data (spr_data with spr_type), as one that left a
++// cell or walks to another floor can; the next save/reload once stopped there. Returns how many were set (max 3)
++function gnx_scn_mon_stale_spr()
++{
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (_n < 3 && mon_data.slot_id == -1)
++        {
++            mon_data.spr_data = { spr_type: 1, mon_step: 1 };
++            _n++;
++        }
++    }
++
++    return _n;
 +}
 +
 +
