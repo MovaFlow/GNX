@@ -16669,7 +16669,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7777 @@
+@@ -0,0 +1,7816 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18459,6 +18459,45 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        return "none";
 +
 +    return array_contains(global.gnx_music, obj_p.last_track) ? "mod" : "vanilla";
++}
++
++
++// for {"assert": "fn"}: the music during a quest dialog (GNX-QMUSIC) as "<quest> <game>": quest = "quest" when the
++// event's track plays, else "none"; game = "paused", "playing" or "stopped" for the gameplay track
++function gnx_scn_quest_bgm()
++{
++    var _q = (gnx_quest_music_on() && audio_is_playing(global.gnx_quest_bgm)) ? "quest" : "none";
++    var _g = "stopped";
++
++    if (audio_is_playing(obj_p.game_bgm))
++        _g = audio_is_paused(obj_p.game_bgm) ? "paused" : "playing";
++
++    return _q + " " + _g;
++}
++
++
++// for {"call"}: empties the notification list (a new game starts with the game's own notifications, which the
++// notification button would open first); returns how many were dropped
++function gnx_scn_clear_notis()
++{
++    var _n = ds_list_size(global.noti_list);
++    ds_list_clear(global.noti_list);
++    return _n;
++}
++
++
++// for {"call"}: closes the open dialog (obj_text) as its last page does (scr_end_textbox); 1 when one was open
++function gnx_scn_close_textbox()
++{
++    var _n = 0;
++
++    with (obj_text)
++    {
++        scr_end_textbox(id);
++        _n++;
++    }
++
++    return _n;
 +}
 +
 +
@@ -30910,7 +30949,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1899 @@
+@@ -0,0 +1,1912 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -31184,6 +31223,19 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +                }
 +            }
 +            
++            // GNX-QMUSIC: "music": "file.ogg" (in the mod's sounds/) plays while the event's dialog is open
++            if (variable_struct_exists(_edef, "music"))
++            {
++                var _qm = is_string(_edef.music) ? gnx_resolve_sound(global.gnx_mods_root + arg0 + "/", _edef.music) : -1;
++
++                if (_qm == -1)
++                    gnx_report_mod_error("Mod '" + arg0 + "': event '" + _full_id + "': music '" + string(_edef.music) + "' not found in sounds/ (an .ogg file name); the dialog keeps the game's music");
++                else if (!variable_struct_exists(_edef, "dialog"))
++                    gnx_report_mod_error("Mod '" + arg0 + "': event '" + _full_id + "': music needs a dialog (it plays while the dialog is open); ignored");
++                else
++                    _edef.gnx_music = _qm;
++            }
++
 +            if (variable_struct_exists(_edef, "next_event") && is_string(_edef.next_event))
 +                _edef.next_event = arg0 + "." + _edef.next_event;
 +            
@@ -34695,7 +34747,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sound.gml
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml
 +++ gml/gml_GlobalScript_s_gnx_sound.gml
-@@ -0,0 +1,617 @@
+@@ -0,0 +1,671 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -34753,6 +34805,60 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +    }
 +
 +    return global.gnx_bgm_pool;
++}
++
++
++// GNX-QMUSIC: a quest event's "music" plays (looped, at the music volume) while its dialog is open; the gameplay
++// track is paused meanwhile and goes on where it stopped. arg0 = the dialog's text_data.
++function gnx_quest_music_start(arg0)
++{
++    // ! = not, || = or: only a GNX event dialog with music
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "gnx_event") || !is_struct(arg0.gnx_event) || !variable_struct_exists(arg0.gnx_event, "gnx_music"))
++        exit;
++
++    gnx_quest_music_stop();
++
++    with (obj_p)
++    {
++        if (variable_instance_exists(id, "game_bgm") && audio_is_playing(game_bgm))
++            audio_pause_sound(game_bgm);
++    }
++
++    global.gnx_quest_bgm = audio_play_sound(arg0.gnx_event.gnx_music, 1, true, global.val.bgm_vol);
++}
++
++
++function gnx_quest_music_stop()
++{
++    if (!variable_global_exists("gnx_quest_bgm") || global.gnx_quest_bgm == -1)
++        exit;
++
++    audio_stop_sound(global.gnx_quest_bgm);
++    global.gnx_quest_bgm = -1;
++
++    // the gameplay track goes on only in the game room (a room change can close the dialog)
++    if (room == rm_game)
++    {
++        with (obj_p)
++        {
++            if (variable_instance_exists(id, "game_bgm"))
++                audio_resume_sound(game_bgm);
++        }
++    }
++}
++
++
++// once a frame (end of scr_room_step): no dialog left (room change, load) = the quest music stops
++function gnx_quest_music_check()
++{
++    if (variable_global_exists("gnx_quest_bgm") && global.gnx_quest_bgm != -1 && !instance_exists(obj_text))
++        gnx_quest_music_stop();
++}
++
++
++function gnx_quest_music_on()
++{
++    return variable_global_exists("gnx_quest_bgm") && global.gnx_quest_bgm != -1;
 +}
 +
 +
@@ -46622,6 +46728,15 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
                  }
                  else
                  {
+@@ -149,7 +167,7 @@
+             
+             with (obj_p)
+             {
+-                if (!audio_is_playing(game_bgm))
++                if (!audio_is_playing(game_bgm) && !gnx_quest_music_on())  // GNX-QMUSIC: paused during a quest dialog's music
+                     scr_choose_track(last_track);
+             }
+             
 @@ -172,6 +190,7 @@
                  instance_create_depth(0, 0, -2000, obj_control);
              
@@ -46630,7 +46745,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
              load_state = UnknownEnum.Value_5;
              break;
          
-@@ -182,10 +201,19 @@
+@@ -182,10 +201,20 @@
              room_goto(rm_game);
              break;
      }
@@ -46639,6 +46754,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
 +        scr_gnx_scn_step();
 +    
 +    gnx_atlas_pages_step();
++    gnx_quest_music_check();  // GNX-QMUSIC: a dialog gone without closing (room change, load) stops its music
 +    gnx_log_flush();  // the GNX debug log is written once per frame
  }
  
@@ -46650,7 +46766,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
      with (obj_camera)
      {
          var _transition = !abs(global.zoom_target);
-@@ -197,7 +225,7 @@
+@@ -197,7 +226,7 @@
          if (global.zoom_target == 4)
              _border_y = 10000;
          else
@@ -46659,7 +46775,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
          
          y = clamp(y, _start_y, _border_y);
          camera_set_view_pos(camera, x, y);
-@@ -210,6 +238,10 @@
+@@ -210,6 +239,10 @@
          }
      }
      
@@ -46670,7 +46786,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
      if (instance_exists(obj_button))
      {
          with (obj_button)
-@@ -250,6 +282,10 @@
+@@ -250,6 +283,10 @@
          }
      }
      
@@ -46681,7 +46797,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
      if (instance_exists(obj_prop))
      {
          with (obj_prop)
-@@ -261,6 +297,10 @@
+@@ -261,6 +298,10 @@
                  x = _source.x + prop_data.shift_x;
                  y = _source.y + prop_data.shift_y;
              }
@@ -46692,7 +46808,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
          }
      }
      
-@@ -268,6 +308,10 @@
+@@ -268,6 +309,10 @@
      {
          with (obj_slot)
          {
@@ -46703,7 +46819,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
              if (h_unit_list != -1 && array_length(h_unit_list) > 0)
              {
                  for (var i = 0; i < array_length(h_unit_list); i++)
-@@ -281,6 +325,12 @@
+@@ -281,6 +326,12 @@
              }
          }
      }
@@ -69540,7 +69656,22 @@ diff -uN gml_138/gml_GlobalScript_s_text_draw.gml gml/gml_GlobalScript_s_text_dr
 diff -uN gml_138/gml_GlobalScript_s_textbox_function.gml gml/gml_GlobalScript_s_textbox_function.gml
 --- gml_138/gml_GlobalScript_s_textbox_function.gml
 +++ gml/gml_GlobalScript_s_textbox_function.gml
-@@ -225,6 +225,9 @@
+@@ -23,6 +23,7 @@
+             source_id = other.id;
+             scr_set_textbox_lang();
+             text_data = arg0;
++            gnx_quest_music_start(arg0);  // GNX-QMUSIC: the event's music while its dialog is open
+             page = 0;
+             page_number = 0;
+             draw_char = 0;
+@@ -222,9 +223,16 @@
+             }
+         }
+         
++        // GNX-QMUSIC: the dialog closes, the gameplay music goes on
++        if (variable_struct_exists(text_data, "gnx_event"))
++            gnx_quest_music_stop();
++
          if (text_data.event_after != -1)
              scr_add_event(text_data.event_after, false);
          

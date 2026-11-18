@@ -6,6 +6,7 @@
 
 ### New Features
 
+- Quest dialogs with their own music: an event's `music` key (an OGG file in the mod's `sounds/` folder) plays in a loop while its dialog is open. The gameplay track is paused and goes on where it stopped once the dialog closes. A missing file is a mod error.
 - GNX DEBUG > NEW VOICES (tool action `reroll_voices`): every captive gets a new moan voice, picked as when she first got one. Captives keep their voice, so a moan mod installed or updated later was heard only from new captives.
 
 ### Bug Fixes

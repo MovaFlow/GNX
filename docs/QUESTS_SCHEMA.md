@@ -76,6 +76,7 @@ cannot chain to or trigger another mod's event; the tool action `fire_event`
 |-----|---------|---------|------------|
 | `type` | both | `"notification"` or `"quest"` | mod error, the event is left out (GNX 1.5.3; older GNX stops while loading) |
 | `dialog` | notification | lines `{"speaker", "portrait", "text"}` shown one after the other | the notification is silent |
+| `music` | notification with `dialog` | an OGG file in your mod's `sounds/` folder (`"intro.ogg"`), played in a loop at the music volume while the dialog is open; the game's track is paused and goes on when the dialog closes (GNX 1.5.3) | the game's music; a missing file or an event without `dialog` is a mod error |
 | `side_effects` | both | list of [side effects](#side-effect-types): on a notification when it fires, on a quest when it completes (GNX 1.5.3) | nothing happens |
 | `next_event` | both | the event fired next: after the dialog is closed, at once for a silent notification, when a quest completes | the chain ends (`null` does the same) |
 | `quest_text` | quest | the text in the quest log | mod error, the log shows the event's name (GNX 1.5.3; older GNX stops while loading) |

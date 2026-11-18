@@ -4464,6 +4464,7 @@ Class 13 always gets `my_mod.loud` at pitch 1.1, others their class `voice` or a
 
 - In a map mod ([§21](#21-multi-map-travel)) the tracks play on that map only, so a map can have its own music: with `replace`, the game's tracks stop on arrival and come back on the return trip.
 - The tracks use the game's music volume (BGM in the options). The title screen keeps the game's music.
+- A quest dialog can have its own music: the event key `music` in quests.json plays an OGG from `sounds/` while that dialog is open, then the gameplay track goes on (new in 1.5.3, [QUESTS_SCHEMA](QUESTS_SCHEMA.md)). It needs no sounds.json.
 - New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest ([4.2](#42-the-version-check)).
 
 > **When** a track file is missing, the `Mod loading problem(s)` box says so (`[GNX] ERROR: Mod 'my_mod': music track 'drums.ogg' not found in sounds/`) and the other tracks still play.

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7777 @@
+@@ -0,0 +1,7816 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1790,6 +1790,45 @@
 +        return "none";
 +
 +    return array_contains(global.gnx_music, obj_p.last_track) ? "mod" : "vanilla";
++}
++
++
++// for {"assert": "fn"}: the music during a quest dialog (GNX-QMUSIC) as "<quest> <game>": quest = "quest" when the
++// event's track plays, else "none"; game = "paused", "playing" or "stopped" for the gameplay track
++function gnx_scn_quest_bgm()
++{
++    var _q = (gnx_quest_music_on() && audio_is_playing(global.gnx_quest_bgm)) ? "quest" : "none";
++    var _g = "stopped";
++
++    if (audio_is_playing(obj_p.game_bgm))
++        _g = audio_is_paused(obj_p.game_bgm) ? "paused" : "playing";
++
++    return _q + " " + _g;
++}
++
++
++// for {"call"}: empties the notification list (a new game starts with the game's own notifications, which the
++// notification button would open first); returns how many were dropped
++function gnx_scn_clear_notis()
++{
++    var _n = ds_list_size(global.noti_list);
++    ds_list_clear(global.noti_list);
++    return _n;
++}
++
++
++// for {"call"}: closes the open dialog (obj_text) as its last page does (scr_end_textbox); 1 when one was open
++function gnx_scn_close_textbox()
++{
++    var _n = 0;
++
++    with (obj_text)
++    {
++        scr_end_textbox(id);
++        _n++;
++    }
++
++    return _n;
 +}
 +
 +

@@ -12,14 +12,14 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 90 | 3470 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 87 | 4822 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 48 | 1619 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 329 | 7759 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 333 | 7817 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 316 |
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 57 | 2963 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 27 | 826 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2343 |
-| `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 40 | 1900 |
-| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 55 | 1874 |
-| `s_gnx_sound.gml` | sounds.json, voices, sfx, ambience | 13 | 618 |
+| `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 40 | 1913 |
+| `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 55 | 1879 |
+| `s_gnx_sound.gml` | sounds.json, voices, sfx, ambience | 17 | 672 |
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 64 | 2264 |
 | `s_gnx_tools.gml` | tools.json menus, actions, keybinds, continuous effects, GNX DEBUG | 24 | 1827 |
 | `s_gnx_travel.gml` | multi-map travel: maps, selector, carry, troops | 62 | 2317 |
@@ -417,6 +417,10 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_quest_build_base` | `s_gnx_quests.gml` |
 | `gnx_quest_build_start` | `s_gnx_quests.gml` |
 | `gnx_quest_build_text` | `s_gnx_quests.gml` |
+| `gnx_quest_music_check` | `s_gnx_sound.gml` |
+| `gnx_quest_music_on` | `s_gnx_sound.gml` |
+| `gnx_quest_music_start` | `s_gnx_sound.gml` |
+| `gnx_quest_music_stop` | `s_gnx_sound.gml` |
 | `gnx_raid_boss_index` | `s_gnx_raid.gml` |
 | `gnx_raid_window` | `s_gnx_tools.gml` |
 | `gnx_range_add` | `s_gnx_tools.gml` |
@@ -553,7 +557,9 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_cell_mons` | `s_gnx_harness.gml` |
 | `gnx_scn_cell_required` | `s_gnx_harness.gml` |
 | `gnx_scn_cell_text` | `s_gnx_harness.gml` |
+| `gnx_scn_clear_notis` | `s_gnx_harness.gml` |
 | `gnx_scn_click` | `s_gnx_harness.gml` |
+| `gnx_scn_close_textbox` | `s_gnx_harness.gml` |
 | `gnx_scn_cmap_has` | `s_gnx_harness.gml` |
 | `gnx_scn_copy_down_msg` | `s_gnx_harness.gml` |
 | `gnx_scn_day` | `s_gnx_harness.gml` |
@@ -596,6 +602,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_mon_frame_skin3` | `s_gnx_harness.gml` |
 | `gnx_scn_mon_frame_struct` | `s_gnx_harness.gml` |
 | `gnx_scn_mon_frame_swapped` | `s_gnx_harness.gml` |
+| `gnx_scn_mon_stale_spr` | `s_gnx_harness.gml` |
 | `gnx_scn_mso` | `s_gnx_harness.gml` |
 | `gnx_scn_mso_frames` | `s_gnx_harness.gml` |
 | `gnx_scn_new_dots` | `s_gnx_harness.gml` |
@@ -633,6 +640,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_prison_mark` | `s_gnx_harness.gml` |
 | `gnx_scn_prison_monotone` | `s_gnx_harness.gml` |
 | `gnx_scn_prison_vary` | `s_gnx_harness.gml` |
+| `gnx_scn_quest_bgm` | `s_gnx_harness.gml` |
 | `gnx_scn_quest_ref_ok` | `s_gnx_harness.gml` |
 | `gnx_scn_raid_back` | `s_gnx_harness.gml` |
 | `gnx_scn_raid_clock` | `s_gnx_harness.gml` |

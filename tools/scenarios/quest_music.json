@@ -1,0 +1,46 @@
+{
+  "about": "Quest event music (F49): an event's \"music\" plays while its dialog is open, the gameplay track is paused and goes on when the dialog closes. A dialog without music keeps the game's music; a missing file is a mod error; a dialog left open through a save/reload stops its music. The audio file is not in the repo: local_files copies one from the local moan_mod (skipped without it).",
+  "mods": [
+    "tools/scenarios/mods/harness_quest_music"
+  ],
+  "local_files": [
+    {
+      "from": "harness_game/test_mods/moan_mod/sounds/snd_fmoan0_1.ogg",
+      "to": "harness_quest_music/sounds/intro.ogg"
+    }
+  ],
+  "expect_dialog": "music 'missing.ogg' not found",
+  "timeout": 120,
+  "steps": [
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_quest_bgm", "args": [], "is": "none playing", "why": "the game's music"},
+    {"call": "gnx_scn_clear_notis", "args": [], "why": "the new game's own notifications would open first"},
+    {"call": "scr_gnx_fire_event", "args": ["harness_quest_music.intro"]},
+    {"press": {"type": 33, "num": 0}, "why": "the notification button opens the dialog"},
+    {"wait": 5},
+    {"assert": "fn", "name": "gnx_scn_quest_bgm", "args": [], "is": "quest paused", "why": "the event's music, the game's track paused"},
+    {"wait": 120},
+    {"assert": "fn", "name": "gnx_scn_quest_bgm", "args": [], "is": "quest paused", "why": "it loops, and the room step does not start another game track"},
+    {"assert": "fn", "name": "gnx_scn_close_textbox", "args": [], "is": 1},
+    {"wait": 3},
+    {"assert": "fn", "name": "gnx_scn_quest_bgm", "args": [], "is": "none playing", "why": "closed: the game's track goes on"},
+    {"call": "scr_gnx_fire_event", "args": ["harness_quest_music.plain"]},
+    {"press": {"type": 33, "num": 0}},
+    {"wait": 5},
+    {"assert": "fn", "name": "gnx_scn_quest_bgm", "args": [], "is": "none playing", "why": "no music key: the game's music"},
+    {"assert": "fn", "name": "gnx_scn_close_textbox", "args": [], "is": 1},
+    {"call": "scr_gnx_fire_event", "args": ["harness_quest_music.lost"]},
+    {"press": {"type": 33, "num": 0}},
+    {"wait": 5},
+    {"assert": "fn", "name": "gnx_scn_quest_bgm", "args": [], "is": "none playing", "why": "missing file: the game's music"},
+    {"assert": "fn", "name": "gnx_scn_close_textbox", "args": [], "is": 1},
+    {"call": "scr_gnx_fire_event", "args": ["harness_quest_music.intro"]},
+    {"press": {"type": 33, "num": 0}},
+    {"wait": 5},
+    {"assert": "fn", "name": "gnx_scn_quest_bgm", "args": [], "is": "quest paused"},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_quest_bgm", "args": [], "is": "none playing", "why": "the reload closed the dialog: no quest music left playing"}
+  ]
+}
