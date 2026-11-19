@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7816 @@
+@@ -0,0 +1,7855 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -6092,6 +6092,9 @@
 +        if (variable_struct_exists(_st.occupy, "preg"))  // "preg": mon type she carries (0 goblin, 1 hobgoblin)
 +            _oc_u.preg = _st.occupy.preg;
 +
++        if (variable_struct_exists(_st.occupy, "milk"))  // "milk": true = she has milk (a MILK cell calls goblins)
++            _oc_u.milk = _st.occupy.milk == true;
++
 +        scr_occupy_slot(_oc_c, _oc_u, false, 1);
 +        global.gnx_scn_occupied = _oc_c;  // the cell the last occupy step filled
 +        global.gnx_scn_occupied_pos = [_oc_c.slot_data.slot_floor, ds_list_find_index(global.slot_list[_oc_c.slot_data.slot_floor], _oc_c)];
@@ -6520,6 +6523,42 @@
 +{
 +    var _t = scr_check_empty_cell_range(global.gnx_scn_occupied, 3, 0);
 +    return _t != -1 && (_t.slot_data.h_type == 5 || _t.slot_data.h_type == 12);
++}
++
++
++// true while the captive in the cell the last occupy step filled still has milk (a MILK cell has not finished milking her)
++function gnx_scn_occupied_has_milk()
++{
++    var _c = global.gnx_scn_occupied;
++    return instance_exists(_c) && is_struct(_c.unit_data) && _c.unit_data.milk == true;
++}
++
++
++// the real drop check (scr_check_slot_availability) for a girl of class arg1 dragged out of a cell of type arg0
++// onto the first occupied cell of type arg2, whose girl is made class arg3 for the check (restored after)
++function gnx_scn_swap_ok(arg0, arg1, arg2, arg3)
++{
++    var _t = -1;
++
++    with (obj_slot)
++    {
++        if (_t == -1 && is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg2)
++            _t = id;
++    }
++
++    if (_t == -1)
++        return "no occupied cell h=" + string(arg2);
++
++    var _drag = { unit_data: scr_create_unit_base(arg1, 1), drag_type: 2, source_id: { slot_data: { h_type: arg0, prop: [] } } };
++    var _keep = _t.unit_data.class;
++    var _r = false;
++    _t.unit_data.class = arg3;
++
++    with (_t)
++        _r = scr_check_slot_availability(id, _drag, false);
++
++    _t.unit_data.class = _keep;
++    return _r;
 +}
 +
 +

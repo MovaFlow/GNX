@@ -12,7 +12,9 @@
 ### Bug Fixes
 
 - Loading a save could stop with "slot_data not set before reading" in `scr_set_mon_spr_data`: a monster saved outside a cell still carried its last cell's sprite data, and since 1.4.7 the load applied it to a cell that was not there. Only a monster still in a cell gets it back now.
-- `raids.json`: a level without `units` still put 1 or 2 peasants in every encounter. It now has no enemies; the raid is won with its loot and nobody to capture.
+- `raids.json`: a level without `units` still put 1 or 2 peasants in every encounter. It now has no enemy units and nobody to capture: the fight is against the level's `enemy_ap` alone, a sure win without `enemy_ap`.
+- MILK 1 froze for good at game speed 7 or more (only a mod tool's `set_speed` goes that fast): the milking scene skipped the frame it waits on and never moved again. It now runs at any speed. A base game bug the game's own speeds never reach.
+- Two different girls could not swap between copies of a special cell (DAIRY, GIANT, CHAINS, LILITH SHRINE): dragging one onto the other said the unit is incompatible, as the base game only lets a girl dragged out of these cells swap with one of the same class. The swap now also works when the special cell is the other girl's own cell: the boss it belongs to, or a mod girl its `required_class` lists (Hathorverse's Lili variants in the Lili Temple, Emira and Hathor in DAIRY). A girl the cell does not let in is still refused.
 - A captive whose moan voice came from a mod that was removed stayed silent. She now gets a new voice.
 - A cell's clothing variant came back as the plain clothing after loading a save. The choice was saved, but the cell set up its layers before the saved choice was read back; it is now shown again once the save has loaded.
 - The boot test T21 reported every fixed-mode cell with clothing variant lists as having bad sprites. It now checks each sprite inside the lists.
