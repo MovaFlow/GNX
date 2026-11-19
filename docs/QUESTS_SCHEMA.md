@@ -200,7 +200,8 @@ stopped the game on a missing key when the condition was checked).
 | `day_gte` | `value` (default 1) | the day counter (shown under the clock) >= value |
 | `day_every` | `value` (default 1), `offset` (default 0) | the day is a multiple of `value` (after subtracting `offset`): `{"value": 7}` on days 7, 14, 21...; `{"value": 1}` every day. Meant for the `day_start` hook |
 | `has_item` | **`item`**, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
-| `floor_gte` | **`value`** | `global.val.floor >= value` |
+| `floor_gte` | **`value`** | `global.val.floor >= value` (the nest's floors) |
+| `tower_floor_gte` | **`value`** | the highest Tower floor reached (`global.val.t_lvl`) >= value: `{"type": "tower_floor_gte", "value": 10}` holds once floor 10 is won. Since 1.5.3 |
 | `cell_count` | `h_type` and/or `category`, `value` (default 1) | count of built cells with that h_type >= value |
 | `build_count` | `h_type` and/or `category` (optional: any type without them), `value` | cells of that type the player built (build menu, CUSTOM, COPY DOWN) >= value. In a quest's `completion` it counts from the moment the quest appeared (kept in the save) and the quest text shows the progress, e.g. `(2/4)`; elsewhere every build of the save |
 | `cell_built` | `h_type` (string ref or int) and/or `category` | at least one cell with that h_type exists |

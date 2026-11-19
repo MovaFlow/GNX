@@ -4072,7 +4072,7 @@ The button runs `unlock_boss` only while boss 0 is locked; afterwards a click sh
 | `stage_undiscovered` | `stage` | That raid stage is not discovered yet (a number or a stage name, [27.3](#273-naming-stages)). |
 | `has_unit_slot` | none | The prison has a free slot. |
 | `on_screen` | (`screen` is ignored) | The raid screen is open, whatever `screen` says. |
-| any quest condition | see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) | For example `state_equals`, `state_gte`, `gold_gte`, `floor_gte`; state keys come from your own mod. |
+| any quest condition | see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) | For example `state_equals`, `state_gte`, `gold_gte`, `floor_gte`, `tower_floor_gte`; state keys come from your own mod. |
 
 > **When** a guard has an unknown type (for example `has_cage_space`, which does not exist), it is false and **always fails**.
 

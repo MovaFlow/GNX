@@ -12,12 +12,12 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 91 | 3480 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 87 | 4822 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 48 | 1619 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 335 | 7856 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 336 | 7863 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 316 |
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 57 | 2963 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 27 | 826 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2343 |
-| `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 40 | 1913 |
+| `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 40 | 1919 |
 | `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 55 | 1879 |
 | `s_gnx_sound.gml` | sounds.json, voices, sfx, ambience | 17 | 672 |
 | `s_gnx_tests.gml` | boot test suite and dispatch-routing check (gnx_debug.txt [GNX-TEST]); coverage counters | 64 | 2264 |
@@ -561,6 +561,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_click` | `s_gnx_harness.gml` |
 | `gnx_scn_close_textbox` | `s_gnx_harness.gml` |
 | `gnx_scn_cmap_has` | `s_gnx_harness.gml` |
+| `gnx_scn_cond_known` | `s_gnx_harness.gml` |
 | `gnx_scn_copy_down_msg` | `s_gnx_harness.gml` |
 | `gnx_scn_day` | `s_gnx_harness.gml` |
 | `gnx_scn_dup_captives` | `s_gnx_harness.gml` |

@@ -16679,7 +16679,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7855 @@
+@@ -0,0 +1,7862 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -19098,6 +19098,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +
 +    gnx_log_close(_l);
++}
++
++
++// true when the quest loader knows condition type arg0 (a type it does not know is a mod error: misspelled)
++function gnx_scn_cond_known(arg0)
++{
++    return is_array(gnx_cond_required(arg0));
 +}
 +
 +
@@ -30998,7 +31005,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1912 @@
+@@ -0,0 +1,1918 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -31380,6 +31387,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            return ["key", "value"];
 +        case "gold_gte":
 +        case "floor_gte":
++        case "tower_floor_gte":
 +            return ["value"];
 +        case "stage_discovered":
 +            return ["stage"];
@@ -31793,6 +31801,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        
 +        case "floor_gte":
 +            return global.val.floor >= arg0.value;
++        
++        // GNX: the highest Tower floor reached (vanilla t_lvl, the number a nest prop shows; raised after each
++        // Tower win to ct_lvl, the floor count the Tower fights scale with, which never goes down)
++        case "tower_floor_gte":
++            return global.val.t_lvl >= arg0.value;
 +        
 +        case "on_map":  // {"type": "on_map", "map": "outpost"}: the player is on that map ("vanilla" = the village)
 +            return variable_struct_exists(arg0, "map") && global.gnx_active_map == arg0.map;
