@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,8439 @@
+@@ -0,0 +1,8661 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -34,7 +34,9 @@
 +}
 +
 +
-+// layout_check: GNX UI records the boxes it draws ("panel" = the window, "box" may hold others, "leaf" = text/icon)
++// layout_check: GNX UI records the boxes it draws ("panel" = the window, "box" may hold others, "leaf" = text/icon).
++// Only a modal window (drawn over a backdrop, like the travel selector) may record a "panel": gnx_ui_layout_problems
++// drops every record drawn before the panel in that frame, as lying under the backdrop
 +function gnx_ui_rect(arg0, arg1, arg2, arg3, arg4, arg5)  // kind, x0, y0, x1, y1, label
 +{
 +    if (is_array(global.gnx_ui_rects))
@@ -805,13 +807,16 @@
 +    if (variable_struct_exists(arg0, "installed"))
 +        _mr_ok = _mr_ok && (_mr.installed == (arg0.installed == true));
 +
-+    scr_gnx_scn_check("mod_row", _mr_ok, arg0.folder + " on=" + string(_mr_on) + " used=" + string(_mr.used) + " installed=" + string(_mr.installed) + " status=" + _mr.status);
++    if (variable_struct_exists(arg0, "mons"))
++        _mr_ok = _mr_ok && (variable_struct_exists(_mr, "mons") && _mr.mons == arg0.mons);
++
++    scr_gnx_scn_check("mod_row", _mr_ok, arg0.folder + " on=" + string(_mr_on) + " used=" + string(_mr.used) + " installed=" + string(_mr.installed) + " status=" + _mr.status + " mons=" + string(variable_struct_exists(_mr, "mons") ? _mr.mons : -1));
 +}
 +
 +
 +function gnx_scn_as_confirm(arg0)
 +{
-+    // {"assert": "confirm", "open": true, "contains": "text"}: the mod menu's confirm dialog
++    // {"assert": "confirm", "open": true, "contains": "text"}: the mod menu's confirm dialog ("lacks": text it must not hold)
 +    var _cw = -1;
 +
 +    with (obj_window)
@@ -834,7 +839,7 @@
 +            _ctext += _cw.lines[_ci] + " | ";
 +    }
 +
-+    var _c_ok = _cw != -1 && (!variable_struct_exists(arg0, "contains") || string_pos(arg0.contains, _ctext) > 0);
++    var _c_ok = _cw != -1 && (!variable_struct_exists(arg0, "contains") || string_pos(arg0.contains, _ctext) > 0) && (!variable_struct_exists(arg0, "lacks") || string_pos(arg0.lacks, _ctext) == 0);
 +    scr_gnx_scn_check("confirm", _c_ok, (_cw == -1) ? "no dialog" : _ctext);
 +}
 +
@@ -2713,6 +2718,58 @@
 +}
 +
 +
++// for {"assert": "fn"}: the button_nums of the raid window's category buttons (interact 39), ascending, space-joined
++function gnx_scn_raid_cats()
++{
++    var _a = [];
++
++    with (obj_button)
++    {
++        if (interact_type == 39)
++            array_push(_a, button_num);
++    }
++
++    array_sort(_a, true);
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_a); _i++)
++        _s += ((_i > 0) ? " " : "") + string(_a[_i]);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the raid window's category page (obj_raid.gnx_cat_page), -1 when it is not set
++function gnx_scn_raid_cat_page()
++{
++    var _r = obj_np.obj_raid;
++    return variable_instance_exists(_r, "gnx_cat_page") ? _r.gnx_cat_page : -1;
++}
++
++
++// for {"assert": "fn"}: 1 when one hovered frame of the LOAD FORMATION button (interact 63) draws through
++// gnx_draw_sprite_ext (its custom head branch), 0 when it does not, -1 when there is no such button
++function gnx_scn_loadform_spy()
++{
++    var _r = -1;
++
++    with (obj_button)
++    {
++        if (_r == -1 && interact_type == 63)
++        {
++            hover = true;
++            trigger = false;
++            global.gnx_draw_spy = [];
++            scr_draw_loadform_button();
++            _r = array_length(global.gnx_draw_spy) > 0;
++            global.gnx_draw_spy = -1;
++        }
++    }
++
++    return _r;
++}
++
++
 +// for {"assert": "fn"}: the raid's AP of the front (arg0 = 0) or back (1) row, as scr_calculate_group_stat left it
 +function gnx_scn_raid_ap(arg0)
 +{
@@ -4377,8 +4434,11 @@
 +
 +        variable_struct_set(_seen, _key, true);
 +
-+        if (_a.kind == "panel")
++        if (_a.kind == "panel")  // a modal window: what was drawn before it (the top bar) lies under its backdrop
++        {
 +            _pan = _a;
++            _r = [];
++        }
 +        else
 +            array_push(_r, _a);
 +    }
@@ -6876,13 +6936,19 @@
 +        carry_food = clamp(gnx_opt(_tw, "food", 0), 0, max_food);
 +        carry_goblins = clamp(gnx_opt(_tw, "goblins", 0), 0, max_goblins);
 +
-+        // "troops": [[type, class, n], ...] (TROOPS tab), "captives": n (the first n prisoners, CAPTIVES tab)
++        // "troops": [[type, class, n], ...] (TROOPS tab; type = a number 0-3 or a type name), "captives": n
++        // (the first n prisoners, CAPTIVES tab)
 +        if (variable_struct_exists(_tw, "troops"))
 +        {
 +            for (var _tt = 0; _tt < array_length(_tw.troops); _tt++)
 +            {
 +                var _tr = _tw.troops[_tt];
-+                gnx_party_set(id, _tr[0], _tr[1], clamp(_tr[2], 0, gnx_mon_have(_tr[0], _tr[1])));
++                var _ty = gnx_mon_type_id(_tr[0]);
++
++                if (_ty >= 0)
++                    gnx_party_set(id, _ty, _tr[1], clamp(_tr[2], 0, gnx_mon_have(_ty, _tr[1])));
++                else
++                    scr_gnx_scn_check("travel_with", false, "monster type " + string(_tr[0]) + " is not installed here");
 +            }
 +        }
 +
@@ -8252,8 +8318,15 @@
 +// for {"assert": "fn"}: 1 when cell arg0 still holds a mon_spr set
 +function gnx_scn_cell_has_table(arg0)
 +{
++    return gnx_scn_cell_has_set(arg0, "mon_spr");
++}
++
++
++// for {"assert": "fn"}: 1 when cell arg0 holds a resolved monster set under key arg1 (e.g. "mon_spr_newt")
++function gnx_scn_cell_has_set(arg0, arg1)
++{
 +    var _c = ds_map_find_value(global.cell_registry, arg0);
-+    return (is_struct(_c) && variable_struct_exists(_c, "mon_spr") && is_struct(_c.mon_spr)) ? 1 : 0;
++    return (is_struct(_c) && variable_struct_exists(_c, arg1) && is_struct(variable_struct_get(_c, arg1))) ? 1 : 0;
 +}
 +
 +
@@ -8423,6 +8496,155 @@
 +    gnx_log_close(_log);
 +    ds_map_destroy(_seen);
 +    return _dups;
++}
++
++
++// for {"assert": "fn"}: the nest_num indices of the shown top bar entries, joined by spaces
++function gnx_scn_topbar()
++{
++    var _tb = gnx_topbar_layout();
++    var _a = [];
++
++    if (_tb != undefined)
++        _a = _tb.idx;
++    else
++    {
++        // vanilla rule of scr_draw_gui
++        _a = [0];
++
++        for (var _i = 1; _i < 5; _i++)
++        {
++            if (_i != 3 && global.val.mon_num[_i - 1] != -1)
++                array_push(_a, _i);
++        }
++    }
++
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_a); _i++)
++        _s += ((_i > 0) ? " " : "") + string(_a[_i]);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the labels of the tools MONSTERS menu's categories (the auto-spawn menu), joined by "|"
++function gnx_scn_spawn_menu()
++{
++    for (var _i = 0; _i < array_length(global.gnx_tool_registry); _i++)
++    {
++        if (global.gnx_tool_registry[_i].mod_name != "_spawn")
++            continue;
++
++        var _top = global.gnx_tool_registry[_i].categories[0].categories;
++
++        for (var _c = 0; _c < array_length(_top); _c++)
++        {
++            if (_top[_c].label != "MONSTERS")
++                continue;
++
++            var _s = "";
++
++            for (var _m = 0; _m < array_length(_top[_c].categories); _m++)
++                _s += ((_m > 0) ? "|" : "") + _top[_c].categories[_m].label;
++
++            return _s;
++        }
++    }
++
++    return "";
++}
++
++
++// for {"assert": "fn"}: gnx_mon_have / gnx_add_mons on a type number past the table: 0 and no code error
++function gnx_scn_have_past_table()
++{
++    var _n = gnx_mon_type_count() + 3;
++    gnx_add_mons(_n, 0, 5);
++    return gnx_mon_have(_n, 0);
++}
++
++
++// the open travel selector window, or -1
++function gnx_scn_selector()
++{
++    var _w = -1;
++
++    with (obj_window)
++    {
++        if (interact_type == 9060)
++            _w = id;
++    }
++
++    return _w;
++}
++
++
++// for {"assert": "fn"}: the open selector's party, as sorted type names joined by spaces ("" when none is open)
++function gnx_scn_party_types()
++{
++    var _w = gnx_scn_selector();
++
++    if (_w == -1)
++        return "";
++
++    var _a = [];
++
++    for (var _i = 0; _i < array_length(_w.party); _i++)
++        array_push(_a, gnx_mon_type_name(_w.party[_i].type));
++
++    array_sort(_a, true);
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_a); _i++)
++        _s += ((_i > 0) ? " " : "") + _a[_i];
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the open selector's offered troop types, in offer order, as names joined by spaces
++function gnx_scn_offered_types()
++{
++    var _w = gnx_scn_selector();
++
++    if (_w == -1)
++        return "";
++
++    var _o = variable_instance_exists(_w, "troop_types") ? _w.troop_types : [0, 1, 2, 3];
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_o); _i++)
++        _s += ((_i > 0) ? " " : "") + gnx_mon_type_name(_o[_i]);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the open selector's TROOPS page (-1 when none is open)
++function gnx_scn_troop_page()
++{
++    var _w = gnx_scn_selector();
++
++    if (_w == -1)
++        return -1;
++
++    return variable_instance_exists(_w, "troop_page") ? _w.troop_page : 0;
++}
++
++
++// for {"assert": "fn"}: how many of the open selector's buttons have button number arg0
++function gnx_scn_sel_has(arg0)
++{
++    var _n = 0;
++
++    with (obj_button)
++    {
++        if (interact_type == 9061 && button_num == arg0)
++            _n++;
++    }
++
++    return _n;
 +}
 +
 +

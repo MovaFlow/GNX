@@ -1,0 +1,23 @@
+{
+  "about": "Custom types P3: a cell of a boot-loaded mod (harness_type_gcell, map all) names newt, the type of the map mod harness_map_type (map harness_t). Loading a save made on harness_t from the menu appends the map mod's types in the deferred load, after the cell was registered: the cell must still hold newt, and its own mon_spr_newt set.",
+  "mods": ["tools/scenarios/mods/harness_map_type", "tools/scenarios/mods/harness_type_gcell"],
+  "timeout": 180,
+  "steps": [
+    {"wait": 30},
+    {"do": {"type": "add_gold", "amount": 5000}},
+    {"do": {"type": "add_food", "amount": 300}},
+    {"travel_with": {"to": "harness_t"}},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"assert": "fn", "name": "gnx_scn_type_ids", "args": [], "is": "newt=4/1"},
+    {"assert": "fn", "name": "gnx_scn_cell_has_set", "args": [{"cell": "harness_type_gcell.TYPE GCELL"}, "mon_spr_newt"], "is": 1, "why": "after travel the map mod loads before the cells: the cell has its own newt set"},
+    {"save": 9},
+    {"reload": 9, "why": "quit to menu, then load the save: the map mod is loaded in the deferred load"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"assert": "fn", "name": "gnx_scn_type_ids", "args": [], "is": "newt=4/1"},
+    {"assert": "fn", "name": "gnx_scn_cell_mon_types", "args": [{"cell": "harness_type_gcell.TYPE GCELL"}], "is": "4 0", "why": "newt kept after the menu load (before the fix: 0)"},
+    {"assert": "fn", "name": "gnx_scn_cell_has_set", "args": [{"cell": "harness_type_gcell.TYPE GCELL"}, "mon_spr_newt"], "is": 1, "why": "the newts of the cell are drawn with its own newt set after the menu load, not the like's (s_mon_data reads mon_spr_<name>)"},
+    {"assert": "registry_ok"}
+  ]
+}

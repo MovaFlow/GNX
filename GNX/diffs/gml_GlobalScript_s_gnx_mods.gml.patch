@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,3061 @@
+@@ -0,0 +1,3075 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -956,9 +956,20 @@
 +        if (arg1.cells + arg1.units > 0)
 +            array_push(_lines, "(" + string(arg1.cells) + " cells, " + string(arg1.units) + " characters)");
 +
-+        array_push(_lines, "Loading those saves without it replaces its cells with");
-+        array_push(_lines, "basic cells and its characters with peasants.");
-+        array_push(_lines, "Loading is safe; saving afterwards makes it permanent.");
++        // GNX-TYPES: monsters are not converted, their counts wait in the save (gnx_types_save_remap)
++        if (arg1.mons > 0)
++        {
++            array_push(_lines, "(" + string(arg1.mons) + " monster" + ((arg1.mons == 1) ? "" : "s") + ")");
++            array_push(_lines, "Its monsters wait in the save until the mod is back.");
++        }
++
++        // GNX-TYPES: a mod used only through monsters replaces nothing (its monsters wait, above), so these are left out
++        if (arg1.cells + arg1.units > 0 || arg1.mons == 0)
++        {
++            array_push(_lines, "Loading those saves without it replaces its cells with");
++            array_push(_lines, "basic cells and its characters with peasants.");
++            array_push(_lines, "Loading is safe; saving afterwards makes it permanent.");
++        }
 +    }
 +
 +    for (var _k = 0; _k < array_length(arg0.rows); _k++)
@@ -1222,7 +1233,7 @@
 +    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
 +    {
 +        var _e = global.gnx_mod_list[_i];
-+        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e), dated: gnx_opt(_e, "dated", false) });
++        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, mons: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e), dated: gnx_opt(_e, "dated", false) });
 +    }
 +
 +    for (var _f = 0; _f < array_length(_files); _f++)
@@ -1236,7 +1247,7 @@
 +        {
 +            var _rec = _info.rec[_r];
 +
-+            if (!is_struct(_rec) || (_rec.cells + _rec.units + array_length(_rec.maps)) <= 0)
++            if (!is_struct(_rec) || (_rec.cells + _rec.units + array_length(_rec.maps) + gnx_rec_mons(_rec)) <= 0)  // GNX-TYPES: monsters alone make a mod used
 +                continue;
 +
 +            var _row = undefined;
@@ -1249,7 +1260,7 @@
 +
 +            if (_row == undefined)
 +            {
-+                _row = { folder: _rec.id, name: _rec.name, version: _rec.version, status: "missing", why: "not installed", installed: false, used: [], cells: 0, units: 0, requires: [], mod_id: _rec.id, description: "", author: "", adds: "", dated: false };
++                _row = { folder: _rec.id, name: _rec.name, version: _rec.version, status: "missing", why: "not installed", installed: false, used: [], cells: 0, units: 0, mons: 0, requires: [], mod_id: _rec.id, description: "", author: "", adds: "", dated: false };
 +                array_push(_rows, _row);
 +            }
 +
@@ -1258,6 +1269,7 @@
 +
 +            _row.cells += _rec.cells;
 +            _row.units += _rec.units;
++            _row.mons += gnx_rec_mons(_rec);
 +        }
 +    }
 +
@@ -1468,7 +1480,9 @@
 +            _l2 = ((_l2 != "") ? _l2 + "  -  " : "") + "needs " + gnx_req_names(id, _h);
 +
 +        if (array_length(_h.used) > 0 && (_h.cells + _h.units) > 0)
-+            _l2 = ((_l2 != "") ? _l2 + "  -  " : "") + "in saves: " + string(_h.cells) + " cells, " + string(_h.units) + " characters";
++            _l2 = ((_l2 != "") ? _l2 + "  -  " : "") + "in saves: " + string(_h.cells) + " cells, " + string(_h.units) + " characters" + ((_h.mons > 0) ? (", " + string(_h.mons) + " monsters") : "");
++        else if (array_length(_h.used) > 0 && _h.mons > 0)
++            _l2 = ((_l2 != "") ? _l2 + "  -  " : "") + "in saves: " + string(_h.mons) + " monsters";
 +
 +        // GNX-FIX: a line with a translated name or description in its language's font (gnx_tr_font)
 +        var _gnx_hp = gnx_tr_font(gnx_tr(_h.name), _h.name);
@@ -1658,7 +1672,7 @@
 +        global.gnx_carry_timer = -1;
 +        global.gnx_carry_gold = -1;
 +        global.gnx_carry_food = -1;
-+        global.gnx_carry_troops = -1;    // [{type, class, num}] monsters taken along
++        global.gnx_carry_troops = -1;    // [{type, class, num, name, like}] monsters taken along (resolved by name on arrival)
 +        global.gnx_carry_captives = -1;  // [{unit, from}] prisoners taken along
 +        global.gnx_carry_unlock = -1;
 +        global.gnx_carry_inv = -1;  // the inventory, moved to the destination on arrival (shared by every map)

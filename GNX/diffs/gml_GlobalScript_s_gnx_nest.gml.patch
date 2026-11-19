@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml
 +++ gml/gml_GlobalScript_s_gnx_nest.gml
-@@ -0,0 +1,1111 @@
+@@ -0,0 +1,1192 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -962,6 +962,87 @@
 +    var _o = array_create(array_length(arg0));
 +    array_copy(_o, 0, arg0, 0, array_length(arg0));
 +    return _o;
++}
++
++
++// Top bar with custom types: the nest_num indices of the shown entries and the pitch between frames, or undefined
++// when no custom type is unlocked (scr_draw_gui then draws the vanilla bar unchanged). Vanilla entries come first,
++// then the unlocked custom types in table order. The last frame must stay left of x 262 with ui_place on (buttons at
++// x 266) or x 380 with it off (food counter at x 385): from a fifth entry on the pitch narrows to fit, and custom
++// entries are dropped until the pitch is no smaller than the frame.
++function gnx_topbar_layout()
++{
++    // called every GUI frame once a custom type is registered: with all of them locked nothing is allocated
++    if (!gnx_unlocked_custom_types(true))
++        return undefined;
++
++    var _cust = gnx_unlocked_custom_types(false);
++    var _idx = [0];
++
++    for (var _i = 1; _i < 5; _i++)
++    {
++        if (_i != 3 && global.val.mon_num[_i - 1] != -1)
++            array_push(_idx, _i);
++    }
++
++    var _on = global.val.ui_place;
++    var _c = array_length(_cust);
++    var _limit = _on ? 262 : 380;
++    var _fw = sprite_get_width(spr_unit_frame);
++    var _pitch = 54;
++
++    while (_c > 0)
++    {
++        var _n = array_length(_idx) + _c;
++        _pitch = (_n <= 4) ? 54 : min(54, floor((_limit - 24 - _fw) / (_n - 1)));
++
++        if (_pitch >= _fw)
++            break;
++
++        _c--;
++    }
++
++    if (_c == 0)
++        _pitch = 54;  // no custom entry fits: the vanilla bar
++
++    for (var _i = 0; _i < _c; _i++)
++        array_push(_idx, _cust[_i] + 1);  // nest_num index = type + 1
++
++    return { idx: _idx, pitch: _pitch };
++}
++
++
++// GNX-TYPES (P3): the unlocked custom types (mon_num not -1), in table order. arg0 true: only whether there is one
++// (true / false), with no array built, for callers that run every frame
++function gnx_unlocked_custom_types(arg0)
++{
++    var _o = arg0 ? undefined : [];
++
++    for (var _t = 4; _t < min(gnx_mon_type_count(), array_length(global.val.mon_num)); _t++)
++    {
++        if (global.val.mon_num[_t] == -1)
++            continue;
++
++        if (arg0)
++            return true;
++
++        array_push(_o, _t);
++    }
++
++    return arg0 ? false : _o;
++}
++
++
++// layout_check boxes of one top bar entry (frame, icon, count); callers test global.gnx_ui_rects first
++function gnx_topbar_rects(arg0, arg1, arg2)  // frame x, icon x, count text
++{
++    gnx_ui_rect("box", arg0, 0, arg0 + sprite_get_width(spr_unit_frame), sprite_get_height(spr_unit_frame), "topbar frame " + string(arg0));
++    var _ix = arg1 - sprite_get_xoffset(spr_mon_icon);
++    var _iy = 9 - sprite_get_yoffset(spr_mon_icon);
++    // the icon sprite has transparent padding and is clipped by the frame: record its part inside the frame
++    gnx_ui_rect("leaf", max(_ix, arg0), max(_iy, 0), min(_ix + sprite_get_width(spr_mon_icon), arg0 + sprite_get_width(spr_unit_frame)), min(_iy + sprite_get_height(spr_mon_icon), sprite_get_height(spr_unit_frame)), "topbar icon " + string(arg0));
++    var _tw = string_width(arg2);
++    gnx_ui_rect("leaf", (arg0 + 34) - (_tw / 2), 6, arg0 + 34 + (_tw / 2), 6 + string_height(arg2), "topbar count " + string(arg0));
 +}
 +
 +

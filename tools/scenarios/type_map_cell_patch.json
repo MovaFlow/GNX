@@ -1,0 +1,22 @@
+{
+  "about": "Custom types P3: the boot cell of harness_type_gcell names newt (map mod harness_map_type) and carries a mon_spr_newt set; harness_type_gpatch (map harness_t) patches its mon_placements with newt. After a menu load of a harness_t save the patch runs in the deferred load, after newt exists, and resolves the pending cell: the cell must also get its own boot mon_spr_newt set then (the recheck skips a cell that is no longer pending).",
+  "mods": ["tools/scenarios/mods/harness_map_type", "tools/scenarios/mods/harness_type_gcell", "tools/scenarios/mods/harness_type_gpatch"],
+  "timeout": 180,
+  "steps": [
+    {"wait": 30},
+    {"do": {"type": "add_gold", "amount": 5000}},
+    {"do": {"type": "add_food", "amount": 300}},
+    {"travel_with": {"to": "harness_t"}},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"assert": "fn", "name": "gnx_scn_cell_mon_types", "args": [{"cell": "harness_type_gcell.TYPE GCELL"}], "is": "4 0"},
+    {"assert": "fn", "name": "gnx_scn_cell_has_set", "args": [{"cell": "harness_type_gcell.TYPE GCELL"}, "mon_spr_newt"], "is": 1, "why": "after travel"},
+    {"save": 9},
+    {"reload": 9, "why": "quit to menu, then load the save: the map mods (and the patch) load in the deferred load"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"assert": "fn", "name": "gnx_scn_cell_mon_types", "args": [{"cell": "harness_type_gcell.TYPE GCELL"}], "is": "4 0", "why": "the patch resolved newt"},
+    {"assert": "fn", "name": "gnx_scn_cell_has_set", "args": [{"cell": "harness_type_gcell.TYPE GCELL"}, "mon_spr_newt"], "is": 1, "why": "the boot set of newt, replayed by the patch that resolved the cell"},
+    {"assert": "registry_ok"}
+  ]
+}

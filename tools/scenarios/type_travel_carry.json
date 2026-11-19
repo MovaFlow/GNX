@@ -1,0 +1,27 @@
+{
+  "about": "Custom types P3: carried troops travel by type name. Wolves (harness_type_a, map all) are type 4 in the village and on harness_map but type 5 on harness_t, where harness_map_type's newt comes first (mods load in folder order): carried by number they would arrive there as newts.",
+  "mods": ["tools/scenarios/mods/harness_map", "tools/scenarios/mods/harness_map_type", "tools/scenarios/mods/harness_type_a"],
+  "timeout": 150,
+  "steps": [
+    {"wait": 30},
+    {"do": {"type": "add_gold", "amount": 5000}},
+    {"do": {"type": "add_food", "amount": 300}},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 10, "class": 0}},
+    {"wait": 3},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 10},
+    {"travel_with": {"to": "harness_map", "troops": [["wolf", 0, 5]]}},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_map"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 5, "why": "first visit: none before, 5 carried"},
+    {"travel_with": {"to": "vanilla", "troops": [["wolf", 0, 2]]}},
+    {"wait": 30},
+    {"assert": "active_map", "is": "vanilla"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 7, "why": "10 - 5 taken + 2 back"},
+    {"travel_with": {"to": "harness_t", "troops": [["wolf", 0, 3]]}},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"assert": "fn", "name": "gnx_mon_type_id", "args": ["wolf"], "is": 5, "why": "newt is type 4 here"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 3, "why": "resolved by name on arrival"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["newt"], "is": 0, "why": "no wolf arrived as the type with the wolf's village number"}
+  ]
+}

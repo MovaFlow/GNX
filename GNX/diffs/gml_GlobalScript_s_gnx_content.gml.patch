@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,5602 @@
+@@ -0,0 +1,5722 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -940,8 +940,8 @@
 +                gnx_report_mod_error(_p + "'" + _k + "': skills must be 4 skill ids 0-15");
 +        }
 +
-+        // name is read by a later phase, not stored here
-+        var _entry = {name: _k, like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, own_art: false};
++        // title: the display name for menus (monsters.json "name"), "" when there is none
++        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, own_art: false};
 +
 +        for (var _s = 0; _s < 6; _s++)
 +        {
@@ -1893,25 +1893,18 @@
 +    }
 +
 +    // GNX-TYPES: a custom type's own set, mon_spr_<name> and mon_spr_<name>_p0.._p2
-+    for (var _gt = 4; _gt < gnx_mon_type_count(); _gt++)
-+    {
-+        var _gtk = "mon_spr_" + gnx_mon_type_name(_gt);
-+
-+        for (var _gtn = -1; _gtn < 3; _gtn++)
-+        {
-+            var _gtkp = (_gtn < 0) ? _gtk : (_gtk + "_p" + string(_gtn));
-+
-+            if (variable_struct_exists(arg0, _gtkp))
-+                variable_struct_set(_cell, _gtkp, gnx_resolve_mon_spr(variable_struct_get(arg0, _gtkp), _sprites_dict, _base_dir));
-+        }
-+    }
++    gnx_cell_type_sprs(_cell, arg0, _sprites_dict, _base_dir, true, 4);
 +
 +    if (variable_struct_exists(arg0, "mon_types"))
 +        _cell.mon_types = arg0.mon_types;
-+    
++
 +    // GNX-FIX: monster species and places checked once (audit P5)
 +    gnx_cell_mon_check(_cell, _cn, arg1);
-+    
++
++    // GNX-TYPES: a pending name's own sets are resolved by gnx_recheck_cell_types once its type exists
++    if (_cell.gnx_mon_types_pending)
++        gnx_cell_type_sprs_later(_cell, arg0, _sprites_dict, _base_dir, true);
++
 +    // GNX-ART: after the check, which cleans mon_types, so the art sees the list the cell will keep
 +    if (variable_struct_exists(arg0, "monster_art"))
 +        gnx_art_parse_cell(arg0.monster_art, _sprites_dict, _base_dir, "Cell '" + string(_cn) + "'", _h, _cell);
@@ -2660,22 +2653,38 @@
 +    if (variable_struct_exists(arg1, "mon_spr_ogr"))
 +        _cell.mon_spr_ogr = gnx_resolve_mon_spr(arg1.mon_spr_ogr, _sprites_dict, _base_dir);
 +
-+    // GNX-TYPES: a custom type's own set, mon_spr_<name>
-+    for (var _gt = 4; _gt < gnx_mon_type_count(); _gt++)
-+    {
-+        var _gtk = "mon_spr_" + gnx_mon_type_name(_gt);
-+
-+        if (variable_struct_exists(arg1, _gtk))
-+            variable_struct_set(_cell, _gtk, gnx_resolve_mon_spr(variable_struct_get(arg1, _gtk), _sprites_dict, _base_dir));
-+    }
-+
 +    if (variable_struct_exists(arg1, "mon_types"))
 +        _cell.mon_types = arg1.mon_types;
-+    
++
 +    // GNX-FIX: a patch that changes the monster rules gets the same check as a new cell (audit P5)
-+    if (variable_struct_exists(arg1, "mon_types") || (variable_struct_exists(arg1, "physical") && is_struct(arg1.physical) && variable_struct_exists(arg1.physical, "mon_placements")))
++    var _p_mt = variable_struct_exists(arg1, "mon_types");
++    var _p_mp = variable_struct_exists(arg1, "physical") && is_struct(arg1.physical) && variable_struct_exists(arg1.physical, "mon_placements");
++    var _was_pending = variable_struct_exists(_cell, "gnx_mon_types_pending") && _cell.gnx_mon_types_pending;
++
++    if (_p_mt || _p_mp)
++    {
++        // GNX-TYPES: the list the patch leaves alone is checked again from its JSON source: the cleaned list holds
++        // type numbers past 3, which the check reads as no monster, and has lost a name still unresolved (pending)
++        if (!_p_mt && variable_struct_exists(_cell, "gnx_mon_types_src"))
++            _cell.mon_types = gnx_array_copy(_cell.gnx_mon_types_src);
++
++        if (!_p_mp && variable_struct_exists(_cell, "gnx_mon_place_src"))
++            _cell.physical.mon_placements = gnx_array_copy(_cell.gnx_mon_place_src);
++
 +        gnx_cell_mon_check(_cell, "h_type " + string(arg0), arg2);
-+    
++    }
++
++    // GNX-TYPES: a patch that resolved a pending cell (a map mod's patch in the deferred load) gives it the sets its
++    // earlier JSON holds for the types known now, as gnx_recheck_cell_types would; then the patch's own, which win
++    if (_was_pending && !_cell.gnx_mon_types_pending)
++        gnx_cell_type_sprs_replay(_cell);
++
++    // GNX-TYPES: a custom type's own set, mon_spr_<name>
++    gnx_cell_type_sprs(_cell, arg1, _sprites_dict, _base_dir, false, 4);
++
++    if (variable_struct_exists(_cell, "gnx_mon_types_pending") && _cell.gnx_mon_types_pending)
++        gnx_cell_type_sprs_later(_cell, arg1, _sprites_dict, _base_dir, false);
++
 +    // GNX-ART: after the check, which cleans mon_types, so the art sees the list the cell will keep
 +    if (variable_struct_exists(arg1, "monster_art"))
 +        gnx_art_parse_cell(arg1.monster_art, _sprites_dict, _base_dir, "Cell " + string(arg0), arg0, _cell);
@@ -5010,12 +5019,18 @@
 +    var _cp = arg0.physical;
 +    var _mt = undefined;
 +    
++    // GNX-TYPES: the JSON lists are kept, and a name no installed mod declares yet marks the cell pending: a map mod's
++    // types are appended in the deferred load, after this cell was registered (gnx_recheck_cell_types)
++    arg0.gnx_mon_types_pending = false;
++
 +    if (variable_struct_exists(arg0, "mon_types"))
 +    {
 +        var _new_mt = [];
 +        
 +        if (is_array(arg0.mon_types))
 +        {
++            arg0.gnx_mon_types_src = gnx_array_copy(arg0.mon_types);
++
 +            for (var i = 0; i < array_length(arg0.mon_types); i++)
 +            {
 +                // GNX-TYPES: a game number 0-3 or a type name (gnx_mon_type_json reports anything else)
@@ -5023,11 +5038,16 @@
 +
 +                if (_v >= 0)
 +                    array_push(_new_mt, _v);
++                else if (gnx_mon_name_pending(arg0.mon_types[i]))
++                    arg0.gnx_mon_types_pending = true;
 +            }
 +        }
 +        else
 +        {
 +            gnx_report_mod_error("Cell '" + string(arg1) + "': mon_types must be a list like [0, 1]; left out");
++
++            if (variable_struct_exists(arg0, "gnx_mon_types_src"))
++                variable_struct_remove(arg0, "gnx_mon_types_src");
 +        }
 +        
 +        if (array_length(_new_mt) > 0)
@@ -5048,11 +5068,17 @@
 +    {
 +        gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements must be a list of lists like [[0], [1]]; left out");
 +        variable_struct_remove(_cp, "mon_placements");
++
++        if (variable_struct_exists(arg0, "gnx_mon_place_src"))
++            variable_struct_remove(arg0, "gnx_mon_place_src");
++
 +        exit;
 +    }
 +    
 +    var _mp = [];
 +    
++    arg0.gnx_mon_place_src = gnx_array_copy(_cp.mon_placements);
++
 +    for (var p = 0; p < array_length(_cp.mon_placements); p++)
 +    {
 +        var _e = _cp.mon_placements[p];
@@ -5067,6 +5093,8 @@
 +                if (_v < 0)
 +                {
 +                    // reported by gnx_mon_type_json
++                    if (gnx_mon_name_pending(_e[i]))
++                        arg0.gnx_mon_types_pending = true;
 +                }
 +                else if (is_array(_mt) && !array_contains(_mt, _v))
 +                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] has species " + string(_v) + ", which is not in mon_types (it would be invisible); left out");
@@ -5105,6 +5133,98 @@
 +    }
 +    
 +    _cp.mon_placements = _mp;
++}
++
++
++// GNX-TYPES: true when arg0 is a type name (as gnx_mon_type_json reads it) that no installed mod declares yet
++function gnx_mon_name_pending(arg0)
++{
++    return is_string(arg0) && arg0 != "" && ord(string_char_at(arg0, 1)) >= ord("a") && ord(string_char_at(arg0, 1)) <= ord("z") && gnx_mon_type_id(arg0) < 0;
++}
++
++
++// GNX-TYPES: a custom type's own monster sets from cell JSON arg1 onto cell arg0: mon_spr_<name>, and with arg4 also
++// mon_spr_<name>_p0.._p2, for the table's types from index arg5 on. arg2 = the cell's sprites, arg3 = its mod folder
++function gnx_cell_type_sprs(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    for (var _gt = arg5; _gt < gnx_mon_type_count(); _gt++)
++    {
++        var _gtk = "mon_spr_" + gnx_mon_type_name(_gt);
++
++        for (var _gtn = -1; _gtn < (arg4 ? 3 : 0); _gtn++)
++        {
++            var _gtkp = (_gtn < 0) ? _gtk : (_gtk + "_p" + string(_gtn));
++
++            if (variable_struct_exists(arg1, _gtkp))
++                variable_struct_set(arg0, _gtkp, gnx_resolve_mon_spr(variable_struct_get(arg1, _gtkp), arg2, arg3));
++        }
++    }
++}
++
++
++// GNX-TYPES: a pending cell (arg0) keeps its JSON (arg1, a registration or a patch, in load order) with what
++// gnx_cell_type_sprs needs, so gnx_recheck_cell_types can give it the sets of the types appended later
++function gnx_cell_type_sprs_later(arg0, arg1, arg2, arg3, arg4)
++{
++    if (!variable_struct_exists(arg0, "gnx_mon_spr_src"))
++        arg0.gnx_mon_spr_src = [];
++
++    var _mod = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++    array_push(arg0.gnx_mon_spr_src, { json: arg1, spr: arg2, dir: arg3, places: arg4, from: gnx_mon_type_count(), mod_name: _mod });
++}
++
++
++// GNX-TYPES: after a deferred map-mod load appended types, the cells that named one of them (pending) take their
++// source lists through gnx_cell_mon_check again, and their JSON's own sets of the new types (mon_spr_<name>), as
++// registration and patches give them for types known then. A cell whose names all resolve now is no longer pending.
++// monster_art needs nothing here: it is keyed by the game's monsters (goblin, hobgoblin, ogre), which a custom type
++// reads through its like.
++function gnx_recheck_cell_types()
++{
++    var _k = ds_map_keys_to_array(global.cell_registry);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _c = ds_map_find_value(global.cell_registry, _k[_i]);
++
++        if (!is_struct(_c) || !variable_struct_exists(_c, "gnx_mon_types_pending") || !_c.gnx_mon_types_pending)
++            continue;
++
++        if (variable_struct_exists(_c, "gnx_mon_types_src"))
++            _c.mon_types = gnx_array_copy(_c.gnx_mon_types_src);
++
++        if (variable_struct_exists(_c, "gnx_mon_place_src") && is_struct(_c.physical))
++            _c.physical.mon_placements = gnx_array_copy(_c.gnx_mon_place_src);
++
++        var _name = variable_struct_exists(_c, "name") ? string(_c.name) : ("h_type " + string(_k[_i]));
++        gnx_cell_mon_check(_c, _name, variable_struct_exists(_c, "mod_name") ? string(_c.mod_name) : "");
++
++        gnx_cell_type_sprs_replay(_c);
++    }
++}
++
++
++// GNX-TYPES: cell arg0's JSON held by gnx_cell_type_sprs_later, in load order, for the types appended since each was
++// held, with its own mod as the loading mod (a mod atlas resolves through it). Dropped once the cell is not pending
++function gnx_cell_type_sprs_replay(arg0)
++{
++    if (!variable_struct_exists(arg0, "gnx_mon_spr_src"))
++        return;
++
++    var _was = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++
++    for (var _j = 0; _j < array_length(arg0.gnx_mon_spr_src); _j++)
++    {
++        var _e = arg0.gnx_mon_spr_src[_j];
++        global.gnx_current_loading_mod = _e.mod_name;
++        gnx_cell_type_sprs(arg0, _e.json, _e.spr, _e.dir, _e.places, _e.from);
++        _e.from = gnx_mon_type_count();
++    }
++
++    global.gnx_current_loading_mod = _was;
++
++    if (!arg0.gnx_mon_types_pending)
++        variable_struct_remove(arg0, "gnx_mon_spr_src");
 +}
 +
 +
