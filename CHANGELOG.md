@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.5.3 (unreleased)
+## v1.5.3
 
 **Game version:** 1.40
 

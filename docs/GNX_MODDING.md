@@ -1,9 +1,10 @@
 # GNX Modding Guide
 
-Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5.x (current release 1.5.2), game version 1.40. Written by Mav. Quests have their own reference in `QUESTS_SCHEMA.md`; a step-by-step walkthrough is in `TUTORIAL.md`.
+Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5.x (current release 1.5.3), game version 1.40. Written by Mav. Quests have their own reference in `QUESTS_SCHEMA.md`; a step-by-step walkthrough is in `TUTORIAL.md`.
 
 ## Contents
 
+- [New stuff (GNX 1.5.3)](#new-stuff-gnx-153)
 - [New stuff (GNX 1.5.2)](#new-stuff-gnx-152)
 - [New stuff (GNX 1.5.1)](#new-stuff-gnx-151)
 - [1. How to read this guide](#1-how-to-read-this-guide)
@@ -37,6 +38,19 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5.x
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
 - [Appendix C. Old monster keys](#appendix-c-old-monster-keys)
+
+## New stuff (GNX 1.5.3)
+
+**In short:** what GNX 1.5.3 adds, in one place. Set `"min_gnx_version"` to `"1.5.3"` in a mod that uses any of this ([4.2](#42-the-version-check)): GNX 1.5.1 and 1.5.2 then refuse the mod and ask the player to update; GNX 1.5.0 and older do not know the key and load the mod without the new parts.
+
+| What | Details |
+|---|---|
+| Custom monster types: `monsters.json` and the manifest key `monsters` add a type such as a wolf, with its own name, numbers and art, that behaves like the game monster it is `like` | [28](#28-custom-monster-types-monstersjson) |
+| A type name works wherever mods name monster types: `mon_types`, `mon_placements`, `by_mon_type`, `preg_mon_type_override`, `birth_class`, `birth_spr`, `spawn_mon`, `map_start` troops, a cell's `monster_art` and the `sounds.json` species. The numbers 0-3 keep meaning the game's four; a number from 4 up is a mod error | [28.5](#285-where-a-type-name-works) |
+| Quest dialogs with their own music: event key `music` (an OGG in `sounds/`) | [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) |
+| Quest condition `tower_floor_gte`: the highest Tower floor reached | [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) |
+| GNX DEBUG > NEW VOICES and the tool action `reroll_voices`: every captive gets a new moan voice | [17.3](#173-built-in-menus-spawn-and-gnx-debug), [17.6](#176-action-reference) |
+| Mod errors where the game used to stop: quest events without `type` or `quest_text`, conditions missing a key their type needs or with an unknown `type`, a cell scene naming a script the game does not have | [Appendix B](#appendix-b-troubleshooting), `CHANGELOG.md` |
 
 ## New stuff (GNX 1.5.2)
 
@@ -377,6 +391,7 @@ This is one event of a mod's `quests.json` (`QUESTS_SCHEMA.md` describes the fil
 - Features new in 1.5 or later say which GNX added them. Set `min_gnx_version` to the newest you use ([4.2](#42-the-version-check)); `CHANGELOG.md` lists every change.
 - **GNX 1.5.1** adds what [New stuff (GNX 1.5.1)](#new-stuff-gnx-151) lists. Each item there says what GNX 1.5.0 does with the same JSON.
 - **GNX 1.5.2** adds what [New stuff (GNX 1.5.2)](#new-stuff-gnx-152) lists. Each item there says what GNX 1.5.1 does with the same JSON.
+- **GNX 1.5.3** adds what [New stuff (GNX 1.5.3)](#new-stuff-gnx-153) lists.
 - The statements in this guide were checked against the GNX source code.
 
 ### 1.3 JSON in two minutes
