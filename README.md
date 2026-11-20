@@ -14,7 +14,9 @@ GNX is a mod layer patched into `data.win` that lets you add custom content via 
 
 **Cells**  - custom dungeon cells with three sprite dispatch modes (`base+class` for clothing layers, `fixed` for cell-controlled sprites, `class_map` for per-class sprite dispatch), physical properties, class restrictions, birth mappings, and build-menu integration across all 8 categories. Multi-monster cells (2+ goblins per cell with per-slot species, offsets, and sprite overrides), locked cells gated behind quest rewards, and `by_class`/`by_mon_type` sprite overrides for fixed-mode cells. Own frame counts, intermissions, second walls and own ejaculation poses (`phase_3`) per cell; underground cells. Hash-based h_type assignment, automatic unlock migration on save load.
 
-**Quests & Dialogs**  - event-driven quest chains with dialog popups, portrait sprites, 20+ condition types, side effects, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
+**Quests & Dialogs**  - event-driven quest chains with dialog popups, portrait sprites, 20+ condition types, side effects, dialogs with their own music, and multiple trigger hooks (post-raid, cell-built, per-frame). Full save/load persistence.
+
+**Custom Monster Types**  - mods add their own monster, such as a wolf, next to goblins, hobgoblins, tentacles and ogres (`monsters.json`): own name, raid strength, food, speed, raid skills and art, behaving like the game monster it is `like` until told otherwise. Saves keep custom types by name, and SPAWN, the raid window and the travel selector page through any number of types.
 
 **Raid & Boss Mechanics**  - custom raid encounter pools with conditional spawning, AP overrides, per-encounter limits, post-raid cage escape behaviors, birth-class mapping (human class to goblin troop class per species), and tower boss support (modded classes as endgame tower bosses via `tower_boss_condition`).
 
@@ -132,6 +134,28 @@ Mods can define custom tools, keybinds, and toggles via `tools.json`. See [`docs
 
 The GML source of every file GNX changes is in the GNX package. The changes against the vanilla game are in
 [`GNX/diffs/`](GNX/diffs/) in this repository.
+
+---
+
+## License
+
+GNX (code, tools, docs) is licensed under the Mozilla Public License 2.0
+with the Commons Clause condition ([LICENSE](LICENSE)). You may use, modify,
+fork and share GNX. Modified GNX files must stay public under the same terms.
+You may not sell GNX, or a product or service whose value comes mainly from GNX.
+
+Mods built for GNX (JSON, art, sounds) are not covered by this license and
+belong to their authors, unless they copy GNX code or files.
+
+Not covered either: Goblin Nest code and assets (c) BadColor, including the
+vanilla lines in GNX/diffs/, and third-party content credited in CREDITS.md,
+which keeps its authors' terms.
+
+GNX art (GNX/GNX_assets/) is licensed under CC BY-NC-SA 4.0.
+GNX/example_mod/ and tools/schemas/ are released under CC0: copy them freely
+as a starting point for your mod.
+
+Contributions are accepted under the same terms.
 
 ---
 
