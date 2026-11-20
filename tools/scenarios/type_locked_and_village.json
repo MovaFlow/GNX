@@ -1,0 +1,31 @@
+{
+  "about": "Custom types P3: (a) wolf (harness_type_a, map all) installed but locked: no raid page arrows, the vanilla top bar and raid column, and the travel selector offers only the game's four. (b) otter comes from a village mod (harness_type_village, no \"map\"): unlocked on the village, it is not offered for a trip to the mod map harness_map, while wolf (map all) is. A mod with no \"map\" owns no map, so an owner-only rule would offer otter; gnx_travel_type_ok reads the mod's map declaration.",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_map", "tools/scenarios/mods/harness_type_a", "tools/scenarios/mods/harness_type_village"],
+  "timeout": 180,
+  "steps": [
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_scn_type_ids", "args": [], "is": "wolf=4/0 otter=5/0"},
+    {"assert": "fn", "name": "gnx_scn_topbar", "args": [], "is": "0 1 2 4", "why": "custom types locked: the vanilla top bar"},
+    {"open_raid": true},
+    {"wait": 5},
+    {"assert": "fn", "name": "gnx_scn_raid_cats", "args": [], "is": "0 1 2 3"},
+    {"assert": "button_var", "type": 9065, "num": 0, "field": "button_num", "absent": true, "why": "custom types installed but locked: no page arrows"},
+    {"assert": "button_var", "type": 9065, "num": 1, "field": "button_num", "absent": true},
+    {"open_raid": false},
+    {"wait": 5},
+    {"open_selector": "harness_map"},
+    {"wait": 3},
+    {"assert": "fn", "name": "gnx_scn_offered_types", "args": [], "is": "goblin hobgoblin tentacle ogre", "why": "locked custom types are not offered"},
+    {"press_travel_button": {"num": 20}},
+    {"wait": 3},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 5, "class": 0}},
+    {"do": {"type": "spawn_mon", "species": "otter", "amount": 5, "class": 0}},
+    {"wait": 3},
+    {"open_selector": "harness_map"},
+    {"wait": 3},
+    {"assert": "fn", "name": "gnx_scn_offered_types", "args": [], "is": "goblin hobgoblin tentacle ogre wolf", "why": "otter's mod loads only on the vanilla map: not offered for harness_map"},
+    {"press_travel_button": {"num": 20}},
+    {"wait": 3}
+  ]
+}

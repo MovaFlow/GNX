@@ -22,7 +22,8 @@ I = {"type": "integer"}
 S = {"type": "string"}
 B = {"type": ["boolean", "integer"]}
 REF = {"$ref": C + "ref"}
-SPECIES = {"type": "integer", "minimum": 0, "maximum": 3, "description": "0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre."}
+SPECIES = {"oneOf": [{"type": "integer", "minimum": 0, "maximum": 3}, {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}],
+           "description": "0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre, or a monster type name from a monsters.json (\"wolf\"). A name that is not installed does nothing."}
 CLS = {"type": "integer", "minimum": 0, "maximum": 3, "description": "The troop class 0-3 of that species."}
 SET_VAL = ["mood", "food", "money", "orb_num", "day_timer", "day", "cart_spd", "add_range", "sfx_vol", "bgm_vol", "alpha_type", "crate_alpha_type", "mon_alpha", "crate_alpha", "show_head", "ui_place"]
 SET_VAR = ["w_spd", "gnx_perf_enabled", "gnx_debug_verbose", "gnx_force_capture_100", "gnx_free_floor_copy", "gnx_trace_entities", "gnx_perf_hud", "gnx_cull_step_off", "gnx_econ_on"]

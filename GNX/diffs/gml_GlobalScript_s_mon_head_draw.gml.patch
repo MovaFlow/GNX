@@ -70,6 +70,15 @@
                  draw_text(_x + _cancel_shake + 11, y - 9, _num);
                  _x = x + 75 + _cancel_shake;
                  _y = y - 2;
+@@ -115,7 +91,7 @@
+                 
+                 if (hover)
+                 {
+-                    var _ar = global.val.br_unlock[_type][_class];
++                    var _ar = (_type < 4) ? global.val.br_unlock[_type][_class] : [-1, -1];  // GNX-TYPES: a custom type has no vanilla unlock
+                     var _h_num = min(0, _ar[0]) + min(0, _ar[1]) + 2;
+                     var _i_num = 0;
+                     var _height = 24;
 @@ -127,11 +103,33 @@
                      {
                          if (_ar[i] != -1)
@@ -81,7 +90,7 @@
                          }
                      }
                      
-+                    var _gnx_list = global.val.gnx_br_unlock[_type][_class];
++                    var _gnx_list = gnx_br_list(_type, _class);  // GNX-TYPES: a custom type's own list
 +                    var _gnx_num = array_length(_gnx_list);
 +                    
 +                    if (_gnx_num > 0)
@@ -105,8 +114,34 @@
                      hover = false;
                  }
              }
-@@ -183,18 +181,3 @@
-         draw_sprite_ext(sprite_index, _class + (_type * 4), x, y, 1, 1, image_angle, image_blend, image_alpha);
+@@ -172,7 +170,14 @@
+             scr_draw_shadow(x - 3, y + 28, _skill_num, 1);
+         }
+         
+-        draw_sprite_ext(sprite_index, _class + (_type * 4), x, y, 1, 1, image_angle, image_blend, _alpha);
++        if (_type >= 4)  // GNX-TYPES: a custom type's own head (gnx_mon_head: its sheet, else its like's frame)
++        {
++            var _h = gnx_mon_head(_type, _class);
++            gnx_draw_sprite_ext(_h[0], _h[1], x, y, 1, 1, image_angle, image_blend, _alpha);
++        }
++        else
++            draw_sprite_ext(sprite_index, _class + (_type * 4), x, y, 1, 1, image_angle, image_blend, _alpha);
++
+         scr_draw_shadow(x + draw_num_x + _cancel_shake, y + draw_num_y, _mon_num, 1);
+         var _x = x + _cancel_shake;
+         var _y = y;
+@@ -180,21 +185,12 @@
+     }
+     else
+     {
+-        draw_sprite_ext(sprite_index, _class + (_type * 4), x, y, 1, 1, image_angle, image_blend, image_alpha);
++        if (_type >= 4)  // GNX-TYPES: a custom type's own head
++        {
++            var _h = gnx_mon_head(_type, _class);
++            gnx_draw_sprite_ext(_h[0], _h[1], x, y, 1, 1, image_angle, image_blend, image_alpha);
++        }
++        else
++            draw_sprite_ext(sprite_index, _class + (_type * 4), x, y, 1, 1, image_angle, image_blend, image_alpha);
      }
  }
 -

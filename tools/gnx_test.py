@@ -933,6 +933,12 @@ def fixture_path(box, name):
     return local if local.is_file() or not (TRACKED_FIXTURES / f"{name}.json").is_file() else TRACKED_FIXTURES / f"{name}.json"
 
 
+def shape_check(save_path, base_path):
+    """Differences between two saves (tools/save_shape_diff.compare), as printable lines. Empty = same shape."""
+    import save_shape_diff
+    return save_shape_diff.compare(save_shape_diff.load(save_path), save_shape_diff.load(base_path))
+
+
 def capture_fixture(game_dir, slot, name, strip=False):
     """slot: a/1/2/3, or a file name in the save folder (e.g. a backup copy).
     The player's save is only read, never modified."""
@@ -1010,6 +1016,8 @@ def prepare_scenario(box, sc):
             (box.save_dir / SAVE_SLOTS[slot]).write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
     elif sc.get("player_slots"):
         raise HarnessError(EXIT_PREFLIGHT, "player_slots needs a worker (not --keep-open): it writes save slots")
+    if sc.get("shape_same_as") and not fixture_path(box, sc["shape_same_as"]).is_file():
+        raise HarnessError(EXIT_PREFLIGHT, f"baseline '{sc['shape_same_as']}' missing")  # SKIP under --all, like a fixture
     fx = sc.get("fixture")
     if fx:
         src = fixture_path(box, fx)
@@ -1245,6 +1253,14 @@ def main(argv=None):
                 # setup scenarios hand their slot-9 save to later scenarios as a fixture
                 (game_dir / "fixtures").mkdir(exist_ok=True)
                 shutil.copy2(box.harness_save, game_dir / "fixtures" / f"{sc['save_fixture_as']}.json")
+            if sc.get("shape_same_as") and r.get("scn") is not None:
+                # the slot-9 save must have the baseline's shape (a baseline captured by a save_fixture_as scenario)
+                try:
+                    diff = shape_check(box.harness_save, fixture_path(box, sc["shape_same_as"]))
+                except (OSError, ValueError) as e:
+                    diff = [f"cannot compare: {e}"]
+                for line in diff:
+                    r["scn"]["fails"].append("FAIL  save shape vs " + sc["shape_same_as"] + ": " + line)
             code = verdict(r)
             if r.get("scn") is not None:
                 state = "PASS" if code == EXIT_PASS else "FAIL" if r["scn"]["done"] else "INCOMPLETE"

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,7862 @@
+@@ -0,0 +1,9017 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -34,7 +34,9 @@
 +}
 +
 +
-+// layout_check: GNX UI records the boxes it draws ("panel" = the window, "box" may hold others, "leaf" = text/icon)
++// layout_check: GNX UI records the boxes it draws ("panel" = the window, "box" may hold others, "leaf" = text/icon).
++// Only a modal window (drawn over a backdrop, like the travel selector) may record a "panel": gnx_ui_layout_problems
++// drops every record drawn before the panel in that frame, as lying under the backdrop
 +function gnx_ui_rect(arg0, arg1, arg2, arg3, arg4, arg5)  // kind, x0, y0, x1, y1, label
 +{
 +    if (is_array(global.gnx_ui_rects))
@@ -713,8 +715,8 @@
 +
 +function gnx_scn_as_mons(arg0)
 +{
-+    // {"assert": "mons", "type": 0, "class": 0, "is": n} or "min": n: monsters of a kind on this map
-+    var _mh = gnx_mon_have(arg0.type, arg0.class);
++    // {"assert": "mons", "type": 0 | {"mon": "wolf"}, "class": 0, "is": n} or "min": n: monsters of a kind on this map
++    var _mh = gnx_mon_have(gnx_scn_ref(arg0.type), arg0.class);
 +    var _m_ok = variable_struct_exists(arg0, "is") ? (_mh == arg0.is) : (_mh >= arg0.min);
 +    scr_gnx_scn_check("mons", _m_ok, "type " + string(arg0.type) + " class " + string(arg0.class) + " = " + string(_mh) + " want " + (variable_struct_exists(arg0, "is") ? string(arg0.is) : ">= " + string(arg0.min)) + " on '" + global.gnx_active_map + "'");
 +}
@@ -805,13 +807,16 @@
 +    if (variable_struct_exists(arg0, "installed"))
 +        _mr_ok = _mr_ok && (_mr.installed == (arg0.installed == true));
 +
-+    scr_gnx_scn_check("mod_row", _mr_ok, arg0.folder + " on=" + string(_mr_on) + " used=" + string(_mr.used) + " installed=" + string(_mr.installed) + " status=" + _mr.status);
++    if (variable_struct_exists(arg0, "mons"))
++        _mr_ok = _mr_ok && (variable_struct_exists(_mr, "mons") && _mr.mons == arg0.mons);
++
++    scr_gnx_scn_check("mod_row", _mr_ok, arg0.folder + " on=" + string(_mr_on) + " used=" + string(_mr.used) + " installed=" + string(_mr.installed) + " status=" + _mr.status + " mons=" + string(variable_struct_exists(_mr, "mons") ? _mr.mons : -1));
 +}
 +
 +
 +function gnx_scn_as_confirm(arg0)
 +{
-+    // {"assert": "confirm", "open": true, "contains": "text"}: the mod menu's confirm dialog
++    // {"assert": "confirm", "open": true, "contains": "text"}: the mod menu's confirm dialog ("lacks": text it must not hold)
 +    var _cw = -1;
 +
 +    with (obj_window)
@@ -834,7 +839,7 @@
 +            _ctext += _cw.lines[_ci] + " | ";
 +    }
 +
-+    var _c_ok = _cw != -1 && (!variable_struct_exists(arg0, "contains") || string_pos(arg0.contains, _ctext) > 0);
++    var _c_ok = _cw != -1 && (!variable_struct_exists(arg0, "contains") || string_pos(arg0.contains, _ctext) > 0) && (!variable_struct_exists(arg0, "lacks") || string_pos(arg0.lacks, _ctext) == 0);
 +    scr_gnx_scn_check("confirm", _c_ok, (_cw == -1) ? "no dialog" : _ctext);
 +}
 +
@@ -1059,6 +1064,12 @@
 +            case 10: _fn_r = script_execute(_fn_i, _fn_a[0], _fn_a[1], _fn_a[2], _fn_a[3], _fn_a[4], _fn_a[5], _fn_a[6], _fn_a[7], _fn_a[8], _fn_a[9]); break;
 +            default: _fn_i = -1; break;  // more than 10 args: the assert fails instead of dropping some
 +        }
++    }
++
++    if (variable_struct_exists(arg0, "min"))  // "min": n instead of "is": a number at least n
++    {
++        scr_gnx_scn_check("fn", _fn_i >= 0 && is_numeric(_fn_r) && _fn_r >= arg0.min, arg0.name + json_stringify(_fn_a) + " = " + string(_fn_r) + " want >= " + string(arg0.min));
++        exit;
 +    }
 +
 +    scr_gnx_scn_check("fn", _fn_i >= 0 && _fn_r == arg0.is, arg0.name + json_stringify(_fn_a) + " = " + string(_fn_r) + " want " + string(arg0.is));
@@ -1598,7 +1609,8 @@
 +}
 +
 +
-+// a scenario argument: {"class": "mod_folder.NAME"} -> class id, {"cell": "mod_folder.NAME"} -> h_type, else as is
++// a scenario argument: {"class": "mod_folder.NAME"} -> class id, {"cell": "mod_folder.NAME"} -> h_type,
++// {"mon": "name"} -> monster type, else as is
 +function gnx_scn_ref(arg0)
 +{
 +    if (is_struct(arg0))
@@ -1613,6 +1625,12 @@
 +        {
 +            var _hv = ds_map_find_value(global.gnx_cell_name_to_id, arg0.cell);
 +            return is_undefined(_hv) ? -999 : _hv;
++        }
++
++        if (variable_struct_exists(arg0, "mon"))  // {"mon": "wolf"} -> monster type index
++        {
++            var _mv = gnx_mon_type_id(arg0.mon);
++            return (_mv < 0) ? -999 : _mv;
 +        }
 +    }
 +
@@ -2555,6 +2573,781 @@
 +{
 +    var _v = global.val;
 +    return string(array_length(_v.stage_info)) + " " + string(array_length(_v.stage_lvl_sel)) + " " + string(array_length(_v.stage_item)) + " " + string(array_length(global.base_raid_time)) + " " + string(array_length(global.reward)) + " " + string(array_length(_v.gnx_stage_keys)) + " " + string(array_length(variable_struct_get_names(_v.gnx_stage_saved)));
++}
++
++
++// for {"assert": "fn"}: the custom monster types as "name=index/like" in index order ("" when there is none)
++function gnx_scn_type_ids()
++{
++    var _s = "";
++
++    for (var _i = 4; _i < gnx_mon_type_count(); _i++)
++        _s += ((_i > 4) ? " " : "") + global.gnx_mon_types[_i].name + "=" + string(_i) + "/" + string(global.gnx_mon_types[_i].like);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the raid rows, skills and art source of type arg0 (an index, or {"mon": name}) as one line
++function gnx_scn_mon_tables(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++
++    if (_t < 0)
++        return "no type";
++
++    var _ic = (_t >= 4 && variable_struct_get(global.gnx_mon_types[_t], "spr_icon") != -1) ? "own" : "like";
++    var _hd = (_t >= 4 && variable_struct_get(global.gnx_mon_types[_t], "spr_heads") != -1) ? "own" : "like";
++    var _in = (_t >= 4 && variable_struct_get(global.gnx_mon_types[_t], "spr_infant_head") != -1) ? "own" : "like";
++    return "range=" + string(global.mon_range[_t]) + " skills=" + string(global.mon_skill[_t]) + " icon=" + _ic + " heads=" + _hd + " infant=" + _in;
++}
++
++
++// for {"assert": "fn"}: "<len val.mon_num> <len val.nest_num> <0|1 has val.gnx_mon> <0|1 has val.gnx_types>" of the live game
++function gnx_scn_type_lens()
++{
++    var _v = global.val;
++    return string(array_length(_v.mon_num)) + " " + string(array_length(_v.nest_num)) + " " + string(variable_struct_exists(_v, "gnx_mon") ? 1 : 0) + " " + string(variable_struct_exists(_v, "gnx_types") ? 1 : 0);
++}
++
++
++// for {"assert": "fn"}: the same from the slot-9 save file; fields 3-4 are the sorted names under val.gnx_mon / in val.gnx_types ("-" when absent)
++function gnx_scn_save_type_shape()
++{
++    var _b = buffer_load("gnx_harness_save.json");
++    var _d = json_parse(buffer_read(_b, buffer_text));
++    buffer_delete(_b);
++    var _v = _d.global_list.val;
++    var _s = string(array_length(_v.mon_num)) + " " + string(array_length(_v.nest_num));
++    var _keys = ["gnx_mon", "gnx_types"];
++    
++    for (var _k = 0; _k < 2; _k++)
++    {
++        var _names = [];
++        
++        if (variable_struct_exists(_v, _keys[_k]))
++        {
++            var _o = variable_struct_get(_v, _keys[_k]);
++            
++            if (is_struct(_o))
++                _names = variable_struct_get_names(_o);
++            else if (is_array(_o))  // val.gnx_types: [{name, like}]
++            {
++                for (var _e = 0; _e < array_length(_o); _e++)
++                    array_push(_names, is_struct(_o[_e]) ? string(_o[_e].name) : "?");
++            }
++        }
++        
++        array_sort(_names, true);
++        var _j = "";
++        
++        for (var _i = 0; _i < array_length(_names); _i++)
++            _j += ((_i > 0) ? "," : "") + _names[_i];
++        
++        _s += " " + ((_j == "") ? "-" : _j);
++    }
++    
++    return _s;
++}
++
++
++// for {"assert": "fn"}: seeds the random stream, kills n free monsters and reports what is left, to prove the starvation stream is unchanged
++function gnx_scn_starve_probe(arg0, arg1)
++{
++    random_set_seed(arg0);
++    var _left = scr_kill_mon(arg1);
++    var _v = global.val;
++    var _s = "left=" + string(_left) + " g=" + string(_v.goblin.num) + " h=" + string(_v.hobgoblin.num) + " t=" + string(_v.tentacle.num) + " o=" + string(_v.ogre.num) + " m=" + string(_v.mon_num);
++
++    if (gnx_mon_type_count() > 4)  // custom types: " c=wolf:[ ... ],bear:[ ... ]" (nothing added without one)
++    {
++        _s += " c=";
++
++        for (var _t = 4; _t < gnx_mon_type_count(); _t++)
++            _s += ((_t > 4) ? "," : "") + global.gnx_mon_types[_t].name + ":" + string(gnx_mon_data(_t).num);
++    }
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: units kept in global.val.gnx_mon.<arg0> (sum of the open classes), -1 when it has no entry
++function gnx_scn_kept_num(arg0)
++{
++    if (!variable_struct_exists(global.val, "gnx_mon") || !is_struct(global.val.gnx_mon) || !variable_struct_exists(global.val.gnx_mon, arg0))
++        return -1;
++
++    var _num = variable_struct_get(global.val.gnx_mon, arg0).num;
++    var _k = 0;
++
++    for (var _c = 0; _c < array_length(_num); _c++)
++        _k += max(0, _num[_c]);
++
++    return _k;
++}
++
++
++// for {"assert": "fn"}: troops of type arg0 in the raid's front row (arg1 = 0) or back row (arg1 = 1). A live row
++// entry is {mon_type: 21 (the entry kind), unit_data: {mon_type, class, lvl}, num}: the monster type is unit_data's
++function gnx_scn_row_num(arg0, arg1)
++{
++    var _list = (arg1 == 0) ? global.front_row : global.back_row;
++    var _n = 0;
++
++    for (var _i = 0; _i < ds_list_size(_list); _i++)
++    {
++        var _e = ds_list_find_value(_list, _i);
++
++        if (_e.unit_data.mon_type == arg0)
++            _n += _e.num;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: the type names in the saved formation (global.front_row_save and back_row_save, flat
++// entries {mon_type, class, num}), sorted, each once, space-joined; "?<n>" for a number with no type, "none" when empty
++function gnx_scn_saved_row_types()
++{
++    var _names = [];
++    var _lists = [global.front_row_save, global.back_row_save];
++
++    for (var _r = 0; _r < 2; _r++)
++    {
++        for (var _i = 0; _i < ds_list_size(_lists[_r]); _i++)
++        {
++            var _t = ds_list_find_value(_lists[_r], _i).mon_type;
++            var _nm = gnx_mon_type_name(_t);
++            _nm = (_nm == "") ? "?" + string(_t) : _nm;
++
++            if (!array_contains(_names, _nm))
++                array_push(_names, _nm);
++        }
++    }
++
++    if (array_length(_names) == 0)
++        return "none";
++
++    array_sort(_names, true);
++    var _s = _names[0];
++
++    for (var _i = 1; _i < array_length(_names); _i++)
++        _s += " " + _names[_i];
++
++    return _s;
++}
++
++
++// {"assert": "fn"}: the saved formation becomes one front row of arg2 monsters of type arg0 (a name), class arg1
++// (what case 62 writes from the live rows); returns 1, or 0 with nothing written when that type is not installed
++function gnx_scn_set_saved_row(arg0, arg1, arg2)
++{
++    var _t = gnx_mon_type_id(arg0);
++
++    if (_t < 0)
++        return 0;
++
++    ds_list_clear(global.front_row_save);
++    ds_list_clear(global.back_row_save);
++    ds_list_add(global.front_row_save, {mon_type: _t, class: arg1, num: arg2});
++    return 1;
++}
++
++
++// for {"assert": "fn"}: the type name of the raid window's category (obj_np.obj_raid.raid_data.cat), "?<n>" when none
++function gnx_scn_raid_cat()
++{
++    var _c = obj_np.obj_raid.raid_data.cat;
++    var _nm = gnx_mon_type_name(_c);
++    return (_nm == "") ? "?" + string(_c) : _nm;
++}
++
++
++// for {"assert": "fn"}: the button_nums of the raid window's category buttons (interact 39), ascending, space-joined
++function gnx_scn_raid_cats()
++{
++    var _a = [];
++
++    with (obj_button)
++    {
++        if (interact_type == 39)
++            array_push(_a, button_num);
++    }
++
++    array_sort(_a, true);
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_a); _i++)
++        _s += ((_i > 0) ? " " : "") + string(_a[_i]);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the raid window's category page (obj_raid.gnx_cat_page), -1 when it is not set
++function gnx_scn_raid_cat_page()
++{
++    var _r = obj_np.obj_raid;
++    return variable_instance_exists(_r, "gnx_cat_page") ? _r.gnx_cat_page : -1;
++}
++
++
++// for {"assert": "fn"}: 1 when one hovered frame of the LOAD FORMATION button (interact 63) draws through
++// gnx_draw_sprite_ext (its custom head branch), 0 when it does not, -1 when there is no such button
++function gnx_scn_loadform_spy()
++{
++    var _r = -1;
++
++    with (obj_button)
++    {
++        if (_r == -1 && interact_type == 63)
++        {
++            hover = true;
++            trigger = false;
++            global.gnx_draw_spy = [];
++            scr_draw_loadform_button();
++            _r = array_length(global.gnx_draw_spy) > 0;
++            global.gnx_draw_spy = -1;
++        }
++    }
++
++    return _r;
++}
++
++
++// for {"assert": "fn"}: the raid's AP of the front (arg0 = 0) or back (1) row, as scr_calculate_group_stat left it
++function gnx_scn_raid_ap(arg0)
++{
++    return obj_np.obj_raid.raid_data.ap[arg0];
++}
++
++
++// for {"assert": "fn"}: 1 when the raid's AP, skill types and skill levels are what scr_calculate_group_stat gives
++// from the rows as they are now (a stale raid still counts troops that left its rows); the raid's stats are put back
++function gnx_scn_raid_ap_fresh()
++{
++    var _rd = obj_np.obj_raid.raid_data;
++    var _keys = ["ap", "skill_type", "skill_num", "skill_exp"];
++    var _old = [];
++
++    for (var _k = 0; _k < 4; _k++)  // copies: the recompute writes into skill_num / skill_exp in place
++    {
++        var _a = variable_struct_get(_rd, _keys[_k]);
++        var _c = [];
++
++        for (var _i = 0; _i < array_length(_a); _i++)
++        {
++            if (is_array(_a[_i]))
++            {
++                _c[_i] = [];
++                array_copy(_c[_i], 0, _a[_i], 0, array_length(_a[_i]));
++            }
++            else
++                _c[_i] = _a[_i];
++        }
++
++        _old[_k] = _c;
++    }
++
++    var _haste = _rd.haste;
++
++    with (obj_np.obj_raid)
++        scr_calculate_group_stat(-1);
++
++    // the stored stats against the fresh ones (string() writes nested arrays out by value)
++    var _same = string(_old[0]) == string(_rd.ap) && string(_old[1]) == string(_rd.skill_type) && string(_old[2]) == string(_rd.skill_num);
++
++    if (!_same)
++        gnx_scn_log("raid_ap_fresh: stored ap=" + string(_old[0]) + " skills=" + string(_old[1]) + " fresh ap=" + string(_rd.ap) + " skills=" + string(_rd.skill_type));
++
++    for (var _k = 0; _k < 4; _k++)
++        variable_struct_set(_rd, _keys[_k], _old[_k]);
++
++    _rd.haste = _haste;
++    return _same ? 1 : 0;
++}
++
++
++// {"assert": "fn"}: the raid window's category becomes type arg0 (a name); 1 when it is installed
++function gnx_scn_set_raid_cat(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++
++    if (_t < 0)
++        return 0;
++
++    obj_np.obj_raid.raid_data.cat = _t;
++    return 1;
++}
++
++
++// for {"assert": "fn"}: global.val.mon_num of type arg0 (an index)
++function gnx_scn_mon_num(arg0)
++{
++    return global.val.mon_num[arg0];
++}
++
++
++// {"assert": "fn"}: remembers the count of type arg0, class arg1 for gnx_scn_num_delta; returns 1
++function gnx_scn_num_mark(arg0, arg1)
++{
++    global.gnx_scn_num_mark = gnx_scn_type_num(arg0, arg1);
++    return 1;
++}
++
++
++// for {"assert": "fn"}: the count of type arg0, class arg1 now minus the one gnx_scn_num_mark remembered
++function gnx_scn_num_delta(arg0, arg1)
++{
++    return gnx_scn_type_num(arg0, arg1) - global.gnx_scn_num_mark;
++}
++
++
++// for {"assert": "fn"}: the type (mon_data.mon_type) of the first infant (prop 40) in the cell the last occupy step
++// filled, -1 when it has none
++function gnx_scn_occupied_infant()
++{
++    var _p = global.gnx_scn_occupied.slot_data.prop;
++
++    for (var _i = 0; _i < array_length(_p); _i++)
++    {
++        if (_p[_i].prop_type == 40)
++            return variable_struct_exists(_p[_i], "mon_data") ? _p[_i].mon_data.mon_type : -2;
++    }
++
++    return -1;
++}
++
++
++// for {"assert": "fn"}: desyncs type arg0's count (mon_num[t] = 3 while every class has 0 units), returns 1
++function gnx_scn_type_desync(arg0)
++{
++    var _md = gnx_mon_data(arg0);
++
++    for (var _c = 0; _c < 4; _c++)
++        _md.num[_c] = 0;
++
++    global.val.mon_num[arg0] = 3;
++    return 1;
++}
++
++
++// for {"assert": "fn"}: seeds the random stream and starves n monsters; 1 when scr_kill_mon returns (a hang hits
++// the scenario timeout)
++function gnx_scn_starve_ends(arg0, arg1)
++{
++    random_set_seed(arg0);
++    scr_kill_mon(arg1);
++    return 1;
++}
++
++
++// for {"assert": "fn"}: the first text line of the raid skill window of type arg0, class arg1 (the window is destroyed)
++function gnx_scn_skill_text(arg0, arg1)
++{
++    with (obj_window)
++        gnx_scn_sk_old = true;
++
++    scr_create_cat_skill_window(arg0, arg1);
++    var _t = "";
++
++    with (obj_window)
++    {
++        if (interact_type == 10 && !variable_instance_exists(id, "gnx_scn_sk_old"))
++        {
++            _t = skill_text_1;
++            instance_destroy();
++        }
++    }
++
++    return _t;
++}
++
++
++// for {"assert": "fn"}: gnx_scn_cost_mark() keeps scr_all_cost() and returns 1; gnx_scn_cost_delta() is the change since
++function gnx_scn_cost_mark()
++{
++    global.gnx_scn_cost_mark = scr_all_cost();
++    return 1;
++}
++
++
++function gnx_scn_cost_delta()
++{
++    return scr_all_cost() - global.gnx_scn_cost_mark;
++}
++
++
++// for {"assert": "fn"}: 1 when a raid row head of type arg0 draws through gnx_draw_sprite_ext (the custom head
++// branch of scr_draw_mon_head), 0 when it does not, -1 when no row head of that type exists
++function gnx_scn_head_spy(arg0)
++{
++    var _r = -1;
++
++    with (obj_button)
++    {
++        if (_r == -1 && interact_type == 22 && unit_data.mon_type == arg0)
++        {
++            global.gnx_draw_spy = [];
++            scr_draw_mon_head();
++            _r = array_length(global.gnx_draw_spy) > 0;
++            global.gnx_draw_spy = -1;
++        }
++    }
++
++    return _r;
++}
++
++
++// {"call": "gnx_scn_spawn_walker", "args": ["wolf"]}: one monster of type arg0 (name or index) out of the nest door of
++// floor 0, wandering (state 5, as a free monster); counted out of the nest as scr_slot_call_mon counts one it sends.
++// Kept in global.gnx_scn_walker. 1 when made, 0 when the type or the door is missing
++function gnx_scn_spawn_walker(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _d = -1;
++
++    with (obj_slot)
++    {
++        if (_d == -1 && slot_data.slot_type == 3 && slot_data.slot_floor == 0)
++            _d = id;
++    }
++
++    if (_t < 0 || _d == -1)
++        return 0;
++
++    var _mm = scr_create_mon(_t, _d.x + floor(_d.image_xscale * 0.5), _d.y, 0, -1, 0);
++    global.val.nest_num[_t + 1]++;
++
++    with (_mm)
++        mon_data.mon_state = 5;
++
++    global.gnx_scn_walker = _mm;
++    return 1;
++}
++
++
++// for {"assert": "fn"}: "<sprite name> <image_blend>" of the gnx_scn_spawn_walker monster, "gone" when it is not there
++function gnx_scn_walker_info()
++{
++    if (!variable_global_exists("gnx_scn_walker") || !instance_exists(global.gnx_scn_walker))
++        return "gone";
++
++    var _w = global.gnx_scn_walker;
++    return sprite_get_name(_w.sprite_index) + " " + string(_w.image_blend);
++}
++
++
++// for {"assert": "fn"}: live monsters (obj_mon) of type arg0 (name or index)
++function gnx_scn_mon_live(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == _t)
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: live monsters of every custom type (4 and up)
++function gnx_scn_mon_live_custom()
++{
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type >= 4)
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: the ambience species key (scr_gnx_goblin_species_key) of a temporary monster of type arg0 (name or index)
++function gnx_scn_species_key(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++
++    if (_t < 0)
++        return "no type";
++
++    var _m = scr_create_mon(_t, 0, 0, 0, -1, 0);
++    var _k = scr_gnx_goblin_species_key(_m);
++
++    with (_m)
++        instance_destroy();
++
++    return _k;
++}
++
++
++// for {"assert": "fn"}: how many ambience clips (ambient, breeding, victory, defeat) the species pool arg0 holds
++function gnx_scn_species_pool(arg0)
++{
++    var _n = 0;
++    var _kinds = ["ambient", "breeding", "victory", "defeat"];
++
++    for (var _i = 0; _i < 4; _i++)
++        _n += array_length(scr_gnx_goblin_pool(arg0, _kinds[_i]));
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: the ambience species the game knows, joined by commas (vanilla three, then custom types with clips)
++function gnx_scn_species_list()
++{
++    var _names = ["goblin", "hobgoblin", "ogre"];
++
++    for (var _i = 0; _i < array_length(global.gnx_ambience_custom); _i++)
++        array_push(_names, global.gnx_ambience_custom[_i]);
++
++    var _r = "";
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++        _r += ((_i > 0) ? "," : "") + _names[_i];
++
++    return _r + " timers=" + string(array_length(global.gnx_goblin_species_next));
++}
++
++
++// for {"assert": "fn"}: the species lines scr_gnx_goblin_raid_species (arg0: won) picks over 40 draws when the formation
++// is arg1 = an array of type names, 5 of each; the distinct picks sorted and joined by commas ("none" = "")
++function gnx_scn_raid_pick(arg0, arg1)
++{
++    var _fr = global.front_row;
++    var _br = global.back_row;
++    global.front_row = ds_list_create();
++    global.back_row = ds_list_create();
++    var _names = arg1;
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++        ds_list_add(global.front_row, { unit_data: { mon_type: gnx_mon_type_id(_names[_i]) }, num: 5 });
++
++    var _seen = [];
++
++    for (var _d = 0; _d < 40; _d++)
++    {
++        var _p = scr_gnx_goblin_raid_species(arg0);
++
++        if (!array_contains(_seen, _p))
++            array_push(_seen, _p);
++    }
++
++    ds_list_destroy(global.front_row);
++    ds_list_destroy(global.back_row);
++    global.front_row = _fr;
++    global.back_row = _br;
++    array_sort(_seen, true);
++    var _r = "";
++
++    for (var _i = 0; _i < array_length(_seen); _i++)
++        _r += ((_i > 0) ? "," : "") + _seen[_i];
++
++    return _r;
++}
++
++
++// for {"assert": "fn"}: global.val.nest_num of type arg0 (name or index): its monsters out of the nest
++function gnx_scn_nest_out(arg0)
++{
++    return global.val.nest_num[gnx_mon_type_id(arg0) + 1];
++}
++
++
++// for {"assert": "fn"}: the registry mon_types of cell arg0, joined by spaces ("-" when it has none)
++function gnx_scn_cell_mon_types(arg0)
++{
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++
++    if (is_undefined(_c) || !variable_struct_exists(_c, "mon_types") || !is_array(_c.mon_types))
++        return "-";
++
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_c.mon_types); _i++)
++        _s += ((_i > 0) ? " " : "") + string(_c.mon_types[_i]);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: 1 when a monster of type arg0 (name or index) is inside or on its way to the cell the last
++// occupy step filled, else 0
++function gnx_scn_occupied_has(arg0)
++{
++    var _c = global.gnx_scn_occupied;
++    var _t = gnx_mon_type_id(arg0);
++    var _r = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == _t && (mon_data.slot_id == _c || array_contains(_c.h_unit_list, id)))
++            _r = 1;
++    }
++
++    return _r;
++}
++
++
++// for {"assert": "fn"}: one real draw (its scr_mon_draw, under the draw spy) of the monster of type arg0 that plays in
++// the cell the last occupy step filled: 1 when a drawn sprite's name contains arg1 (a mod sprite is named
++// "mod:<path>", a vanilla one by its asset name), 0 when none does, -1 when no such monster is in the cell
++function gnx_scn_occupied_mon_drawn(arg0, arg1)
++{
++    var _c = global.gnx_scn_occupied;
++    var _t = gnx_mon_type_id(arg0);
++    var _r = -1;
++    var _rev = gnx_art_rev_make();
++    var _seen = "";
++
++    with (obj_mon)
++    {
++        if (_r == -1 && mon_data.mon_type == _t && mon_data.slot_id == _c && mon_data.mon_state == 1 && scr_mon_draw != -1)
++        {
++            global.gnx_draw_spy = [];
++            script_execute(scr_mon_draw, true);
++            _r = 0;
++
++            for (var _i = 0; _i < array_length(global.gnx_draw_spy); _i++)
++            {
++                var _s = global.gnx_draw_spy[_i];
++                var _n = ds_map_find_value(_rev, string(_s));
++
++                if (is_undefined(_n))
++                    _n = (!is_struct(_s) && sprite_exists(_s)) ? sprite_get_name(_s) : string(_s);
++
++                _seen += " " + _n;
++
++                if (string_pos(arg1, _n) > 0)
++                    _r = 1;
++            }
++
++            global.gnx_draw_spy = -1;
++        }
++    }
++
++    ds_map_destroy(_rev);
++    gnx_scn_log("occupied_mon_drawn " + string(arg0) + ":" + _seen);
++    return _r;
++}
++
++
++// 1 when unit arg0 carries a custom type (preg 4 and up)
++function gnx_scn_preg_is_custom(arg0)
++{
++    return is_struct(arg0) && variable_struct_exists(arg0, "preg") && is_numeric(arg0.preg) && arg0.preg >= 4;
++}
++
++
++// for {"assert": "fn"}: captives carrying a custom type (preg 4 and up) in cells, in the prison and in the cage
++function gnx_scn_preg_custom()
++{
++    var _n = 0;
++
++    with (obj_slot)
++    {
++        if (gnx_scn_preg_is_custom(unit_data))
++            _n++;
++    }
++
++    for (var _i = 0; _i < ds_list_size(global.unit_list); _i++)
++    {
++        if (gnx_scn_preg_is_custom(ds_list_find_value(global.unit_list, _i)))
++            _n++;
++    }
++
++    for (var _i = 0; _i < array_length(global.val.cage); _i++)
++    {
++        if (gnx_scn_preg_is_custom(global.val.cage[_i]))
++            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: unit_data.preg of the captive in the cell the last occupy step filled
++function gnx_scn_preg_at_occupied()
++{
++    return global.gnx_scn_occupied.unit_data.preg;
++}
++
++
++// {"call": "gnx_scn_occupied_at", "args": [h]}: the first occupied cell of type h becomes the "last occupied" cell
++// (a chain's later run has none of its own); 1 when found
++function gnx_scn_occupied_at(arg0)
++{
++    var _c = gnx_scn_occupied_cell(arg0);
++
++    if (_c == -1)
++        return 0;
++
++    global.gnx_scn_occupied = _c;
++    global.gnx_scn_occupied_pos = [_c.slot_data.slot_floor, ds_list_find_index(global.slot_list[_c.slot_data.slot_floor], _c)];
++    return 1;
++}
++
++
++// for {"assert": "fn"}: 1 when the population (nest_num[0]) matches scr_all_mon_num_cal
++function gnx_scn_pop_ok()
++{
++    return (global.val.nest_num[0] == scr_all_mon_num_cal()) ? 1 : 0;
++}
++
++
++// {"assert": "fn", "name": "gnx_scn_open_door_window", "is": 1}: the nest entrance (door, slot_type 3) window of
++// floor 0, as a click on the door opens it (s_mouse_action); 1 when the door was found
++function gnx_scn_open_door_window()
++{
++    var _d = -1;
++
++    with (obj_slot)
++    {
++        if (_d == -1 && slot_data.slot_type == 3 && slot_data.slot_floor == 0)
++            _d = id;
++    }
++
++    if (_d == -1)
++        return 0;
++
++    scr_create_window_slot_mod(_d, _d.x, _d.y - 4, false);
++    return 1;
++}
++
++
++// for {"assert": "fn"}: the type rows (icon_array) of the open door window joined by spaces, "none" when it is not open
++function gnx_scn_door_window_icons()
++{
++    var _s = "none";
++
++    with (obj_window)
++    {
++        if (variable_instance_exists(id, "icon_array") && scr_window_draw == scr_draw_mod_door_window)
++        {
++            _s = "";
++
++            for (var _i = 0; _i < array_length(icon_array); _i++)
++                _s += ((_i > 0) ? " " : "") + string(icon_array[_i]);
++        }
++    }
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the game types' num arrays, "<goblin> <hobgoblin> <tentacle> <ogre>"
++function gnx_scn_vanilla_nums()
++{
++    var _v = global.val;
++    return string(_v.goblin.num) + " " + string(_v.hobgoblin.num) + " " + string(_v.tentacle.num) + " " + string(_v.ogre.num);
 +}
 +
 +
@@ -3693,7 +4486,78 @@
 +// the guide's mod birth list for monster type arg0 / class arg1 holds unit class arg2
 +function gnx_scn_br_has(arg0, arg1, arg2)
 +{
-+    return array_contains(global.val.gnx_br_unlock[arg0][arg1], arg2);
++    return array_contains(gnx_br_list(arg0, arg1), arg2);
++}
++
++
++// for {"assert": "fn"}: the name of the type a captive of unit class arg1 gets pregnant with from a father of type arg0
++function gnx_scn_preg_for(arg0, arg1)
++{
++    return gnx_mon_type_name(gnx_preg_type_for(arg0, arg1));
++}
++
++
++// for {"assert": "fn"}: the monster class born for mod unit class arg0 from type arg1 (-1 = no birth_class)
++function gnx_scn_birth_class(arg0, arg1)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++    return (_rc == undefined) ? -999 : gnx_birth_class_for(_rc, arg1);
++}
++
++
++// for {"assert": "fn"}: what unit class arg0's birth_spr gives entry arg1 ("birth_1", "birth_2" ...) for a father of
++// custom type arg2, as the infant prop looks it up (gnx_birth_spr_lookup): "own" = a sprite other than its like's
++// entry, "like" = the like's, "none" = no sprite (the vanilla birth art)
++function gnx_scn_birth_spr(arg0, arg1, arg2)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++
++    if (_rc == undefined || !variable_struct_exists(_rc, "birth_spr"))
++        return "none";
++
++    var _t = gnx_mon_type_id(arg2);
++    var _s = gnx_birth_spr_lookup(_rc.birth_spr, arg1, _t);
++
++    if (!is_struct(_s) && _s == -1)
++        return "none";
++
++    return (_s == gnx_birth_spr_lookup(_rc.birth_spr, arg1, gnx_mon_like(_t))) ? "like" : "own";
++}
++
++
++// for {"assert": "fn"}: the count of monster type arg0, class arg1 (-1 = locked; -999 = type not installed)
++function gnx_scn_type_num(arg0, arg1)
++{
++    var _d = gnx_mon_data(arg0);
++    return is_undefined(_d) ? -999 : _d.num[arg1];
++}
++
++
++// for {"assert": "fn"}: the load remap on a made-up save whose custom types were [a type not installed, wolf], so
++// wolf was saved as 5; one underground cell holds a birth payload of type 5. Gives the payload's type after
++// gnx_types_save_remap (this boot's wolf number when it is remapped, 5 when it is not). The load flag it sets is
++// put back.
++function gnx_scn_remap_payload()
++{
++    var _moved = variable_global_exists("gnx_types_load_moved") ? global.gnx_types_load_moved : false;
++    var _pay = {mon_type: 5, class: 0, lvl: 1};
++    var _save =
++    {
++        global_list: {val: {gnx_types: [{name: "zz_not_installed", like: 0}, {name: "wolf", like: 0}]}, unit_list: []},
++        mon_list: [],
++        slot_list: [{unit_data: -1, slot_data: {gnx_ug_birth_payload: _pay}}]
++    };
++    gnx_types_save_remap(_save);
++    global.gnx_types_load_moved = _moved;
++    return _pay.mon_type;
++}
++
++
++// for {"assert": "fn"}: 1 when class arg0 got its once-per-boot type-name warning; arg1 "" = preg_mon_type_override,
++// "|birth" = birth_class / birth_spr
++function gnx_scn_type_warned(arg0, arg1)
++{
++    return variable_struct_exists(global.gnx_preg_warned, string(arg0) + arg1);
 +}
 +
 +
@@ -3764,8 +4628,11 @@
 +
 +        variable_struct_set(_seen, _key, true);
 +
-+        if (_a.kind == "panel")
++        if (_a.kind == "panel")  // a modal window: what was drawn before it (the top bar) lies under its backdrop
++        {
 +            _pan = _a;
++            _r = [];
++        }
 +        else
 +            array_push(_r, _a);
 +    }
@@ -4324,7 +5191,9 @@
 +function gnx_scn_st_mon_spr_probe(_s, _st)
 +{
 +    // {"mon_spr_probe": {"cell": {...}, "mon_type": 3, "phase": 1, "ogre_alpha": true}}: the real
-+    // scr_set_mon_spr_data for a monster in that cell type (an occupied small cell is borrowed, then put back)
++    // scr_set_mon_spr_data for a monster in that cell type (an occupied small cell is borrowed, then put back).
++    // mon_type may be {"mon": "wolf"}; "body": "name" checks mon_spr.body_b too (a mod sprite is "mod:<path>");
++    // ogre_alpha is checked only when given
 +    var _mp = _st.mon_spr_probe;
 +    var _mc = gnx_scn_occupied_cell(-1);
 +
@@ -4336,9 +5205,11 @@
 +    {
 +        var _old_h = _mc.slot_data.h_type;
 +        _mc.slot_data.h_type = gnx_scn_ref(_mp.cell);
-+        var _mm = scr_create_mon(_mp.mon_type, _mc.x, _mc.y, _mc.slot_data.slot_floor, -1, 0);
++        var _mt = gnx_scn_ref(_mp.mon_type);
++        var _mm = scr_create_mon(_mt, _mc.x, _mc.y, _mc.slot_data.slot_floor, -1, 0);
 +        var _flag = undefined;
 +        var _bl = -1;
++        var _bb = -1;
 +
 +        with (_mm)
 +        {
@@ -4346,11 +5217,20 @@
 +            scr_set_mon_spr_data(_mc, _mp.phase);
 +            _flag = gnx_opt(mon_data, "gnx_ogre_alpha", undefined);
 +            _bl = mon_spr.body_l;
++            _bb = mon_spr.body_b;
 +            instance_destroy();
 +        }
 +
 +        _mc.slot_data.h_type = _old_h;
-+        scr_gnx_scn_check("mon_spr_probe", _flag == _mp.ogre_alpha, "h_type " + string(gnx_scn_ref(_mp.cell)) + " mon_type " + string(_mp.mon_type) + " gnx_ogre_alpha=" + string(_flag) + " body_l=" + string(_bl));
++        var _rev = gnx_art_rev_make();
++        var _bn = ds_map_find_value(_rev, string(_bb));
++        ds_map_destroy(_rev);
++
++        if (is_undefined(_bn))
++            _bn = (!is_struct(_bb) && sprite_exists(_bb)) ? sprite_get_name(_bb) : string(_bb);
++
++        var _ok = (!variable_struct_exists(_mp, "ogre_alpha") || _flag == _mp.ogre_alpha) && (!variable_struct_exists(_mp, "body") || _bn == _mp.body);
++        scr_gnx_scn_check("mon_spr_probe", _ok, "h_type " + string(gnx_scn_ref(_mp.cell)) + " mon_type " + string(_mt) + " gnx_ogre_alpha=" + string(_flag) + " body_l=" + string(_bl) + " body_b=" + _bn);
 +    }
 +
 +    return false;
@@ -5185,14 +6065,15 @@
 +        _bp_c.slot_data.h_type = _bp_h;
 +        _bp_c.unit_data = -1;
 +        var _bp_out = [];
++        var _bp_n = gnx_mon_type_count();
 +
-+        for (var _bpt = 0; _bpt < 4; _bpt++)  // goblin, hobgoblin, tentacle, ogre fathers
++        for (var _bpt = 0; _bpt < _bp_n; _bpt++)  // goblin, hobgoblin, tentacle, ogre fathers, then the custom types
 +        {
 +            var _bp_p = scr_create_prop(_bp_c, 40, { mon_type: _bpt }, -1);
 +
 +            if (instance_exists(_bp_p))
 +            {
-+                array_push(_bp_out, sprite_get_name(_bp_p.sprite_index));
++                array_push(_bp_out, sprite_exists(_bp_p.sprite_index) ? sprite_get_name(_bp_p.sprite_index) : "none");
 +                instance_destroy(_bp_p);
 +            }
 +        }
@@ -5200,7 +6081,13 @@
 +        array_resize(_bp_c.slot_data.prop, _bp_props);
 +        _bp_c.slot_data.h_type = _bp_h0;
 +        _bp_c.unit_data = _bp_u;
-+        scr_gnx_scn_check("birth_probe", array_length(_bp_out) == 4, "h=" + string(_bp_h) + " infants " + string(_bp_out));
++        // every infant has a sprite, a custom type's the same as its like's
++        var _bp_ok = array_length(_bp_out) == _bp_n && !array_contains(_bp_out, "none");
++
++        for (var _bpt = 4; _bp_ok && _bpt < _bp_n; _bpt++)
++            _bp_ok = _bp_out[_bpt] == _bp_out[gnx_mon_like(_bpt)];
++
++        scr_gnx_scn_check("birth_probe", _bp_ok, "h=" + string(_bp_h) + " infants " + string(_bp_out));
 +    }
 +
 +    return false;
@@ -5752,7 +6639,7 @@
 +    // rows the way a drag does: a head of that class is dropped on the row (scr_raid_drop_mon_head),
 +    // then the number window that opens is entered with num (scr_mon_num_enter). cat 0 = goblins.
 +    var _rf = _st.raid_formation;
-+    var _rf_cat = gnx_opt(_rf, "cat", 0);
++    var _rf_cat = gnx_scn_ref(gnx_opt(_rf, "cat", 0));  // a number or {"mon": "wolf"}
 +    var _rf_rows = [gnx_opt(_rf, "front", []), gnx_opt(_rf, "back", [])];
 +    var _rf_y = [66, 120];
 +    var _raid = obj_np.obj_raid;
@@ -6096,8 +6983,10 @@
 +    {
 +        var _oc_u = scr_create_unit_base(_oc_cls, gnx_opt(_st.occupy, "level", 1));
 +
-+        if (variable_struct_exists(_st.occupy, "preg"))  // "preg": mon type she carries (0 goblin, 1 hobgoblin)
-+            _oc_u.preg = _st.occupy.preg;
++        // "preg": mon type she carries (0 goblin, 1 hobgoblin, {"mon": "wolf"}); "occupied": the pregnancy of the
++        // captive in the cell the last occupy step filled (or gnx_scn_occupied_at found)
++        if (variable_struct_exists(_st.occupy, "preg"))
++            _oc_u.preg = (is_string(_st.occupy.preg) && _st.occupy.preg == "occupied") ? global.gnx_scn_occupied.unit_data.preg : gnx_scn_ref(_st.occupy.preg);
 +
 +        if (variable_struct_exists(_st.occupy, "milk"))  // "milk": true = she has milk (a MILK cell calls goblins)
 +            _oc_u.milk = _st.occupy.milk == true;
@@ -6244,13 +7133,19 @@
 +        carry_food = clamp(gnx_opt(_tw, "food", 0), 0, max_food);
 +        carry_goblins = clamp(gnx_opt(_tw, "goblins", 0), 0, max_goblins);
 +
-+        // "troops": [[type, class, n], ...] (TROOPS tab), "captives": n (the first n prisoners, CAPTIVES tab)
++        // "troops": [[type, class, n], ...] (TROOPS tab; type = a number 0-3 or a type name), "captives": n
++        // (the first n prisoners, CAPTIVES tab)
 +        if (variable_struct_exists(_tw, "troops"))
 +        {
 +            for (var _tt = 0; _tt < array_length(_tw.troops); _tt++)
 +            {
 +                var _tr = _tw.troops[_tt];
-+                gnx_party_set(id, _tr[0], _tr[1], clamp(_tr[2], 0, gnx_mon_have(_tr[0], _tr[1])));
++                var _ty = gnx_mon_type_id(_tr[0]);
++
++                if (_ty >= 0)
++                    gnx_party_set(id, _ty, _tr[1], clamp(_tr[2], 0, gnx_mon_have(_ty, _tr[1])));
++                else
++                    scr_gnx_scn_check("travel_with", false, "monster type " + string(_tr[0]) + " is not installed here");
 +            }
 +        }
 +
@@ -6584,7 +7479,7 @@
 +}
 +
 +
-+// GNX-ART: monster art rework. {"mon_art_dump": {"file": "name", "repeats": 12, "cells": [h_types]}}: every output of
++// GNX-ART: monster art rework. {"mon_art_dump": {"file": "name", "repeats": 12, "cells": [h_types], "mons": [type indexes, default [0, 1, 3]]}}: every output of
 +// the real scr_set_mon_spr_data per combination, on a borrowed occupied cell, into gnx_art_<name>.txt (format and
 +// compare: tools/mon_art_diff.py). Runs in batches across frames. Each repeat has its own fixed seed; results are a set.
 +function gnx_scn_st_mon_art_dump(_s, _st)
@@ -6650,6 +7545,13 @@
 +function gnx_art_begin(_d)
 +{
 +    var _a = { d: _d, repeats: gnx_opt(_d, "repeats", 12), ci: 0, pos: 0, combos: [], count: 0, seed: 0, done: false, cell: -1, saved: -1, mons: [], mons2: [] };
++    // Custom types P4: the monsters the dump walks, by type index (step key "mons"); the default is the three vanilla ones
++    _a.mon_list = gnx_opt(_d, "mons", [0, 1, 3]);
++    _a.top = 3;
++
++    for (var _ti = 0; _ti < array_length(_a.mon_list); _ti++)
++        _a.top = max(_a.top, _a.mon_list[_ti]);
++
 +    _a.path = "gnx_art_" + string(_d.file) + ".txt";
 +    _a.fh = file_text_open_write(_a.path);
 +    _a.dict = ds_map_create();
@@ -6701,7 +7603,10 @@
 +    _a.mons = [];
 +    _a.mons2 = [];
 +
-+    for (var _m = 0; _m <= 3; _m++)
++    // _a.top: the dump's highest monster type (custom types are above 3); other callers have no such key
++    var _top = variable_struct_exists(_a, "top") ? _a.top : 3;
++
++    for (var _m = 0; _m <= _top; _m++)
 +    {
 +        array_push(_a.mons, (_m == 2) ? -1 : scr_create_mon(_m, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0));
 +        array_push(_a.mons2, (_m == 2) ? -1 : scr_create_mon(_m, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0));
@@ -6714,7 +7619,9 @@
 +// puts the cell back; true when every field is back
 +function gnx_art_release(_a)
 +{
-+    for (var _m = 0; _m <= 3; _m++)
++    var _top = variable_struct_exists(_a, "top") ? _a.top : 3;
++
++    for (var _m = 0; _m <= _top; _m++)
 +    {
 +        if (_m != 2)
 +        {
@@ -6775,10 +7682,10 @@
 +    var _places = max(1, min(3, gnx_opt(_rp, "max_mon_num", 1)));
 +    var _props = (_h == 1 || _h == 2 || _h == 7 || _h == 8) ? [-1, 0] : [-1];
 +    var _vis = (_h == 36) ? [1, 0] : [1];
-+    var _mons = [0, 1, 3];
++    var _mons = _a.mon_list;
 +    var _out = [];
 +
-+    for (var _mi = 0; _mi < 3; _mi++)
++    for (var _mi = 0; _mi < array_length(_mons); _mi++)
 +    for (var _ph = 0; _ph < array_length(_phases); _ph++)
 +    for (var _pl = 0; _pl < _places; _pl++)
 +    {
@@ -6940,11 +7847,11 @@
 +    var _rp = ds_map_find_value(global.cell_registry, _h).physical;
 +    var _two = gnx_opt(_rp, "max_mon_num", 1) > 1;
 +    var _seq = [-1, 0, 2, 2, 3, 2];
-+    var _mons = [0, 1, 3];
++    var _mons = _a.mon_list;
 +    var _c = _a.cell;
 +
 +    for (var _ci = 0; _ci < array_length(_a.scene_classes); _ci++)
-+    for (var _mi = 0; _mi < 3; _mi++)
++    for (var _mi = 0; _mi < array_length(_mons); _mi++)
 +    {
 +        var _ids = [];
 +
@@ -7656,8 +8563,15 @@
 +// for {"assert": "fn"}: 1 when cell arg0 still holds a mon_spr set
 +function gnx_scn_cell_has_table(arg0)
 +{
++    return gnx_scn_cell_has_set(arg0, "mon_spr");
++}
++
++
++// for {"assert": "fn"}: 1 when cell arg0 holds a resolved monster set under key arg1 (e.g. "mon_spr_newt")
++function gnx_scn_cell_has_set(arg0, arg1)
++{
 +    var _c = ds_map_find_value(global.cell_registry, arg0);
-+    return (is_struct(_c) && variable_struct_exists(_c, "mon_spr") && is_struct(_c.mon_spr)) ? 1 : 0;
++    return (is_struct(_c) && variable_struct_exists(_c, arg1) && is_struct(variable_struct_get(_c, arg1))) ? 1 : 0;
 +}
 +
 +
@@ -7830,6 +8744,155 @@
 +}
 +
 +
++// for {"assert": "fn"}: the nest_num indices of the shown top bar entries, joined by spaces
++function gnx_scn_topbar()
++{
++    var _tb = gnx_topbar_layout();
++    var _a = [];
++
++    if (_tb != undefined)
++        _a = _tb.idx;
++    else
++    {
++        // vanilla rule of scr_draw_gui
++        _a = [0];
++
++        for (var _i = 1; _i < 5; _i++)
++        {
++            if (_i != 3 && global.val.mon_num[_i - 1] != -1)
++                array_push(_a, _i);
++        }
++    }
++
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_a); _i++)
++        _s += ((_i > 0) ? " " : "") + string(_a[_i]);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the labels of the tools MONSTERS menu's categories (the auto-spawn menu), joined by "|"
++function gnx_scn_spawn_menu()
++{
++    for (var _i = 0; _i < array_length(global.gnx_tool_registry); _i++)
++    {
++        if (global.gnx_tool_registry[_i].mod_name != "_spawn")
++            continue;
++
++        var _top = global.gnx_tool_registry[_i].categories[0].categories;
++
++        for (var _c = 0; _c < array_length(_top); _c++)
++        {
++            if (_top[_c].label != "MONSTERS")
++                continue;
++
++            var _s = "";
++
++            for (var _m = 0; _m < array_length(_top[_c].categories); _m++)
++                _s += ((_m > 0) ? "|" : "") + _top[_c].categories[_m].label;
++
++            return _s;
++        }
++    }
++
++    return "";
++}
++
++
++// for {"assert": "fn"}: gnx_mon_have / gnx_add_mons on a type number past the table: 0 and no code error
++function gnx_scn_have_past_table()
++{
++    var _n = gnx_mon_type_count() + 3;
++    gnx_add_mons(_n, 0, 5);
++    return gnx_mon_have(_n, 0);
++}
++
++
++// the open travel selector window, or -1
++function gnx_scn_selector()
++{
++    var _w = -1;
++
++    with (obj_window)
++    {
++        if (interact_type == 9060)
++            _w = id;
++    }
++
++    return _w;
++}
++
++
++// for {"assert": "fn"}: the open selector's party, as sorted type names joined by spaces ("" when none is open)
++function gnx_scn_party_types()
++{
++    var _w = gnx_scn_selector();
++
++    if (_w == -1)
++        return "";
++
++    var _a = [];
++
++    for (var _i = 0; _i < array_length(_w.party); _i++)
++        array_push(_a, gnx_mon_type_name(_w.party[_i].type));
++
++    array_sort(_a, true);
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_a); _i++)
++        _s += ((_i > 0) ? " " : "") + _a[_i];
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the open selector's offered troop types, in offer order, as names joined by spaces
++function gnx_scn_offered_types()
++{
++    var _w = gnx_scn_selector();
++
++    if (_w == -1)
++        return "";
++
++    var _o = variable_instance_exists(_w, "troop_types") ? _w.troop_types : [0, 1, 2, 3];
++    var _s = "";
++
++    for (var _i = 0; _i < array_length(_o); _i++)
++        _s += ((_i > 0) ? " " : "") + gnx_mon_type_name(_o[_i]);
++
++    return _s;
++}
++
++
++// for {"assert": "fn"}: the open selector's TROOPS page (-1 when none is open)
++function gnx_scn_troop_page()
++{
++    var _w = gnx_scn_selector();
++
++    if (_w == -1)
++        return -1;
++
++    return variable_instance_exists(_w, "troop_page") ? _w.troop_page : 0;
++}
++
++
++// for {"assert": "fn"}: how many of the open selector's buttons have button number arg0
++function gnx_scn_sel_has(arg0)
++{
++    var _n = 0;
++
++    with (obj_button)
++    {
++        if (interact_type == 9061 && button_num == arg0)
++            _n++;
++    }
++
++    return _n;
++}
++
++
 +// for {"call"}: a monster outside any cell keeps a cell's sprite data (spr_data with spr_type), as one that left a
 +// cell or walks to another floor can; the next save/reload once stopped there. Returns how many were set (max 3)
 +function gnx_scn_mon_stale_spr()
@@ -7862,4 +8925,96 @@
 +    Value_33 = 33,
 +    Value_40 = 40,
 +    Value_56 = 56
++}
++
++
++// for {"assert": "fn"}: how many times text arg0 is in the debug log
++function gnx_scn_log_count(arg0)
++{
++    if (!file_exists("gnx_debug.txt"))
++        return 0;
++
++    var _buf = buffer_load("gnx_debug.txt");
++    var _t = buffer_read(_buf, buffer_text);
++    buffer_delete(_buf);
++    return string_count(arg0, _t);
++}
++
++
++// for {"assert": "fn"}: "xorig yorig" of the sprite field arg1 (spr_icon, spr_walk ...) of custom type arg0; "none" when it has no own sprite
++function gnx_scn_type_origin(arg0, arg1)
++{
++    var _spr = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id(arg0)], arg1);
++
++    if (_spr == -1 || is_struct(_spr) || !sprite_exists(_spr))
++        return "none";
++
++    return string(sprite_get_xoffset(_spr)) + " " + string(sprite_get_yoffset(_spr));
++}
++
++
++// for {"assert": "fn"}: "mood_shift_x mood_shift_y" of the unit gnx_scn_spawn_walker made last
++function gnx_scn_walker_mood()
++{
++    if (!variable_global_exists("gnx_scn_walker") || !instance_exists(global.gnx_scn_walker))
++        return "gone";
++
++    return string(global.gnx_scn_walker.mon_data.mood_shift_x) + " " + string(global.gnx_scn_walker.mon_data.mood_shift_y);
++}
++
++
++// for {"call"}: every monster of custom type arg0 (a name) gets the mood bubble offset arg1, arg2, as an old save holds it
++function gnx_scn_type_set_mood(arg0, arg1, arg2)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _mx = arg1;
++    var _my = arg2;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == _t)
++        {
++            mon_data.mood_shift_x = _mx;
++            mon_data.mood_shift_y = _my;
++        }
++    }
++}
++
++
++// for {"assert": "fn"}: "mood_shift_x mood_shift_y" of the first monster of custom type arg0 (a name), "none" when there is none
++function gnx_scn_type_mood(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _r = "none";
++
++    with (obj_mon)
++    {
++        if (_r == "none" && mon_data.mon_type == _t)
++            _r = string(mon_data.mood_shift_x) + " " + string(mon_data.mood_shift_y);
++    }
++
++    return _r;
++}
++
++
++// for {"call"}: gnx_scn_mon_old_icon = the icon sprite of custom type arg0 now, gnx_scn_mon_old_count = the runtime sprite count
++function gnx_scn_mon_note_icon(arg0)
++{
++    global.gnx_scn_mon_old_icon = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id(arg0)], "spr_icon");
++    global.gnx_scn_mon_old_count = array_length(global.gnx_runtime_sprites);
++}
++
++
++// for {"assert": "fn"}: reloads monsters.json of mod arg0 as a menu return does (the type table back to the 4 game types, the sprite cache and
++// the runtime sprite list kept) and tells "same|other new|missing +N": whether the shifted icon noted by gnx_scn_mon_note_icon is the same
++// sprite, and how many runtime sprites the reload added
++function gnx_scn_monsters_reload(arg0)
++{
++    for (var _i = 4; _i < array_length(global.gnx_mon_types); _i++)
++        variable_struct_remove(global.gnx_mon_type_ids, global.gnx_mon_types[_i].name);
++
++    global.gnx_mon_types = [global.gnx_mon_types[0], global.gnx_mon_types[1], global.gnx_mon_types[2], global.gnx_mon_types[3]];
++    scr_gnx_load_monsters(arg0, "monsters.json");
++    var _new = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id("mavwolf")], "spr_icon");
++    return ((_new == global.gnx_scn_mon_old_icon) ? "same" : "other") + " " + (sprite_exists(_new) ? "new" : "missing") + " +" + string(array_length(global.gnx_runtime_sprites) - global.gnx_scn_mon_old_count);
 +}

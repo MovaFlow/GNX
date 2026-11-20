@@ -509,6 +509,11 @@ Once the basics above work, GNX_MODDING.md covers the rest:
   SOUND settings page; supports per-class voices (`voice` / `voice_map`) and
   oral-cell SFX (`sfx_type`). See [§18](GNX_MODDING.md#18-sounds-soundsjson).
 
+- [§28 Custom monster types](GNX_MODDING.md#28-custom-monster-types-monstersjson)  -
+  add a monster of your own (a wolf, a bear) with a `monsters.json` and
+  `"monsters": "monsters.json"` in the manifest. The smallest type is
+  `{"wolf": {"like": "goblin"}}`; `example_mod/monsters.json` shows every key.
+
 - **Multi-mod setups:** mods load in alphabetical folder-name order. A later
   mod can patch/override an earlier one's `h_type` or `class_id` (last-writer-
   wins). A single mod can declare multiple classes and cells in the same

@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_tools.gml
 +++ gml/gml_GlobalScript_s_gnx_tools.gml
-@@ -0,0 +1,1826 @@
+@@ -0,0 +1,1804 @@
 +// GNX: tools.json menus, actions, keybinds, continuous effects, GNX DEBUG
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -10,7 +10,9 @@
 +    var _gc_names = ["Warrior", "Ranger", "Mage", "Shaman"];
 +    var _mon_cats = [];
 +    
-+    for (var _sp = 0; _sp < 4; _sp++)
++    // GNX-TYPES (P3): one category per monster type; 0-3 keep the vanilla labels, a custom type uses its title
++    // (monsters.json "name") or its key with the first letter upper-cased
++    for (var _sp = 0; _sp < gnx_mon_type_count(); _sp++)
 +    {
 +        var _btns = [];
 +        
@@ -22,7 +24,7 @@
 +                actions: [
 +                {
 +                    type: "spawn_mon",
-+                    species: _sp,
++                    species: gnx_mon_type_name(_sp),
 +                    class: _gc,
 +                    amount: 1
 +                }],
@@ -37,7 +39,7 @@
 +        
 +        array_push(_mon_cats, 
 +        {
-+            label: _sp_names[_sp],
++            label: (_sp < 4) ? _sp_names[_sp] : gnx_mon_type_label(_sp),
 +            buttons: _btns,
 +            categories: []
 +        });
@@ -267,10 +269,35 @@
 +            categories: _top_cats
 +        }]
 +    };
-+    array_push(global.gnx_tool_registry, _spawn_entry);
++    var _sp_at = -1;
++    
++    // called again after a map mod's deferred load: replace the entry, keep its place in the list
++    for (var _ri = 0; _ri < array_length(global.gnx_tool_registry); _ri++)
++    {
++        if (global.gnx_tool_registry[_ri].mod_name == "_spawn")
++            _sp_at = _ri;
++    }
++    
++    if (_sp_at >= 0)
++        global.gnx_tool_registry[_sp_at] = _spawn_entry;
++    else
++        array_push(global.gnx_tool_registry, _spawn_entry);
++    
 +    var _log = gnx_log_open();
-+    gnx_log_write(_log, "[GNX-TOOL] auto-spawn menu built (monsters=4 units=" + string(array_length(_vanilla_units) + array_length(_mod_keys)) + " cells=" + string(array_length(_vanilla_cells) + array_length(_cell_mod_keys)) + ")\n");
++    gnx_log_write(_log, "[GNX-TOOL] auto-spawn menu built (monsters=" + string(gnx_mon_type_count()) + " units=" + string(array_length(_vanilla_units) + array_length(_mod_keys)) + " cells=" + string(array_length(_vanilla_cells) + array_length(_cell_mod_keys)) + ")\n");
 +    gnx_log_close(_log);
++}
++
++
++// GNX-TYPES (P3): the menu label of a custom monster type: its title, else its key with the first letter upper-cased
++function gnx_mon_type_label(arg0)
++{
++    var _d = global.gnx_mon_types[arg0];
++
++    if (variable_struct_exists(_d, "title") && is_string(_d.title) && _d.title != "")
++        return _d.title;
++
++    return string_upper(string_char_at(_d.name, 1)) + string_delete(_d.name, 1, 1);
 +}
 +
 +
@@ -585,32 +612,14 @@
 +            break;
 +        
 +        case "spawn_mon":
-+            var _sp = arg0.species;
++            // GNX-TYPES: species is 0-3 or a monster type name
++            var _sp = gnx_mon_type_id(arg0.species);
++            
++            if (_sp < 0)
++                exit;
++            
 +            var _amt = arg0.amount;
-+            var _sp_struct;
-+            
-+            switch (_sp)
-+            {
-+                case 0:
-+                    _sp_struct = global.val.goblin;
-+                    break;
-+                
-+                case 1:
-+                    _sp_struct = global.val.hobgoblin;
-+                    break;
-+                
-+                case 2:
-+                    _sp_struct = global.val.tentacle;
-+                    break;
-+                
-+                case 3:
-+                    _sp_struct = global.val.ogre;
-+                    break;
-+                
-+                default:
-+                    exit;
-+            }
-+            
++            var _sp_struct = scr_mon_type_construct(_sp);
 +            var _gc_start = 0;
 +            var _gc_end = 3;
 +            
@@ -640,62 +649,31 @@
 +            break;
 +        
 +        case "set_troop_level":
-+            var _sp_struct;
++            var _sp = gnx_mon_type_id(arg0.species);
 +            
-+            switch (arg0.species)
-+            {
-+                case 0:
-+                    _sp_struct = global.val.goblin;
-+                    break;
-+                
-+                case 1:
-+                    _sp_struct = global.val.hobgoblin;
-+                    break;
-+                
-+                case 2:
-+                    _sp_struct = global.val.tentacle;
-+                    break;
-+                
-+                case 3:
-+                    _sp_struct = global.val.ogre;
-+                    break;
-+                
-+                default:
-+                    exit;
-+            }
++            if (_sp < 0)
++                exit;
 +            
++            var _sp_struct = scr_mon_type_construct(_sp);
 +            _sp_struct.lvl[arg0.class] = arg0.value;
 +            break;
 +        
 +        case "add_troop_exp":
-+            scr_mon_exp_edit(arg0.species, arg0.class, 99, arg0.amount, false);
++            var _sp = gnx_mon_type_id(arg0.species);
++            
++            if (_sp < 0)
++                exit;
++            
++            scr_mon_exp_edit(_sp, arg0.class, 99, arg0.amount, false);
 +            break;
 +        
 +        case "set_skill_level":
-+            var _sp_struct;
++            var _sp = gnx_mon_type_id(arg0.species);
 +            
-+            switch (arg0.species)
-+            {
-+                case 0:
-+                    _sp_struct = global.val.goblin;
-+                    break;
-+                
-+                case 1:
-+                    _sp_struct = global.val.hobgoblin;
-+                    break;
-+                
-+                case 2:
-+                    _sp_struct = global.val.tentacle;
-+                    break;
-+                
-+                case 3:
-+                    _sp_struct = global.val.ogre;
-+                    break;
-+                
-+                default:
-+                    exit;
-+            }
++            if (_sp < 0)
++                exit;
 +            
++            var _sp_struct = scr_mon_type_construct(_sp);
 +            _sp_struct.skill_lvl[arg0.class] = arg0.value;
 +            break;
 +        

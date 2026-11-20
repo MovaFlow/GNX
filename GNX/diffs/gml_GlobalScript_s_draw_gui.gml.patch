@@ -1,6 +1,59 @@
 --- gml_138/gml_GlobalScript_s_draw_gui.gml
 +++ gml/gml_GlobalScript_s_draw_gui.gml
-@@ -95,6 +95,8 @@
+@@ -13,14 +13,46 @@
+     var _start = 24;
+     var _num = 0;
+     
+-    for (var i = 0; i < 5; i++)
++    // GNX: with a custom type unlocked the bar draws its own entries (gnx_topbar_layout: the vanilla pitch, custom entries that fit); else vanilla below
++    var _tb = (gnx_mon_type_count() > 4) ? gnx_topbar_layout() : undefined;
++    
++    if (_tb != undefined)
++    {
++        for (var _e = 0; _e < array_length(_tb.idx); _e++)
++        {
++            var _ex = _start + (_e * _tb.pitch);
++            var _ix = (_ex + 14) - (sign(_e) * 3);
++            var _ei = _tb.idx[_e];
++            draw_sprite(spr_unit_frame, 0, _ex, 0);
++            
++            if (_ei <= 4)
++                draw_sprite(spr_mon_icon, _ei, _ix, 9);
++            else
++            {
++                var _ic = gnx_mon_icon(_ei - 1);
++                gnx_draw_sprite_ext(_ic[0], _ic[1], _ix, 9, 1, 1, 0, c_white, 1);
++            }
++            
++            draw_text(_ex + 34, _y, global.val.nest_num[_ei]);
++            if (is_array(global.gnx_ui_rects))
++                gnx_topbar_rects(_ex, _ix, string(global.val.nest_num[_ei]));
++        }
++    }
++    else
+     {
+-        if ((i == 0 || (i > 0 && global.val.mon_num[i - 1] != -1)) && i != 3)
++        for (var i = 0; i < 5; i++)
+         {
+-            draw_sprite(spr_unit_frame, 0, _start + (min(3, _num) * _width), 0);
+-            draw_sprite(spr_mon_icon, i, (_start + 14 + (min(3, _num) * _width)) - (sign(min(3, _num)) * 3), 9);
+-            draw_text(_start + 34 + (min(3, _num) * _width), _y, global.val.nest_num[i]);
+-            _num++;
++            if ((i == 0 || (i > 0 && global.val.mon_num[i - 1] != -1)) && i != 3)
++            {
++                draw_sprite(spr_unit_frame, 0, _start + (min(3, _num) * _width), 0);
++                draw_sprite(spr_mon_icon, i, (_start + 14 + (min(3, _num) * _width)) - (sign(min(3, _num)) * 3), 9);
++                draw_text(_start + 34 + (min(3, _num) * _width), _y, global.val.nest_num[i]);
++                
++                if (is_array(global.gnx_ui_rects))
++                    gnx_topbar_rects(_start + (min(3, _num) * _width), (_start + 14 + (min(3, _num) * _width)) - (sign(min(3, _num)) * 3), string(global.val.nest_num[i]));
++                
++                _num++;
++            }
+         }
+     }
+     
+@@ -95,6 +127,8 @@
          draw_text(20, 20, "button =" + string(instance_number(obj_button)));
          draw_text(20, 30, "window =" + string(instance_number(obj_window)));
      }

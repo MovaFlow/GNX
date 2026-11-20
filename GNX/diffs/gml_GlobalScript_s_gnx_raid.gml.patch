@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml
 +++ gml/gml_GlobalScript_s_gnx_raid.gml
-@@ -0,0 +1,1878 @@
+@@ -0,0 +1,1928 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1862,6 +1862,56 @@
 +    
 +    // no sell_lvl: the game's rule, every level but 5 (!= = not equal)
 +    return arg0.lvl != 5;
++}
++
++
++/// GNX-TYPES: the raid window's category buttons (interact 39) of page gnx_cat_page, run by obj_raid. The vanilla
++/// layout (x 19, y 58 + 23 per button) with button_num page * 4 .. page * 4 + 3; past the type count or locked,
++/// a button removes itself (scr_create_mon_cat_button). arg0 = the buttons' source id. Page 0 = the vanilla call.
++function gnx_raid_cat_buttons(arg0)
++{
++    scr_create_button_layout(19, 58, depth - 5, 4, 1, 0, 23, gnx_cat_page * 4, spr_mon_cat, 39, arg0, false, scr_create_mon_cat_button, -1, scr_draw_cat_mon_button);
++}
++
++
++/// GNX-TYPES: run by obj_raid as the raid window opens, when there are custom types. With one of them unlocked:
++/// the page is the category's (clamped to the last page) and two page arrows (interact 9065, 0 = previous, 1 = next)
++/// sit below the category column, left of the drop zone (x 49..162, y 45..149). Else page 0 and no arrows.
++function gnx_raid_cat_page_open()
++{
++    var _n = gnx_mon_type_count();
++
++    if (!gnx_unlocked_custom_types(true))
++        exit;
++
++    gnx_cat_page = clamp(raid_data.cat div 4, 0, ceil(_n / 4) - 1);
++    scr_create_button(24, 154, depth - 5, spr_button_arrow, 9065, id, scr_gnx_create_raid_page_arrow, -1, scr_gnx_draw_raid_page_arrow, 0, 0);
++    scr_create_button(40, 154, depth - 5, spr_button_arrow, 9065, id, scr_gnx_create_raid_page_arrow, -1, scr_gnx_draw_raid_page_arrow, 1, 0);
++}
++
++
++/// GNX-TYPES: a raid category page arrow was pressed (arg0 = 0 previous, 1 next): turns obj_raid's page (wrapping)
++/// and rebuilds only the category buttons. raid_data.cat and its heads stay as they are.
++function gnx_raid_cat_page_turn(arg0)
++{
++    var _raid = obj_np.obj_raid;
++    var _src = _raid;
++
++    with (obj_button)
++    {
++        if (interact_type == 39)
++        {
++            _src = source_id;
++            instance_destroy();
++        }
++    }
++
++    with (_raid)
++    {
++        var _n = ceil(gnx_mon_type_count() / 4);
++        gnx_cat_page = (gnx_cat_page + ((arg0 == 1) ? 1 : -1) + _n) mod _n;
++        gnx_raid_cat_buttons(_src);
++    }
 +}
 +
 +

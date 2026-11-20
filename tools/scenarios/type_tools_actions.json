@@ -1,0 +1,14 @@
+{
+  "about": "Custom types P3: the tools MONSTERS menu has one category per type, by name (vanilla four unchanged); the spawn action the fox category builds adds foxes; gnx_mon_have / gnx_add_mons on a type past the table are guarded.",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a", "tools/scenarios/mods/harness_type_b", "tools/scenarios/mods/harness_type_c"],
+  "steps": [
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_scn_spawn_menu", "args": [], "is": "Goblin|Hobgoblin|Tentacle|Ogre|Wolf|Bear|Boar|Fox", "why": "one MONSTERS category per type, vanilla labels first"},
+    {"assert": "fn", "name": "gnx_mon_type_id", "args": ["fox"], "is": 7, "why": "load order a, b, c, and keys of one monsters.json sorted (boar 6, fox 7)"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["fox"], "is": 0, "why": "no fox kept yet"},
+    {"do": {"type": "spawn_mon", "species": "fox", "amount": 3, "class": 0}},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["fox"], "min": 3, "why": "the fox category's action adds foxes"},
+    {"assert": "fn", "name": "gnx_scn_have_past_table", "args": [], "is": 0, "why": "a type past the table has none and adding to it does nothing"}
+  ]
+}

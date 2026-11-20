@@ -1,0 +1,21 @@
+{
+  "about": "Custom types P2: guards Phase 1's pregnancy conversion end to end. In fixture 'type_removed_b' (the wolf mod removed) the captive in cell B carries a goblin, the wolf's like, instead of a wolf. A captive of the same class with that pregnancy gives birth in a BIRTH 2 cell: the infant is a goblin and the goblins of monster class 0 grow (at least 1: the nest has a birth of its own in the window), the kept wolves (10) are untouched. The wolf mod stays out; harness_type_cell stays in, or cell B would be gone.",
+  "fixture": "type_removed_b",
+  "mods": ["tools/scenarios/mods/harness_type_cell"],
+  "seed": 5,
+  "timeout": 180,
+  "steps": [
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_occupied_at", "args": [{"cell": "harness_type_cell.TYPE CELL B"}], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_preg_at_occupied", "args": [], "is": 0, "why": "the saved wolf pregnancy became a goblin one"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 10},
+    {"assert": "fn", "name": "gnx_scn_num_mark", "args": [0, 0], "is": 1},
+    {"occupy": {"h_type": 12, "class": 0, "preg": "occupied"}, "why": "the pregnancy of cell B's captive"},
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_scn_occupied_infant", "args": [], "is": 0, "why": "the BIRTH 2 infant is a goblin"},
+    {"wait": 900},
+    {"assert": "fn", "name": "gnx_scn_occupied_infant", "args": [], "is": -1, "why": "the birth is done"},
+    {"assert": "fn", "name": "gnx_scn_num_delta", "args": [0, 0], "min": 1, "why": "the birth gave a goblin of monster class 0 (min: the busy nest has one more class 0 goblin birth of its own in this window)"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 10, "why": "the kept wolves are untouched"}
+  ]
+}

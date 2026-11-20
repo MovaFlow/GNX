@@ -99,6 +99,12 @@ with tempfile.TemporaryDirectory() as tmp:
     (d / "bad.json").write_text("{not json", encoding="utf-8")
     assert rel(art_paths({"monster_art": "bad.json"}, d)) == ["bad.json"]
     assert art_paths({"monster_art": {"goblin": 5, "ogre": {"world": 5}, "sprites": 5}}, d) == []
+    # monsters.json: the six sprite keys of each type, in any folder; a text (a game sprite's name) and "_" entries name no files
+    (d / "mon.json").write_text(json.dumps({
+        "_note": {"walk": {"strip": "art/x.png"}},
+        "wolf": {"like": "goblin", "walk": {"folder": "fold"}, "icon": {"strip": "art/s.png", "frames": 1}, "heads": {"frames": ["world/f1.png"]},
+                 "infant_head": {"path": "world/p.png"}, "idle": "spr_hobgoblin_idle", "b_walk": {"strip": "world/missing.png"}}}), encoding="utf-8")
+    assert rel(art_paths({"monsters": "mon.json"}, d)) == ["art/s.png", "fold/0.png", "fold/1.png", "mon.json", "world/f1.png", "world/p.png"], rel(art_paths({"monsters": "mon.json"}, d))
 print("art_paths ok")
 
 # the deploy itself, on real test mods: every art file the manifest names is in GNX_mods/<mod>/ with the same bytes, and a file nothing
@@ -162,3 +168,15 @@ with tempfile.TemporaryDirectory() as tmp:
     assert r.returncode != 0 and "inside GNX_mods" in (r.stdout + r.stderr), r.stdout + r.stderr
     assert (inner / "manifest.json").is_file() and (src / "sprites" / "keep.png").is_file()
 print("in-place deploy ok")
+
+# monsters.json (custom monster types) is a manifest data file like the others: the reference mod's one is deployed
+with tempfile.TemporaryDirectory() as tmp:
+    src = Path(tmp) / "src" / "example_mod"
+    shutil.copytree(ROOT / "GNX/example_mod", src)
+    game = Path(tmp) / "game"
+    game.mkdir()
+    r = subprocess.run([sys.executable, str(ROOT / "tools/build_mod.py"), str(src), str(game), "--skip-pack", "--deploy-anyway"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    dep = game / "GNX_mods" / "example_mod" / "monsters.json"
+    assert dep.is_file() and dep.read_bytes() == (src / "monsters.json").read_bytes(), "build_mod did not deploy monsters.json"
+print("monsters deploy ok")

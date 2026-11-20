@@ -212,7 +212,7 @@
  }
  
  function scr_play_milk_sfx()
-@@ -352,6 +517,430 @@
+@@ -352,6 +517,475 @@
      }
  }
  
@@ -236,6 +236,10 @@
 +            return "ogre";
 +        
 +        default:
++            // GNX-TYPES: a custom type speaks as its own name (silent when no mod ships clips for it); tentacle (2) stays silent
++            if (arg0.mon_data.mon_type >= 4)
++                return gnx_mon_type_name(arg0.mon_data.mon_type);
++            
 +            return "";
 +    }
 +}
@@ -380,6 +384,9 @@
 +    if (!is_array(arg1) || array_length(arg1) == 0)
 +        exit;
 +    
++    if (arg0 >= array_length(global.gnx_goblin_species_next))
++        global.gnx_goblin_species_next[arg0] = 0;
++    
 +    if (current_time < global.gnx_goblin_species_next[arg0])
 +        exit;
 +    
@@ -408,6 +415,23 @@
 +    scr_gnx_goblin_try_species(0, _g, 3000, 7000);
 +    scr_gnx_goblin_try_species(1, _h, 4500, 9000);
 +    scr_gnx_goblin_try_species(3, _o, 6500, 12000);
++    
++    // GNX-TYPES: every custom type with clips gets its own lane (timer slot = type index); nothing runs without one
++    var _cn = array_length(global.gnx_ambience_custom);
++    
++    for (var _ci = 0; _ci < _cn; _ci++)
++    {
++        var _cname = global.gnx_ambience_custom[_ci];
++        var _cl = [];
++        
++        for (var _i = 0; _i < array_length(arg0); _i++)
++        {
++            if (scr_gnx_goblin_species_key(arg0[_i]) == _cname)
++                array_push(_cl, arg0[_i]);
++        }
++        
++        scr_gnx_goblin_try_species(gnx_mon_type_id(_cname), _cl, 4500, 9000);
++    }
 +}
 +
 +function scr_gnx_goblin_step_three_lane(arg0)
@@ -519,6 +543,10 @@
 +{
 +    global.val.gnx_ambience_mode = scr_gnx_goblin_mode_allowed(arg0) ? arg0 : 0;
 +    global.gnx_goblin_species_next = [current_time + 800, current_time + 1200, 0, current_time + 1600];
++    
++    for (var _ci = 0; _ci < array_length(global.gnx_ambience_custom); _ci++)  // GNX-TYPES
++        global.gnx_goblin_species_next[gnx_mon_type_id(global.gnx_ambience_custom[_ci])] = current_time + 1800 + _ci * 400;
++    
 +    global.gnx_goblin_lane_next = [current_time + irandom_range(700, 1800), current_time + irandom_range(1800, 3200), current_time + irandom_range(3000, 4500)];
 +    
 +    with (obj_mon)
@@ -571,7 +599,16 @@
 +function scr_gnx_goblin_raid_species(arg0)
 +{
 +    var _kind = arg0 ? "victory" : "defeat";
-+    var _weights = [0, 0, 0, 0];
++    // GNX-TYPES: the speakers by name: the vanilla three, then every custom type with clips
++    var _names = ["goblin", "hobgoblin", "ogre"];
++    var _weights = [0, 0, 0];
++    
++    for (var _ci = 0; _ci < array_length(global.gnx_ambience_custom); _ci++)
++    {
++        array_push(_names, global.gnx_ambience_custom[_ci]);
++        array_push(_weights, 0);
++    }
++    
 +    var _lists = [global.front_row, global.back_row];
 +    
 +    for (var _li = 0; _li < 2; _li++)
@@ -589,7 +626,7 @@
 +                continue;
 +            
 +            var _t = _info.unit_data.mon_type;
-+            var _spk = (_t == 0) ? "goblin" : ((_t == 1) ? "hobgoblin" : ((_t == 3) ? "ogre" : ""));
++            var _spk = (_t == 0) ? "goblin" : ((_t == 1) ? "hobgoblin" : ((_t == 3) ? "ogre" : ((_t >= 4) ? gnx_mon_type_name(_t) : "")));
 +            
 +            if (_spk == "")
 +                continue;
@@ -597,27 +634,35 @@
 +            if (array_length(scr_gnx_goblin_pool(_spk, _kind)) == 0)
 +                continue;
 +            
++            var _wi = array_get_index(_names, _spk);
++            
++            if (_wi < 0)
++                continue;
++            
 +            var _num = variable_struct_exists(_info, "num") ? max(1, _info.num) : 1;
-+            _weights[_t] += _num;
++            _weights[_wi] += _num;
 +        }
 +    }
 +    
-+    var _total = _weights[0] + _weights[1] + _weights[3];
++    var _total = 0;
++    
++    for (var _wi = 0; _wi < array_length(_weights); _wi++)
++        _total += _weights[_wi];
 +    
 +    if (_total <= 0)
 +        return "";
 +    
 +    var _roll = irandom(_total - 1);
 +    
-+    if (_roll < _weights[0])
-+        return "goblin";
++    for (var _wi = 0; _wi < array_length(_weights) - 1; _wi++)
++    {
++        if (_roll < _weights[_wi])
++            return _names[_wi];
++        
++        _roll -= _weights[_wi];
++    }
 +    
-+    _roll -= _weights[0];
-+    
-+    if (_roll < _weights[1])
-+        return "hobgoblin";
-+    
-+    return "ogre";
++    return _names[array_length(_names) - 1];
 +}
 +
 +function scr_gnx_play_goblin_raid_result(arg0)

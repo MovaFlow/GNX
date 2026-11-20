@@ -1,0 +1,28 @@
+{
+  "about": "Custom types P1: the save of type_mod_removed_load_a_setup loaded without the wolf mod. The wolves are taken off the board (cell A and the walker), their counts stay in val.gnx_mon, the wolf pregnancy becomes a goblin one (like), cell A calls a default monster, cell C's uninstalled 'wolf' is left out with a warning, the population is recounted. Kept as fixture 'type_removed_b' for _c_reinstall.",
+  "fixture": "type_removed",
+  "mods": ["tools/scenarios/mods/harness_type_cell"],
+  "save_fixture_as": "type_removed_b",
+  "steps": [
+    {"wait": 120},
+    {"assert": "fn", "name": "gnx_scn_mon_live_custom", "args": [], "is": 0, "why": "no monster of an uninstalled type on the board"},
+    {"assert": "fn", "name": "gnx_scn_type_lens", "args": [], "is": "4 5 1 0", "why": "gnx_mon kept, gnx_types removed"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 10},
+    {"assert": "fn", "name": "gnx_scn_preg_custom", "args": [], "is": 0},
+    {"assert": "fn", "name": "gnx_scn_occupied_at", "args": [{"cell": "harness_type_cell.TYPE CELL B"}], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_preg_at_occupied", "args": [], "is": 0, "why": "the wolf pregnancy became its like (goblin)"},
+    {"assert": "fn", "name": "gnx_scn_cell_mon_types", "args": [{"cell": "harness_type_cell.TYPE CELL C"}], "is": "0", "why": "'wolf' left out with a warning, no mod error"},
+    {"assert": "fn", "name": "gnx_scn_pop_ok", "args": [], "is": 1, "why": "population recounted without the wolves"},
+    {"assert": "fn", "name": "gnx_scn_occupied_at", "args": [{"cell": "harness_type_cell.TYPE CELL A"}], "is": 1},
+    {"wait": 900},
+    {"assert": "fn", "name": "gnx_scn_occupied_called", "args": [], "is": 1, "why": "cell A lost its wolf and its only listed type: a default monster came"},
+    {"assert": "registry_ok"},
+    {"save": 9},
+    {"wait": 3},
+    {"reload": 9},
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_scn_type_lens", "args": [], "is": "4 5 1 0"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 10},
+    {"assert": "fn", "name": "gnx_scn_mon_live_custom", "args": [], "is": 0}
+  ]
+}

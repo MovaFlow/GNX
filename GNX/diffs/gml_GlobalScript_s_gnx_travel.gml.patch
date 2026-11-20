@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_travel.gml
 +++ gml/gml_GlobalScript_s_gnx_travel.gml
-@@ -0,0 +1,2316 @@
+@@ -0,0 +1,2418 @@
 +// GNX: multi-map travel: maps, selector, carry, troops
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -658,6 +658,10 @@
 +// how many monsters of a kind this map has (0 when the kind is locked)
 +function gnx_mon_have(arg0, arg1)
 +{
++    // GNX-TYPES (P3): a type this map's table does not have (a map mod's type, or a number past the table) has none
++    if (is_undefined(gnx_mon_data(arg0)))
++        return 0;
++
 +    var _ar = scr_mon_type_construct(arg0);
 +
 +    if (arg1 >= array_length(_ar.num) || _ar.num[arg1] == -1)
@@ -670,7 +674,7 @@
 +// add n monsters of a kind (a kind the map has not unlocked yet is unlocked with exactly n)
 +function gnx_add_mons(arg0, arg1, arg2)
 +{
-+    if (arg2 == 0)
++    if (arg2 == 0 || is_undefined(gnx_mon_data(arg0)))
 +        exit;
 +
 +    var _had = gnx_mon_have(arg0, arg1);
@@ -681,6 +685,35 @@
 +        scr_mon_num_edit(arg0, arg1, (_had + arg2) - _now, true);
 +
 +    global.val.nest_num[0] = scr_all_mon_num_cal();
++}
++
++
++// GNX-TYPES (P3): can map arg1 hold monster type arg0: the game's four always; a custom type when its mod loads on
++// that map ("map": "all", a list naming it, or that map's own mod). Else it would arrive as its like.
++function gnx_travel_type_ok(arg0, arg1)
++{
++    if (arg0 < 4)
++        return true;
++
++    var _mod = variable_struct_get(global.gnx_mon_types[arg0], "mod");
++    return variable_struct_exists(global.gnx_mod_map_decl, _mod) && gnx_map_decl_has(variable_struct_get(global.gnx_mod_map_decl, _mod), arg1);
++}
++
++
++// GNX-TYPES (P3): the TROOPS tab's types for a trip to map arg0: 0-3, then the custom types this map has unlocked
++// that the destination can hold, in table order (exactly [0, 1, 2, 3] with no custom type)
++function gnx_travel_offered_types(arg0)
++{
++    var _o = [0, 1, 2, 3];
++    var _u = gnx_unlocked_custom_types(false);
++
++    for (var _i = 0; _i < array_length(_u); _i++)
++    {
++        if (gnx_travel_type_ok(_u[_i], arg0))
++            array_push(_o, _u[_i]);
++    }
++
++    return _o;
 +}
 +
 +
@@ -812,6 +845,8 @@
 +        party = [];
 +        captives = [];  // prison list indices taken along
 +        cap_page = 0;
++        troop_page = 0;  // GNX-TYPES (P3): TROOPS shows troop_types 4 at a time
++        troop_types = gnx_travel_offered_types(arg0.target);
 +        dest_free = gnx_dest_prison_free(arg0.target);
 +        drag_idx = -1;
 +        drag_moved = false;
@@ -927,11 +962,16 @@
 +    }
 +    else if (tab == 1)
 +    {
-+        // one section per monster type, one column per kind; the button shows how many travel
-+        for (var _ty = 0; _ty < 4; _ty++)
++        // one section per monster type, one column per kind; the button shows how many travel.
++        // GNX-TYPES (P3): the page's types fill the 4 sections; a button is numbered by its section (slot), so
++        // 70-85 stays the only range (troop_types is [0, 1, 2, 3] with no custom type: slot = type)
++        var _first = troop_page * 4;
++
++        for (var _k = 0; _k < min(4, array_length(troop_types) - _first); _k++)
 +        {
++            var _ty = troop_types[_first + _k];
 +            var _ar = scr_mon_type_construct(_ty);
-+            var _sec = gnx_troop_sec(_ty);
++            var _sec = gnx_troop_sec(_k);
 +
 +            for (var _c = 0; _c < min(4, array_length(_ar.num)); _c++)
 +            {
@@ -939,9 +979,16 @@
 +                    continue;
 +
 +                var _n = gnx_party_num(party, _ty, _c);
-+                var _tk = gnx_sel_button((_sec[0] + 23 + (_c * 44)) - 240, (_sec[1] + 55) - 135, spr_button_sure, 70 + (_ty * 4) + _c, string(_n));
++                var _tk = gnx_sel_button((_sec[0] + 23 + (_c * 44)) - 240, (_sec[1] + 55) - 135, spr_button_sure, 70 + (_k * 4) + _c, string(_n));
 +                _tk.image_index = (_n > 0) ? 0 : 1;
 +            }
++        }
++
++        if (array_length(troop_types) > 4)  // GNX-TYPES (P3): page arrows right of the tabs
++        {
++            gnx_sel_button(90, -89, spr_button_arrow, 92, "");
++            var _nx = gnx_sel_button(144, -89, spr_button_arrow, 93, "");
++            _nx.image_xscale = -1;
 +        }
 +    }
 +    else if (tab == 2)
@@ -1133,12 +1180,15 @@
 +    {
 +        var _type_names = ["GOBLINS", "HOBGOBLINS", "TENTACLES", "OGRES"];
 +
-+        for (var _ty = 0; _ty < 4; _ty++)
++        var _first = troop_page * 4;  // GNX-TYPES (P3): this page's types, see scr_gnx_travel_selector_buttons
++
++        for (var _k = 0; _k < min(4, array_length(troop_types) - _first); _k++)
 +        {
++            var _ty = troop_types[_first + _k];
 +            var _ar = scr_mon_type_construct(_ty);
-+            var _sec = gnx_troop_sec(_ty);
++            var _sec = gnx_troop_sec(_k);
 +            var _shown = 0;
-+            gnx_sel_section(_sec[0], _sec[1], _sec[0] + 179, _sec[1] + 65, _type_names[_ty]);
++            gnx_sel_section(_sec[0], _sec[1], _sec[0] + 179, _sec[1] + 65, (_ty < 4) ? _type_names[_ty] : string_upper(gnx_mon_type_label(_ty)));
 +            draw_set_halign(fa_right);
 +            draw_set_color(_faint);
 +            gnx_ui_text(_sec[0] + 173, _sec[1] + 3, gnx_short_num(global.val.mon_num[_ty]));
@@ -1154,7 +1204,23 @@
 +                if (_ar.num[_c] == 0)
 +                    draw_set_alpha(0.35);
 +
-+                gnx_ui_spr("leaf", spr_mon_icon_head, (_ty * 4) + _c, _cx, _sec[1] + 26, "head " + string(_ty) + "/" + string(_c));
++                if (_ty < 4)
++                {
++                    gnx_ui_spr("leaf", spr_mon_icon_head, (_ty * 4) + _c, _cx, _sec[1] + 26, "head " + string(_ty) + "/" + string(_c));
++                }
++                else  // GNX-TYPES (P3): a custom type's own head (may be an atlas SprRef)
++                {
++                    var _h = gnx_mon_head(_ty, _c);
++                    gnx_draw_sprite_ext(_h[0], _h[1], _cx, _sec[1] + 26, 1, 1, 0, c_white, draw_get_alpha());
++
++                    if (is_array(global.gnx_ui_rects))
++                    {
++                        var _hx = _cx - gnx_sprite_get_xoffset(_h[0]);
++                        var _hy = (_sec[1] + 26) - gnx_sprite_get_yoffset(_h[0]);
++                        gnx_ui_rect("leaf", _hx, _hy, _hx + gnx_sprite_get_width(_h[0], _h[1]), _hy + gnx_sprite_get_height(_h[0], _h[1]), "head " + string(_ty) + "/" + string(_c));
++                    }
++                }
++
 +                draw_set_alpha(1);
 +                draw_set_color(_dim);
 +                gnx_ui_text(_cx, _sec[1] + 37, (_ar.num[_c] == 0) ? "none" : ("of " + gnx_short_num(_ar.num[_c])));
@@ -1166,6 +1232,13 @@
 +                draw_set_color(_faint);
 +                gnx_ui_text(_sec[0] + 90, _sec[1] + 30, "none here");
 +            }
++        }
++
++        if (array_length(troop_types) > 4)  // GNX-TYPES (P3): the page label between the arrows 92 / 93
++        {
++            draw_set_halign(fa_center);
++            draw_set_color(_faint);
++            gnx_ui_text(357, 43, string(troop_page + 1) + " / " + string(ceil(array_length(troop_types) / 4)));
 +        }
 +
 +        var _tot = gnx_party_total(party);
@@ -1342,9 +1415,9 @@
 +        exit;
 +    }
 +
-+    if (button_num >= 70 && button_num <= 85)  // take n of a kind (70 + type * 4 + class): the game's number pad
++    if (button_num >= 70 && button_num <= 85)  // take n of a kind (70 + slot * 4 + class): the game's number pad
 +    {
-+        var _typ = floor((button_num - 70) / 4);
++        var _typ = _w.troop_types[(_w.troop_page * 4) + floor((button_num - 70) / 4)];  // GNX-TYPES (P3): slot of this page
 +        var _cls = (button_num - 70) mod 4;
 +        var _info = { save_num: gnx_party_num(_w.party, _typ, _cls), max_num: gnx_mon_have(_typ, _cls), sel: _w, type: _typ, class: _cls };
 +        scr_create_window_num_sel(x, y - 35, id, _w.depth - 50, true, _info, -1, scr_gnx_travel_num_enter, -1);
@@ -1355,6 +1428,16 @@
 +    {
 +        var _pages = max(1, ceil(array_length(gnx_prisoner_indices()) / 18));
 +        _w.cap_page = clamp(_w.cap_page + ((button_num == 90) ? -1 : 1), 0, _pages - 1);
++        exit;
++    }
++
++    if (button_num == 92 || button_num == 93)  // GNX-TYPES (P3): troop types page
++    {
++        _w.troop_page = clamp(_w.troop_page + ((button_num == 92) ? -1 : 1), 0, ceil(array_length(_w.troop_types) / 4) - 1);
++
++        with (_w)
++            scr_gnx_travel_selector_buttons();
++
 +        exit;
 +    }
 +}
@@ -1392,11 +1475,13 @@
 +    var _label = target_label;
 +    var _troops = [];
 +
++    // GNX-TYPES (P3): a carried kind keeps its type's name (numbers differ between maps' type tables) and its like
++    // (read here: the destination may not have the type)
 +    for (var _i = 0; _i < array_length(party); _i++)
-+        array_push(_troops, party[_i]);
++        array_push(_troops, { type: party[_i].type, class: party[_i].class, num: party[_i].num, name: gnx_mon_type_name(party[_i].type), like: gnx_mon_like(party[_i].type) });
 +
 +    if (carry_goblins > 0)
-+        array_push(_troops, { type: 0, class: 0, num: carry_goblins });
++        array_push(_troops, { type: 0, class: 0, num: carry_goblins, name: "goblin", like: 0 });
 +
 +    global.val.money -= _cg;
 +    global.val.food -= _cf;
@@ -1444,7 +1529,20 @@
 +    if (variable_global_exists("gnx_carry_troops") && is_array(global.gnx_carry_troops))
 +    {
 +        for (var _i = 0; _i < array_length(global.gnx_carry_troops); _i++)
-+            gnx_add_mons(global.gnx_carry_troops[_i].type, global.gnx_carry_troops[_i].class, global.gnx_carry_troops[_i].num);
++        {
++            var _e = global.gnx_carry_troops[_i];
++            var _t = gnx_mon_type_id(_e.name);  // GNX-TYPES (P3): by name on this map's table
++
++            if (_t == -1)
++            {
++                _t = _e.like;
++                var _wl = gnx_log_open();
++                gnx_log_write(_wl, "[GNX-WARN] travel: monster type '" + _e.name + "' not on this map, its troops arrive as " + gnx_mon_type_name(_t) + "\n");
++                gnx_log_close(_wl);
++            }
++
++            gnx_add_mons(_t, _e.class, _e.num);
++        }
 +    }
 +
 +    if (variable_global_exists("gnx_carry_captives") && is_array(global.gnx_carry_captives))
@@ -2061,6 +2159,10 @@
 +    if (_loaded > 0)
 +    {
 +        scr_gnx_resolve_birth_classes();
++        gnx_types_tables_fix();  // GNX-TYPES (P2): a map mod may have added types
++        scr_gnx_build_spawn_tools();  // GNX-TYPES (P3): the tools MONSTERS menu follows the type table
++        gnx_recheck_cell_types();  // GNX-TYPES (P3): cells of boot mods that name a type of these map mods
++        gnx_art_wait_report(_loaded == array_length(global.gnx_map_deferred_mods));  // GNX-TYPES (P4): art still waiting
 +        scr_gnx_deferred_resolve_class_map();
 +        scr_gnx_apply_unlocks();
 +        scr_gnx_apply_prop_unlocks();

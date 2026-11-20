@@ -1,0 +1,22 @@
+{
+  "about": "Custom types P2: a class names a custom type in its keys. WOLFMOM (harness_type_class) has preg_mon_type_override \"wolf\" and birth_class {goblin 1, ..., wolf 2}: any father gives a wolf pregnancy, a wolf birth gives monster class 0 (the second WOLFMOM entry overrides the first, whose wolf entry is 2) and lists WOLFMOM in the wolf's birth list, and both survive a save/reload. The load remap also renumbers an underground birth's payload (a made-up save: wolf saved as 5 is now 4).",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a", "tools/scenarios/mods/harness_type_class"],
+  "steps": [
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_preg_for", "args": [0, {"class": "harness_type_class.WOLFMOM"}], "is": "wolf", "why": "a goblin father, the override by name"},
+    {"assert": "fn", "name": "gnx_scn_birth_class", "args": [{"class": "harness_type_class.WOLFMOM"}, {"mon": "wolf"}], "is": 0, "why": "the override class's own wolf entry, not the base's 2 (or the like's 1)"},
+    {"assert": "fn", "name": "gnx_scn_birth_class", "args": [{"class": "harness_type_class.WOLFMOM"}, 0], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_type_num", "args": [{"mon": "wolf"}, 0], "is": -1, "why": "control: no wolf of class 0 yet"},
+    {"call": "gnx_scn_birth", "args": [{"class": "harness_type_class.WOLFMOM"}, {"mon": "wolf"}]},
+    {"assert": "fn", "name": "gnx_scn_type_num", "args": [{"mon": "wolf"}, 0], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_br_has", "args": [{"mon": "wolf"}, 0, {"class": "harness_type_class.WOLFMOM"}], "is": 1},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_type_num", "args": [{"mon": "wolf"}, 0], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_br_has", "args": [{"mon": "wolf"}, 0, {"class": "harness_type_class.WOLFMOM"}], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_remap_payload", "args": [], "is": 4, "why": "slot_data.gnx_ug_birth_payload remapped like the infant props"},
+    {"assert": "fn", "name": "gnx_scn_type_warned", "args": [{"class": "harness_type_class.WOLFMOM"}, "|birth"], "is": 0, "why": "wolf is installed: no birth_class / birth_spr warning"}
+  ]
+}

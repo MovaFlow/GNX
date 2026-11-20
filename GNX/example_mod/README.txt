@@ -76,6 +76,14 @@ raids.json      Raid stages of the example map (modding guide 27):
                   name), on_discover event, curved cart route, Siren boss
                 manifest.json map_info also shows nest and vanilla_stages (the
                 Mountain hidden, the Castle's reward replaced on this map).
+monsters.json   One custom monster type, the IMP (modding guide 28): like a goblin, with its
+                own name, food, raid AP, speed, raid rows, raid skills and mood bubble offset.
+                The mod ships no sprites, so the imp is drawn as the like's goblin art in a
+                tint. A real mod adds idle, walk, icon, heads (4 frames, one per class) and
+                infant_head strips; a strip with no xorig/yorig takes the origin of the
+                game's own sheet. The WITCH's birth_class names it ("imp": 1). Other places
+                that take a type name: a cell's mon_types and mon_placements, by_mon_type,
+                preg_mon_type_override, sounds.json species, a cell's monster_art.
 
 
 CELL DISPATCH MODES

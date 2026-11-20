@@ -1,0 +1,15 @@
+{
+  "about": "Custom types P4 fix wave (M8): a monster of a custom type takes its type's current mood_shift_x / y when a save is loaded, so a save made before the mod set or changed them (here: the like's 6/-56 written onto the monster) shows the bubble where monsters.json puts it now.",
+  "mods": ["tools/scenarios/mods/harness_type_mood"],
+  "steps": [
+    {"wait": 30},
+    {"call": "gnx_scn_spawn_walker", "args": ["moodwolf"]},
+    {"assert": "fn", "name": "gnx_scn_walker_mood", "args": [], "is": "10 -70"},
+    {"call": "gnx_scn_type_set_mood", "args": ["moodwolf", 6, -56]},
+    {"assert": "fn", "name": "gnx_scn_type_mood", "args": ["moodwolf"], "is": "6 -56", "why": "as a save of an older build holds it"},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_type_mood", "args": ["moodwolf"], "is": "10 -70", "why": "the type's current offset after the load (before the fix: 6 -56)"}
+  ]
+}

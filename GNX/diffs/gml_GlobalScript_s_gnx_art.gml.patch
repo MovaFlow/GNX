@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_art.gml
 +++ gml/gml_GlobalScript_s_gnx_art.gml
-@@ -0,0 +1,2279 @@
+@@ -0,0 +1,2440 @@
 +// GNX: monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper
 +// (the functions are global, callable from any script)
 +
@@ -396,19 +396,21 @@
 +// display, drink, tentacle, milk 2, recover, clean, clone, shrines) are not judged: monsters reach them another way
 +function gnx_art_called(arg0, arg1, arg2)
 +{
++    // GNX-TYPES: the game calls monsters by their raw type, so the vanilla cases and the goblin-and-hobgoblin fallback never
++    // call a custom type (4 and up); only a cell's own lists can name one. gnx_art_limit keeps the like for drawing limits
 +    switch (arg1)
 +    {
 +        case 4: case 19: return arg2 == 0;
 +        case 17: return arg2 == 1;
 +        case 20: case 21: case 22: case 24: case 38: return arg2 == 3;
-+        case 18: case 36: return arg2 != 3;
-+        case 23: case 37: case 39: return true;
++        case 18: case 36: return arg2 == 0 || arg2 == 1;
++        case 23: case 37: case 39: return arg2 < 4;
 +        case 5: case 10: case 11: case 12: case 25: case 27: case 28: case 29: case 30: case 31: case 32: case 33: case 34: case 40: case 41: case 42:
 +            return true;
 +    }
 +
 +    if (!is_struct(arg0))
-+        return arg2 != 3;
++        return arg2 < 4 && arg2 != 3;
 +
 +    if (variable_struct_exists(arg0, "physical") && is_struct(arg0.physical) && variable_struct_exists(arg0.physical, "mon_placements") && is_array(arg0.physical.mon_placements))
 +    {
@@ -424,7 +426,7 @@
 +    if (variable_struct_exists(arg0, "mon_types") && is_array(arg0.mon_types))
 +        return array_contains(arg0.mon_types, arg2);
 +
-+    return arg2 != 3;
++    return arg2 < 4 && arg2 != 3;
 +}
 +
 +
@@ -442,11 +444,14 @@
 +    if (arg0 == 18 || arg0 == 24)
 +        return true;
 +
++    // GNX-TYPES: the vanilla limits below follow the type's "like"; gnx_art_called reads the raw type
++    var _lk = gnx_mon_like(arg1);
++
 +    // a monster the game never calls into this cell is never there to draw
 +    if (!gnx_art_called(ds_map_find_value(global.cell_registry, arg0), arg0, arg1))
 +        return true;
 +
-+    switch (arg1)
++    switch (_lk)
 +    {
 +        case 0:
 +            if (arg0 == 4 || arg0 == 11 || arg0 == 21 || arg0 == 22 || arg0 == 36 || arg0 == 37 || arg0 == 38 || arg0 == 39)
@@ -491,7 +496,7 @@
 +                _hit = true;
 +            }
 +
-+            if (arg2 == 3 && (arg1 == 21 || arg1 == 22 || arg1 == 23) && _pn[_j] == "body")
++            if (gnx_mon_like(arg2) == 3 && (arg1 == 21 || arg1 == 22 || arg1 == 23) && _pn[_j] == "body")
 +            {
 +                var _v = variable_struct_get_names(variable_struct_get(_parts, "body"));
 +
@@ -521,7 +526,8 @@
 +
 +function gnx_art_monster_name(arg0)
 +{
-+    return (arg0 == 0) ? "goblin" : ((arg0 == 1) ? "hobgoblin" : ((arg0 == 3) ? "ogre" : ""));
++    // GNX-TYPES: a custom type's name ("" for the tentacle and an unknown number)
++    return (arg0 == 0) ? "goblin" : ((arg0 == 1) ? "hobgoblin" : ((arg0 == 3) ? "ogre" : ((arg0 >= 4) ? gnx_mon_type_name(arg0) : "")));
 +}
 +
 +
@@ -682,10 +688,66 @@
 +}
 +
 +
++// the monsters cell JSON arg0's monster_art can name: goblin, hobgoblin, ogre, then the custom types it names (GNX-TYPES)
++function gnx_art_json_ids(arg0)
++{
++    var _out = [0, 1, 3];
++
++    if (gnx_mon_type_count() > 4 && variable_struct_exists(arg0, "monster_art") && is_struct(arg0.monster_art))
++    {
++        var _n = variable_struct_get_names(arg0.monster_art);
++
++        for (var _i = 0; _i < array_length(_n); _i++)
++        {
++            if (gnx_mon_type_id(_n[_i]) >= 4)
++                array_push(_out, gnx_mon_type_id(_n[_i]));
++        }
++    }
++
++    return _out;
++}
++
++
++// GNX-TYPES: true while a map mod waits for its map (global.gnx_map_deferred_mods): it may declare a type in the deferred load
++function gnx_art_waits_possible()
++{
++    return variable_global_exists("gnx_map_deferred_mods") && array_length(global.gnx_map_deferred_mods) > 0;
++}
++
++
++// GNX-TYPES: does a cell's monster_art block named arg0 wait for its type (gnx_art_parse_cell holds it in gnx_art_wait)? A type
++// name no loaded mod declares, while a map mod that may declare it waits for its map
++function gnx_art_name_waits(arg0)
++{
++    return gnx_mon_name_pending(arg0) && gnx_art_waits_possible();
++}
++
++
 +// has the cell JSON arg0 a monster_art block for any monster?
 +function gnx_art_json_has_any(arg0)
 +{
-+    return is_struct(gnx_art_json_block(arg0, 0)) || is_struct(gnx_art_json_block(arg0, 1)) || is_struct(gnx_art_json_block(arg0, 3));
++    var _ids = gnx_art_json_ids(arg0);
++
++    for (var _i = 0; _i < array_length(_ids); _i++)
++    {
++        if (is_struct(gnx_art_json_block(arg0, _ids[_i])))
++            return true;
++    }
++
++    // GNX-TYPES: a block that waits for a map mod's type (gnx_art_name_waits) is monster art too. Read only while a map
++    // mod is deferred, so a boot without one takes the lines above alone
++    if (gnx_art_waits_possible() && variable_struct_exists(arg0, "monster_art") && is_struct(arg0.monster_art))
++    {
++        var _n = variable_struct_get_names(arg0.monster_art);
++
++        for (var _j = 0; _j < array_length(_n); _j++)
++        {
++            if (gnx_art_name_waits(_n[_j]) && is_struct(variable_struct_get(arg0.monster_art, _n[_j])))
++                return true;
++        }
++    }
++
++    return false;
 +}
 +
 +
@@ -915,7 +977,29 @@
 +            continue;
 +
 +        var _id = gnx_art_monster_id(_mn);
++
++        // GNX-TYPES: cell scope only (class and global art are sprite swaps of vanilla sprites): a custom type's name gives its type id
++        if (_id < 0 && gnx_mon_type_id(_mn) >= 4)
++            _id = gnx_mon_type_id(_mn);
++
 +        var _who = arg3 + " monster_art." + _mn;
++
++        // GNX-TYPES: a type name no loaded mod declares yet, while a map mod waits for its map (it may declare the type in the
++        // deferred load), waits on the cell as mon_types waits for it; gnx_art_wait_replay judges it once the type exists. A later
++        // block for the name replaces it. With no map mod waiting, an unknown name stays the mod error below (a typo)
++        if (_id < 0 && gnx_art_name_waits(_mn))
++        {
++            if (!variable_struct_exists(arg5, "gnx_art_wait"))
++                arg5.gnx_art_wait = {};
++
++            var _wart = {};
++            variable_struct_set(_wart, _mn, variable_struct_get(arg0, _mn));
++            variable_struct_set(arg5.gnx_art_wait, _mn, { art: _wart, spr: arg1, dir: arg2, who: arg3, mod_name: variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "" });
++            var _wl = gnx_log_open();
++            gnx_log_write(_wl, "[GNX-WARN] " + _who + ": monster type '" + _mn + "' is not installed; the art waits for it\n");
++            gnx_log_close(_wl);
++            continue;
++        }
 +
 +        if (_id < 0)
 +        {
@@ -949,7 +1033,7 @@
 +            continue;
 +        }
 +
-+        var _ok = _id != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
++        var _ok = gnx_mon_like(_id) != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
 +
 +        if (gnx_art_limits_hit(_b.phases, arg4, _id, _who))
 +            _ok = false;
@@ -992,7 +1076,7 @@
 +                }
 +
 +                // cell 23: an ogre stands at place 0 (the cell draws its body), the others at place 1, because place 0 is hidden
-+                if (arg4 == 23 && _pk[_j] == ((_id == 3) ? "1" : "0"))
++                if (arg4 == 23 && _pk[_j] == ((gnx_mon_like(_id) == 3) ? "1" : "0"))
 +                {
 +                    gnx_report_mod_error(_who + ".placement." + _pk[_j] + ": not drawn on this cell");
 +                    _ok = false;
@@ -1028,7 +1112,7 @@
 +                        _ok = false;
 +
 +                    // each block on its own: a placement's phases never merge with the parent's
-+                    if (_id == 3 && !(gnx_art_ogre_ok(_pb.phases, _pw) && (_pb.anal == undefined || gnx_art_ogre_ok(_pb.anal, _pw + ".anal"))))
++                    if (gnx_mon_like(_id) == 3 && !(gnx_art_ogre_ok(_pb.phases, _pw) && (_pb.anal == undefined || gnx_art_ogre_ok(_pb.anal, _pw + ".anal"))))
 +                        _ok = false;
 +                }
 +            }
@@ -1062,6 +1146,71 @@
 +    var _mod = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
 +    variable_struct_set(global.gnx_art_pending, string(arg0) + ":" + string(arg1), { art: _art, spr: arg4, dir: arg5, who: arg6, h: arg0, mod_name: _mod });
 +    return true;
++}
++
++
++// GNX-TYPES: the monster_art blocks cell arg0 (h_type arg1) holds for types that were not installed (gnx_art_parse_cell), judged
++// now for each name a mod declares (after a deferred map-mod load, gnx_recheck_cell_types), with its own mod as the loading mod
++function gnx_art_wait_replay(arg0, arg1)
++{
++    if (!variable_struct_exists(arg0, "gnx_art_wait"))
++        return;
++
++    var _was = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++    var _wn = variable_struct_get_names(arg0.gnx_art_wait);
++
++    for (var _i = 0; _i < array_length(_wn); _i++)
++    {
++        if (gnx_mon_type_id(_wn[_i]) < 4)
++            continue;
++
++        var _e = variable_struct_get(arg0.gnx_art_wait, _wn[_i]);
++        variable_struct_remove(arg0.gnx_art_wait, _wn[_i]);
++        global.gnx_current_loading_mod = _e.mod_name;
++        gnx_art_parse_cell(_e.art, _e.spr, _e.dir, _e.who, arg1, arg0);
++
++        // the frame rules a mod cell's art gets at registration, as a patch of the cell gets them (s_gnx_content, gnx_cell_patch)
++        if (arg1 >= 100)
++            gnx_frames_check_art_patch({ monster_art: _e.art }, arg0, _e.spr);
++    }
++
++    global.gnx_current_loading_mod = _was;
++}
++
++
++// GNX-TYPES: after a deferred map-mod load, the cells' monster_art blocks still waiting for a type no mod declared. arg0 = true
++// when every deferred map mod is loaded now: none is left that could declare it, so each is the mod error a boot without map
++// mods gives (a typo) and is dropped. Else some map mods load on other maps: one log line per block, and it keeps waiting
++function gnx_art_wait_report(arg0)
++{
++    var _k = ds_map_keys_to_array(global.cell_registry);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _c = ds_map_find_value(global.cell_registry, _k[_i]);
++
++        if (!is_struct(_c) || !variable_struct_exists(_c, "gnx_art_wait"))
++            continue;
++
++        var _wn = variable_struct_get_names(_c.gnx_art_wait);
++
++        for (var _j = 0; _j < array_length(_wn); _j++)
++        {
++            var _e = variable_struct_get(_c.gnx_art_wait, _wn[_j]);
++
++            if (arg0)
++            {
++                variable_struct_remove(_c.gnx_art_wait, _wn[_j]);
++                gnx_report_mod_error(_e.who + " monster_art: unknown monster '" + _wn[_j] + "'");
++            }
++            else
++            {
++                var _l = gnx_log_open();
++                gnx_log_write(_l, "[GNX-WARN] " + _e.who + " monster_art." + _wn[_j] + ": monster type '" + _wn[_j] + "' is still not installed; it may come from a map mod of another map\n");
++                gnx_log_close(_l);
++            }
++        }
++    }
 +}
 +
 +
@@ -1214,6 +1363,18 @@
 +        return undefined;
 +
 +    var _mk = string(arg2);
++
++    // GNX-TYPES: a custom type draws its own block, else its own mon_spr_<name> set (or its _p<place>, read where s_mon_data
++    // reads mon_spr sets), else its "like"'s block (0-3 never reach the second line)
++    if (!variable_struct_exists(arg0.gnx_art, _mk) && arg2 >= 4)
++    {
++        var _own = "mon_spr_" + gnx_mon_type_name(arg2);
++
++        if ((arg6 >= 14 || arg1 >= 100) && (variable_struct_exists(arg0, _own) || variable_struct_exists(arg0, _own + "_p" + string(arg3))))
++            return undefined;
++
++        _mk = string(gnx_mon_like(arg2));
++    }
 +
 +    if (!variable_struct_exists(arg0.gnx_art, _mk))
 +        return undefined;

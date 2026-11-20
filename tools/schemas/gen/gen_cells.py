@@ -128,7 +128,7 @@ cell = obj({
     "name": d(S, "Cell name: references (\"my_mod.ALTAR\"), the hash ID, the build menu."),
     "category": {"enum": CATS, "description": "Build menu tab and cell size (guide 8.4)."},
     "locked": d(B, "Not in the build menu until unlocked."),
-    "mon_types": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 3}, "description": "Which monsters come: 0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre (guide 8.5)."},
+    "mon_types": {"type": "array", "items": {"oneOf": [{"type": "integer", "minimum": 0, "maximum": 3}, {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}]}, "description": "Which monsters come: 0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre, or a type name (\"goblin\", \"hobgoblin\", \"tentacle\", \"ogre\", or a custom type from a monsters.json, e.g. \"wolf\"); a number 4 or more is a mod error (guide 8.5)."},
     "slot_type": d(INT, "Only affects the default base_body (guide 8.4)."),
     "price": N,
     "code_text": S,
@@ -141,7 +141,7 @@ cell = obj({
     "tent_spr": ART, "milk_spr": ART, "infant_spr": ART, "band_spr": ART,
     "sprites": {"$ref": C + "sprites"},
 }, "One cell, or a patch of a vanilla cell (guide 8, 12).",
-    patternProperties={"^mon_spr(_hob|_ogr)?_p[0-9]+$": mon_spr, "^_": {}})
+    patternProperties={"^mon_spr_[a-z][a-z0-9_]*$": mon_spr, "^_": {}})  # _hob/_ogr/_pN, mon_spr_<type name> and its _pN
 
 cells = {
     "$schema": "http://json-schema.org/draft-07/schema#",

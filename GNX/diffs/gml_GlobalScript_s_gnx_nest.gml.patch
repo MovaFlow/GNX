@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml
 +++ gml/gml_GlobalScript_s_gnx_nest.gml
-@@ -0,0 +1,825 @@
+@@ -0,0 +1,1192 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -809,6 +809,373 @@
 +    }
 +    
 +    return _r;
++}
++
++
++// GNX-TYPES: the per-class data of monster type arg0: global.val.goblin / hobgoblin / tentacle / ogre for 0-3,
++// global.val.gnx_mon.<name> for a registered custom type (made if missing), else undefined
++function gnx_mon_data(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++
++    switch (_t)
++    {
++        case -1:
++            return undefined;
++
++        case 0:
++            return global.val.goblin;
++
++        case 1:
++            return global.val.hobgoblin;
++
++        case 2:
++            return global.val.tentacle;
++
++        case 3:
++            return global.val.ogre;
++    }
++
++    var _name = global.gnx_mon_types[_t].name;
++
++    if (!variable_struct_exists(global.val, "gnx_mon") || !is_struct(global.val.gnx_mon) || !variable_struct_exists(global.val.gnx_mon, _name))
++        gnx_types_val_fix(global.val, false);
++
++    return variable_struct_get(global.val.gnx_mon, _name);
++}
++
++
++// GNX-TYPES: new per-class data of custom type arg0, every class locked; stats from monsters.json, else a copy of
++// the like's stats in val arg1
++function gnx_types_new_data(arg0, arg1)
++{
++    var _def = global.gnx_mon_types[arg0];
++    var _st = _def.stat;
++
++    if (!is_array(_st))
++    {
++        var _lk = [arg1.goblin, arg1.hobgoblin, arg1.tentacle, arg1.ogre];
++        _st = _lk[_def.like].stat;
++    }
++
++    return {num: [-1, -1, -1, -1], stat: [_st[0], _st[1], _st[2], _st[3]], lvl: [0, 0, 0, 0], expe: [0, 0, 0, 0], skill_lvl: [0, 0, 0, 0], skill_exp: [0, 0, 0, 0], br: [[], [], [], []]};
++}
++
++
++// GNX-TYPES: makes a global.val fit this boot's monster types. With no custom type it only
++// trims arrays a removed type made longer, so a vanilla val is left exactly as it is.
++// arg1: count the live monsters of each custom type into nest_num (after a load recreated them)
++function gnx_types_val_fix(arg0, arg1)
++{
++    var _n = gnx_mon_type_count();
++
++    if (array_length(arg0.mon_num) > 4)
++        array_resize(arg0.mon_num, 4);
++
++    if (array_length(arg0.nest_num) > 5)
++        array_resize(arg0.nest_num, 5);
++
++    if (_n <= 4)
++    {
++        if (variable_struct_exists(arg0, "gnx_types"))
++            variable_struct_remove(arg0, "gnx_types");
++
++        return;  // gnx_mon stays: counts of an uninstalled type wait for its mod
++    }
++
++    if (!variable_struct_exists(arg0, "gnx_mon") || !is_struct(arg0.gnx_mon))
++        arg0.gnx_mon = {};
++
++    var _tab = [];
++
++    for (var _t = 4; _t < _n; _t++)
++    {
++        var _def = global.gnx_mon_types[_t];
++
++        if (!variable_struct_exists(arg0.gnx_mon, _def.name))
++            variable_struct_set(arg0.gnx_mon, _def.name, gnx_types_new_data(_t, arg0));
++
++        var _md = variable_struct_get(arg0.gnx_mon, _def.name);
++
++        if (!variable_struct_exists(_md, "br"))  // a Phase 1 save
++            _md.br = [[], [], [], []];
++
++        if (is_array(_def.stat))
++            _md.stat = [_def.stat[0], _def.stat[1], _def.stat[2], _def.stat[3]];
++
++        var _sum = 0;
++        var _open = false;
++
++        for (var _c = 0; _c < 4; _c++)
++        {
++            if (_md.num[_c] != -1)
++            {
++                _open = true;
++                _sum += _md.num[_c];
++            }
++        }
++
++        arg0.mon_num[_t] = _open ? _sum : -1;
++        var _out = 0;
++
++        if (arg1)
++        {
++            with (obj_mon)
++            {
++                if (mon_data.mon_type == _t)
++                    _out++;
++            }
++        }
++
++        arg0.nest_num[_t + 1] = _out;
++        array_push(_tab, {name: _def.name, like: _def.like});
++    }
++
++    arg0.gnx_types = _tab;
++    // nest_num[0] is recounted by scr_load_slot when the type set changed (after the formation rows are restored)
++}
++
++
++// GNX-TYPES (P2): raid and birth tables
++
++// rows 4 and up of global.mon_range / global.mon_skill: the type's own, else a copy of its like's row.
++// Runs after every loader pass (scr_create_initials, the deferred map-mod load); 4 rows when no custom type.
++function gnx_types_tables_fix()
++{
++    array_resize(global.mon_range, 4);
++    array_resize(global.mon_skill, 4);
++
++    for (var _t = 4; _t < gnx_mon_type_count(); _t++)
++    {
++        var _d = global.gnx_mon_types[_t];
++        var _r = is_array(_d.range) ? _d.range : global.mon_range[_d.like];
++        var _s = is_array(_d.skills) ? _d.skills : global.mon_skill[_d.like];
++        global.mon_range[_t] = [gnx_array_copy(_r[0]), gnx_array_copy(_r[1]), gnx_array_copy(_r[2]), gnx_array_copy(_r[3])];
++        global.mon_skill[_t] = [_s[0], _s[1], _s[2], _s[3]];
++    }
++}
++
++
++// a new array with arg0's items (the tables must not share rows with the like's)
++function gnx_array_copy(arg0)
++{
++    var _o = array_create(array_length(arg0));
++    array_copy(_o, 0, arg0, 0, array_length(arg0));
++    return _o;
++}
++
++
++// Top bar with custom types: the nest_num indices of the shown entries and the pitch between frames, or undefined
++// when no custom type is unlocked (scr_draw_gui then draws the vanilla bar unchanged). Vanilla entries come first,
++// then the unlocked custom types in table order. The last frame must stay left of x 262 with ui_place on (buttons at
++// x 266) or x 380 with it off (food counter at x 385): from a fifth entry on the pitch narrows to fit, and custom
++// entries are dropped until the pitch is no smaller than the frame.
++function gnx_topbar_layout()
++{
++    // called every GUI frame once a custom type is registered: with all of them locked nothing is allocated
++    if (!gnx_unlocked_custom_types(true))
++        return undefined;
++
++    var _cust = gnx_unlocked_custom_types(false);
++    var _idx = [0];
++
++    for (var _i = 1; _i < 5; _i++)
++    {
++        if (_i != 3 && global.val.mon_num[_i - 1] != -1)
++            array_push(_idx, _i);
++    }
++
++    var _on = global.val.ui_place;
++    var _c = array_length(_cust);
++    var _limit = _on ? 262 : 380;
++    var _fw = sprite_get_width(spr_unit_frame);
++    var _pitch = 54;
++
++    while (_c > 0)
++    {
++        var _n = array_length(_idx) + _c;
++        _pitch = (_n <= 4) ? 54 : min(54, floor((_limit - 24 - _fw) / (_n - 1)));
++
++        if (_pitch >= _fw)
++            break;
++
++        _c--;
++    }
++
++    if (_c == 0)
++        _pitch = 54;  // no custom entry fits: the vanilla bar
++
++    for (var _i = 0; _i < _c; _i++)
++        array_push(_idx, _cust[_i] + 1);  // nest_num index = type + 1
++
++    return { idx: _idx, pitch: _pitch };
++}
++
++
++// GNX-TYPES (P3): the unlocked custom types (mon_num not -1), in table order. arg0 true: only whether there is one
++// (true / false), with no array built, for callers that run every frame
++function gnx_unlocked_custom_types(arg0)
++{
++    var _o = arg0 ? undefined : [];
++
++    for (var _t = 4; _t < min(gnx_mon_type_count(), array_length(global.val.mon_num)); _t++)
++    {
++        if (global.val.mon_num[_t] == -1)
++            continue;
++
++        if (arg0)
++            return true;
++
++        array_push(_o, _t);
++    }
++
++    return arg0 ? false : _o;
++}
++
++
++// layout_check boxes of one top bar entry (frame, icon, count); callers test global.gnx_ui_rects first
++function gnx_topbar_rects(arg0, arg1, arg2)  // frame x, icon x, count text
++{
++    gnx_ui_rect("box", arg0, 0, arg0 + sprite_get_width(spr_unit_frame), sprite_get_height(spr_unit_frame), "topbar frame " + string(arg0));
++    var _ix = arg1 - sprite_get_xoffset(spr_mon_icon);
++    var _iy = 9 - sprite_get_yoffset(spr_mon_icon);
++    // the icon sprite has transparent padding and is clipped by the frame: record its part inside the frame
++    gnx_ui_rect("leaf", max(_ix, arg0), max(_iy, 0), min(_ix + sprite_get_width(spr_mon_icon), arg0 + sprite_get_width(spr_unit_frame)), min(_iy + sprite_get_height(spr_mon_icon), sprite_get_height(spr_unit_frame)), "topbar icon " + string(arg0));
++    var _tw = string_width(arg2);
++    gnx_ui_rect("leaf", (arg0 + 34) - (_tw / 2), 6, arg0 + 34 + (_tw / 2), 6 + string_height(arg2), "topbar count " + string(arg0));
++}
++
++
++// [sprite, frame] of type arg0's icon: its own icon frame 0, else the game's icon sheet at the like's frame.
++// Own art is only read for custom types: table entries 0-3 hold no sprite fields.
++function gnx_mon_icon(arg0)
++{
++    if (arg0 >= 4 && global.gnx_mon_types[arg0].spr_icon != -1 && scr_gnx_spr_ok(global.gnx_mon_types[arg0].spr_icon))
++        return [global.gnx_mon_types[arg0].spr_icon, 0];
++
++    return [spr_mon_icon, gnx_mon_like(arg0) + 1];
++}
++
++
++// [sprite, frame] of the pickup head of type arg0, class arg1
++function gnx_mon_head(arg0, arg1)
++{
++    if (arg0 >= 4 && global.gnx_mon_types[arg0].spr_heads != -1 && scr_gnx_spr_ok(global.gnx_mon_types[arg0].spr_heads))
++        return [global.gnx_mon_types[arg0].spr_heads, arg1];
++
++    return [spr_mon_icon_head, gnx_mon_like(arg0) * 4 + arg1];
++}
++
++
++// [sprite, frame] of the infant head of type arg0
++function gnx_mon_infant_head(arg0)
++{
++    if (arg0 >= 4 && global.gnx_mon_types[arg0].spr_infant_head != -1 && scr_gnx_spr_ok(global.gnx_mon_types[arg0].spr_infant_head))
++        return [global.gnx_mon_types[arg0].spr_infant_head, 0];
++
++    return [spr_infant_ui_head, gnx_mon_like(arg0)];
++}
++
++
++// the unit classes born from type arg0, class arg1: val.gnx_br_unlock[t][c] for 0-3, the type's own br list above.
++// It returns the stored array itself, so array_push on the result writes into the save.
++function gnx_br_list(arg0, arg1)
++{
++    if (arg0 < 4)
++        return global.val.gnx_br_unlock[arg0][arg1];
++
++    var _d = gnx_mon_data(arg0);
++
++    if (is_undefined(_d))
++        return [];  // a type not installed: an empty list, a write to it is dropped
++
++    if (!variable_struct_exists(_d, "br"))
++        _d.br = [[], [], [], []];
++
++    return _d.br[arg1];
++}
++
++
++// GNX-TYPES: true when save val arg0 was made with other custom types than this boot's (the names in its
++// val.gnx_types, in order, against the table's 4 and up): a type mod was added or removed. Also true when its
++// mon_num is not as long as the type table (Mav's old wolf build counted wolves in mon_num[4] with no table)
++function gnx_types_set_changed(arg0)
++{
++    if (array_length(arg0.mon_num) != gnx_mon_type_count())
++        return true;
++
++    var _sv = (variable_struct_exists(arg0, "gnx_types") && is_array(arg0.gnx_types)) ? arg0.gnx_types : [];
++    var _n = gnx_mon_type_count() - 4;
++
++    if (array_length(_sv) != _n)
++        return true;
++
++    for (var _k = 0; _k < _n; _k++)
++    {
++        if (!is_struct(_sv[_k]) || !variable_struct_exists(_sv[_k], "name") || _sv[_k].name != global.gnx_mon_types[_k + 4].name)
++            return true;
++    }
++
++    return false;
++}
++
++
++// GNX-TYPES: rations the custom types eat per day: sum of food x units (0 with none)
++function gnx_types_food_sum()
++{
++    var _f = 0;
++
++    for (var _t = 4; _t < gnx_mon_type_count(); _t++)
++    {
++        var _md = gnx_mon_data(_t);
++        var _u = 0;
++
++        for (var _c = 0; _c < 4; _c++)
++            _u += max(0, _md.num[_c]);
++
++        _f += global.gnx_mon_types[_t].food * _u;
++    }
++
++    return _f;
++}
++
++
++// GNX-TYPES: rations of the custom types in the raid rows; arg0 = troops per type (scr_all_cost's _mon_num), 0 with none
++function gnx_types_row_food(arg0)
++{
++    var _f = 0;
++
++    for (var _t = 4; _t < gnx_mon_type_count() && _t < array_length(arg0); _t++)
++        _f += global.gnx_mon_types[_t].food * max(0, arg0[_t]);
++
++    return _f;
++}
++
++
++// GNX-TYPES: monsters of every type counted in global.val.mon_num (locked -1 counts as 0); no random call
++function gnx_types_mon_total()
++{
++    var _n = 0;
++
++    for (var _t = 0; _t < array_length(global.val.mon_num); _t++)
++        _n += max(0, global.val.mon_num[_t]);
++
++    return _n;
++}
++
++
++// GNX-TYPES: true when some custom type has units (starvation then picks among every type)
++function gnx_types_any_units()
++{
++    var _len = array_length(global.val.mon_num);
++
++    for (var _t = 4; _t < gnx_mon_type_count() && _t < _len; _t++)
++    {
++        if (global.val.mon_num[_t] > 0)
++            return true;
++    }
++
++    return false;
 +}
 +
 +

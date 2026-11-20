@@ -1,0 +1,22 @@
+{
+  "about": "Custom types P2 (Review Focus 2): the save of type_mod_removed_raid_a_setup (a raid out with a front row of 40 wolves) loaded without the wolf mod. The wolf row is dropped and its 40 wolves go back to the kept counts (val.gnx_mon.wolf), the hobgoblin row is untouched, the raid window's wolf category becomes goblin, the raid's AP and skills are recomputed without the wolves, and the raid finishes with what is left, without a code error in scr_calculate_group_stat.",
+  "fixture": "type_raid_out",
+  "seed": 5,
+  "timeout": 240,
+  "steps": [
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_scn_mon_live_custom", "args": [], "is": 0, "why": "no monster of an uninstalled type on the board"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 40, "why": "V + 40: the wolf row is refunded"},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [1, 1], "is": 150, "why": "the hobgoblin row is kept"},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [4, 0], "is": 0, "why": "no row of the old wolf number is left"},
+    {"assert": "fn", "name": "gnx_scn_raid_cat", "args": [], "is": "goblin", "why": "a category of an uninstalled type falls back to 0"},
+    {"assert": "fn", "name": "gnx_scn_raid_ap", "args": [0], "is": 0, "why": "the dropped wolf row (the whole front row) no longer counts in the raid's AP"},
+    {"assert": "fn", "name": "gnx_scn_raid_ap_fresh", "args": [], "is": 1, "why": "AP and skills are what a recompute from the rows left gives"},
+    {"assert": "raid", "state": 1},
+    {"raid_finish": 4000},
+    {"wait": 5},
+    {"assert": "raid", "state": 0, "why": "the raid finishes with what is left"},
+    {"assert": "registry_ok"},
+    {"assert": "fn", "name": "gnx_scn_kept_num", "args": ["wolf"], "is": 40, "why": "the raid's end does not touch the kept wolves"}
+  ]
+}

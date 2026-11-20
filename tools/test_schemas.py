@@ -31,6 +31,8 @@ EXPECTED = {
     ("harness_map_start", "manifest.json", "map_start.troops[3].type"),
     ("harness_props_bad", "props.json", "props[0].category"),
     ("harness_bad_spr", "cells.json", "[0].human_spr.phase_1.spr_array"),
+    ("harness_type_mav", "monsters.json", "mavbad"),  # an unknown key inside a type entry is still reported
+    ("harness_type_voice_bad", "sounds.json", "ambience.species"),  # ambience.species as a list: a mod error on purpose
     ("harness_spawn_bad", "cells.json", "[0].spawn_info"),
     ("harness_mav1505", "classes.json", "[2].milk_lvl"),
     ("harness_mav1515", "cells.json", "[1].h_type"),
@@ -48,6 +50,23 @@ EXPECTED = {
     ("harness_quest_keys", "quests.json", "events.no_type"),  # quest_missing_keys: an event without type, on purpose
     ("harness_quest_keys", "quests.json", "triggers[0].conditions[0]"),  # gold_gte without value, on purpose
     ("harness_quest_keys", "quests.json", "triggers[1].conditions[0].type"),  # misspelled condition type, on purpose
+    # harness_type_bad: one break per bad entry the schema can see (goblin, wolf and hob are only seen by the loader)
+    ("harness_type_bad", "monsters.json", "(top)"),  # 'Bad Name'
+    ("harness_type_bad", "monsters.json", "nolike"),
+    ("harness_type_bad", "monsters.json", "squid.like"),
+    ("harness_type_bad", "monsters.json", "dragon.like"),
+    ("harness_type_bad", "monsters.json", "glutton.food"),
+    ("harness_type_bad", "monsters.json", "weak.stat"),
+    ("harness_type_bad", "monsters.json", "slow.speed"),
+    ("harness_type_bad", "monsters.json", "slow.speed[0]"),
+    ("harness_type_bad", "monsters.json", "typo"),
+    ("harness_type_bad", "monsters.json", "notobj"),
+    ("harness_type_bad", "monsters.json", "badrange.range[1][0]"),
+    ("harness_type_bad", "monsters.json", "badskill.skills[3]"),
+    ("harness_type_bad", "monsters.json", "badart.icon"),
+    ("harness_type_bad", "monsters.json", "badart.heads"),
+    ("harness_type_bad", "monsters.json", "badart.infant_head"),
+    ("harness_type_bad", "cells.json", "[0].mon_types[0]"),  # a mon_types number 4: custom types are named, on purpose
 }
 # real problems found in community mods, reported and waiting for their authors: exact paths, so a new
 # problem in the same files still fails the test
@@ -138,6 +157,7 @@ TYPOS = [
     ("cells", "GNX/example_mod/cells.json", [0], "category"),
     ("cells", "GNX/example_mod/cells.json", [0, "physical"], "max_mon_num"),
     ("cells", "GNX/example_mod/cells.json", [0, "mon_spr", "loop"], "body"),
+    ("monsters", "tools/scenarios/mods/harness_type_a/monsters.json", ["wolf"], "like"),
 ]
 
 
@@ -251,6 +271,34 @@ def test_art_checks(js):
     return bad
 
 
+def test_type_names(js):
+    """classes.json: monster types named in preg_mon_type_override, birth_class and birth_spr (custom types P2)"""
+    base = {"name": "T", "override": False, "is_special": False, "has_hair": False}
+    cases = [  # (class keys, clean?)
+        ({"preg_mon_type_override": "wolf"}, True),
+        ({"preg_mon_type_override": 2}, True),
+        ({"preg_mon_type_override": 4}, False),
+        ({"preg_mon_type_override": "Wolf"}, False),
+        ({"preg_mon_type_override": 1.5}, False),
+        ({"birth_class": {"goblin": 1, "wolf": 2, "_note": "x"}}, True),
+        ({"birth_class": {"wolf": 4}}, False),
+        ({"birth_class": {"Wolf": 1}}, False),
+        ({"birth_spr": {"birth_1": {"wolf": "spr_h_ogre_giant_birth"}, "birth_2": {"ogre": -1, "wolf_b": "gnx:x"}}}, True),
+        ({"birth_spr": {"birth_2": {"Wolf": "spr_x"}}}, False),
+    ]
+    bad = []
+    with tempfile.TemporaryDirectory() as tmp:
+        f = Path(tmp) / "classes.json"
+        for keys, clean in cases:
+            f.write_text(json.dumps([dict(base, **keys)]), encoding="utf-8")
+            got = []
+            check_mod.check_file(f, "classes", js, lambda p, where, msg, b: got.append(f"{where}: {msg}"))
+            if clean == bool(got):
+                bad.append(f"  type names: {keys} should be {'clean' if clean else 'reported'}: {got}")
+    print(f"type names: {len(cases)} cases, {len(bad)} wrong")
+    return bad
+
+
 # loader function -> (schema, json pointer of the object schema whose properties must cover the keys read
 # from GML variable `var`)
 SYNC = [
@@ -292,6 +340,7 @@ SYNC += [
     ("s_gnx_content", "_hspr", "cells", ["definitions", "cell", "properties", "human_spr"], "scr_gnx_register_cell"),
     ("s_gnx_content", "_s", "cells", ["definitions", "mon_start"], "gnx_resolve_mon_spr"),
     ("s_gnx_content", "_lo", "cells", ["definitions", "mon_phase"], "gnx_resolve_mon_spr"),
+    ("s_gnx_content", "_d", "monsters", ["definitions", "monster"], "scr_gnx_load_monsters"),
     ("s_gnx_content", "arg0", "cells", ["definitions", "cell", "properties", "mon_spr"], "gnx_resolve_mon_spr"),
 ]
 GML_ONLY = {"mod_name"}  # filled in by the loader
@@ -324,7 +373,7 @@ def test_sync():
 def main():
     os.chdir(ROOT)
     import jsonschema
-    bad = test_corpus(jsonschema) + test_typos(jsonschema) + test_sync() + test_art_checks(jsonschema)
+    bad = test_corpus(jsonschema) + test_typos(jsonschema) + test_sync() + test_art_checks(jsonschema) + test_type_names(jsonschema)
     for b in bad:
         print(b)
     print("test_schemas: " + ("OK" if not bad else f"{len(bad)} FAIL"))

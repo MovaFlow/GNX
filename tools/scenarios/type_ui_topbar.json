@@ -1,0 +1,22 @@
+{
+  "about": "Custom types P3: the top bar draws unlocked custom types after the vanilla entries as far as 54 px frames fit left of the limit (x 380 with ui_place off: 2 custom types; x 262 with it on: none, the vanilla bar), with no overlapping frames, icons or counts (layout_check).",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a", "tools/scenarios/mods/harness_type_b", "tools/scenarios/mods/harness_type_c"],
+  "steps": [
+    {"wait": 60},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 5, "class": 0}},
+    {"do": {"type": "spawn_mon", "species": "bear", "amount": 5, "class": 0}},
+    {"do": {"type": "spawn_mon", "species": "boar", "amount": 5, "class": 0}},
+    {"do": {"type": "spawn_mon", "species": "fox", "amount": 5, "class": 0}},
+    {"do": {"type": "set_val", "key": "ui_place", "value": 0}},
+    {"wait": 10},
+    {"assert": "fn", "name": "gnx_scn_topbar", "args": [], "is": "0 1 2 4 5 6", "why": "ui_place off: frames are 54 px wide, so 6 frames end at x 348 (limit 380) and the third custom type does not fit"},
+    {"layout_check": "hud_off"},
+    {"screenshot": "hud_off"},
+    {"do": {"type": "set_val", "key": "ui_place", "value": 1}},
+    {"wait": 10},
+    {"assert": "fn", "name": "gnx_scn_topbar", "args": [], "is": "0 1 2 4", "why": "ui_place on: 4 frames already end at x 240 (limit 262), no custom entry fits without overlap"},
+    {"layout_check": "hud_on"},
+    {"screenshot": "hud_on"}
+  ]
+}

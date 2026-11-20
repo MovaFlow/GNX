@@ -1,6 +1,51 @@
 --- gml_138/gml_GlobalScript_s_raid_button.gml
 +++ gml/gml_GlobalScript_s_raid_button.gml
-@@ -26,7 +26,8 @@
+@@ -8,10 +8,43 @@
+ {
+     draw_sprite(spr_mon_cat, image_index, x, y);
+     draw_set_alpha(1 - (image_index * 0.75));
+-    draw_sprite(spr_mon_icon, button_num + 1, x + 11, y + 10);
++    if (button_num >= 4)  // GNX-TYPES: a custom type's own icon (category pages past the first, gnx_raid_cat_buttons)
++    {
++        var _ic = gnx_mon_icon(button_num);
++        gnx_draw_sprite_ext(_ic[0], _ic[1], x + 11, y + 10, 1, 1, 0, c_white, draw_get_alpha());  // as draw_sprite: the set alpha
++    }
++    else
++        draw_sprite(spr_mon_icon, button_num + 1, x + 11, y + 10);
++
+     draw_set_halign(fa_left);
+     draw_text(x + 1, y + 15, global.val.mon_num[button_num]);
+     draw_set_alpha(1);
++
++    if (is_array(global.gnx_ui_rects))  // GNX-TYPES: layout_check box of the category button
++    {
++        var _x0 = x - sprite_get_xoffset(spr_mon_cat);
++        var _y0 = y - sprite_get_yoffset(spr_mon_cat);
++        gnx_ui_rect("leaf", _x0, _y0, _x0 + sprite_get_width(spr_mon_cat), _y0 + sprite_get_height(spr_mon_cat), "raid cat " + string(button_num));
++    }
++}
++
++
++// GNX-TYPES: a raid category page arrow (interact 9065), with its layout_check box; the previous arrow also
++// records the head drop zone (x 49..162, y 45..149) so an arrow on it is a layout problem
++function scr_gnx_draw_raid_page_arrow()
++{
++    scr_draw_hover_button();
++
++    if (is_array(global.gnx_ui_rects))
++    {
++        var _xa = x - (sprite_get_xoffset(sprite_index) * image_xscale);
++        var _xb = _xa + (sprite_get_width(sprite_index) * image_xscale);
++        var _y0 = y - sprite_get_yoffset(sprite_index);
++        gnx_ui_rect("leaf", min(_xa, _xb), _y0, max(_xa, _xb), _y0 + sprite_get_height(sprite_index), "raid page arrow " + string(button_num));
++
++        if (button_num == 0)
++            gnx_ui_rect("leaf", 49, 45, 162, 149, "raid drop zone");
++    }
+ }
+ 
+ function scr_draw_inv_slider()
+@@ -26,7 +59,8 @@
  
  function scr_step_slider()
  {
@@ -10,7 +55,7 @@
  }
  
  function scr_reset_mon_cat_head(arg0, arg1, arg2)
-@@ -39,7 +40,8 @@
+@@ -39,7 +73,8 @@
  function scr_create_map_buttons()
  {
      scr_create_button(291, 143, depth - 5, spr_button_raid, UnknownEnum.Value_41, id, scr_create_raid_start_button, -1, scr_draw_hover_button, 0, 0);

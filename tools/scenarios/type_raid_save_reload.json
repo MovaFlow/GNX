@@ -1,0 +1,32 @@
+{
+  "about": "Custom types P2: raid_save_reload with a front row of 40 wolves (harness_type_a) and a back row of 150 hobgoblins. Saved and reloaded on the outbound leg, both rows must come back as they were: a live row entry is {mon_type: 21 (the entry kind), unit_data: {mon_type, class}, num}, and a load remap that reads or rewrites the top-level 21 breaks every row (Review Focus 1). The raid then comes home.",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_a"],
+  "seed": 5,
+  "timeout": 240,
+  "steps": [
+    {"wait": 60},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 40, "class": 0}},
+    {"open_raid": true},
+    {"wait": 5},
+    {"raid_stage": 0},
+    {"wait": 10},
+    {"raid_clear_formation": true},
+    {"raid_formation": {"front": [[0, 40]], "cat": {"mon": "wolf"}}},
+    {"raid_formation": {"back": [[0, 150]], "cat": 1}},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [{"mon": "wolf"}, 0], "is": 40, "why": "control"},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [1, 1], "is": 150, "why": "control"},
+    {"raid_go": true},
+    {"wait": 10},
+    {"assert": "raid", "state": 1},
+    {"save": 9},
+    {"reload": 9},
+    {"wait": 30},
+    {"assert": "raid", "state": 1, "why": "the raid is still out after the reload"},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [{"mon": "wolf"}, 0], "is": 40, "why": "the wolf row survives the reload"},
+    {"assert": "fn", "name": "gnx_scn_row_num", "args": [1, 1], "is": 150, "why": "the hobgoblin row is untouched by the type remap"},
+    {"raid_finish": 4000},
+    {"wait": 5},
+    {"assert": "raid", "state": 0, "why": "the reloaded raid with a wolf row comes home"}
+  ]
+}

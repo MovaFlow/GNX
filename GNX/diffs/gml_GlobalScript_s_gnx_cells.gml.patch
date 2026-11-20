@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3479 @@
+@@ -0,0 +1,3475 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -515,15 +515,10 @@
 +
 +/// GNX-UG: the child species of a pregnancy in an underground cell for class arg0 (the class's
 +/// preg_mon_type_override, otherwise tentacle 2), as gnx_ug_child_type() does for the captive in the cell.
++/// GNX-TYPES: the override may name a custom type; one not installed gives tentacle 2 (gnx_preg_type_for logs it, naming the tentacle)
 +function gnx_ug_child_type_for(arg0)
 +{
-+    var _rc = ds_map_find_value(global.class_registry, arg0);
-+    
-+    // GNX-FIX: the class loader already checks the value; gnx_json_num keeps this safe for anything else
-+    if (_rc != undefined && variable_struct_exists(_rc, "preg_mon_type_override"))
-+        return clamp(floor(gnx_json_num(_rc.preg_mon_type_override, 2)), 0, 3);
-+    
-+    return 2;
++    return gnx_preg_type_for(2, arg0, "the underground default (tentacle) used");
 +}
 +
 +
@@ -590,21 +585,11 @@
 +}
 +
 +
-+// map_start helpers: a monster type given as a name or a number (-1 = unknown)
++// map_start helpers: a monster type given as a name or a number 0-3 (-1 = unknown; GNX-TYPES: the type table's rule,
++// a number 4 and up is a mod error, a name no installed mod declares a warning)
 +function gnx_mon_type_ref(arg0)
 +{
-+    if (is_real(arg0))
-+        return (arg0 >= 0 && arg0 <= 3) ? arg0 : -1;
-+
-+    switch (arg0)
-+    {
-+        case "goblin": return 0;
-+        case "hobgoblin": return 1;
-+        case "tentacle": return 2;
-+        case "ogre": return 3;
-+    }
-+
-+    return -1;
++    return gnx_mon_type_json(arg0, "map_start");
 +}
 +
 +
@@ -861,9 +846,14 @@
 +    }
 +    
 +    var _sets = ["mon_spr", "mon_spr_hob", "mon_spr_ogr"];
++
++    // GNX-TYPES: and each custom type's own set, mon_spr_<name>
++    for (var _gt = 4; _gt < gnx_mon_type_count(); _gt++)
++        array_push(_sets, "mon_spr_" + gnx_mon_type_name(_gt));
++
 +    var _all = [];
-+    
-+    for (var s = 0; s < 3; s++)
++
++    for (var s = 0; s < array_length(_sets); s++)
 +    {
 +        array_push(_all, _sets[s]);
 +        
@@ -893,18 +883,23 @@
 +    
 +    // a monster type without its own start or loop strips is drawn from the vanilla sheets (2 / 5 frames)
 +    var _types = variable_struct_exists(arg0, "mon_types") ? arg0.mon_types : [0, 1, 2, 3];
-+    var _tname = ["goblin", "hobgoblin", "tentacle", "ogre"];
-+    
++
 +    for (var m = 0; m < array_length(_types); m++)
 +    {
-+        var _t = gnx_json_num(_types[m], -1);
-+        
-+        if (_t < 0 || _t > 3)
++        // GNX-TYPES: the cell JSON's entry, a type name or a number (gnx_cell_mon_check reports bad ones, not this)
++        var _t = (is_string(_types[m]) && gnx_mon_type_id(_types[m]) >= 0) ? gnx_mon_type_id(_types[m]) : gnx_json_num(_types[m], -1);
++
++        if (_t < 0 || _t >= gnx_mon_type_count() || _t != floor(_t))
 +            continue;
-+        
-+        // as in scr_set_mon_spr_data: hobgoblin and ogre sets, else the goblin set (mon_spr)
-+        var _key = (_t == 1) ? "mon_spr_hob" : ((_t == 3) ? "mon_spr_ogr" : "mon_spr");
-+        
++
++        // as in scr_set_mon_spr_data: a custom type's own set, else the set of its "like": hobgoblin and ogre
++        // sets, else the goblin set (mon_spr); the vanilla frame counts below are the like's
++        var _lk = gnx_mon_like(_t);
++        var _key = (_lk == 1) ? "mon_spr_hob" : ((_lk == 3) ? "mon_spr_ogr" : "mon_spr");
++
++        if (_t >= 4 && variable_struct_exists(arg0, "mon_spr_" + gnx_mon_type_name(_t)))
++            _key = "mon_spr_" + gnx_mon_type_name(_t);
++
 +        if (!variable_struct_exists(arg0, _key))
 +            _key = "mon_spr";
 +        
@@ -916,9 +911,9 @@
 +            var _vanilla = (p == 0) ? 2 : 5;
 +            
 +            // GNX-ART: a phase that monster_art has a block for, at every place, has strips (anal scenes without anal art play these)
-+            if (_need != _vanilla && (!is_struct(_set) || !variable_struct_exists(_set, _ph[p])) && !gnx_art_json_covers(arg0, _t, _ph[p], _max_mon))
++            if (_need != _vanilla && (!is_struct(_set) || !variable_struct_exists(_set, _ph[p])) && !gnx_art_json_covers(arg0, _lk, _ph[p], _max_mon))
 +            {
-+                gnx_report_mod_error("Cell '" + string(arg1) + "': the " + _ph[p] + " has " + string(_need) + " frames but " + _tname[_t] + "s have no " + _ph[p] + " strips in mon_spr (the vanilla ones have " + string(_vanilla) + ")");
++                gnx_report_mod_error("Cell '" + string(arg1) + "': the " + _ph[p] + " has " + string(_need) + " frames but " + gnx_mon_type_name(_t) + "s have no " + _ph[p] + " strips in mon_spr (the vanilla ones have " + string(_vanilla) + ")");
 +                _bad++;
 +            }
 +        }
@@ -1569,9 +1564,10 @@
 +{
 +    var _bad = 0;
 +    var _seen = {};
-+    var _art_i = [0, 1, 3];
-+    
-+    for (var s = 0; s < 3; s++)
++    // GNX-TYPES: goblin, hobgoblin, ogre and the custom types the art names
++    var _art_i = gnx_art_json_ids(arg0);
++
++    for (var s = 0; s < array_length(_art_i); s++)
 +    {
 +        var _ablk = gnx_art_json_blocks(arg0, _art_i[s]);
 +        

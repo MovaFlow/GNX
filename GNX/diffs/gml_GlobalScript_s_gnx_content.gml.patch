@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,4821 @@
+@@ -0,0 +1,5816 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -413,6 +413,681 @@
 +}
 +
 +
++// GNX-TYPES: the monster type table. Entries 0-3 are the game's four types; mods add 4 and up (monsters.json),
++// numbered at each boot in load order. Each entry's "like" (0 goblin, 1 hobgoblin, 3 ogre) is the vanilla code path
++// the type uses. Called once per scr_create_initials, before any mod loads; a late map mod load appends.
++function gnx_types_reset()
++{
++    // "mod" is a GML operator word: the field is only read and written by name (variable_struct_get / _set)
++    global.gnx_mon_types = [{name: "goblin", like: 0}, {name: "hobgoblin", like: 1}, {name: "tentacle", like: 2}, {name: "ogre", like: 3}];
++
++    for (var _i = 0; _i < 4; _i++)
++        variable_struct_set(global.gnx_mon_types[_i], "mod", "");
++
++    global.gnx_mon_type_ids = {goblin: 0, hobgoblin: 1, tentacle: 2, ogre: 3};
++    global.gnx_preg_warned = {};  // classes whose preg_mon_type_override names a type not installed (warned once)
++}
++
++
++// GNX-TYPES: true when arg0 has the shape of a monster type name: ^[a-z][a-z0-9_]*$
++function gnx_mon_type_name_ok(arg0)
++{
++    if (!is_string(arg0) || string_length(arg0) == 0)
++        return false;
++
++    for (var _c = 1; _c <= string_length(arg0); _c++)
++    {
++        var _o = ord(string_char_at(arg0, _c));
++        var _low = _o >= ord("a") && _o <= ord("z");
++
++        if (!(_low || (_c > 1 && ((_o >= ord("0") && _o <= ord("9")) || _o == ord("_")))))
++            return false;
++    }
++
++    return true;
++}
++
++
++function gnx_mon_type_count()
++{
++    return array_length(global.gnx_mon_types);
++}
++
++
++// GNX-TYPES: index of type arg0 (a name, or a number already in the table), -1 when there is none
++function gnx_mon_type_id(arg0)
++{
++    if (is_string(arg0))
++        return variable_struct_exists(global.gnx_mon_type_ids, arg0) ? variable_struct_get(global.gnx_mon_type_ids, arg0) : -1;
++
++    if (is_numeric(arg0) && arg0 == floor(arg0) && arg0 >= 0 && arg0 < array_length(global.gnx_mon_types))
++        return arg0;
++
++    return -1;
++}
++
++
++function gnx_mon_type_name(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    return (_t >= 0) ? global.gnx_mon_types[_t].name : "";
++}
++
++
++// GNX-TYPES: the vanilla type whose code path type arg0 uses. 0-3 come back exactly as passed, so a vanilla site
++// rewritten with this function reads the same value as before; an unknown type is a goblin.
++function gnx_mon_like(arg0)
++{
++    if (is_numeric(arg0) && arg0 >= 0 && arg0 <= 3)
++        return arg0;
++
++    var _t = gnx_mon_type_id(arg0);
++    return (_t >= 0) ? global.gnx_mon_types[_t].like : 0;
++}
++
++
++function gnx_mon_type_def(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    return (_t >= 0) ? global.gnx_mon_types[_t] : undefined;
++}
++
++
++// GNX-TYPES: a monster type written in a mod's JSON (arg0), for the message prefix arg1: a game number 0-3 (also as
++// text, "3"), or a type name. Gives its index, or -1 with a mod error (a number 4 and up: custom types are named,
++// their numbers change between boots) or a log warning (a name no installed mod declares).
++function gnx_mon_type_json(arg0, arg1)
++{
++    var _v = arg0;
++
++    // a name starts with a-z; other text ("3", "-1", "1.5", "") is a number written as text and gets the number rule
++    if (is_string(_v) && (_v == "" || ord(string_char_at(_v, 1)) < ord("a") || ord(string_char_at(_v, 1)) > ord("z")))
++        _v = gnx_json_num(_v, -1);
++
++    if (is_string(_v))
++    {
++        var _t = gnx_mon_type_id(_v);
++
++        if (_t < 0)
++        {
++            var _l = gnx_log_open();
++            gnx_log_write(_l, "[GNX-WARN] " + string(arg1) + ": monster type '" + _v + "' is not installed; left out\n");
++            gnx_log_close(_l);
++        }
++
++        return _t;
++    }
++
++    if (is_numeric(_v) && _v >= 0 && _v <= 3 && _v == floor(_v))
++        return real(_v);
++
++    gnx_report_mod_error(string(arg1) + ": mon_types entry " + string(arg0) + " is no monster (0-3 or a type name); left out");
++    return -1;
++}
++
++
++// GNX-TYPES: the load pre-pass, first in scr_patch_update_pre (saves and travel snapshots). The parsed save arg0
++// numbered its custom monster types in the boot it was made in (val.gnx_types[k] = number k + 4); they get this
++// boot's numbers, found by name. A type no installed mod declares, or a number the table does not list (Mav's old
++// wolf build saved 4 with no table): its monsters are taken off the board, its pregnancies and infants become its
++// "like", its formation rows are dropped (the troops of a live row go back to its counts), a raid window category of
++// it becomes 0. Their counts stay in val.gnx_mon; mon_num / nest_num are rebuilt after the load by gnx_types_val_fix.
++// When every number keeps its value nothing is written (always so with no custom type ever installed).
++function gnx_types_save_remap(arg0)
++{
++    var _v = arg0.global_list.val;
++    var _saved = (variable_struct_exists(_v, "gnx_types") && is_array(_v.gnx_types)) ? _v.gnx_types : [];
++    // per saved number n (index n - 4): this boot's number (-1 = not installed), like, name, monsters taken off,
++    // pregnancies and infants given the like
++    var _st = {to: [], like: [], nm: [], off: [], pg: [], rows: 0};
++
++    for (var _k = 0; _k < array_length(_saved); _k++)
++    {
++        var _e = _saved[_k];
++        var _name = (is_struct(_e) && variable_struct_exists(_e, "name") && is_string(_e.name)) ? _e.name : "";
++        var _lk = (is_struct(_e) && variable_struct_exists(_e, "like")) ? _e.like : 0;
++        var _t = gnx_mon_type_id(_name);
++        gnx_types_remap_k(_st, _k + 4);
++        _st.to[_k] = (_t >= 4) ? _t : -1;
++        _st.like[_k] = (is_numeric(_lk) && (_lk == 0 || _lk == 1 || _lk == 3)) ? _lk : 0;
++
++        if (_name != "")
++            _st.nm[_k] = _name;
++    }
++
++    // monsters (from the end: array_delete moves the next ones)
++    for (var _i = array_length(arg0.mon_list) - 1; _i >= 0; _i--)
++    {
++        var _md = arg0.mon_list[_i].mon_data;
++
++        if (!is_numeric(_md.mon_type) || _md.mon_type < 4)
++            continue;
++
++        var _k = gnx_types_remap_k(_st, _md.mon_type);
++
++        if (_st.to[_k] >= 0)
++        {
++            _md.mon_type = _st.to[_k];
++        }
++        else
++        {
++            array_delete(arg0.mon_list, _i, 1);
++            _st.off[_k] = _st.off[_k] + 1;
++        }
++    }
++
++    // pregnancies: captives in cells, the prison and the cage; infants: props and props kept aside
++    for (var _i = 0; _i < array_length(arg0.slot_list); _i++)
++    {
++        var _s = arg0.slot_list[_i];
++        gnx_types_remap_unit(_st, _s.unit_data);
++        if (variable_struct_exists(_s.slot_data, "prop"))
++            gnx_types_remap_props(_st, _s.slot_data.prop);
++
++        if (variable_struct_exists(_s.slot_data, "gnx_orphan_props"))
++            gnx_types_remap_props(_st, _s.slot_data.gnx_orphan_props);
++
++        // the child of an underground birth under way ({mon_type, class, lvl}; a custom type through the class override)
++        if (variable_struct_exists(_s.slot_data, "gnx_ug_birth_payload"))
++            gnx_types_remap_props(_st, [{mon_data: _s.slot_data.gnx_ug_birth_payload}]);
++    }
++
++    var _g = arg0.global_list;
++
++    for (var _i = 0; _i < array_length(_g.unit_list); _i++)
++        gnx_types_remap_unit(_st, _g.unit_list[_i]);
++
++    if (variable_struct_exists(_v, "cage") && is_array(_v.cage))
++    {
++        for (var _i = 0; _i < array_length(_v.cage); _i++)
++            gnx_types_remap_unit(_st, _v.cage[_i]);
++    }
++
++    // formation rows (saved as arrays). A live row entry is {mon_type: 21 (the entry kind), unit_data: {mon_type,
++    // class, lvl}, num}: its monster type is unit_data's, the top-level 21 is never read or written. A saved formation
++    // entry is flat, {mon_type, class, num}. A row of a type that is not installed is dropped; a live one (its troops
++    // left the nest counts) gives them back to the kept counts. A made-up save or a travel snapshot can lack them.
++    var _rk = ["front_row", "back_row", "front_row_save", "back_row_save"];
++
++    for (var _r = 0; _r < 4; _r++)
++    {
++        var _a = variable_struct_exists(_g, _rk[_r]) ? variable_struct_get(_g, _rk[_r]) : undefined;
++
++        if (!is_array(_a))
++            continue;
++
++        var _live = _r < 2;
++
++        for (var _i = array_length(_a) - 1; _i >= 0; _i--)
++        {
++            var _e = _a[_i];
++            var _t = _live ? _e.unit_data.mon_type : _e.mon_type;
++
++            if (!is_numeric(_t) || _t < 4)
++                continue;
++
++            var _k = gnx_types_remap_k(_st, _t);
++
++            if (_st.to[_k] >= 0)
++            {
++                if (_live)
++                    _e.unit_data.mon_type = _st.to[_k];
++                else
++                    _e.mon_type = _st.to[_k];
++
++                continue;
++            }
++
++            if (_live)
++            {
++                gnx_types_refund_row(_v, _st.nm[_k], _e.unit_data.class, _e.num);
++                // the raid's AP and skills still count these troops: scr_load_slot recomputes them once the rows are rebuilt
++                global.gnx_types_rows_dropped = true;
++            }
++
++            array_delete(_a, _i, 1);
++            _st.rows += 1;
++        }
++    }
++
++    // the raid window's category; vanilla opens it on 0
++    if (variable_struct_exists(arg0, "raid_data") && is_struct(arg0.raid_data) && variable_struct_exists(arg0.raid_data, "cat") && is_numeric(arg0.raid_data.cat) && arg0.raid_data.cat >= 4)
++    {
++        var _kc = gnx_types_remap_k(_st, arg0.raid_data.cat);
++        arg0.raid_data.cat = (_st.to[_kc] >= 0) ? _st.to[_kc] : 0;
++    }
++
++    var _lg = -1;
++    var _likes = ["goblin", "hobgoblin", "tentacle", "ogre"];
++
++    for (var _k = 0; _k < array_length(_st.to); _k++)
++    {
++        if (_st.to[_k] == _k + 4)
++            continue;
++
++        // scr_load_slot recounts the population (also for a save with numbers and no table, Mav's old wolf build)
++        global.gnx_types_load_moved = true;
++
++        if (_lg == -1)
++            _lg = gnx_log_open();
++
++        if (_st.to[_k] >= 0)
++            gnx_log_write(_lg, "[GNX] load: monster type '" + _st.nm[_k] + "' was " + string(_k + 4) + ", is now " + string(_st.to[_k]) + "\n");
++        else
++            gnx_log_write(_lg, "[GNX] load: monster type '" + _st.nm[_k] + "' not installed: " + string(_st.off[_k]) + " monster(s) taken off the board, " + string(_st.pg[_k]) + " pregnancies and infants become " + _likes[_st.like[_k]] + "; its counts stay in the save\n");
++    }
++
++    // a dropped row's type is not installed, so the loop above already set the load flag and opened the log
++    if (_st.rows > 0)
++        gnx_log_write(_lg, "[GNX] load: " + string(_st.rows) + " formation row(s) of monster types not installed dropped, live rows refunded to the kept counts\n");
++
++    if (_lg != -1)
++        gnx_log_close(_lg);
++}
++
++
++// GNX-TYPES: gnx_types_save_remap's index for saved number arg1 (4 and up) in remap state arg0; a number past the
++// saved table gets its entry here: not installed, like goblin, named by its number
++function gnx_types_remap_k(arg0, arg1)
++{
++    var _k = arg1 - 4;
++
++    for (var _j = array_length(arg0.to); _j <= _k; _j++)
++    {
++        arg0.to[_j] = -1;
++        arg0.like[_j] = 0;
++        arg0.nm[_j] = string(_j + 4);
++        arg0.off[_j] = 0;
++        arg0.pg[_j] = 0;
++    }
++
++    return _k;
++}
++
++
++// GNX-TYPES: a dropped live formation row gives its arg3 troops of class arg2 back to the kept counts of type arg1 (a
++// name) in saved val arg0; a type with no kept counts (an old save numbered without a table) has nowhere to go
++function gnx_types_refund_row(arg0, arg1, arg2, arg3)
++{
++    if (!variable_struct_exists(arg0, "gnx_mon") || !is_struct(arg0.gnx_mon) || !variable_struct_exists(arg0.gnx_mon, arg1))
++        exit;
++
++    var _m = variable_struct_get(arg0.gnx_mon, arg1);
++    _m.num[arg2] = max(0, _m.num[arg2]) + arg3;
++}
++
++
++// GNX-TYPES: a saved pregnancy or infant type arg1 (4 and up) under remap state arg0: this boot's number, else its like
++function gnx_types_remap_kid(arg0, arg1)
++{
++    var _k = gnx_types_remap_k(arg0, arg1);
++
++    if (arg0.to[_k] >= 0)
++        return arg0.to[_k];
++
++    arg0.pg[_k] = arg0.pg[_k] + 1;
++    return arg0.like[_k];
++}
++
++
++// GNX-TYPES: the pregnancy of saved unit arg1 (a struct, or -1) under remap state arg0
++function gnx_types_remap_unit(arg0, arg1)
++{
++    if (is_struct(arg1) && variable_struct_exists(arg1, "preg") && is_numeric(arg1.preg) && arg1.preg >= 4)
++        arg1.preg = gnx_types_remap_kid(arg0, arg1.preg);
++}
++
++
++// GNX-TYPES: the infants (prop 40, mon_data.mon_type) of saved prop list arg1 under remap state arg0
++function gnx_types_remap_props(arg0, arg1)
++{
++    if (!is_array(arg1))
++        exit;
++
++    for (var _i = 0; _i < array_length(arg1); _i++)
++    {
++        var _pd = arg1[_i];
++
++        if (is_struct(_pd) && variable_struct_exists(_pd, "mon_data") && is_struct(_pd.mon_data) && variable_struct_exists(_pd.mon_data, "mon_type") && is_numeric(_pd.mon_data.mon_type) && _pd.mon_data.mon_type >= 4)
++            _pd.mon_data.mon_type = gnx_types_remap_kid(arg0, _pd.mon_data.mon_type);
++    }
++}
++
++
++// GNX-TYPES: reads monsters.json (arg1) of mod arg0: {"wolf": {"like": "goblin", ...}}. Every bad entry is a mod
++// error and is left out; the good ones are added to the type table in name order.
++function scr_gnx_load_monsters(arg0, arg1)
++{
++    var _path = global.gnx_mods_root + arg0 + "/" + arg1;
++    var _p = "Mod '" + arg0 + "' monsters.json: ";
++
++    if (!file_exists(_path))
++    {
++        gnx_report_mod_error(_p + "file '" + arg1 + "' not found");
++        exit;
++    }
++
++    var _f = file_text_open_read(_path);
++    var _json = "";
++
++    while (!file_text_eof(_f))
++        _json += file_text_readln(_f);
++
++    file_text_close(_f);
++    var _defs;
++
++    try
++    {
++        _defs = json_parse(_json);
++    }
++    catch (_e)
++    {
++        gnx_report_mod_error(_p + arg1 + " invalid (" + string(_e.message) + ")");
++        exit;
++    }
++
++    if (!is_struct(_defs))
++    {
++        gnx_report_mod_error(_p + "must be an object like {\"wolf\": {\"like\": \"goblin\"}}");
++        exit;
++    }
++
++    var _vanilla = ["goblin", "hobgoblin", "tentacle", "ogre"];
++    var _likes = ["goblin", "hobgoblin", "ogre"];
++    var _like_ids = [0, 1, 3];
++    var _like_food = [0.5, 0.7, 1];
++    var _like_walk = [spr_goblin_walk, spr_hobgoblin_walk, spr_ogre_walk];
++    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills", "mood_shift_x", "mood_shift_y", "raid_cat_spacing"];
++    var _spr_keys = ["idle", "walk", "b_walk", "icon", "heads", "infant_head"];
++    var _base_dir = global.gnx_mods_root + arg0 + "/";
++    var _names = variable_struct_get_names(_defs);
++    array_sort(_names, true);  // numbering does not depend on the runtime's struct order
++    var _log = gnx_log_open();
++    var _cat_logged = false;  // raid_cat_spacing is logged once per mod
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++    {
++        var _k = _names[_i];
++        var _d = variable_struct_get(_defs, _k);
++
++        if (string_char_at(_k, 1) == "_")  // a comment key, like "_note"
++            continue;
++
++        if (!is_struct(_d))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': must be an object like {\"like\": \"goblin\"}; left out");
++            continue;
++        }
++
++        if (array_contains(_vanilla, _k))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': a game monster, it cannot be declared again; left out");
++            continue;
++        }
++
++        if (!gnx_mon_type_name_ok(_k))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': names use a-z, 0-9 and _ (starting with a letter); left out");
++            continue;
++        }
++
++        // hob, ogr, pN and <name>_pN would clash with the cell keys mon_spr_hob, mon_spr_ogr and mon_spr_<type>_pN
++        var _rsv = _k == "hob" || _k == "ogr";
++        var _tail = string_delete(_k, 1, 1);  // after a leading "p"
++
++        if (!_rsv && string_char_at(_k, 1) == "p" && _tail != "")
++            _rsv = string_digits(_tail) == _tail;
++
++        var _pn = string_last_pos("_p", _k);
++        _tail = (_pn > 0) ? string_delete(_k, 1, _pn + 1) : "";  // after the last "_p"
++
++        if (!_rsv && _tail != "")
++            _rsv = string_digits(_tail) == _tail;
++
++        if (_rsv)
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': reserved name (cell keys mon_spr_hob, mon_spr_ogr and mon_spr_pN use it); left out");
++            continue;
++        }
++
++        if (variable_struct_exists(global.gnx_mon_type_ids, _k))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': already declared by '" + variable_struct_get(global.gnx_mon_types[variable_struct_get(global.gnx_mon_type_ids, _k)], "mod") + "'; left out");
++            continue;
++        }
++
++        if (!variable_struct_exists(_d, "like"))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': needs \"like\": \"goblin\", \"hobgoblin\" or \"ogre\"; left out");
++            continue;
++        }
++
++        var _lk = -1;
++
++        for (var _l = 0; _l < 3; _l++)
++        {
++            if (is_string(_d.like) && _d.like == _likes[_l])
++                _lk = _l;
++        }
++
++        if (_lk < 0)
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': like '" + string(_d.like) + "' is not goblin, hobgoblin or ogre" + ((string(_d.like) == "tentacle") ? " (tentacles have no walking body)" : "") + "; left out");
++            continue;
++        }
++
++        var _keys = variable_struct_get_names(_d);
++        var _unknown = "";
++
++        for (var _u = 0; _u < array_length(_keys) && _unknown == ""; _u++)
++        {
++            if (!array_contains(_known, _keys[_u]) && string_char_at(_keys[_u], 1) != "_")
++                _unknown = _keys[_u];
++        }
++
++        if (_unknown != "")
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills, mood_shift_x, mood_shift_y, raid_cat_spacing); left out");
++            continue;
++        }
++
++        if (variable_struct_exists(_d, "food") && !(is_numeric(_d.food) && _d.food >= 0))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': food must be a number of 0 or more; left out");
++            continue;
++        }
++
++        if (variable_struct_exists(_d, "stat") && !(is_array(_d.stat) && array_length(_d.stat) == 4 && is_numeric(_d.stat[0]) && is_numeric(_d.stat[1]) && is_numeric(_d.stat[2]) && is_numeric(_d.stat[3])))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': stat must be 4 numbers, one per class; left out");
++            continue;
++        }
++
++        if (variable_struct_exists(_d, "speed") && !(is_array(_d.speed) && array_length(_d.speed) == 2 && is_numeric(_d.speed[0]) && is_numeric(_d.speed[1]) && _d.speed[0] > 0 && _d.speed[0] <= _d.speed[1]))
++        {
++            gnx_report_mod_error(_p + "'" + _k + "': speed must be [min, max] with 0 < min <= max; left out");
++            continue;
++        }
++
++        // GNX-TYPES (P2): raid rows and skill ids; a bad one is a mod error and the field is ignored (the like's row is copied)
++        var _range = -1;
++        var _skills = -1;
++
++        if (variable_struct_exists(_d, "range"))
++        {
++            var _rok = is_array(_d.range) && array_length(_d.range) == 4;
++
++            for (var _rc = 0; _rok && _rc < 4; _rc++)
++            {
++                _rok = is_array(_d.range[_rc]) && array_length(_d.range[_rc]) > 0;
++
++                for (var _rr = 0; _rok && _rr < array_length(_d.range[_rc]); _rr++)
++                    _rok = is_numeric(_d.range[_rc][_rr]) && (_d.range[_rc][_rr] == 0 || _d.range[_rc][_rr] == 1);
++            }
++
++            if (_rok)
++                _range = [gnx_array_copy(_d.range[0]), gnx_array_copy(_d.range[1]), gnx_array_copy(_d.range[2]), gnx_array_copy(_d.range[3])];
++            else
++                gnx_report_mod_error(_p + "'" + _k + "': range must be 4 lists of rows, 0 (front) or 1 (back)");
++        }
++
++        if (variable_struct_exists(_d, "skills"))
++        {
++            var _sok = is_array(_d.skills) && array_length(_d.skills) == 4;
++
++            for (var _sc = 0; _sok && _sc < 4; _sc++)
++                _sok = is_numeric(_d.skills[_sc]) && _d.skills[_sc] == floor(_d.skills[_sc]) && _d.skills[_sc] >= 0 && _d.skills[_sc] <= 15;
++
++            if (_sok)
++                _skills = [_d.skills[0], _d.skills[1], _d.skills[2], _d.skills[3]];
++            else
++                gnx_report_mod_error(_p + "'" + _k + "': skills must be 4 skill ids 0-15");
++        }
++
++        // GNX-TYPES (P4): the mood bubble offset (the like's when left out); a bad one is a mod error and the field is ignored
++        var _mood = [undefined, undefined];
++
++        for (var _mi = 0; _mi < 2; _mi++)
++        {
++            var _mk = (_mi == 0) ? "mood_shift_x" : "mood_shift_y";
++
++            if (!variable_struct_exists(_d, _mk))
++                continue;
++
++            if (is_numeric(variable_struct_get(_d, _mk)))
++                _mood[_mi] = variable_struct_get(_d, _mk);
++            else
++                gnx_report_mod_error(_p + "'" + _k + "': " + _mk + " must be a number");
++        }
++
++        if (variable_struct_exists(_d, "raid_cat_spacing") && !_cat_logged)
++        {
++            _cat_logged = true;
++            gnx_log_write(_log, "[GNX-INFO] monsters.json '" + _k + "' raid_cat_spacing: ignored since GNX 1.5.3 (raid categories page by 4)\n");
++        }
++
++        // title: the display name for menus (monsters.json "name"), "" when there is none
++        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, mood_x: _mood[0], mood_y: _mood[1], own_art: false};
++
++        for (var _s = 0; _s < 6; _s++)
++        {
++            var _sk = _spr_keys[_s];
++
++            if (!variable_struct_exists(_d, _sk))
++                continue;
++
++            var _v = variable_struct_get(_d, _sk);
++            var _spr = -1;
++
++            if (is_string(_v))
++            {
++                // a game sprite by name
++                if (asset_get_type(_v) == asset_sprite)
++                    _spr = asset_get_index(_v);
++            }
++            else if (is_struct(_v) && !(variable_struct_exists(_v, "strip") && !file_exists(_base_dir + string(_v.strip))))
++            {
++                _spr = gnx_sprref_bake(gnx_resolve_sprite(_d, _sk, _base_dir, -1));  // an atlas entry becomes a real sprite
++                // origin_from gives both axes (gnx_resolve_sprite applied it), and a from_game copy has its game sprite's
++                // origin: like xorig and yorig, they are kept
++                var _ofr = variable_struct_exists(_v, "origin_from") || variable_struct_exists(_v, "from_game");
++
++                if (_s < 3 && variable_struct_exists(_v, "strip") && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
++                {
++                    // a mod strip (a game sprite named by string keeps its origin and speed): the like's walk speed, and without
++                    // xorig / yorig the origin at the bottom centre. This sets the origin on the handle itself, which the strip
++                    // cache (or the baked atlas entry) shares: another use of the same file gets this origin too
++                    sprite_set_speed(_spr, sprite_get_speed(_like_walk[_lk]), sprite_get_speed_type(_like_walk[_lk]));
++                    var _ox = (_ofr || variable_struct_exists(_v, "xorig")) ? sprite_get_xoffset(_spr) : floor(sprite_get_width(_spr) / 2);
++                    var _oy = (_ofr || variable_struct_exists(_v, "yorig")) ? sprite_get_yoffset(_spr) : sprite_get_height(_spr);
++                    sprite_set_offset(_spr, _ox, _oy);
++                }
++                else if (_s >= 3 && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
++                {
++                    // GNX-TYPES (P4): icon, heads and infant_head without xorig / yorig / origin_from take the origin of the game
++                    // sheet they stand in for, so the art lands where the vanilla icon does (a mod sprite's own origin is its top
++                    // left corner), for every object form (strip, path, folder, frames). Like the branch above, this sets the
++                    // origin on the shared cached handle
++                    var _van = (_s == 3) ? spr_mon_icon : ((_s == 4) ? spr_mon_icon_head : spr_infant_ui_head);
++                    var _iox = (_ofr || variable_struct_exists(_v, "xorig")) ? sprite_get_xoffset(_spr) : sprite_get_xoffset(_van);
++                    var _ioy = (_ofr || variable_struct_exists(_v, "yorig")) ? sprite_get_yoffset(_spr) : sprite_get_yoffset(_van);
++                    sprite_set_offset(_spr, _iox, _ioy);
++                }
++            }
++
++            // GNX-TYPES (P4): "shift_x" / "shift_y" move the sprite by pixels (positive = right / down): the origin minus the shift,
++            // on a copy, since the sprite may be shared (a cached strip, the baked atlas entry)
++            if (is_struct(_v) && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
++            {
++                var _shx = 0;
++                var _shy = 0;
++
++                if (variable_struct_exists(_v, "shift_x"))
++                {
++                    if (is_numeric(_v.shift_x))
++                        _shx = _v.shift_x;
++                    else
++                        gnx_report_mod_error(_p + "'" + _k + "' " + _sk + ": shift_x must be a number");
++                }
++
++                if (variable_struct_exists(_v, "shift_y"))
++                {
++                    if (is_numeric(_v.shift_y))
++                        _shy = _v.shift_y;
++                    else
++                        gnx_report_mod_error(_p + "'" + _k + "' " + _sk + ": shift_y must be a number");
++                }
++
++                if (_shx != 0 || _shy != 0)
++                {
++                    // kept in the sprite cache by source and shift: a load that keeps the cache (menu return, travel) reuses it
++                    var _shkey = "gnxshift|" + string(_spr) + "#sx" + string(_shx) + "_sy" + string(_shy);
++
++                    if (ds_map_exists(global.gnx_sprite_cache, _shkey) && gnx_sprite_exists(ds_map_find_value(global.gnx_sprite_cache, _shkey)))
++                    {
++                        _spr = ds_map_find_value(global.gnx_sprite_cache, _shkey);
++                    }
++                    else
++                    {
++                        var _src = _spr;
++                        _spr = sprite_duplicate(_src);
++                        array_push(global.gnx_runtime_sprites, _spr);  // freed with the other runtime sprites at quit
++                        sprite_set_offset(_spr, sprite_get_xoffset(_src) - _shx, sprite_get_yoffset(_src) - _shy);
++
++                        if (ds_map_exists(global.gnx_sprite_cache, _shkey))
++                            ds_map_delete(global.gnx_sprite_cache, _shkey);
++
++                        ds_map_add(global.gnx_sprite_cache, _shkey, _spr);
++                    }
++                }
++            }
++
++            if (is_struct(_spr) || _spr == -1 || !sprite_exists(_spr))
++            {
++                gnx_log_write(_log, "[GNX-WARN] monsters.json '" + _k + "' " + _sk + ": sprite not loaded, " + _likes[_lk] + " art used\n");
++                continue;
++            }
++
++            if (_sk == "heads" && sprite_get_number(_spr) < 4)
++            {
++                gnx_log_write(_log, "[GNX-WARN] monsters.json '" + _k + "' heads: needs 4 frames (one per class), like's heads used\n");
++                continue;
++            }
++
++            variable_struct_set(_entry, "spr_" + _sk, _spr);
++        }
++
++        _entry.own_art = _entry.spr_idle != -1 && _entry.spr_walk != -1;
++        variable_struct_set(_entry, "mod", arg0);
++        array_push(global.gnx_mon_types, _entry);
++        variable_struct_set(global.gnx_mon_type_ids, _k, array_length(global.gnx_mon_types) - 1);
++        gnx_log_write(_log, "[GNX] monster type '" + _k + "' = " + string(array_length(global.gnx_mon_types) - 1) + " (like " + _likes[_lk] + ") from " + arg0 + "\n");
++    }
++
++    gnx_log_close(_log);
++}
++
++
 +/// GNX: writes log line arg1 the first time for key arg0 while the mods load (as gnx_report_mod_error_once).
 +function gnx_log_once(arg0, arg1)
 +{
@@ -464,9 +1139,121 @@
 +            
 +            _rc.birth_classes = gnx_birth_list_fix(_bc_out, _key);
 +        }
-+        
++
++        if (is_struct(_rc))
++            gnx_birth_names_warn(_rc, _key);  // GNX-TYPES
++
 +        _key = ds_map_find_next(global.class_registry, _key);
 +    }
++}
++
++
++// GNX-TYPES: the monster type a captive of unit class argument[1] gets pregnant with from a father of type
++// argument[0]: the class's preg_mon_type_override (a number 0-3 or a type name) when that type is installed, else
++// argument[0]. A name no installed mod declares is logged once per class per boot; argument[2] (optional) says in
++// that line what is used instead (default "father's type kept").
++function gnx_preg_type_for()
++{
++    var _father = argument[0];
++    var _cls = argument[1];
++    var _rc = ds_map_find_value(global.class_registry, _cls);
++
++    if (_rc == undefined || !variable_struct_exists(_rc, "preg_mon_type_override"))
++        return _father;
++
++    var _t = gnx_mon_type_id(_rc.preg_mon_type_override);
++
++    if (_t >= 0)
++        return _t;
++
++    // one line per class and fallback: the pregnancy roll (father's type) and the underground cells (tentacle) each
++    // say what they do instead
++    var _wk = string(_cls) + ((argument_count > 2) ? "|" + argument[2] : "");
++
++    if (!variable_struct_exists(global.gnx_preg_warned, _wk))
++    {
++        variable_struct_set(global.gnx_preg_warned, _wk, true);
++        var _l = gnx_log_open();
++        gnx_log_write(_l, "[GNX-WARN] class " + string(variable_struct_exists(_rc, "name") ? _rc.name : _cls) + ": preg_mon_type_override '" + string(_rc.preg_mon_type_override) + "' is not installed, " + ((argument_count > 2) ? argument[2] : "father's type kept") + "\n");
++        gnx_log_close(_l);
++    }
++
++    return _father;
++}
++
++
++// GNX-TYPES: one [GNX-WARN] per class (registry entry arg0, id arg1) for the type names in its birth_class and
++// birth_spr.birth_1 / birth_2 that no installed mod declares (yet): they are kept by name and work once a mod adds
++// the type (a map mod loaded later on travel can).
++// Run when the class names are resolved (boot, and again after a map mod's deferred load).
++function gnx_birth_names_warn(arg0, arg1)
++{
++    var _wk = string(arg1) + "|birth";
++
++    if (variable_struct_exists(global.gnx_preg_warned, _wk))
++        exit;
++
++    var _bad = "";
++
++    if (variable_struct_exists(arg0, "birth_class_by_name"))
++    {
++        var _n = variable_struct_get_names(arg0.birth_class_by_name);
++
++        for (var _i = 0; _i < array_length(_n); _i++)
++        {
++            if (gnx_mon_type_id(_n[_i]) < 0)
++                _bad += ((_bad == "") ? "" : ", ") + "birth_class." + _n[_i];
++        }
++    }
++
++    if (variable_struct_exists(arg0, "birth_spr") && is_struct(arg0.birth_spr))
++    {
++        var _sk = ["birth_1", "birth_2"];
++
++        for (var _j = 0; _j < 2; _j++)
++        {
++            var _sub = variable_struct_exists(arg0.birth_spr, _sk[_j]) ? variable_struct_get(arg0.birth_spr, _sk[_j]) : -1;
++
++            if (!is_struct(_sub) || is_sprref(_sub))
++                continue;
++
++            var _n = variable_struct_get_names(_sub);
++
++            for (var _i = 0; _i < array_length(_n); _i++)
++            {
++                if (gnx_mon_type_id(_n[_i]) < 0)
++                    _bad += ((_bad == "") ? "" : ", ") + "birth_spr." + _sk[_j] + "." + _n[_i];
++            }
++        }
++    }
++
++    if (_bad == "")
++        exit;
++
++    variable_struct_set(global.gnx_preg_warned, _wk, true);
++    var _l = gnx_log_open();
++    gnx_log_write(_l, "[GNX-WARN] class " + string(variable_struct_exists(arg0, "name") ? arg0.name : arg1) + ": " + _bad + ": no installed mod declares that monster type yet; kept by name, it takes effect once a mod adds the type\n");
++    gnx_log_close(_l);
++}
++
++
++// GNX-TYPES: the monster class born for mod class entry arg0 from type arg1: birth_class[t] for the game types; a
++// custom type's own birth_class_by_name entry, else its like's. -1 when the class has no birth_class.
++function gnx_birth_class_for(arg0, arg1)
++{
++    if (!variable_struct_exists(arg0, "birth_class") || !is_array(arg0.birth_class))
++        return -1;
++
++    if (arg1 >= 4 && variable_struct_exists(arg0, "birth_class_by_name"))
++    {
++        var _n = gnx_mon_type_name(arg1);
++
++        if (_n != "" && variable_struct_exists(arg0.birth_class_by_name, _n))
++            return variable_struct_get(arg0.birth_class_by_name, _n);
++    }
++
++    var _lk = gnx_mon_like(arg1);
++    return (_lk < array_length(arg0.birth_class)) ? arg0.birth_class[_lk] : -1;
 +}
 +
 +
@@ -1193,13 +1980,20 @@
 +                variable_struct_set(_cell, _ppk, gnx_resolve_mon_spr(variable_struct_get(arg0, _ppk), _sprites_dict, _base_dir));
 +        }
 +    }
-+    
++
++    // GNX-TYPES: a custom type's own set, mon_spr_<name> and mon_spr_<name>_p0.._p2
++    gnx_cell_type_sprs(_cell, arg0, _sprites_dict, _base_dir, true, 4);
++
 +    if (variable_struct_exists(arg0, "mon_types"))
 +        _cell.mon_types = arg0.mon_types;
-+    
++
 +    // GNX-FIX: monster species and places checked once (audit P5)
 +    gnx_cell_mon_check(_cell, _cn, arg1);
-+    
++
++    // GNX-TYPES: a pending name's own sets are resolved by gnx_recheck_cell_types once its type exists
++    if (_cell.gnx_mon_types_pending)
++        gnx_cell_type_sprs_later(_cell, arg0, _sprites_dict, _base_dir, true);
++
 +    // GNX-ART: after the check, which cleans mon_types, so the art sees the list the cell will keep
 +    if (variable_struct_exists(arg0, "monster_art"))
 +        gnx_art_parse_cell(arg0.monster_art, _sprites_dict, _base_dir, "Cell '" + string(_cn) + "'", _h, _cell);
@@ -1947,14 +2741,39 @@
 +    
 +    if (variable_struct_exists(arg1, "mon_spr_ogr"))
 +        _cell.mon_spr_ogr = gnx_resolve_mon_spr(arg1.mon_spr_ogr, _sprites_dict, _base_dir);
-+    
++
 +    if (variable_struct_exists(arg1, "mon_types"))
 +        _cell.mon_types = arg1.mon_types;
-+    
++
 +    // GNX-FIX: a patch that changes the monster rules gets the same check as a new cell (audit P5)
-+    if (variable_struct_exists(arg1, "mon_types") || (variable_struct_exists(arg1, "physical") && is_struct(arg1.physical) && variable_struct_exists(arg1.physical, "mon_placements")))
++    var _p_mt = variable_struct_exists(arg1, "mon_types");
++    var _p_mp = variable_struct_exists(arg1, "physical") && is_struct(arg1.physical) && variable_struct_exists(arg1.physical, "mon_placements");
++    var _was_pending = variable_struct_exists(_cell, "gnx_mon_types_pending") && _cell.gnx_mon_types_pending;
++
++    if (_p_mt || _p_mp)
++    {
++        // GNX-TYPES: the list the patch leaves alone is checked again from its JSON source: the cleaned list holds
++        // type numbers past 3, which the check reads as no monster, and has lost a name still unresolved (pending)
++        if (!_p_mt && variable_struct_exists(_cell, "gnx_mon_types_src"))
++            _cell.mon_types = gnx_array_copy(_cell.gnx_mon_types_src);
++
++        if (!_p_mp && variable_struct_exists(_cell, "gnx_mon_place_src"))
++            _cell.physical.mon_placements = gnx_array_copy(_cell.gnx_mon_place_src);
++
 +        gnx_cell_mon_check(_cell, "h_type " + string(arg0), arg2);
-+    
++    }
++
++    // GNX-TYPES: a patch that resolved a pending cell (a map mod's patch in the deferred load) gives it the sets its
++    // earlier JSON holds for the types known now, as gnx_recheck_cell_types would; then the patch's own, which win
++    if (_was_pending && !_cell.gnx_mon_types_pending)
++        gnx_cell_type_sprs_replay(_cell);
++
++    // GNX-TYPES: a custom type's own set, mon_spr_<name>
++    gnx_cell_type_sprs(_cell, arg1, _sprites_dict, _base_dir, false, 4);
++
++    if (variable_struct_exists(_cell, "gnx_mon_types_pending") && _cell.gnx_mon_types_pending)
++        gnx_cell_type_sprs_later(_cell, arg1, _sprites_dict, _base_dir, false);
++
 +    // GNX-ART: after the check, which cleans mon_types, so the art sees the list the cell will keep
 +    if (variable_struct_exists(arg1, "monster_art"))
 +        gnx_art_parse_cell(arg1.monster_art, _sprites_dict, _base_dir, "Cell " + string(arg0), arg0, _cell);
@@ -3560,13 +4379,22 @@
 +{
 +    if (variable_struct_exists(arg0, "preg_mon_type_override"))
 +    {
-+        var _pmo = gnx_json_num(arg0.preg_mon_type_override, -1);
-+        
-+        // _pmo != floor(_pmo): not a whole number
-+        if (_pmo < 0 || _pmo > 3 || _pmo != floor(_pmo))
-+            gnx_report_mod_error("Class '" + string(_class_name) + "' (mod " + string(arg1) + "): preg_mon_type_override must be 0-3 (goblin, hobgoblin, tentacle, ogre), not " + string(arg0.preg_mon_type_override) + "; ignored");
++        // GNX-TYPES: a type name is kept as written and resolved where it is used (gnx_preg_type_for): a map mod
++        // loaded later can still add that type
++        if (gnx_mon_type_name_ok(arg0.preg_mon_type_override))
++        {
++            _rclass.preg_mon_type_override = arg0.preg_mon_type_override;
++        }
 +        else
-+            _rclass.preg_mon_type_override = _pmo;
++        {
++            var _pmo = gnx_json_num(arg0.preg_mon_type_override, -1);
++
++            // _pmo != floor(_pmo): not a whole number
++            if (_pmo < 0 || _pmo > 3 || _pmo != floor(_pmo))
++                gnx_report_mod_error("Class '" + string(_class_name) + "' (mod " + string(arg1) + "): preg_mon_type_override must be 0-3 (goblin, hobgoblin, tentacle, ogre) or a monster type name, not " + string(arg0.preg_mon_type_override) + "; ignored");
++            else
++                _rclass.preg_mon_type_override = _pmo;
++        }
 +    }
 +    gnx_class_parse_birth_classes(arg0, _rclass);
 +    gnx_class_parse_default_leg(arg0, _base_dir, _rclass, _sprites);
@@ -3643,7 +4471,33 @@
 +        {
 +            gnx_report_mod_error("Class '" + string(_rclass.name) + "': birth_class must be {goblin, hobgoblin, tentacle, ogre} or a list of 4 numbers, 0 is used");
 +        }
-+        
++
++        // GNX-TYPES: in the object form, any other type name ({"wolf": 2}) goes to birth_class_by_name, kept by name
++        // (gnx_birth_class_for resolves it); birth_class itself stays 4 long
++        if (is_struct(_bc_def))
++        {
++            var _bc_names = variable_struct_get_names(_bc_def);
++            var _bc_by = {};
++
++            for (var _bci = 0; _bci < array_length(_bc_names); _bci++)
++            {
++                var _bk = _bc_names[_bci];
++
++                if (array_contains(_bc_keys, _bk) || !gnx_mon_type_name_ok(_bk))
++                    continue;
++
++                var _vn = gnx_json_num(variable_struct_get(_bc_def, _bk), -1);
++
++                if (_vn < 0)
++                    gnx_report_mod_error("Class '" + string(_rclass.name) + "': birth_class." + _bk + " is not a number 0-3 (" + string(variable_struct_get(_bc_def, _bk)) + "), left out");
++                else
++                    variable_struct_set(_bc_by, _bk, clamp(floor(_vn), 0, 3));
++            }
++
++            if (array_length(variable_struct_get_names(_bc_by)) > 0)
++                _rclass.birth_class_by_name = _bc_by;
++        }
++
 +        _rclass.birth_class = _bc_map;
 +    }
 +}
@@ -3662,21 +4516,22 @@
 +    {
 +        var _bs_def = arg0.birth_spr;
 +        var _bs = {};
-+        var _bs_species = ["goblin", "hobgoblin", "tentacle", "ogre"];
 +        var _bs_mt_keys = ["birth_1", "birth_2"];
-+        
++
 +        for (var _bsi = 0; _bsi < array_length(_bs_mt_keys); _bsi++)
 +        {
 +            var _bsk = _bs_mt_keys[_bsi];
-+            
++
 +            if (variable_struct_exists(_bs_def, _bsk))
 +            {
 +                var _bsub = variable_struct_get(_bs_def, _bsk);
 +                var _bsub_r = {};
-+                
-+                for (var _bsj = 0; _bsj < 4; _bsj++)
++                // GNX-TYPES: every monster type name, the 4 game ones and custom ones ("wolf")
++                var _bs_species = is_struct(_bsub) ? variable_struct_get_names(_bsub) : [];
++
++                for (var _bsj = 0; _bsj < array_length(_bs_species); _bsj++)
 +                {
-+                    if (variable_struct_exists(_bsub, _bs_species[_bsj]))
++                    if (gnx_mon_type_name_ok(_bs_species[_bsj]))
 +                        variable_struct_set(_bsub_r, _bs_species[_bsj], gnx_resolve_layer_sprite(variable_struct_get(_bsub, _bs_species[_bsj]), _sprites, _base_dir));
 +                }
 +                
@@ -3816,6 +4671,10 @@
 +        // GNX-ART: _condk tests JSON keys, and monster_art lands in this field: without this the base's map would overwrite it
 +        if (variable_struct_exists(arg0, "monster_art") && variable_struct_exists(_rclass, "mon_sprite_swap"))
 +            _prov.mon_sprite_swap = true;
++
++        // GNX-TYPES: birth_class given again replaces its by-name entries too (birth_class_by_name is no JSON key)
++        if (variable_struct_exists(arg0, "birth_class"))
++            _prov.birth_class_by_name = true;
 +
 +        var _condk = ["clothing_standard", "clothing_big", "clothing_tent", "clothing_giant", "only_listed_cells", "naked_standard", "naked_big", "naked_tent", "carry_base_spr", "gb1_breast_d2", "mon_spr_overrides", "mon_sprite_swap", "preg_mon_type_override", "birth_classes", "birth_class", "default_leg", "birth_spr", "post_raid", "scr_unit", "tower_boss_condition"];
 +        
@@ -4108,13 +4967,33 @@
 +    if (!is_struct(_sub) || is_sprref(_sub))
 +        return _sub;
 +    
++    // GNX-TYPES: a custom type's own name first, then its like's
++    if (arg2 >= 4 && variable_struct_exists(_sub, gnx_mon_type_name(arg2)))
++        return variable_struct_get(_sub, gnx_mon_type_name(arg2));
++
 +    var _species = ["goblin", "hobgoblin", "tentacle", "ogre"];
-+    var _mt = clamp(floor(arg2), 0, 3);
-+    
++    var _mt = (arg2 >= 4) ? gnx_mon_like(arg2) : clamp(floor(arg2), 0, 3);
++
 +    if (variable_struct_exists(_sub, _species[_mt]))
 +        return variable_struct_get(_sub, _species[_mt]);
-+    
++
 +    return -1;
++}
++
++
++// GNX-TYPES: the entry of by_mon_type table arg0 for monster type arg1: a custom type's name key ("wolf") first,
++// then the number as text ("0"-"3", as before); undefined when there is none
++function gnx_bmt_entry(arg0, arg1)
++{
++    if (arg1 >= 4)
++    {
++        var _n = gnx_mon_type_name(arg1);
++
++        if (_n != "" && variable_struct_exists(arg0, _n))
++            return variable_struct_get(arg0, _n);
++    }
++
++    return variable_struct_get(arg0, string(arg1));
 +}
 +
 +
@@ -4218,8 +5097,8 @@
 +
 +
 +/// GNX-FIX: checks a mod cell's monster rules once at registration (arg0 = the cell, arg1 = its name):
-+/// mon_types and every mon_placements entry must be species 0-3 (goblin, hobgoblin, tentacle, ogre);
-+/// anything else is dropped with a mod error. A place left with no species gets the cell's mon_types (or
++/// mon_types and every mon_placements entry must be species 0-3 (goblin, hobgoblin, tentacle, ogre) or a
++/// monster type name (GNX-TYPES, stored as its index); anything else is dropped (gnx_mon_type_json). A place left with no species gets the cell's mon_types (or
 +/// goblins), since an empty place stopped the game when a monster was called. A mon_placements list of
 +/// another length than max_mon_num is cut or filled to max_mon_num places, with a log line. (audit P5, 16 B)
 +function gnx_cell_mon_check(arg0, arg1, arg2 = "")
@@ -4229,26 +5108,35 @@
 +    var _cp = arg0.physical;
 +    var _mt = undefined;
 +    
++    // GNX-TYPES: the JSON lists are kept, and a name no installed mod declares yet marks the cell pending: a map mod's
++    // types are appended in the deferred load, after this cell was registered (gnx_recheck_cell_types)
++    arg0.gnx_mon_types_pending = false;
++
 +    if (variable_struct_exists(arg0, "mon_types"))
 +    {
 +        var _new_mt = [];
 +        
 +        if (is_array(arg0.mon_types))
 +        {
++            arg0.gnx_mon_types_src = gnx_array_copy(arg0.mon_types);
++
 +            for (var i = 0; i < array_length(arg0.mon_types); i++)
 +            {
-+                var _v = gnx_json_num(arg0.mon_types[i], -1);
-+                
-+                // a species is a whole number 0-3
-+                if (_v >= 0 && _v <= 3 && _v == floor(_v))
++                // GNX-TYPES: a game number 0-3 or a type name (gnx_mon_type_json reports anything else)
++                var _v = gnx_mon_type_json(arg0.mon_types[i], "Cell '" + string(arg1) + "'");
++
++                if (_v >= 0)
 +                    array_push(_new_mt, _v);
-+                else
-+                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_types entry " + string(arg0.mon_types[i]) + " is no species (0-3); left out");
++                else if (gnx_mon_name_pending(arg0.mon_types[i]))
++                    arg0.gnx_mon_types_pending = true;
 +            }
 +        }
 +        else
 +        {
 +            gnx_report_mod_error("Cell '" + string(arg1) + "': mon_types must be a list like [0, 1]; left out");
++
++            if (variable_struct_exists(arg0, "gnx_mon_types_src"))
++                variable_struct_remove(arg0, "gnx_mon_types_src");
 +        }
 +        
 +        if (array_length(_new_mt) > 0)
@@ -4269,11 +5157,17 @@
 +    {
 +        gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements must be a list of lists like [[0], [1]]; left out");
 +        variable_struct_remove(_cp, "mon_placements");
++
++        if (variable_struct_exists(arg0, "gnx_mon_place_src"))
++            variable_struct_remove(arg0, "gnx_mon_place_src");
++
 +        exit;
 +    }
 +    
 +    var _mp = [];
 +    
++    arg0.gnx_mon_place_src = gnx_array_copy(_cp.mon_placements);
++
 +    for (var p = 0; p < array_length(_cp.mon_placements); p++)
 +    {
 +        var _e = _cp.mon_placements[p];
@@ -4283,10 +5177,14 @@
 +        {
 +            for (var i = 0; i < array_length(_e); i++)
 +            {
-+                var _v = gnx_json_num(_e[i], -1);
-+                
-+                if (!(_v >= 0 && _v <= 3 && _v == floor(_v)))
-+                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] entry " + string(_e[i]) + " is no species (0-3); left out");
++                var _v = gnx_mon_type_json(_e[i], "Cell '" + string(arg1) + "': mon_placements[" + string(p) + "]");
++
++                if (_v < 0)
++                {
++                    // reported by gnx_mon_type_json
++                    if (gnx_mon_name_pending(_e[i]))
++                        arg0.gnx_mon_types_pending = true;
++                }
 +                else if (is_array(_mt) && !array_contains(_mt, _v))
 +                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] has species " + string(_v) + ", which is not in mon_types (it would be invisible); left out");
 +                else
@@ -4324,6 +5222,103 @@
 +    }
 +    
 +    _cp.mon_placements = _mp;
++}
++
++
++// GNX-TYPES: true when arg0 is a type name (as gnx_mon_type_json reads it) that no installed mod declares yet
++function gnx_mon_name_pending(arg0)
++{
++    return is_string(arg0) && arg0 != "" && ord(string_char_at(arg0, 1)) >= ord("a") && ord(string_char_at(arg0, 1)) <= ord("z") && gnx_mon_type_id(arg0) < 0;
++}
++
++
++// GNX-TYPES: a custom type's own monster sets from cell JSON arg1 onto cell arg0: mon_spr_<name>, and with arg4 also
++// mon_spr_<name>_p0.._p2, for the table's types from index arg5 on. arg2 = the cell's sprites, arg3 = its mod folder
++function gnx_cell_type_sprs(arg0, arg1, arg2, arg3, arg4, arg5)
++{
++    for (var _gt = arg5; _gt < gnx_mon_type_count(); _gt++)
++    {
++        var _gtk = "mon_spr_" + gnx_mon_type_name(_gt);
++
++        for (var _gtn = -1; _gtn < (arg4 ? 3 : 0); _gtn++)
++        {
++            var _gtkp = (_gtn < 0) ? _gtk : (_gtk + "_p" + string(_gtn));
++
++            if (variable_struct_exists(arg1, _gtkp))
++                variable_struct_set(arg0, _gtkp, gnx_resolve_mon_spr(variable_struct_get(arg1, _gtkp), arg2, arg3));
++        }
++    }
++}
++
++
++// GNX-TYPES: a pending cell (arg0) keeps its JSON (arg1, a registration or a patch, in load order) with what
++// gnx_cell_type_sprs needs, so gnx_recheck_cell_types can give it the sets of the types appended later
++function gnx_cell_type_sprs_later(arg0, arg1, arg2, arg3, arg4)
++{
++    if (!variable_struct_exists(arg0, "gnx_mon_spr_src"))
++        arg0.gnx_mon_spr_src = [];
++
++    var _mod = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++    array_push(arg0.gnx_mon_spr_src, { json: arg1, spr: arg2, dir: arg3, places: arg4, from: gnx_mon_type_count(), mod_name: _mod });
++}
++
++
++// GNX-TYPES: after a deferred map-mod load appended types, the cells that named one of them (pending) take their
++// source lists through gnx_cell_mon_check again, and their JSON's own sets of the new types (mon_spr_<name>), as
++// registration and patches give them for types known then. A cell whose names all resolve now is no longer pending.
++// Then its monster_art blocks that wait for one of the new types (gnx_art_wait_replay), judged against the lists just
++// rebuilt.
++function gnx_recheck_cell_types()
++{
++    var _k = ds_map_keys_to_array(global.cell_registry);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _c = ds_map_find_value(global.cell_registry, _k[_i]);
++
++        if (!is_struct(_c))
++            continue;
++
++        if (variable_struct_exists(_c, "gnx_mon_types_pending") && _c.gnx_mon_types_pending)
++        {
++            if (variable_struct_exists(_c, "gnx_mon_types_src"))
++                _c.mon_types = gnx_array_copy(_c.gnx_mon_types_src);
++
++            if (variable_struct_exists(_c, "gnx_mon_place_src") && is_struct(_c.physical))
++                _c.physical.mon_placements = gnx_array_copy(_c.gnx_mon_place_src);
++
++            var _name = variable_struct_exists(_c, "name") ? string(_c.name) : ("h_type " + string(_k[_i]));
++            gnx_cell_mon_check(_c, _name, variable_struct_exists(_c, "mod_name") ? string(_c.mod_name) : "");
++
++            gnx_cell_type_sprs_replay(_c);
++        }
++
++        gnx_art_wait_replay(_c, _k[_i]);
++    }
++}
++
++
++// GNX-TYPES: cell arg0's JSON held by gnx_cell_type_sprs_later, in load order, for the types appended since each was
++// held, with its own mod as the loading mod (a mod atlas resolves through it). Dropped once the cell is not pending
++function gnx_cell_type_sprs_replay(arg0)
++{
++    if (!variable_struct_exists(arg0, "gnx_mon_spr_src"))
++        return;
++
++    var _was = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++
++    for (var _j = 0; _j < array_length(arg0.gnx_mon_spr_src); _j++)
++    {
++        var _e = arg0.gnx_mon_spr_src[_j];
++        global.gnx_current_loading_mod = _e.mod_name;
++        gnx_cell_type_sprs(arg0, _e.json, _e.spr, _e.dir, _e.places, _e.from);
++        _e.from = gnx_mon_type_count();
++    }
++
++    global.gnx_current_loading_mod = _was;
++
++    if (!arg0.gnx_mon_types_pending)
++        variable_struct_remove(arg0, "gnx_mon_spr_src");
 +}
 +
 +
