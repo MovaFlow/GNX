@@ -539,7 +539,7 @@
                  var _place = mon_data.placement_num;
                  
                  if (_old_slot_id != -1 && _old_slot_id.slot_data.slot_type != UnknownEnum.Value_3)
-@@ -482,22 +830,14 @@
+@@ -482,22 +830,16 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -552,7 +552,9 @@
 -                            break;
 -                    }
 -                }
-+                if (_spr_data != -1 && is_struct(_spr_data) && variable_struct_exists(_spr_data, "spr_type"))
++                // GNX-FIX: only for a monster still in a cell; one saved outside a cell (slot_id -1) with the cell
++                // sprite data it kept stopped the load with "<unknown_object>.slot_data not set before reading"
++                if (_spr_data != -1 && is_struct(_spr_data) && variable_struct_exists(_spr_data, "spr_type") && mon_data.slot_id != -1 && instance_exists(mon_data.slot_id))
 +                    scr_set_mon_spr_data(mon_data.slot_id, _spr_data.spr_type);
                  
                  if (mon_data.task == UnknownEnum.Value_3)
@@ -564,7 +566,7 @@
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +894,10 @@
+@@ -554,6 +896,10 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -575,7 +577,7 @@
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +911,72 @@
+@@ -567,7 +913,72 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -648,7 +650,7 @@
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -585,7 +994,22 @@
+@@ -585,7 +996,22 @@
          
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row, _global.back_row[i]);
@@ -672,7 +674,7 @@
          ds_list_clear(global.new_button_list);
          _num = array_length(_global.new_button_list);
          
-@@ -606,11 +1030,21 @@
+@@ -606,11 +1032,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -695,7 +697,7 @@
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1068,12 @@
+@@ -634,7 +1070,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -708,7 +710,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1093,395 @@
+@@ -654,8 +1095,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -1104,7 +1106,7 @@
      }
      
      return _load;
-@@ -663,6 +1489,7 @@
+@@ -663,6 +1491,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1112,7 +1114,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1509,25 @@
+@@ -682,33 +1511,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1157,7 +1159,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1552,119 @@
+@@ -733,3 +1554,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

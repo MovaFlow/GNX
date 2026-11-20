@@ -34,6 +34,15 @@
                  }
                  else
                  {
+@@ -149,7 +167,7 @@
+             
+             with (obj_p)
+             {
+-                if (!audio_is_playing(game_bgm))
++                if (!audio_is_playing(game_bgm) && !gnx_quest_music_on())  // GNX-QMUSIC: paused during a quest dialog's music
+                     scr_choose_track(last_track);
+             }
+             
 @@ -172,6 +190,7 @@
                  instance_create_depth(0, 0, -2000, obj_control);
              
@@ -42,7 +51,7 @@
              load_state = UnknownEnum.Value_5;
              break;
          
-@@ -182,10 +201,19 @@
+@@ -182,10 +201,20 @@
              room_goto(rm_game);
              break;
      }
@@ -51,6 +60,7 @@
 +        scr_gnx_scn_step();
 +    
 +    gnx_atlas_pages_step();
++    gnx_quest_music_check();  // GNX-QMUSIC: a dialog gone without closing (room change, load) stops its music
 +    gnx_log_flush();  // the GNX debug log is written once per frame
  }
  
@@ -62,7 +72,7 @@
      with (obj_camera)
      {
          var _transition = !abs(global.zoom_target);
-@@ -197,7 +225,7 @@
+@@ -197,7 +226,7 @@
          if (global.zoom_target == 4)
              _border_y = 10000;
          else
@@ -71,7 +81,7 @@
          
          y = clamp(y, _start_y, _border_y);
          camera_set_view_pos(camera, x, y);
-@@ -210,6 +238,10 @@
+@@ -210,6 +239,10 @@
          }
      }
      
@@ -82,7 +92,7 @@
      if (instance_exists(obj_button))
      {
          with (obj_button)
-@@ -250,6 +282,10 @@
+@@ -250,6 +283,10 @@
          }
      }
      
@@ -93,7 +103,7 @@
      if (instance_exists(obj_prop))
      {
          with (obj_prop)
-@@ -261,6 +297,10 @@
+@@ -261,6 +298,10 @@
                  x = _source.x + prop_data.shift_x;
                  y = _source.y + prop_data.shift_y;
              }
@@ -104,7 +114,7 @@
          }
      }
      
-@@ -268,6 +308,10 @@
+@@ -268,6 +309,10 @@
      {
          with (obj_slot)
          {
@@ -115,7 +125,7 @@
              if (h_unit_list != -1 && array_length(h_unit_list) > 0)
              {
                  for (var i = 0; i < array_length(h_unit_list); i++)
-@@ -281,6 +325,12 @@
+@@ -281,6 +326,12 @@
              }
          }
      }

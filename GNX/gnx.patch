@@ -7178,7 +7178,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cells.gml
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3465 @@
+@@ -0,0 +1,3475 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -10627,6 +10627,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +    
 +    // <= 0: the clothing; mod = remainder, so variant 5 takes variant 1's colour again
 +    return (_k <= 0) ? c_white : _cols[(_k - 1) mod array_length(_cols)];
++}
++
++
++// GNX-SWAP: may class arg1 take the place of a girl dragged out of special cell type arg0 (DAIRY 36, GIANT 37,
++// CHAINS 38, LILITH SHRINE 39)? The swap puts her there. Vanilla allowed only the same class; this also lets in
++// a class whose own cell it is (gnx_cell_is_home: the vanilla bosses' cells, or a mod class the cell's
++// required_class lists, as Hathorverse's girls) and the vanilla giant (11) into GIANT.
++function gnx_swap_into_special_ok(arg0, arg1)
++{
++    return gnx_cell_is_home(arg0, arg1) || (arg0 == 37 && arg1 == 11);
 +}
 +
 +
@@ -18089,7 +18099,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,8913 @@
+@@ -0,0 +1,9017 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -19900,6 +19910,45 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
++// for {"assert": "fn"}: the music during a quest dialog (GNX-QMUSIC) as "<quest> <game>": quest = "quest" when the
++// event's track plays, else "none"; game = "paused", "playing" or "stopped" for the gameplay track
++function gnx_scn_quest_bgm()
++{
++    var _q = (gnx_quest_music_on() && audio_is_playing(global.gnx_quest_bgm)) ? "quest" : "none";
++    var _g = "stopped";
++
++    if (audio_is_playing(obj_p.game_bgm))
++        _g = audio_is_paused(obj_p.game_bgm) ? "paused" : "playing";
++
++    return _q + " " + _g;
++}
++
++
++// for {"call"}: empties the notification list (a new game starts with the game's own notifications, which the
++// notification button would open first); returns how many were dropped
++function gnx_scn_clear_notis()
++{
++    var _n = ds_list_size(global.noti_list);
++    ds_list_clear(global.noti_list);
++    return _n;
++}
++
++
++// for {"call"}: closes the open dialog (obj_text) as its last page does (scr_end_textbox); 1 when one was open
++function gnx_scn_close_textbox()
++{
++    var _n = 0;
++
++    with (obj_text)
++    {
++        scr_end_textbox(id);
++        _n++;
++    }
++
++    return _n;
++}
++
++
 +// for {"assert": "fn"}: the gameplay music rotation as "vanilla <n> mod <n>" (gnx_bgm_pool)
 +function gnx_scn_bgm_pool()
 +{
@@ -20487,6 +20536,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +
 +    gnx_log_close(_l);
++}
++
++
++// true when the quest loader knows condition type arg0 (a type it does not know is a mod error: misspelled)
++function gnx_scn_cond_known(arg0)
++{
++    return is_array(gnx_cond_required(arg0));
 +}
 +
 +
@@ -25031,6 +25087,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +        if (variable_struct_exists(_st.occupy, "preg"))
 +            _oc_u.preg = (is_string(_st.occupy.preg) && _st.occupy.preg == "occupied") ? global.gnx_scn_occupied.unit_data.preg : gnx_scn_ref(_st.occupy.preg);
 +
++        if (variable_struct_exists(_st.occupy, "milk"))  // "milk": true = she has milk (a MILK cell calls goblins)
++            _oc_u.milk = _st.occupy.milk == true;
++
 +        scr_occupy_slot(_oc_c, _oc_u, false, 1);
 +        global.gnx_scn_occupied = _oc_c;  // the cell the last occupy step filled
 +        global.gnx_scn_occupied_pos = [_oc_c.slot_data.slot_floor, ds_list_find_index(global.slot_list[_oc_c.slot_data.slot_floor], _oc_c)];
@@ -25465,6 +25524,42 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +{
 +    var _t = scr_check_empty_cell_range(global.gnx_scn_occupied, 3, 0);
 +    return _t != -1 && (_t.slot_data.h_type == 5 || _t.slot_data.h_type == 12);
++}
++
++
++// true while the captive in the cell the last occupy step filled still has milk (a MILK cell has not finished milking her)
++function gnx_scn_occupied_has_milk()
++{
++    var _c = global.gnx_scn_occupied;
++    return instance_exists(_c) && is_struct(_c.unit_data) && _c.unit_data.milk == true;
++}
++
++
++// the real drop check (scr_check_slot_availability) for a girl of class arg1 dragged out of a cell of type arg0
++// onto the first occupied cell of type arg2, whose girl is made class arg3 for the check (restored after)
++function gnx_scn_swap_ok(arg0, arg1, arg2, arg3)
++{
++    var _t = -1;
++
++    with (obj_slot)
++    {
++        if (_t == -1 && is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg2)
++            _t = id;
++    }
++
++    if (_t == -1)
++        return "no occupied cell h=" + string(arg2);
++
++    var _drag = { unit_data: scr_create_unit_base(arg1, 1), drag_type: 2, source_id: { slot_data: { h_type: arg0, prop: [] } } };
++    var _keep = _t.unit_data.class;
++    var _r = false;
++    _t.unit_data.class = arg3;
++
++    with (_t)
++        _r = scr_check_slot_availability(id, _drag, false);
++
++    _t.unit_data.class = _keep;
++    return _r;
 +}
 +
 +
@@ -26891,6 +26986,25 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    {
 +        if (interact_type == 9061 && button_num == arg0)
 +            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"call"}: a monster outside any cell keeps a cell's sprite data (spr_data with spr_type), as one that left a
++// cell or walks to another floor can; the next save/reload once stopped there. Returns how many were set (max 3)
++function gnx_scn_mon_stale_spr()
++{
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (_n < 3 && mon_data.slot_id == -1)
++        {
++            mon_data.spr_data = { spr_type: 1, mon_step: 1 };
++            _n++;
++        }
 +    }
 +
 +    return _n;
@@ -33946,7 +34060,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_props.gml gml/gml_GlobalScript_s_gnx_pro
 diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_quests.gml
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1899 @@
+@@ -0,0 +1,1918 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -34220,6 +34334,19 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +                }
 +            }
 +            
++            // GNX-QMUSIC: "music": "file.ogg" (in the mod's sounds/) plays while the event's dialog is open
++            if (variable_struct_exists(_edef, "music"))
++            {
++                var _qm = is_string(_edef.music) ? gnx_resolve_sound(global.gnx_mods_root + arg0 + "/", _edef.music) : -1;
++
++                if (_qm == -1)
++                    gnx_report_mod_error("Mod '" + arg0 + "': event '" + _full_id + "': music '" + string(_edef.music) + "' not found in sounds/ (an .ogg file name); the dialog keeps the game's music");
++                else if (!variable_struct_exists(_edef, "dialog"))
++                    gnx_report_mod_error("Mod '" + arg0 + "': event '" + _full_id + "': music needs a dialog (it plays while the dialog is open); ignored");
++                else
++                    _edef.gnx_music = _qm;
++            }
++
 +            if (variable_struct_exists(_edef, "next_event") && is_string(_edef.next_event))
 +                _edef.next_event = arg0 + "." + _edef.next_event;
 +            
@@ -34315,6 +34442,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +            return ["key", "value"];
 +        case "gold_gte":
 +        case "floor_gte":
++        case "tower_floor_gte":
 +            return ["value"];
 +        case "stage_discovered":
 +            return ["stage"];
@@ -34728,6 +34856,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 +        
 +        case "floor_gte":
 +            return global.val.floor >= arg0.value;
++        
++        // GNX: the highest Tower floor reached (vanilla t_lvl, the number a nest prop shows; raised after each
++        // Tower win to ct_lvl, the floor count the Tower fights scale with, which never goes down)
++        case "tower_floor_gte":
++            return global.val.t_lvl >= arg0.value;
 +        
 +        case "on_map":  // {"type": "on_map", "map": "outpost"}: the player is on that map ("vanilla" = the village)
 +            return variable_struct_exists(arg0, "map") && global.gnx_active_map == arg0.map;
@@ -35849,7 +35982,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_quests.gml gml/gml_GlobalScript_s_gnx_qu
 diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid.gml
 --- gml_138/gml_GlobalScript_s_gnx_raid.gml
 +++ gml/gml_GlobalScript_s_gnx_raid.gml
-@@ -0,0 +1,1923 @@
+@@ -0,0 +1,1928 @@
 +// GNX: raid encounter pools, post-raid escape, no-capture encounters
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -36952,6 +37085,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 +    var _boss = _L.boss != undefined && !(_L.boss.until_captured && gnx_boss_was_captured(gnx_stage_boss_key(arg1, _lvl))) && irandom_range(1, 100) <= _L.boss.chance && (_L.boss.condition == undefined || scr_gnx_eval_condition(_L.boss.condition, arg1.mod_name));
 +    // an encounter holds 5 units at most, the boss included
 +    var _num = min(irandom_range(_L.count[0], _L.count[1]), _boss ? 4 : 5);
++    // GNX-FIX: a level with no units (no pool for it) brings no enemies; gnx_pool_pick would make each one a peasant
++    var _pk = (arg0 * 100) + _lvl;
++
++    if (!ds_map_exists(global.gnx_encounter_pools, _pk) || ds_list_size(ds_map_find_value(global.gnx_encounter_pools, _pk)) == 0)
++        _num = 0;
 +    _en_ap[0] += irandom_range(_L.hp[0], _L.hp[1]) + _num;
 +    _en_ap[1] += irandom_range(_L.ap[0], _L.ap[1]) + _num;
 +
@@ -37776,7 +37914,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sound.gml
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml
 +++ gml/gml_GlobalScript_s_gnx_sound.gml
-@@ -0,0 +1,682 @@
+@@ -0,0 +1,736 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -37834,6 +37972,60 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +    }
 +
 +    return global.gnx_bgm_pool;
++}
++
++
++// GNX-QMUSIC: a quest event's "music" plays (looped, at the music volume) while its dialog is open; the gameplay
++// track is paused meanwhile and goes on where it stopped. arg0 = the dialog's text_data.
++function gnx_quest_music_start(arg0)
++{
++    // ! = not, || = or: only a GNX event dialog with music
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "gnx_event") || !is_struct(arg0.gnx_event) || !variable_struct_exists(arg0.gnx_event, "gnx_music"))
++        exit;
++
++    gnx_quest_music_stop();
++
++    with (obj_p)
++    {
++        if (variable_instance_exists(id, "game_bgm") && audio_is_playing(game_bgm))
++            audio_pause_sound(game_bgm);
++    }
++
++    global.gnx_quest_bgm = audio_play_sound(arg0.gnx_event.gnx_music, 1, true, global.val.bgm_vol);
++}
++
++
++function gnx_quest_music_stop()
++{
++    if (!variable_global_exists("gnx_quest_bgm") || global.gnx_quest_bgm == -1)
++        exit;
++
++    audio_stop_sound(global.gnx_quest_bgm);
++    global.gnx_quest_bgm = -1;
++
++    // the gameplay track goes on only in the game room (a room change can close the dialog)
++    if (room == rm_game)
++    {
++        with (obj_p)
++        {
++            if (variable_instance_exists(id, "game_bgm"))
++                audio_resume_sound(game_bgm);
++        }
++    }
++}
++
++
++// once a frame (end of scr_room_step): no dialog left (room change, load) = the quest music stops
++function gnx_quest_music_check()
++{
++    if (variable_global_exists("gnx_quest_bgm") && global.gnx_quest_bgm != -1 && !instance_exists(obj_text))
++        gnx_quest_music_stop();
++}
++
++
++function gnx_quest_music_on()
++{
++    return variable_global_exists("gnx_quest_bgm") && global.gnx_quest_bgm != -1;
 +}
 +
 +
@@ -50001,6 +50193,15 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
                  }
                  else
                  {
+@@ -149,7 +167,7 @@
+             
+             with (obj_p)
+             {
+-                if (!audio_is_playing(game_bgm))
++                if (!audio_is_playing(game_bgm) && !gnx_quest_music_on())  // GNX-QMUSIC: paused during a quest dialog's music
+                     scr_choose_track(last_track);
+             }
+             
 @@ -172,6 +190,7 @@
                  instance_create_depth(0, 0, -2000, obj_control);
              
@@ -50009,7 +50210,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
              load_state = UnknownEnum.Value_5;
              break;
          
-@@ -182,10 +201,19 @@
+@@ -182,10 +201,20 @@
              room_goto(rm_game);
              break;
      }
@@ -50018,6 +50219,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
 +        scr_gnx_scn_step();
 +    
 +    gnx_atlas_pages_step();
++    gnx_quest_music_check();  // GNX-QMUSIC: a dialog gone without closing (room change, load) stops its music
 +    gnx_log_flush();  // the GNX debug log is written once per frame
  }
  
@@ -50029,7 +50231,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
      with (obj_camera)
      {
          var _transition = !abs(global.zoom_target);
-@@ -197,7 +225,7 @@
+@@ -197,7 +226,7 @@
          if (global.zoom_target == 4)
              _border_y = 10000;
          else
@@ -50038,7 +50240,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
          
          y = clamp(y, _start_y, _border_y);
          camera_set_view_pos(camera, x, y);
-@@ -210,6 +238,10 @@
+@@ -210,6 +239,10 @@
          }
      }
      
@@ -50049,7 +50251,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
      if (instance_exists(obj_button))
      {
          with (obj_button)
-@@ -250,6 +282,10 @@
+@@ -250,6 +283,10 @@
          }
      }
      
@@ -50060,7 +50262,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
      if (instance_exists(obj_prop))
      {
          with (obj_prop)
-@@ -261,6 +297,10 @@
+@@ -261,6 +298,10 @@
                  x = _source.x + prop_data.shift_x;
                  y = _source.y + prop_data.shift_y;
              }
@@ -50071,7 +50273,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
          }
      }
      
-@@ -268,6 +308,10 @@
+@@ -268,6 +309,10 @@
      {
          with (obj_slot)
          {
@@ -50082,7 +50284,7 @@ diff -uN gml_138/gml_GlobalScript_s_main_room_step.gml gml/gml_GlobalScript_s_ma
              if (h_unit_list != -1 && array_length(h_unit_list) > 0)
              {
                  for (var i = 0; i < array_length(h_unit_list); i++)
-@@ -281,6 +325,12 @@
+@@ -281,6 +326,12 @@
              }
          }
      }
@@ -56009,10 +56211,11 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
          for (var i = 0; i < array_length(global.val.cage); i++)
          {
              var _unit_list2 = [];
-@@ -277,13 +280,31 @@
+@@ -277,13 +280,35 @@
              
              var _c_rate = ((((_over_diff - 1) / (1 + (_max_lvl * 0.3))) * 100) + (_cap_mul * 100)) * _cap_start;
              _c_rate = max(floor(_c_rate), 0);
+-            
 +
 +            // GNX: the GNX DEBUG toggle CAPTURE100 (its flag was set but never read)
 +            if (global.gnx_force_capture_100)
@@ -56030,7 +56233,11 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
 +                if (_gnx_boss_at == -1)
 +                    _c_rate = 0;
 +            }
-             
++
++            // GNX-FIX: an encounter with no units (a mod stage level without units) has nobody to capture
++            if (_list_num == 0)
++                _c_rate = 0;
++
              if (irandom_range(1, 100) <= _c_rate)
              {
                  var _a = irandom_range(0, _list_num - 1);
@@ -56042,7 +56249,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  {
                      var _aa = _a;
                      
-@@ -294,6 +315,14 @@
+@@ -294,6 +319,14 @@
                      _a = _aa;
                  }
                  
@@ -56057,7 +56264,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  _cap_start = _cap_start * 0.9;
                  var _lvl_mul = scr_check_skill_data(UnknownEnum.Value_10);
                  
-@@ -307,6 +336,7 @@
+@@ -307,6 +340,7 @@
                  global.val.cap_num++;
                  scr_check_steam_achievement(UnknownEnum.Value_5);
                  global.val.cage[_cage_num] = _unit_data;
@@ -56065,7 +56272,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  array_delete(_data.unit_list, _a, 1);
                  _cage_num++;
                  
-@@ -366,6 +396,13 @@
+@@ -366,6 +400,13 @@
                      }
                  }
                  
@@ -56079,7 +56286,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  if (array_length(_data.unit_list) == 0)
                      i = array_length(global.val.cage);
              }
-@@ -488,6 +525,8 @@
+@@ -488,6 +529,8 @@
                          _m_lvl = 1;
                  }
                  
@@ -56088,7 +56295,7 @@ diff -uN gml_138/gml_GlobalScript_s_raid_cal_stat.gml gml/gml_GlobalScript_s_rai
                  scr_add_milk_item(_m_lvl, 1);
              }
          }
-@@ -499,6 +538,10 @@
+@@ -499,6 +542,10 @@
          
          if (_selene_grace)
              scr_pop_up_create(UnknownEnum.Value_27);
@@ -58638,7 +58845,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                  var _place = mon_data.placement_num;
                  
                  if (_old_slot_id != -1 && _old_slot_id.slot_data.slot_type != UnknownEnum.Value_3)
-@@ -482,22 +830,14 @@
+@@ -482,22 +830,16 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -58651,7 +58858,9 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 -                            break;
 -                    }
 -                }
-+                if (_spr_data != -1 && is_struct(_spr_data) && variable_struct_exists(_spr_data, "spr_type"))
++                // GNX-FIX: only for a monster still in a cell; one saved outside a cell (slot_id -1) with the cell
++                // sprite data it kept stopped the load with "<unknown_object>.slot_data not set before reading"
++                if (_spr_data != -1 && is_struct(_spr_data) && variable_struct_exists(_spr_data, "spr_type") && mon_data.slot_id != -1 && instance_exists(mon_data.slot_id))
 +                    scr_set_mon_spr_data(mon_data.slot_id, _spr_data.spr_type);
                  
                  if (mon_data.task == UnknownEnum.Value_3)
@@ -58663,7 +58872,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +894,10 @@
+@@ -554,6 +896,10 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -58674,7 +58883,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +911,72 @@
+@@ -567,7 +913,72 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -58747,7 +58956,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -585,7 +994,22 @@
+@@ -585,7 +996,22 @@
          
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row, _global.back_row[i]);
@@ -58771,7 +58980,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          ds_list_clear(global.new_button_list);
          _num = array_length(_global.new_button_list);
          
-@@ -606,11 +1030,21 @@
+@@ -606,11 +1032,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -58794,7 +59003,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1068,12 @@
+@@ -634,7 +1070,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -58807,7 +59016,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1093,395 @@
+@@ -654,8 +1095,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -59203,7 +59412,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1489,7 @@
+@@ -663,6 +1491,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -59211,7 +59420,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1509,25 @@
+@@ -682,33 +1511,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -59256,7 +59465,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1552,119 @@
+@@ -733,3 +1554,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
@@ -67179,7 +67388,8 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
 -                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && (arg1.source_id.slot_data.h_type == UnknownEnum.Value_36 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_37 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_38 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_39))
 +                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && (arg1.source_id.slot_data.h_type == 36 || arg1.source_id.slot_data.h_type == 37 || arg1.source_id.slot_data.h_type == 38 || arg1.source_id.slot_data.h_type == 39))
                  {
-                     if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
+-                    if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
++                    if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class && !gnx_swap_into_special_ok(arg1.source_id.slot_data.h_type, _old_unit_data.class))  // GNX-SWAP
                      {
                          _result = false;
                          
@@ -67260,7 +67470,8 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
 -                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && (arg1.source_id.slot_data.h_type == UnknownEnum.Value_38 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_36 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_37 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_39))
 +                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && (arg1.source_id.slot_data.h_type == 38 || arg1.source_id.slot_data.h_type == 36 || arg1.source_id.slot_data.h_type == 37 || arg1.source_id.slot_data.h_type == 39))
                  {
-                     if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
+-                    if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
++                    if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class && !gnx_swap_into_special_ok(arg1.source_id.slot_data.h_type, _old_unit_data.class))  // GNX-SWAP
                      {
                          _result = false;
                          
@@ -67416,7 +67627,8 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
 -                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && (arg1.source_id.slot_data.h_type == UnknownEnum.Value_36 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_37 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_38 || arg1.source_id.slot_data.h_type == UnknownEnum.Value_39))
 +                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && (arg1.source_id.slot_data.h_type == 36 || arg1.source_id.slot_data.h_type == 37 || arg1.source_id.slot_data.h_type == 38 || arg1.source_id.slot_data.h_type == 39))
                  {
-                     if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
+-                    if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class)
++                    if (_old_unit_data != -1 && arg1.unit_data.class != _old_unit_data.class && !gnx_swap_into_special_ok(arg1.source_id.slot_data.h_type, _old_unit_data.class))  // GNX-SWAP
                      {
                          _result = false;
                          
@@ -70060,7 +70272,31 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          h_unit_list[0].visible = false;
          slot_data.mon_timer[0] = 0;
          slot_data.h_loop = 3;
-@@ -655,7 +711,7 @@
+@@ -652,16 +708,19 @@
+         
+         case 2:
+             slot_data.anim_struct.anim_spd = 0;
+-            
++            // GNX-FIX: hold frame 2. The index moved once more this step before anim_spd was zeroed; at game
++            // speed 7 or more that step reached 3, case 3 then never saw a frame change and the cell froze
++            slot_data.anim_struct.index = 2;
++
+             if (slot_data.mon_timer[0] >= 5 && slot_data.milk_step != -1)
+             {
+-                scr_create_prop(id, UnknownEnum.Value_39, -1, -1);
++                scr_create_prop(id, 39, -1, -1);
+                 slot_data.milk_step = -1;
+                 scr_play_milk_sfx();
+             }
+-            
++
+             slot_data.mon_timer[0] += global.w_spd;
+-            
++
+             if (slot_data.mon_timer[0] >= _max_wait)
+             {
+                 slot_data.mon_timer[0] = 0;
+@@ -701,7 +760,7 @@
              
              if (slot_data.mon_timer[0] >= 5 && slot_data.milk_step != -1)
              {
@@ -70069,16 +70305,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.milk_step = -1;
                  scr_play_milk_sfx();
              }
-@@ -701,7 +757,7 @@
-             
-             if (slot_data.mon_timer[0] >= 5 && slot_data.milk_step != -1)
-             {
--                scr_create_prop(id, UnknownEnum.Value_39, -1, -1);
-+                scr_create_prop(id, 39, -1, -1);
-                 slot_data.milk_step = -1;
-                 scr_play_milk_sfx();
-             }
-@@ -726,21 +782,25 @@
+@@ -726,21 +785,25 @@
          scr_unit_removal(false, false, false, false, -1);
          var _m_lvl = unit_data.lvl;
          
@@ -70110,7 +70337,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.ff = true;
          slot_data.mon_timer[0] = 0;
          slot_data.h_loop = 0;
-@@ -753,7 +813,7 @@
+@@ -753,7 +816,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -70119,7 +70346,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 4;
-@@ -804,12 +864,12 @@
+@@ -804,12 +867,12 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.blink_index = -1;
@@ -70134,7 +70361,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          }
          
          slot_data.mon_timer[1] = irandom_range(360, 420);
-@@ -841,7 +901,7 @@
+@@ -841,7 +904,7 @@
          slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70143,7 +70370,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.mon_timer[1] = irandom_range(360, 420);
          unit_data.tired_c = 980;
      }
-@@ -872,12 +932,12 @@
+@@ -872,12 +935,12 @@
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 2;
@@ -70158,7 +70385,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          }
          
          slot_data.mon_timer[1] = irandom_range(30, 60);
-@@ -929,7 +989,7 @@
+@@ -929,7 +992,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -70167,7 +70394,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.index = 0;
          slot_data.h_step = 0;
          slot_data.mon_timer = [0, 0];
-@@ -957,23 +1017,38 @@
+@@ -957,23 +1020,38 @@
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 0;
@@ -70210,7 +70437,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      var _h = h_unit_list;
      
      if (slot_data.mon_placement[0] != -1)
-@@ -997,11 +1072,28 @@
+@@ -997,11 +1075,28 @@
              slot_data.mon_timer[0] = -1;
              scr_unit_removal(false, false, false, false, -1);
              
@@ -70239,7 +70466,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          }
          else
          {
-@@ -1020,11 +1112,28 @@
+@@ -1020,11 +1115,28 @@
              slot_data.mon_timer[1] = -1;
              scr_unit_removal(false, false, false, false, -1);
              
@@ -70268,7 +70495,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          }
          else
          {
-@@ -1034,7 +1143,7 @@
+@@ -1034,7 +1146,7 @@
      
      if ((slot_data.mon_timer[0] + slot_data.mon_timer[1]) == 0)
      {
@@ -70277,7 +70504,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.ff = true;
      }
  }
-@@ -1065,7 +1174,7 @@
+@@ -1065,7 +1177,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70286,7 +70513,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
      
      var _old_index = slot_data.anim_struct.index;
-@@ -1100,7 +1209,7 @@
+@@ -1100,7 +1212,7 @@
          slot_data.anim_struct.index = 0;
          
          if (unit_data != -1)
@@ -70295,7 +70522,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
      
      slot_data.h_wait += global.w_spd;
-@@ -1120,7 +1229,7 @@
+@@ -1120,7 +1232,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -70304,7 +70531,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
      
      slot_data.h_wait += global.w_spd;
-@@ -1135,12 +1244,12 @@
+@@ -1135,12 +1247,12 @@
          var _door = scr_find_nearest_door(_x, _y, _floor);
          _x = _door.x + floor(_door.image_xscale * 0.5);
          _y = _door.y;
@@ -70319,7 +70546,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              mon_data.mood_timer = 180;
              scr_mood_value_set(-0.25);
          }
-@@ -1158,7 +1267,7 @@
+@@ -1158,7 +1270,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -70328,7 +70555,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
  }
  
-@@ -1173,7 +1282,7 @@
+@@ -1173,7 +1285,7 @@
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          
          if (unit_data != -1)
@@ -70337,7 +70564,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
      
      unit_data.tired_c = scr_tired_timer(unit_data.tired_c, 1, 60);
-@@ -1189,7 +1298,7 @@
+@@ -1189,7 +1301,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -70346,7 +70573,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
  }
  
-@@ -1198,7 +1307,7 @@
+@@ -1198,7 +1310,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -70355,7 +70582,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -1206,9 +1315,10 @@
+@@ -1206,9 +1318,10 @@
          
          if (unit_data.preg != -1)
          {
@@ -70368,7 +70595,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          }
      }
      
-@@ -1218,14 +1328,14 @@
+@@ -1218,14 +1331,14 @@
      
      if (unit_data.tired_c == 0)
      {
@@ -70385,7 +70612,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
              
              if (slot_data.anim_struct.sp_index >= 3)
-@@ -1234,14 +1344,14 @@
+@@ -1234,14 +1347,14 @@
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
                  {
@@ -70402,7 +70629,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
              if (slot_data.anim_struct.sp_timer <= 0)
-@@ -1252,7 +1362,7 @@
+@@ -1252,7 +1365,7 @@
                  if (slot_data.anim_struct.sp_index >= 6)
                  {
                      slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -70411,7 +70638,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      scr_create_sp_drip(slot_data, depth - 1, true);
                  }
              }
-@@ -1282,7 +1392,7 @@
+@@ -1282,7 +1395,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70420,7 +70647,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.h_wait = irandom_range(360, 420);
          spawn_part[0] = true;
          spawn_stream = true;
-@@ -1327,7 +1437,7 @@
+@@ -1327,7 +1440,7 @@
          slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70429,7 +70656,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.h_wait = irandom_range(360, 420);
          unit_data.tired_c = 980;
      }
-@@ -1365,7 +1475,7 @@
+@@ -1365,7 +1478,7 @@
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 2;
@@ -70438,7 +70665,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.h_wait = irandom_range(30, 60);
          slot_data.h_loop = irandom_range(5, 7);
          scr_create_sq_effect(slot_data.anim_struct.index, 0.7, 100, slot_data.slot_floor, 0);
-@@ -1393,17 +1503,17 @@
+@@ -1393,17 +1506,17 @@
                      {
                          if (unit_data.preg == -1)
                          {
@@ -70460,7 +70687,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                              }
                          }
                          else
-@@ -1413,12 +1523,13 @@
+@@ -1413,12 +1526,13 @@
                      }
                      else
                      {
@@ -70476,7 +70703,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  }
                  else
                  {
-@@ -1447,7 +1558,7 @@
+@@ -1447,7 +1561,7 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70485,7 +70712,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.h_wait = 3;
          var _data = 
          {
-@@ -1455,7 +1566,7 @@
+@@ -1455,7 +1569,7 @@
              class: unit_data.class,
              lvl: unit_data.lvl
          };
@@ -70494,7 +70721,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
      
      slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
-@@ -1474,7 +1585,7 @@
+@@ -1474,7 +1588,7 @@
      
      var _birth_end_index = 6;
      
@@ -70503,7 +70730,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          _birth_end_index = 5;
      
      var _index = slot_data.anim_struct.index + (max(0, unit_data.skin) * _birth_end_index);
-@@ -1482,7 +1593,7 @@
+@@ -1482,7 +1596,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -70512,7 +70739,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          {
              slot_data.prop[i].prop_id.image_index = _index;
              i = _prop_num;
-@@ -1499,7 +1610,7 @@
+@@ -1499,7 +1613,7 @@
          slot_data.anim_struct.index = 0;
          unit_data.milk = true;
          
@@ -70521,7 +70748,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          {
              unit_data.preg = -1;
              
-@@ -1516,7 +1627,7 @@
+@@ -1516,7 +1630,7 @@
          
          for (var i = 0; i < _prop_num; i++)
          {
@@ -70530,7 +70757,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              {
                  slot_data.prop[i].prop_id.image_index++;
                  i = _prop_num;
-@@ -1527,14 +1638,14 @@
+@@ -1527,14 +1641,14 @@
      var _next = false;
      var _birth_end_index = 6;
      
@@ -70547,7 +70774,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          {
              with (slot_data.prop[i].prop_id)
              {
-@@ -1543,7 +1654,7 @@
+@@ -1543,7 +1657,7 @@
                  if (image_index >= ((max(0, other.unit_data.skin) + 1) * _birth_end_index))
                  {
                      _next = true;
@@ -70556,7 +70783,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      array_delete(slot_id.slot_data.prop, i, 1);
                      instance_destroy();
                  }
-@@ -1557,13 +1668,14 @@
+@@ -1557,13 +1671,14 @@
      {
          if (unit_data.preg != -1)
          {
@@ -70574,7 +70801,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              slot_data.anim_struct.ff = true;
          }
          
-@@ -1580,12 +1692,12 @@
+@@ -1580,12 +1695,12 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70589,7 +70816,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.ff = true;
      }
      else
-@@ -1612,7 +1724,7 @@
+@@ -1612,7 +1727,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70598,7 +70825,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.h_wait = 900;
      }
      
-@@ -1631,26 +1743,30 @@
+@@ -1631,26 +1746,30 @@
          slot_data.h_wait = 900;
          var _m_lvl = unit_data.lvl;
          
@@ -70635,7 +70862,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              scr_check_frog_unit_swap(slot_data.h_type);
          }
      }
-@@ -1665,15 +1781,15 @@
+@@ -1665,15 +1784,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70654,7 +70881,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
          
-@@ -1757,15 +1873,15 @@
+@@ -1757,15 +1876,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -70673,7 +70900,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
          
-@@ -1859,15 +1975,15 @@
+@@ -1859,15 +1978,15 @@
          }
          
          scr_play_ej_sfx();
@@ -70692,7 +70919,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
      }
-@@ -1924,7 +2040,7 @@
+@@ -1924,7 +2043,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -70701,7 +70928,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -1937,7 +2053,7 @@
+@@ -1937,7 +2056,7 @@
      
      switch (slot_data.anim_struct.sp_state)
      {
@@ -70710,7 +70937,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
              
              if (slot_data.anim_struct.sp_index >= 3)
-@@ -1946,14 +2062,14 @@
+@@ -1946,14 +2065,14 @@
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
                  {
@@ -70727,7 +70954,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
              if (slot_data.anim_struct.sp_timer <= 0)
-@@ -1964,7 +2080,7 @@
+@@ -1964,7 +2083,7 @@
                  if (slot_data.anim_struct.sp_index >= 6)
                  {
                      slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -70736,7 +70963,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      
                      if (!slot_data.mod_index[1])
                          scr_create_sp_drip(slot_data, depth - 1, true);
-@@ -1973,7 +2089,7 @@
+@@ -1973,7 +2092,7 @@
              
              break;
          
@@ -70745,7 +70972,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
-@@ -2001,7 +2117,7 @@
+@@ -2001,7 +2120,7 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70754,7 +70981,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.h_wait = 3;
          var _data = 
          {
-@@ -2009,7 +2125,7 @@
+@@ -2009,7 +2128,7 @@
              class: unit_data.class,
              lvl: unit_data.lvl
          };
@@ -70763,7 +70990,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
      
      slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
-@@ -2032,7 +2148,7 @@
+@@ -2032,7 +2151,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -70772,7 +70999,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          {
              slot_data.prop[i].prop_id.image_index = _index;
              i = _prop_num;
-@@ -2056,7 +2172,7 @@
+@@ -2056,7 +2175,7 @@
          
          for (var i = 0; i < _prop_num; i++)
          {
@@ -70781,7 +71008,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              {
                  slot_data.prop[i].prop_id.image_index++;
                  i = _prop_num;
-@@ -2070,7 +2186,7 @@
+@@ -2070,7 +2189,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -70790,7 +71017,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          {
              with (slot_data.prop[i].prop_id)
              {
-@@ -2079,7 +2195,7 @@
+@@ -2079,7 +2198,7 @@
                  if (image_index >= _birth_end_index)
                  {
                      _next = true;
@@ -70799,7 +71026,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      
                      with (slot_id)
                      {
-@@ -2087,7 +2203,7 @@
+@@ -2087,7 +2206,7 @@
                          
                          for (i = 0; i < _num; i++)
                          {
@@ -70808,7 +71035,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                                  array_delete(slot_data.prop, i, 1);
                          }
                      }
-@@ -2105,7 +2221,7 @@
+@@ -2105,7 +2224,7 @@
          slot_data.h_step = 0;
          slot_data.h_wait = 0;
          slot_data.h_loop = 0;
@@ -70817,7 +71044,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.ff = true;
          slot_data.h_wait = irandom_range(240, 360);
          scr_check_frog_unit_swap(slot_data.h_type);
-@@ -2117,7 +2233,7 @@
+@@ -2117,7 +2236,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -70826,7 +71053,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -2134,7 +2250,7 @@
+@@ -2134,7 +2253,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -70835,7 +71062,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2143,14 +2259,14 @@
+@@ -2143,14 +2262,14 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -70852,7 +71079,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
-@@ -2161,14 +2277,14 @@
+@@ -2161,14 +2280,14 @@
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
                          slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -70869,7 +71096,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2194,15 +2310,15 @@
+@@ -2194,15 +2313,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -70888,7 +71115,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
          
-@@ -2259,7 +2375,7 @@
+@@ -2259,7 +2378,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -70897,7 +71124,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2268,21 +2384,21 @@
+@@ -2268,21 +2387,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -70922,7 +71149,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2293,7 +2409,7 @@
+@@ -2293,7 +2412,7 @@
                  
                  break;
              
@@ -70931,7 +71158,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2318,15 +2434,15 @@
+@@ -2318,15 +2437,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -70950,7 +71177,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
          
-@@ -2377,7 +2493,7 @@
+@@ -2377,7 +2496,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -70959,7 +71186,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2386,21 +2502,21 @@
+@@ -2386,21 +2505,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -70984,7 +71211,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2411,7 +2527,7 @@
+@@ -2411,7 +2530,7 @@
                  
                  break;
              
@@ -70993,7 +71220,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2447,15 +2563,15 @@
+@@ -2447,15 +2566,15 @@
              scr_create_sq_effect_pos(38.5, -16, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -71012,7 +71239,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
      }
-@@ -2503,7 +2619,7 @@
+@@ -2503,7 +2622,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -71021,7 +71248,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2512,21 +2628,21 @@
+@@ -2512,21 +2631,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -71046,7 +71273,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2537,7 +2653,7 @@
+@@ -2537,7 +2656,7 @@
                  
                  break;
              
@@ -71055,7 +71282,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2563,15 +2679,15 @@
+@@ -2563,15 +2682,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -71074,7 +71301,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
          
-@@ -2632,15 +2748,15 @@
+@@ -2632,15 +2751,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -71093,7 +71320,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
          
-@@ -2703,15 +2819,15 @@
+@@ -2703,15 +2822,15 @@
              scr_create_sq_effect_pos(38.5, -25, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -71112,7 +71339,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
      }
-@@ -2765,7 +2881,7 @@
+@@ -2765,7 +2884,7 @@
          var _food = 0;
          _food = (global.val.add_range + 1) * 3;
          global.val.food += _food;
@@ -71121,7 +71348,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
      }
  }
  
-@@ -2788,16 +2904,26 @@
+@@ -2788,16 +2907,26 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -71151,7 +71378,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          }
      }
      
-@@ -2825,7 +2951,7 @@
+@@ -2825,7 +2954,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -71160,7 +71387,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -2842,7 +2968,7 @@
+@@ -2842,7 +2971,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -71169,7 +71396,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2851,14 +2977,14 @@
+@@ -2851,14 +2980,14 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -71186,7 +71413,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
-@@ -2869,14 +2995,14 @@
+@@ -2869,14 +2998,14 @@
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
                          slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -71203,7 +71430,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2902,15 +3028,15 @@
+@@ -2902,15 +3031,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -71222,7 +71449,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
          
-@@ -2966,7 +3092,7 @@
+@@ -2966,7 +3095,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -71231,7 +71458,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2975,21 +3101,21 @@
+@@ -2975,21 +3104,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -71256,7 +71483,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3000,7 +3126,7 @@
+@@ -3000,7 +3129,7 @@
                  
                  break;
              
@@ -71265,7 +71492,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3025,15 +3151,15 @@
+@@ -3025,15 +3154,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -71284,7 +71511,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
          
-@@ -3084,7 +3210,7 @@
+@@ -3084,7 +3213,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -71293,7 +71520,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -3093,21 +3219,21 @@
+@@ -3093,21 +3222,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -71318,7 +71545,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3118,7 +3244,7 @@
+@@ -3118,7 +3247,7 @@
                  
                  break;
              
@@ -71327,7 +71554,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3154,15 +3280,15 @@
+@@ -3154,15 +3283,15 @@
              scr_create_sq_effect_pos(38.5, -16, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -71346,7 +71573,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
              }
          }
      }
-@@ -3210,7 +3336,7 @@
+@@ -3210,7 +3339,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -71355,7 +71582,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -3219,21 +3345,21 @@
+@@ -3219,21 +3348,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -71380,7 +71607,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3244,7 +3370,7 @@
+@@ -3244,7 +3373,7 @@
                  
                  break;
              
@@ -71389,7 +71616,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3261,20 +3387,1601 @@
+@@ -3261,20 +3390,1601 @@
      scr_slot_call_mon(true);
  }
  
@@ -71441,7 +71668,21 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
 +/// GNX-EJ: how many holds the ej makes (scripts count h_loop down to 0). physical.ej_holds = a number
 +/// from 1, or [min, max] for a random count. Without the key: arg0, the vanilla irandom_range(5, 7).
 +function gnx_ej_holds(arg0)
-+{
+ {
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_8 = 8,
+-    Value_9,
+-    Value_12 = 12,
+-    Value_13,
+-    Value_27 = 27,
+-    Value_28,
+-    Value_39 = 39,
+-    Value_40
 +    var _cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +    
 +    if (_cell == undefined || !variable_struct_exists(_cell.physical, "gnx_ej_holds"))
@@ -72256,21 +72497,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
 +/// GNX-INTER: intermission arg0 (0 idle_start, 1 start_loop, 2 loop_ej, 3 ej_birth) of the cell in this
 +/// slot: its { frames, speed, loops } from physical.intermissions, or -1 when the cell has none.
 +function gnx_cell_inter(arg0)
- {
--    Value_0,
--    Value_1,
--    Value_2,
--    Value_3,
--    Value_4,
--    Value_5,
--    Value_8 = 8,
--    Value_9,
--    Value_12 = 12,
--    Value_13,
--    Value_27 = 27,
--    Value_28,
--    Value_39 = 39,
--    Value_40
++{
 +    var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +    
 +    // == undefined: not a registered cell; ! = not: a cell without intermissions
@@ -73274,7 +73501,22 @@ diff -uN gml_138/gml_GlobalScript_s_text_draw.gml gml/gml_GlobalScript_s_text_dr
 diff -uN gml_138/gml_GlobalScript_s_textbox_function.gml gml/gml_GlobalScript_s_textbox_function.gml
 --- gml_138/gml_GlobalScript_s_textbox_function.gml
 +++ gml/gml_GlobalScript_s_textbox_function.gml
-@@ -225,6 +225,9 @@
+@@ -23,6 +23,7 @@
+             source_id = other.id;
+             scr_set_textbox_lang();
+             text_data = arg0;
++            gnx_quest_music_start(arg0);  // GNX-QMUSIC: the event's music while its dialog is open
+             page = 0;
+             page_number = 0;
+             draw_char = 0;
+@@ -222,9 +223,16 @@
+             }
+         }
+         
++        // GNX-QMUSIC: the dialog closes, the gameplay music goes on
++        if (variable_struct_exists(text_data, "gnx_event"))
++            gnx_quest_music_stop();
++
          if (text_data.event_after != -1)
              scr_add_event(text_data.event_after, false);
          

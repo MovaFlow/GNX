@@ -76,6 +76,7 @@ cannot chain to or trigger another mod's event; the tool action `fire_event`
 |-----|---------|---------|------------|
 | `type` | both | `"notification"` or `"quest"` | mod error, the event is left out (GNX 1.5.3; older GNX stops while loading) |
 | `dialog` | notification | lines `{"speaker", "portrait", "text"}` shown one after the other | the notification is silent |
+| `music` | notification with `dialog` | an OGG file in your mod's `sounds/` folder (`"intro.ogg"`), played in a loop at the music volume while the dialog is open; the game's track is paused and goes on when the dialog closes (GNX 1.5.3) | the game's music; a missing file or an event without `dialog` is a mod error |
 | `side_effects` | both | list of [side effects](#side-effect-types): on a notification when it fires, on a quest when it completes (GNX 1.5.3) | nothing happens |
 | `next_event` | both | the event fired next: after the dialog is closed, at once for a silent notification, when a quest completes | the chain ends (`null` does the same) |
 | `quest_text` | quest | the text in the quest log | mod error, the log shows the event's name (GNX 1.5.3; older GNX stops while loading) |
@@ -199,7 +200,8 @@ stopped the game on a missing key when the condition was checked).
 | `day_gte` | `value` (default 1) | the day counter (shown under the clock) >= value |
 | `day_every` | `value` (default 1), `offset` (default 0) | the day is a multiple of `value` (after subtracting `offset`): `{"value": 7}` on days 7, 14, 21...; `{"value": 1}` every day. Meant for the `day_start` hook |
 | `has_item` | **`item`**, `value` (default 1) | the inventory holds at least `value` of that mod item (items.json; `"NAME"` of the quest's mod or `"mod.NAME"`) |
-| `floor_gte` | **`value`** | `global.val.floor >= value` |
+| `floor_gte` | **`value`** | `global.val.floor >= value` (the nest's floors) |
+| `tower_floor_gte` | **`value`** | the highest Tower floor reached (`global.val.t_lvl`) >= value: `{"type": "tower_floor_gte", "value": 10}` holds once floor 10 is won. Since 1.5.3 |
 | `cell_count` | `h_type` and/or `category`, `value` (default 1) | count of built cells with that h_type >= value |
 | `build_count` | `h_type` and/or `category` (optional: any type without them), `value` | cells of that type the player built (build menu, CUSTOM, COPY DOWN) >= value. In a quest's `completion` it counts from the moment the quest appeared (kept in the save) and the quest text shows the progress, e.g. `(2/4)`; elsewhere every build of the save |
 | `cell_built` | `h_type` (string ref or int) and/or `category` | at least one cell with that h_type exists |

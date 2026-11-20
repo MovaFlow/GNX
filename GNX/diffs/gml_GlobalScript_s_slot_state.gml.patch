@@ -537,7 +537,31 @@
          h_unit_list[0].visible = false;
          slot_data.mon_timer[0] = 0;
          slot_data.h_loop = 3;
-@@ -655,7 +711,7 @@
+@@ -652,16 +708,19 @@
+         
+         case 2:
+             slot_data.anim_struct.anim_spd = 0;
+-            
++            // GNX-FIX: hold frame 2. The index moved once more this step before anim_spd was zeroed; at game
++            // speed 7 or more that step reached 3, case 3 then never saw a frame change and the cell froze
++            slot_data.anim_struct.index = 2;
++
+             if (slot_data.mon_timer[0] >= 5 && slot_data.milk_step != -1)
+             {
+-                scr_create_prop(id, UnknownEnum.Value_39, -1, -1);
++                scr_create_prop(id, 39, -1, -1);
+                 slot_data.milk_step = -1;
+                 scr_play_milk_sfx();
+             }
+-            
++
+             slot_data.mon_timer[0] += global.w_spd;
+-            
++
+             if (slot_data.mon_timer[0] >= _max_wait)
+             {
+                 slot_data.mon_timer[0] = 0;
+@@ -701,7 +760,7 @@
              
              if (slot_data.mon_timer[0] >= 5 && slot_data.milk_step != -1)
              {
@@ -546,16 +570,7 @@
                  slot_data.milk_step = -1;
                  scr_play_milk_sfx();
              }
-@@ -701,7 +757,7 @@
-             
-             if (slot_data.mon_timer[0] >= 5 && slot_data.milk_step != -1)
-             {
--                scr_create_prop(id, UnknownEnum.Value_39, -1, -1);
-+                scr_create_prop(id, 39, -1, -1);
-                 slot_data.milk_step = -1;
-                 scr_play_milk_sfx();
-             }
-@@ -726,21 +782,25 @@
+@@ -726,21 +785,25 @@
          scr_unit_removal(false, false, false, false, -1);
          var _m_lvl = unit_data.lvl;
          
@@ -587,7 +602,7 @@
          slot_data.anim_struct.ff = true;
          slot_data.mon_timer[0] = 0;
          slot_data.h_loop = 0;
-@@ -753,7 +813,7 @@
+@@ -753,7 +816,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -596,7 +611,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 4;
-@@ -804,12 +864,12 @@
+@@ -804,12 +867,12 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.blink_index = -1;
@@ -611,7 +626,7 @@
          }
          
          slot_data.mon_timer[1] = irandom_range(360, 420);
-@@ -841,7 +901,7 @@
+@@ -841,7 +904,7 @@
          slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -620,7 +635,7 @@
          slot_data.mon_timer[1] = irandom_range(360, 420);
          unit_data.tired_c = 980;
      }
-@@ -872,12 +932,12 @@
+@@ -872,12 +935,12 @@
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 2;
@@ -635,7 +650,7 @@
          }
          
          slot_data.mon_timer[1] = irandom_range(30, 60);
-@@ -929,7 +989,7 @@
+@@ -929,7 +992,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -644,7 +659,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.h_step = 0;
          slot_data.mon_timer = [0, 0];
-@@ -957,23 +1017,38 @@
+@@ -957,23 +1020,38 @@
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 0;
@@ -687,7 +702,7 @@
      var _h = h_unit_list;
      
      if (slot_data.mon_placement[0] != -1)
-@@ -997,11 +1072,28 @@
+@@ -997,11 +1075,28 @@
              slot_data.mon_timer[0] = -1;
              scr_unit_removal(false, false, false, false, -1);
              
@@ -716,7 +731,7 @@
          }
          else
          {
-@@ -1020,11 +1112,28 @@
+@@ -1020,11 +1115,28 @@
              slot_data.mon_timer[1] = -1;
              scr_unit_removal(false, false, false, false, -1);
              
@@ -745,7 +760,7 @@
          }
          else
          {
-@@ -1034,7 +1143,7 @@
+@@ -1034,7 +1146,7 @@
      
      if ((slot_data.mon_timer[0] + slot_data.mon_timer[1]) == 0)
      {
@@ -754,7 +769,7 @@
          slot_data.anim_struct.ff = true;
      }
  }
-@@ -1065,7 +1174,7 @@
+@@ -1065,7 +1177,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -763,7 +778,7 @@
      }
      
      var _old_index = slot_data.anim_struct.index;
-@@ -1100,7 +1209,7 @@
+@@ -1100,7 +1212,7 @@
          slot_data.anim_struct.index = 0;
          
          if (unit_data != -1)
@@ -772,7 +787,7 @@
      }
      
      slot_data.h_wait += global.w_spd;
-@@ -1120,7 +1229,7 @@
+@@ -1120,7 +1232,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -781,7 +796,7 @@
      }
      
      slot_data.h_wait += global.w_spd;
-@@ -1135,12 +1244,12 @@
+@@ -1135,12 +1247,12 @@
          var _door = scr_find_nearest_door(_x, _y, _floor);
          _x = _door.x + floor(_door.image_xscale * 0.5);
          _y = _door.y;
@@ -796,7 +811,7 @@
              mon_data.mood_timer = 180;
              scr_mood_value_set(-0.25);
          }
-@@ -1158,7 +1267,7 @@
+@@ -1158,7 +1270,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -805,7 +820,7 @@
      }
  }
  
-@@ -1173,7 +1282,7 @@
+@@ -1173,7 +1285,7 @@
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          
          if (unit_data != -1)
@@ -814,7 +829,7 @@
      }
      
      unit_data.tired_c = scr_tired_timer(unit_data.tired_c, 1, 60);
-@@ -1189,7 +1298,7 @@
+@@ -1189,7 +1301,7 @@
          slot_data.anim_struct.ff = false;
          
          if (unit_data != -1)
@@ -823,7 +838,7 @@
      }
  }
  
-@@ -1198,7 +1307,7 @@
+@@ -1198,7 +1310,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -832,7 +847,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -1206,9 +1315,10 @@
+@@ -1206,9 +1318,10 @@
          
          if (unit_data.preg != -1)
          {
@@ -845,7 +860,7 @@
          }
      }
      
-@@ -1218,14 +1328,14 @@
+@@ -1218,14 +1331,14 @@
      
      if (unit_data.tired_c == 0)
      {
@@ -862,7 +877,7 @@
              slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
              
              if (slot_data.anim_struct.sp_index >= 3)
-@@ -1234,14 +1344,14 @@
+@@ -1234,14 +1347,14 @@
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
                  {
@@ -879,7 +894,7 @@
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
              if (slot_data.anim_struct.sp_timer <= 0)
-@@ -1252,7 +1362,7 @@
+@@ -1252,7 +1365,7 @@
                  if (slot_data.anim_struct.sp_index >= 6)
                  {
                      slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -888,7 +903,7 @@
                      scr_create_sp_drip(slot_data, depth - 1, true);
                  }
              }
-@@ -1282,7 +1392,7 @@
+@@ -1282,7 +1395,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -897,7 +912,7 @@
          slot_data.h_wait = irandom_range(360, 420);
          spawn_part[0] = true;
          spawn_stream = true;
-@@ -1327,7 +1437,7 @@
+@@ -1327,7 +1440,7 @@
          slot_data.anim_struct.ff = false;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -906,7 +921,7 @@
          slot_data.h_wait = irandom_range(360, 420);
          unit_data.tired_c = 980;
      }
-@@ -1365,7 +1475,7 @@
+@@ -1365,7 +1478,7 @@
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.anim_struct.index = 2;
@@ -915,7 +930,7 @@
          slot_data.h_wait = irandom_range(30, 60);
          slot_data.h_loop = irandom_range(5, 7);
          scr_create_sq_effect(slot_data.anim_struct.index, 0.7, 100, slot_data.slot_floor, 0);
-@@ -1393,17 +1503,17 @@
+@@ -1393,17 +1506,17 @@
                      {
                          if (unit_data.preg == -1)
                          {
@@ -937,7 +952,7 @@
                              }
                          }
                          else
-@@ -1413,12 +1523,13 @@
+@@ -1413,12 +1526,13 @@
                      }
                      else
                      {
@@ -953,7 +968,7 @@
                  }
                  else
                  {
-@@ -1447,7 +1558,7 @@
+@@ -1447,7 +1561,7 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -962,7 +977,7 @@
          slot_data.h_wait = 3;
          var _data = 
          {
-@@ -1455,7 +1566,7 @@
+@@ -1455,7 +1569,7 @@
              class: unit_data.class,
              lvl: unit_data.lvl
          };
@@ -971,7 +986,7 @@
      }
      
      slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
-@@ -1474,7 +1585,7 @@
+@@ -1474,7 +1588,7 @@
      
      var _birth_end_index = 6;
      
@@ -980,7 +995,7 @@
          _birth_end_index = 5;
      
      var _index = slot_data.anim_struct.index + (max(0, unit_data.skin) * _birth_end_index);
-@@ -1482,7 +1593,7 @@
+@@ -1482,7 +1596,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -989,7 +1004,7 @@
          {
              slot_data.prop[i].prop_id.image_index = _index;
              i = _prop_num;
-@@ -1499,7 +1610,7 @@
+@@ -1499,7 +1613,7 @@
          slot_data.anim_struct.index = 0;
          unit_data.milk = true;
          
@@ -998,7 +1013,7 @@
          {
              unit_data.preg = -1;
              
-@@ -1516,7 +1627,7 @@
+@@ -1516,7 +1630,7 @@
          
          for (var i = 0; i < _prop_num; i++)
          {
@@ -1007,7 +1022,7 @@
              {
                  slot_data.prop[i].prop_id.image_index++;
                  i = _prop_num;
-@@ -1527,14 +1638,14 @@
+@@ -1527,14 +1641,14 @@
      var _next = false;
      var _birth_end_index = 6;
      
@@ -1024,7 +1039,7 @@
          {
              with (slot_data.prop[i].prop_id)
              {
-@@ -1543,7 +1654,7 @@
+@@ -1543,7 +1657,7 @@
                  if (image_index >= ((max(0, other.unit_data.skin) + 1) * _birth_end_index))
                  {
                      _next = true;
@@ -1033,7 +1048,7 @@
                      array_delete(slot_id.slot_data.prop, i, 1);
                      instance_destroy();
                  }
-@@ -1557,13 +1668,14 @@
+@@ -1557,13 +1671,14 @@
      {
          if (unit_data.preg != -1)
          {
@@ -1051,7 +1066,7 @@
              slot_data.anim_struct.ff = true;
          }
          
-@@ -1580,12 +1692,12 @@
+@@ -1580,12 +1695,12 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1066,7 +1081,7 @@
          slot_data.anim_struct.ff = true;
      }
      else
-@@ -1612,7 +1724,7 @@
+@@ -1612,7 +1727,7 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 7;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1075,7 +1090,7 @@
          slot_data.h_wait = 900;
      }
      
-@@ -1631,26 +1743,30 @@
+@@ -1631,26 +1746,30 @@
          slot_data.h_wait = 900;
          var _m_lvl = unit_data.lvl;
          
@@ -1112,7 +1127,7 @@
              scr_check_frog_unit_swap(slot_data.h_type);
          }
      }
-@@ -1665,15 +1781,15 @@
+@@ -1665,15 +1784,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1131,7 +1146,7 @@
              }
          }
          
-@@ -1757,15 +1873,15 @@
+@@ -1757,15 +1876,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -1150,7 +1165,7 @@
              }
          }
          
-@@ -1859,15 +1975,15 @@
+@@ -1859,15 +1978,15 @@
          }
          
          scr_play_ej_sfx();
@@ -1169,7 +1184,7 @@
              }
          }
      }
-@@ -1924,7 +2040,7 @@
+@@ -1924,7 +2043,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -1178,7 +1193,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -1937,7 +2053,7 @@
+@@ -1937,7 +2056,7 @@
      
      switch (slot_data.anim_struct.sp_state)
      {
@@ -1187,7 +1202,7 @@
              slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
              
              if (slot_data.anim_struct.sp_index >= 3)
-@@ -1946,14 +2062,14 @@
+@@ -1946,14 +2065,14 @@
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
                  {
@@ -1204,7 +1219,7 @@
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
              if (slot_data.anim_struct.sp_timer <= 0)
-@@ -1964,7 +2080,7 @@
+@@ -1964,7 +2083,7 @@
                  if (slot_data.anim_struct.sp_index >= 6)
                  {
                      slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -1213,7 +1228,7 @@
                      
                      if (!slot_data.mod_index[1])
                          scr_create_sp_drip(slot_data, depth - 1, true);
-@@ -1973,7 +2089,7 @@
+@@ -1973,7 +2092,7 @@
              
              break;
          
@@ -1222,7 +1237,7 @@
              slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
              slot_data.anim_struct.sp_timer -= global.w_spd;
              
-@@ -2001,7 +2117,7 @@
+@@ -2001,7 +2120,7 @@
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1231,7 +1246,7 @@
          slot_data.h_wait = 3;
          var _data = 
          {
-@@ -2009,7 +2125,7 @@
+@@ -2009,7 +2128,7 @@
              class: unit_data.class,
              lvl: unit_data.lvl
          };
@@ -1240,7 +1255,7 @@
      }
      
      slot_data.anim_struct.index += slot_data.anim_struct.anim_spd * global.w_spd;
-@@ -2032,7 +2148,7 @@
+@@ -2032,7 +2151,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -1249,7 +1264,7 @@
          {
              slot_data.prop[i].prop_id.image_index = _index;
              i = _prop_num;
-@@ -2056,7 +2172,7 @@
+@@ -2056,7 +2175,7 @@
          
          for (var i = 0; i < _prop_num; i++)
          {
@@ -1258,7 +1273,7 @@
              {
                  slot_data.prop[i].prop_id.image_index++;
                  i = _prop_num;
-@@ -2070,7 +2186,7 @@
+@@ -2070,7 +2189,7 @@
      
      for (var i = 0; i < _prop_num; i++)
      {
@@ -1267,7 +1282,7 @@
          {
              with (slot_data.prop[i].prop_id)
              {
-@@ -2079,7 +2195,7 @@
+@@ -2079,7 +2198,7 @@
                  if (image_index >= _birth_end_index)
                  {
                      _next = true;
@@ -1276,7 +1291,7 @@
                      
                      with (slot_id)
                      {
-@@ -2087,7 +2203,7 @@
+@@ -2087,7 +2206,7 @@
                          
                          for (i = 0; i < _num; i++)
                          {
@@ -1285,7 +1300,7 @@
                                  array_delete(slot_data.prop, i, 1);
                          }
                      }
-@@ -2105,7 +2221,7 @@
+@@ -2105,7 +2224,7 @@
          slot_data.h_step = 0;
          slot_data.h_wait = 0;
          slot_data.h_loop = 0;
@@ -1294,7 +1309,7 @@
          slot_data.anim_struct.ff = true;
          slot_data.h_wait = irandom_range(240, 360);
          scr_check_frog_unit_swap(slot_data.h_type);
-@@ -2117,7 +2233,7 @@
+@@ -2117,7 +2236,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -1303,7 +1318,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -2134,7 +2250,7 @@
+@@ -2134,7 +2253,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1312,7 +1327,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2143,14 +2259,14 @@
+@@ -2143,14 +2262,14 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1329,7 +1344,7 @@
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
-@@ -2161,14 +2277,14 @@
+@@ -2161,14 +2280,14 @@
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
                          slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -1346,7 +1361,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2194,15 +2310,15 @@
+@@ -2194,15 +2313,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1365,7 +1380,7 @@
              }
          }
          
-@@ -2259,7 +2375,7 @@
+@@ -2259,7 +2378,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1374,7 +1389,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2268,21 +2384,21 @@
+@@ -2268,21 +2387,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1399,7 +1414,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2293,7 +2409,7 @@
+@@ -2293,7 +2412,7 @@
                  
                  break;
              
@@ -1408,7 +1423,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2318,15 +2434,15 @@
+@@ -2318,15 +2437,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -1427,7 +1442,7 @@
              }
          }
          
-@@ -2377,7 +2493,7 @@
+@@ -2377,7 +2496,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1436,7 +1451,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2386,21 +2502,21 @@
+@@ -2386,21 +2505,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1461,7 +1476,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2411,7 +2527,7 @@
+@@ -2411,7 +2530,7 @@
                  
                  break;
              
@@ -1470,7 +1485,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2447,15 +2563,15 @@
+@@ -2447,15 +2566,15 @@
              scr_create_sq_effect_pos(38.5, -16, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -1489,7 +1504,7 @@
              }
          }
      }
-@@ -2503,7 +2619,7 @@
+@@ -2503,7 +2622,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1498,7 +1513,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2512,21 +2628,21 @@
+@@ -2512,21 +2631,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1523,7 +1538,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -2537,7 +2653,7 @@
+@@ -2537,7 +2656,7 @@
                  
                  break;
              
@@ -1532,7 +1547,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2563,15 +2679,15 @@
+@@ -2563,15 +2682,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1551,7 +1566,7 @@
              }
          }
          
-@@ -2632,15 +2748,15 @@
+@@ -2632,15 +2751,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -1570,7 +1585,7 @@
              }
          }
          
-@@ -2703,15 +2819,15 @@
+@@ -2703,15 +2822,15 @@
              scr_create_sq_effect_pos(38.5, -25, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -1589,7 +1604,7 @@
              }
          }
      }
-@@ -2765,7 +2881,7 @@
+@@ -2765,7 +2884,7 @@
          var _food = 0;
          _food = (global.val.add_range + 1) * 3;
          global.val.food += _food;
@@ -1598,7 +1613,7 @@
      }
  }
  
-@@ -2788,16 +2904,26 @@
+@@ -2788,16 +2907,26 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -1628,7 +1643,7 @@
          }
      }
      
-@@ -2825,7 +2951,7 @@
+@@ -2825,7 +2954,7 @@
      if (slot_data.anim_struct.ff)
      {
          slot_data.anim_struct.ff = false;
@@ -1637,7 +1652,7 @@
          slot_data.anim_struct.index = 0;
          slot_data.anim_struct.frame_c = 2;
          slot_data.anim_struct.spr_spd = 1 * (sign(unit_data.tired_c) + 1);
-@@ -2842,7 +2968,7 @@
+@@ -2842,7 +2971,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1646,7 +1661,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2851,14 +2977,14 @@
+@@ -2851,14 +2980,14 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1663,7 +1678,7 @@
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
                  if (slot_data.anim_struct.sp_timer <= 0)
-@@ -2869,14 +2995,14 @@
+@@ -2869,14 +2998,14 @@
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
                          slot_data.anim_struct.sp_timer = irandom_range(120, 360);
@@ -1680,7 +1695,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -2902,15 +3028,15 @@
+@@ -2902,15 +3031,15 @@
          slot_data.anim_struct.frame_c = 5;
          slot_data.anim_struct.spr_spd = 9;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
@@ -1699,7 +1714,7 @@
              }
          }
          
-@@ -2966,7 +3092,7 @@
+@@ -2966,7 +3095,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1708,7 +1723,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -2975,21 +3101,21 @@
+@@ -2975,21 +3104,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1733,7 +1748,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3000,7 +3126,7 @@
+@@ -3000,7 +3129,7 @@
                  
                  break;
              
@@ -1742,7 +1757,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3025,15 +3151,15 @@
+@@ -3025,15 +3154,15 @@
          slot_data.anim_struct.spr_spd = 11;
          slot_data.anim_struct.anim_spd = slot_data.anim_struct.spr_spd / 60;
          slot_data.set_timer += 300;
@@ -1761,7 +1776,7 @@
              }
          }
          
-@@ -3084,7 +3210,7 @@
+@@ -3084,7 +3213,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1770,7 +1785,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -3093,21 +3219,21 @@
+@@ -3093,21 +3222,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1795,7 +1810,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3118,7 +3244,7 @@
+@@ -3118,7 +3247,7 @@
                  
                  break;
              
@@ -1804,7 +1819,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3154,15 +3280,15 @@
+@@ -3154,15 +3283,15 @@
              scr_create_sq_effect_pos(38.5, -16, 2, 0.5, 60, slot_data.slot_floor, 270, 1);
          
          scr_play_ej_sfx();
@@ -1823,7 +1838,7 @@
              }
          }
      }
-@@ -3210,7 +3336,7 @@
+@@ -3210,7 +3339,7 @@
          
          switch (slot_data.anim_struct.sp_state)
          {
@@ -1832,7 +1847,7 @@
                  slot_data.anim_struct.sp_index = min(3, slot_data.anim_struct.sp_index + (0.08333333333333333 * global.w_spd));
                  
                  if (slot_data.anim_struct.sp_index >= 3)
-@@ -3219,21 +3345,21 @@
+@@ -3219,21 +3348,21 @@
                      
                      if (slot_data.anim_struct.sp_timer <= 0)
                      {
@@ -1857,7 +1872,7 @@
                      
                      if (slot_data.anim_struct.sp_index >= 6)
                      {
-@@ -3244,7 +3370,7 @@
+@@ -3244,7 +3373,7 @@
                  
                  break;
              
@@ -1866,7 +1881,7 @@
                  slot_data.anim_struct.sp_index = min(8, slot_data.anim_struct.sp_index + (0.16666666666666666 * global.w_spd));
                  slot_data.anim_struct.sp_timer -= global.w_spd;
                  
-@@ -3261,20 +3387,1601 @@
+@@ -3261,20 +3390,1601 @@
      scr_slot_call_mon(true);
  }
  
@@ -1918,7 +1933,21 @@
 +/// GNX-EJ: how many holds the ej makes (scripts count h_loop down to 0). physical.ej_holds = a number
 +/// from 1, or [min, max] for a random count. Without the key: arg0, the vanilla irandom_range(5, 7).
 +function gnx_ej_holds(arg0)
-+{
+ {
+-    Value_0,
+-    Value_1,
+-    Value_2,
+-    Value_3,
+-    Value_4,
+-    Value_5,
+-    Value_8 = 8,
+-    Value_9,
+-    Value_12 = 12,
+-    Value_13,
+-    Value_27 = 27,
+-    Value_28,
+-    Value_39 = 39,
+-    Value_40
 +    var _cell = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +    
 +    if (_cell == undefined || !variable_struct_exists(_cell.physical, "gnx_ej_holds"))
@@ -2733,21 +2762,7 @@
 +/// GNX-INTER: intermission arg0 (0 idle_start, 1 start_loop, 2 loop_ej, 3 ej_birth) of the cell in this
 +/// slot: its { frames, speed, loops } from physical.intermissions, or -1 when the cell has none.
 +function gnx_cell_inter(arg0)
- {
--    Value_0,
--    Value_1,
--    Value_2,
--    Value_3,
--    Value_4,
--    Value_5,
--    Value_8 = 8,
--    Value_9,
--    Value_12 = 12,
--    Value_13,
--    Value_27 = 27,
--    Value_28,
--    Value_39 = 39,
--    Value_40
++{
 +    var _c = ds_map_find_value(global.cell_registry, slot_data.h_type);
 +    
 +    // == undefined: not a registered cell; ! = not: a cell without intermissions

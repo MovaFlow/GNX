@@ -12,12 +12,18 @@
 - **Custom types in a cell's `monster_art`:** a block named after the type (`"wolf"`) gives it its own art per phase; without one it draws its `like`'s block. Class and manifest `monster_art` do not take custom names (a mod error): `goblin.*` there re-skins a wolf that draws goblin art.
 - **Custom types and sound:** the sound species is the type's name (`sounds.json` ambience `species` and `by_mon_type` voices); a custom type with no clips is silent and the other species keep playing. Raid victory and defeat lines count custom types like the game's.
 - **`monsters.json` art and placement keys:** `icon`, `heads` and `infant_head` strips with no `xorig` / `yorig` take the origin of the game sheet they replace (`spr_mon_icon`, `spr_mon_icon_head`, `spr_infant_ui_head`); sprites take `shift_x` / `shift_y` in pixels; a type takes `mood_shift_x` / `mood_shift_y` for its mood bubble. `raid_cat_spacing` from older wolf builds is accepted and ignored, with one `[GNX-INFO]` line per mod.
+- Quest dialogs with their own music: an event's `music` key (an OGG file in the mod's `sounds/` folder) plays in a loop while its dialog is open. The gameplay track is paused and goes on where it stopped once the dialog closes. A missing file is a mod error.
+- Quest condition `tower_floor_gte`: the highest Tower floor reached >= `value`, e.g. a quest firing once Tower floor 10 is won (`floor_gte` counts the nest's floors).
 - GNX DEBUG > NEW VOICES (tool action `reroll_voices`): every captive gets a new moan voice, picked as when she first got one. Captives keep their voice, so a moan mod installed or updated later was heard only from new captives.
 
 ### Bug Fixes
 
 - A patch that changed only `mon_types`, or only `mon_placements`, of a cell that names a custom monster type raised a mod error; it no longer does.
 - A patch from a map mod that resolves the pending custom type of a cell from a mod loaded at the start (a type only that map mod declares) now keeps that cell's own sprite sets.
+- Loading a save could stop with "slot_data not set before reading" in `scr_set_mon_spr_data`: a monster saved outside a cell still carried its last cell's sprite data, and since 1.4.7 the load applied it to a cell that was not there. Only a monster still in a cell gets it back now.
+- `raids.json`: a level without `units` still put 1 or 2 peasants in every encounter. It now has no enemy units and nobody to capture: the fight is against the level's `enemy_ap` alone, a sure win without `enemy_ap`.
+- MILK 1 froze for good at game speed 7 or more (only a mod tool's `set_speed` goes that fast): the milking scene skipped the frame it waits on and never moved again. It now runs at any speed. A base game bug the game's own speeds never reach.
+- Two different girls could not swap between copies of a special cell (DAIRY, GIANT, CHAINS, LILITH SHRINE): dragging one onto the other said the unit is incompatible, as the base game only lets a girl dragged out of these cells swap with one of the same class. The swap now also works when the special cell is the other girl's own cell: the boss it belongs to, or a mod girl its `required_class` lists (Hathorverse's Lili variants in the Lili Temple, Emira and Hathor in DAIRY). A girl the cell does not let in is still refused.
 - A captive whose moan voice came from a mod that was removed stayed silent. She now gets a new voice.
 - A cell's clothing variant came back as the plain clothing after loading a save. The choice was saved, but the cell set up its layers before the saved choice was read back; it is now shown again once the save has loaded.
 - The boot test T21 reported every fixed-mode cell with clothing variant lists as having bad sprites. It now checks each sprite inside the lists.

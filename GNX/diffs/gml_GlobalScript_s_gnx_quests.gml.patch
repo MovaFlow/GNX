@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_quests.gml
 +++ gml/gml_GlobalScript_s_gnx_quests.gml
-@@ -0,0 +1,1899 @@
+@@ -0,0 +1,1918 @@
 +// GNX: quests, triggers, dialogs, popups, rewards
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -274,6 +274,19 @@
 +                }
 +            }
 +            
++            // GNX-QMUSIC: "music": "file.ogg" (in the mod's sounds/) plays while the event's dialog is open
++            if (variable_struct_exists(_edef, "music"))
++            {
++                var _qm = is_string(_edef.music) ? gnx_resolve_sound(global.gnx_mods_root + arg0 + "/", _edef.music) : -1;
++
++                if (_qm == -1)
++                    gnx_report_mod_error("Mod '" + arg0 + "': event '" + _full_id + "': music '" + string(_edef.music) + "' not found in sounds/ (an .ogg file name); the dialog keeps the game's music");
++                else if (!variable_struct_exists(_edef, "dialog"))
++                    gnx_report_mod_error("Mod '" + arg0 + "': event '" + _full_id + "': music needs a dialog (it plays while the dialog is open); ignored");
++                else
++                    _edef.gnx_music = _qm;
++            }
++
 +            if (variable_struct_exists(_edef, "next_event") && is_string(_edef.next_event))
 +                _edef.next_event = arg0 + "." + _edef.next_event;
 +            
@@ -369,6 +382,7 @@
 +            return ["key", "value"];
 +        case "gold_gte":
 +        case "floor_gte":
++        case "tower_floor_gte":
 +            return ["value"];
 +        case "stage_discovered":
 +            return ["stage"];
@@ -782,6 +796,11 @@
 +        
 +        case "floor_gte":
 +            return global.val.floor >= arg0.value;
++        
++        // GNX: the highest Tower floor reached (vanilla t_lvl, the number a nest prop shows; raised after each
++        // Tower win to ct_lvl, the floor count the Tower fights scale with, which never goes down)
++        case "tower_floor_gte":
++            return global.val.t_lvl >= arg0.value;
 +        
 +        case "on_map":  // {"type": "on_map", "map": "outpost"}: the player is on that map ("vanilla" = the village)
 +            return variable_struct_exists(arg0, "map") && global.gnx_active_map == arg0.map;

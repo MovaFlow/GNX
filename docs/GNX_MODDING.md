@@ -4078,7 +4078,7 @@ The button runs `unlock_boss` only while boss 0 is locked; afterwards a click sh
 | `stage_undiscovered` | `stage` | That raid stage is not discovered yet (a number or a stage name, [27.3](#273-naming-stages)). |
 | `has_unit_slot` | none | The prison has a free slot. |
 | `on_screen` | (`screen` is ignored) | The raid screen is open, whatever `screen` says. |
-| any quest condition | see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) | For example `state_equals`, `state_gte`, `gold_gte`, `floor_gte`; state keys come from your own mod. |
+| any quest condition | see [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) | For example `state_equals`, `state_gte`, `gold_gte`, `floor_gte`, `tower_floor_gte`; state keys come from your own mod. |
 
 > **When** a guard has an unknown type (for example `has_cage_space`, which does not exist), it is false and **always fails**.
 
@@ -4470,6 +4470,7 @@ Class 13 always gets `my_mod.loud` at pitch 1.1, others their class `voice` or a
 
 - In a map mod ([§21](#21-multi-map-travel)) the tracks play on that map only, so a map can have its own music: with `replace`, the game's tracks stop on arrival and come back on the return trip.
 - The tracks use the game's music volume (BGM in the options). The title screen keeps the game's music.
+- A quest dialog can have its own music: the event key `music` in quests.json plays an OGG from `sounds/` while that dialog is open, then the gameplay track goes on (new in 1.5.3, [QUESTS_SCHEMA](QUESTS_SCHEMA.md)). It needs no sounds.json.
 - New in 1.5.1. Set `"min_gnx_version": "1.5.1"` in the manifest ([4.2](#42-the-version-check)).
 
 > **When** a track file is missing, the `Mod loading problem(s)` box says so (`[GNX] ERROR: Mod 'my_mod': music track 'drums.ogg' not found in sounds/`) and the other tracks still play.
@@ -5705,7 +5706,7 @@ Every key is optional. A level builds its encounter the way the vanilla stages d
 | Key | What it means | Type | Default |
 |---|---|---|---|
 | `units.count` | How many units the encounter holds: a number or `[min, max]`. At most 5 with the boss. | number or [min, max] | `[1, 2]` |
-| `units.pool` | The classes the units are drawn from, with the keys of a `raid_spawns` entry minus `stage` and `level`: `class` (required), `weight`, `min_lvl`, `max_lvl`, `condition`, `max_per_encounter`, `ap_override` ([13.2](#132-raid_spawns-fields)). Other mods add to it with `raid_spawns` ([27.3](#273-naming-stages)). | list | empty |
+| `units.pool` | The classes the units are drawn from, with the keys of a `raid_spawns` entry minus `stage` and `level`: `class` (required), `weight`, `min_lvl`, `max_lvl`, `condition`, `max_per_encounter`, `ap_override` ([13.2](#132-raid_spawns-fields)). Other mods add to it with `raid_spawns` ([27.3](#273-naming-stages)). A level whose pool stays empty (no `units` at all) has no enemy units, only its boss if it rolls one, and nobody to capture: the fight is against the level's `enemy_ap` alone, a sure win without `enemy_ap` (before 1.5.3 it got 1-2 peasants). | list | empty |
 | `enemy_ap.hp`, `enemy_ap.ap` | The encounter's base strength, a number or `[min, max]` rolled each time. Like vanilla, the unit count is added, then each unit's own HP and AP: its class's values (built in for vanilla classes, `fap_mul`/`bap_mul` × level for mod classes), or `ap_override`. | number or [min, max] | `0` |
 | `boss` | A unit added on top of the count: `class` (required), `lvl` (default 5), `chance` in % (default 100), `condition`, `until_captured` (default true: it stops coming once this boss was captured, on any map). | object | none |
 | `drops.gold`, `drops.food` | Gold and food the raid may bring back, a number or `[min, max]`. Like vanilla finds, the encounter picks up to 3 + level items (5 at most) among the drops and the stage's loot, each with a 75 % chance. | number or [min, max] | none |

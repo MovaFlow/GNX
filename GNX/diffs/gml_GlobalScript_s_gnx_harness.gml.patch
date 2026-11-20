@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,8913 @@
+@@ -0,0 +1,9017 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1811,6 +1811,45 @@
 +}
 +
 +
++// for {"assert": "fn"}: the music during a quest dialog (GNX-QMUSIC) as "<quest> <game>": quest = "quest" when the
++// event's track plays, else "none"; game = "paused", "playing" or "stopped" for the gameplay track
++function gnx_scn_quest_bgm()
++{
++    var _q = (gnx_quest_music_on() && audio_is_playing(global.gnx_quest_bgm)) ? "quest" : "none";
++    var _g = "stopped";
++
++    if (audio_is_playing(obj_p.game_bgm))
++        _g = audio_is_paused(obj_p.game_bgm) ? "paused" : "playing";
++
++    return _q + " " + _g;
++}
++
++
++// for {"call"}: empties the notification list (a new game starts with the game's own notifications, which the
++// notification button would open first); returns how many were dropped
++function gnx_scn_clear_notis()
++{
++    var _n = ds_list_size(global.noti_list);
++    ds_list_clear(global.noti_list);
++    return _n;
++}
++
++
++// for {"call"}: closes the open dialog (obj_text) as its last page does (scr_end_textbox); 1 when one was open
++function gnx_scn_close_textbox()
++{
++    var _n = 0;
++
++    with (obj_text)
++    {
++        scr_end_textbox(id);
++        _n++;
++    }
++
++    return _n;
++}
++
++
 +// for {"assert": "fn"}: the gameplay music rotation as "vanilla <n> mod <n>" (gnx_bgm_pool)
 +function gnx_scn_bgm_pool()
 +{
@@ -2398,6 +2437,13 @@
 +    }
 +
 +    gnx_log_close(_l);
++}
++
++
++// true when the quest loader knows condition type arg0 (a type it does not know is a mod error: misspelled)
++function gnx_scn_cond_known(arg0)
++{
++    return is_array(gnx_cond_required(arg0));
 +}
 +
 +
@@ -6942,6 +6988,9 @@
 +        if (variable_struct_exists(_st.occupy, "preg"))
 +            _oc_u.preg = (is_string(_st.occupy.preg) && _st.occupy.preg == "occupied") ? global.gnx_scn_occupied.unit_data.preg : gnx_scn_ref(_st.occupy.preg);
 +
++        if (variable_struct_exists(_st.occupy, "milk"))  // "milk": true = she has milk (a MILK cell calls goblins)
++            _oc_u.milk = _st.occupy.milk == true;
++
 +        scr_occupy_slot(_oc_c, _oc_u, false, 1);
 +        global.gnx_scn_occupied = _oc_c;  // the cell the last occupy step filled
 +        global.gnx_scn_occupied_pos = [_oc_c.slot_data.slot_floor, ds_list_find_index(global.slot_list[_oc_c.slot_data.slot_floor], _oc_c)];
@@ -7376,6 +7425,42 @@
 +{
 +    var _t = scr_check_empty_cell_range(global.gnx_scn_occupied, 3, 0);
 +    return _t != -1 && (_t.slot_data.h_type == 5 || _t.slot_data.h_type == 12);
++}
++
++
++// true while the captive in the cell the last occupy step filled still has milk (a MILK cell has not finished milking her)
++function gnx_scn_occupied_has_milk()
++{
++    var _c = global.gnx_scn_occupied;
++    return instance_exists(_c) && is_struct(_c.unit_data) && _c.unit_data.milk == true;
++}
++
++
++// the real drop check (scr_check_slot_availability) for a girl of class arg1 dragged out of a cell of type arg0
++// onto the first occupied cell of type arg2, whose girl is made class arg3 for the check (restored after)
++function gnx_scn_swap_ok(arg0, arg1, arg2, arg3)
++{
++    var _t = -1;
++
++    with (obj_slot)
++    {
++        if (_t == -1 && is_struct(unit_data) && variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg2)
++            _t = id;
++    }
++
++    if (_t == -1)
++        return "no occupied cell h=" + string(arg2);
++
++    var _drag = { unit_data: scr_create_unit_base(arg1, 1), drag_type: 2, source_id: { slot_data: { h_type: arg0, prop: [] } } };
++    var _keep = _t.unit_data.class;
++    var _r = false;
++    _t.unit_data.class = arg3;
++
++    with (_t)
++        _r = scr_check_slot_availability(id, _drag, false);
++
++    _t.unit_data.class = _keep;
++    return _r;
 +}
 +
 +
@@ -8802,6 +8887,25 @@
 +    {
 +        if (interact_type == 9061 && button_num == arg0)
 +            _n++;
++    }
++
++    return _n;
++}
++
++
++// for {"call"}: a monster outside any cell keeps a cell's sprite data (spr_data with spr_type), as one that left a
++// cell or walks to another floor can; the next save/reload once stopped there. Returns how many were set (max 3)
++function gnx_scn_mon_stale_spr()
++{
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (_n < 3 && mon_data.slot_id == -1)
++        {
++            mon_data.spr_data = { spr_type: 1, mon_step: 1 };
++            _n++;
++        }
 +    }
 +
 +    return _n;

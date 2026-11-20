@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml
 +++ gml/gml_GlobalScript_s_gnx_sound.gml
-@@ -0,0 +1,682 @@
+@@ -0,0 +1,736 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -58,6 +58,60 @@
 +    }
 +
 +    return global.gnx_bgm_pool;
++}
++
++
++// GNX-QMUSIC: a quest event's "music" plays (looped, at the music volume) while its dialog is open; the gameplay
++// track is paused meanwhile and goes on where it stopped. arg0 = the dialog's text_data.
++function gnx_quest_music_start(arg0)
++{
++    // ! = not, || = or: only a GNX event dialog with music
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "gnx_event") || !is_struct(arg0.gnx_event) || !variable_struct_exists(arg0.gnx_event, "gnx_music"))
++        exit;
++
++    gnx_quest_music_stop();
++
++    with (obj_p)
++    {
++        if (variable_instance_exists(id, "game_bgm") && audio_is_playing(game_bgm))
++            audio_pause_sound(game_bgm);
++    }
++
++    global.gnx_quest_bgm = audio_play_sound(arg0.gnx_event.gnx_music, 1, true, global.val.bgm_vol);
++}
++
++
++function gnx_quest_music_stop()
++{
++    if (!variable_global_exists("gnx_quest_bgm") || global.gnx_quest_bgm == -1)
++        exit;
++
++    audio_stop_sound(global.gnx_quest_bgm);
++    global.gnx_quest_bgm = -1;
++
++    // the gameplay track goes on only in the game room (a room change can close the dialog)
++    if (room == rm_game)
++    {
++        with (obj_p)
++        {
++            if (variable_instance_exists(id, "game_bgm"))
++                audio_resume_sound(game_bgm);
++        }
++    }
++}
++
++
++// once a frame (end of scr_room_step): no dialog left (room change, load) = the quest music stops
++function gnx_quest_music_check()
++{
++    if (variable_global_exists("gnx_quest_bgm") && global.gnx_quest_bgm != -1 && !instance_exists(obj_text))
++        gnx_quest_music_stop();
++}
++
++
++function gnx_quest_music_on()
++{
++    return variable_global_exists("gnx_quest_bgm") && global.gnx_quest_bgm != -1;
 +}
 +
 +
