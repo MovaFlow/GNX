@@ -1,0 +1,29 @@
+{
+  "about": "Custom types P4: monsters.json keys a community mod writes are accepted. A top-level _note, mood_shift_x/y (a spawned unit of the type carries them, a type without them the like's 6/-56), shift_x/shift_y on a sprite (moves it: origin minus the shift, on top of the bottom-centre default for walk and idle), raid_cat_spacing (ignored, one log line). icon, heads and infant_head without xorig / yorig take the origin of the game sheet they stand in for (10 10, 10 10, 5 14); one with xorig / yorig keeps its own, and a shift moves either. A key no type knows (outside \"_\" comments) is still a mod error.",
+  "fixture": "mid",
+  "mods": ["tools/scenarios/mods/harness_type_mav"],
+  "expect_dialog": "unknown key 'bogus_key'",
+  "expect_mod_errors": ["unknown key 'bogus_key'"],
+  "steps": [
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_type_ids", "args": [], "is": "mavexp=4/0 mavfrom=5/0 mavpath=6/0 mavplain=7/0 mavsheet=8/0 mavwolf=9/0", "why": "mavbad (a key no type knows) is left out"},
+    {"assert": "fn", "name": "gnx_scn_log_count", "args": ["ignored since GNX 1.5.3 (raid categories page by 4)"], "is": 1, "why": "one info line for raid_cat_spacing"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavplain", "spr_icon"], "is": "10 10", "why": "no xorig / yorig, no shift: the game icon's origin"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavsheet", "spr_icon"], "is": "10 10", "why": "icon: spr_mon_icon's origin"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavsheet", "spr_heads"], "is": "10 10", "why": "heads: spr_mon_icon_head's origin"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavsheet", "spr_infant_head"], "is": "5 14", "why": "infant_head: spr_infant_ui_head's origin"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavpath", "spr_icon"], "is": "10 10", "why": "M4: a path form gets the game icon's origin too (before: 0 0)"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavfrom", "spr_icon"], "is": "5 14", "why": "M4: origin_from counts as both axes given: spr_infant_ui_head's origin (before: 10 10)"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavexp", "spr_icon"], "is": "1 -1", "why": "own origin (2, 3) wins, then the shift (1, 4): origin minus the shift"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavwolf", "spr_icon"], "is": "10 3", "why": "no xorig / yorig: the game icon's origin (10, 10); shift_y 7 moves it 7 px down: origin y minus 7"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavwolf", "spr_walk"], "is": "41 92", "why": "bottom centre (45, 90) minus the shift (4, -2)"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavwolf", "spr_idle"], "is": "45 90", "why": "idle has no shift"},
+    {"call": "gnx_scn_mon_note_icon", "args": ["mavwolf"]},
+    {"assert": "fn", "name": "gnx_scn_monsters_reload", "args": ["harness_type_mav"], "is": "same new +0", "why": "a load that keeps the sprite cache reuses the shifted copy: same handle, no new runtime sprite"},
+    {"assert": "fn", "name": "gnx_scn_type_origin", "args": ["mavwolf", "spr_icon"], "is": "10 3", "why": "the same shift after a second load"},
+    {"call": "gnx_scn_spawn_walker", "args": ["mavwolf"]},
+    {"assert": "fn", "name": "gnx_scn_walker_mood", "args": [], "is": "10 -70"},
+    {"call": "gnx_scn_spawn_walker", "args": ["mavplain"]},
+    {"assert": "fn", "name": "gnx_scn_walker_mood", "args": [], "is": "6 -56", "why": "no mood keys: the like's"}
+  ]
+}

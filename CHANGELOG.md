@@ -6,10 +6,18 @@
 
 ### New Features
 
+- **Custom monster types** (`monsters.json`, manifest key `monsters`): a mod adds a monster type, such as a wolf, with its own name, raid strength, food, walking speed, raid rows, raid skills and art. The smallest type is `{"wolf": {"like": "goblin"}}`: it behaves as a goblin, walks in a blue tint until it gets art, and draws the art of the game monster it is `like` (goblin, hobgoblin or ogre). Mods name types in their JSON (`mon_types`, `mon_placements`, `by_mon_type`, `preg_mon_type_override`, `birth_class`, `birth_spr`, `spawn_mon`, `map_start` troops); the numbers 0-3 keep meaning the game's four and a number from 4 up is a mod error (modding guide 28). Format and ideas by Mav.
+- **Saves and removed mods for custom types:** a save keeps each custom type under its name, so adding or removing other mods does not mix up the monsters. When a type's mod is off, its counts, levels and experience wait in the save and come back with the mod; its live monsters leave the board, formation rows are refunded, and pregnant captives and newborns become the type's `like`. The MODS page counts a mod's monsters, so the load page warns about a removed mod that holds some.
+- **Custom types in the game's screens:** SPAWN > MONSTERS lists every type, the top bar shows the unlocked ones while they fit, the raid window pages its categories by 4 with arrows, and the travel selector pages troops by 4 and carries them by type name. A type is offered only when its mod loads on the destination map, and a village mod's cell may name the type of a map mod.
+- **Custom types in a cell's `monster_art`:** a block named after the type (`"wolf"`) gives it its own art per phase; without one it draws its `like`'s block. Class and manifest `monster_art` do not take custom names (a mod error): `goblin.*` there re-skins a wolf that draws goblin art.
+- **Custom types and sound:** the sound species is the type's name (`sounds.json` ambience `species` and `by_mon_type` voices); a custom type with no clips is silent and the other species keep playing. Raid victory and defeat lines count custom types like the game's.
+- **`monsters.json` art and placement keys:** `icon`, `heads` and `infant_head` strips with no `xorig` / `yorig` take the origin of the game sheet they replace (`spr_mon_icon`, `spr_mon_icon_head`, `spr_infant_ui_head`); sprites take `shift_x` / `shift_y` in pixels; a type takes `mood_shift_x` / `mood_shift_y` for its mood bubble. `raid_cat_spacing` from older wolf builds is accepted and ignored, with one `[GNX-INFO]` line per mod.
 - GNX DEBUG > NEW VOICES (tool action `reroll_voices`): every captive gets a new moan voice, picked as when she first got one. Captives keep their voice, so a moan mod installed or updated later was heard only from new captives.
 
 ### Bug Fixes
 
+- A patch that changed only `mon_types`, or only `mon_placements`, of a cell that names a custom monster type raised a mod error; it no longer does.
+- A patch from a map mod that resolves the pending custom type of a cell from a mod loaded at the start (a type only that map mod declares) now keeps that cell's own sprite sets.
 - A captive whose moan voice came from a mod that was removed stayed silent. She now gets a new voice.
 - A cell's clothing variant came back as the plain clothing after loading a save. The choice was saved, but the cell set up its layers before the saved choice was read back; it is now shown again once the save has loaded.
 - The boot test T21 reported every fixed-mode cell with clothing variant lists as having bad sprites. It now checks each sprite inside the lists.

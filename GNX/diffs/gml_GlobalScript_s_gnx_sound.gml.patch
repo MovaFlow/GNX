@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml
 +++ gml/gml_GlobalScript_s_gnx_sound.gml
-@@ -0,0 +1,617 @@
+@@ -0,0 +1,682 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -234,6 +234,39 @@
 +        
 +        var _amb_species = gnx_opt(_amb, "species", {});
 +        var _sp_names = ["goblin", "hobgoblin", "ogre"];
++
++        if (!is_struct(_amb_species))
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': sounds.json ambience.species must be an object like { \"goblin\": { \"ambient\": [...] } }; left out");
++            _amb_species = {};
++        }
++
++        // GNX-TYPES: a species key that is not a vanilla one names a custom type (declared by this or another mod);
++        // an unknown name is a warning only, since the type may come from a mod that is not installed. "_" keys are
++        // comments, and the tentacle (no ambience) is left out quietly, as before custom types
++        var _amb_keys = variable_struct_get_names(_amb_species);
++
++        for (var _aki = 0; _aki < array_length(_amb_keys); _aki++)
++        {
++            var _akey = _amb_keys[_aki];
++
++            if (array_contains(_sp_names, _akey) || _akey == "tentacle" || string_char_at(_akey, 1) == "_")
++                continue;
++            
++            if (gnx_mon_type_id(_akey) < 4)
++            {
++                _log = gnx_log_open();
++                gnx_log_write(_log, "[GNX-WARN] mod '" + arg0 + "' sounds.json ambience.species: '" + _akey + "' is not a monster type any installed mod declares (ignored)\n");
++                gnx_log_close(_log);
++                continue;
++            }
++            
++            if (!variable_struct_exists(global.gnx_ambience, _akey))
++                variable_struct_set(global.gnx_ambience, _akey, { ambient: [], breeding: [], victory: [], defeat: [] });
++            
++            array_push(_sp_names, _akey);
++        }
++        
 +        var _kind_names = ["ambient", "breeding", "victory", "defeat"];
 +        var _amb_loaded = 0;
 +        
@@ -269,6 +302,9 @@
 +                    {
 +                        array_push(_ktarget, _ksnd);
 +                        _amb_loaded++;
++                        
++                        if (_spi >= 3 && !array_contains(global.gnx_ambience_custom, _spk))
++                            array_push(global.gnx_ambience_custom, _spk);  // GNX-TYPES
 +                    }
 +                }
 +            }
@@ -373,6 +409,35 @@
 +    if (!is_struct(arg0))
 +        return _out;
 +
++    // GNX-TYPES: a custom type's name (a mod's monsters.json) fills its slot, the table index; the array stays 4 long with no custom type
++    var _keys = variable_struct_get_names(arg0);
++
++    for (var _ki = 0; _ki < array_length(_keys); _ki++)
++    {
++        if (array_contains(_names, _keys[_ki]) || string_char_at(_keys[_ki], 1) == "_")
++            continue;
++
++        var _ct = gnx_mon_type_id(_keys[_ki]);
++
++        if (_ct < 4)
++        {
++            var _wl = gnx_log_open();
++            gnx_log_write(_wl, "[GNX-WARN] mod '" + arg1 + "' voice by_mon_type: '" + _keys[_ki] + "' is not a monster type any installed mod declares (ignored)\n");
++            gnx_log_close(_wl);
++            continue;
++        }
++
++        var _ce = variable_struct_get(arg0, _keys[_ki]);
++
++        while (array_length(_out) <= _ct)
++            array_push(_out, -1);
++
++        if (is_string(_ce))
++            _out[_ct] = { bank: arg1 + "." + _ce, pitch: -1 };
++        else if (is_struct(_ce) && variable_struct_exists(_ce, "bank"))
++            _out[_ct] = { bank: arg1 + "." + _ce.bank, pitch: gnx_opt(_ce, "pitch", -1) };
++    }
++
 +    for (var _t = 0; _t < 4; _t++)
 +    {
 +        if (!variable_struct_exists(arg0, _names[_t]))
@@ -394,14 +459,14 @@
 +// {bank, pitch} from sounds.json voice_map, else from the class's voice.by_mon_type; -1 = her usual voice
 +function gnx_voice_for_mon(arg0, arg1)
 +{
-+    if (arg1 < 0 || arg1 > 3)
++    if (arg1 < 0 || arg1 >= gnx_mon_type_count())  // GNX-TYPES: custom types may have a voice too (their slot is the type index)
 +        return -1;
 +
 +    if (ds_map_exists(global.gnx_voice_class_map, arg0))
 +    {
 +        var _vm = ds_map_find_value(global.gnx_voice_class_map, arg0);
 +
-+        if (variable_struct_exists(_vm, "by_mon") && is_array(_vm.by_mon) && is_struct(_vm.by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _vm.by_mon[arg1].bank))
++        if (variable_struct_exists(_vm, "by_mon") && is_array(_vm.by_mon) && arg1 < array_length(_vm.by_mon) && is_struct(_vm.by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _vm.by_mon[arg1].bank))
 +            return _vm.by_mon[arg1];
 +    }
 +
@@ -409,7 +474,7 @@
 +    {
 +        var _rc = ds_map_find_value(global.class_registry, arg0);
 +
-+        if (is_struct(_rc) && variable_struct_exists(_rc, "voice_by_mon") && is_array(_rc.voice_by_mon) && is_struct(_rc.voice_by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _rc.voice_by_mon[arg1].bank))
++        if (is_struct(_rc) && variable_struct_exists(_rc, "voice_by_mon") && is_array(_rc.voice_by_mon) && arg1 < array_length(_rc.voice_by_mon) && is_struct(_rc.voice_by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _rc.voice_by_mon[arg1].bank))
 +            return _rc.voice_by_mon[arg1];
 +    }
 +

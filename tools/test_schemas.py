@@ -31,6 +31,8 @@ EXPECTED = {
     ("harness_map_start", "manifest.json", "map_start.troops[3].type"),
     ("harness_props_bad", "props.json", "props[0].category"),
     ("harness_bad_spr", "cells.json", "[0].human_spr.phase_1.spr_array"),
+    ("harness_type_mav", "monsters.json", "mavbad"),  # an unknown key inside a type entry is still reported
+    ("harness_type_voice_bad", "sounds.json", "ambience.species"),  # ambience.species as a list: a mod error on purpose
     ("harness_spawn_bad", "cells.json", "[0].spawn_info"),
     ("harness_mav1505", "classes.json", "[2].milk_lvl"),
     ("harness_mav1515", "cells.json", "[1].h_type"),

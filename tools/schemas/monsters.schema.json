@@ -14,6 +14,123 @@
     "$ref": "#/definitions/monster"
   },
   "definitions": {
+    "monster_sprite": {
+      "description": "A sprite as everywhere (guide 5.2), plus shift_x / shift_y (monster types only).",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "strip": {
+              "type": "string",
+              "description": "Path of a PNG strip, relative to the mod folder."
+            },
+            "frames": {
+              "description": "With strip: the number of frames. Without strip: a list of PNG paths.",
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "path": {
+              "type": "string",
+              "description": "Path of a single-frame PNG."
+            },
+            "folder": {
+              "type": "string",
+              "description": "Folder of per-frame PNGs (or strips/<folder>)."
+            },
+            "from_game": {
+              "type": "string",
+              "description": "Name of a vanilla sprite; GNX copies one frame of it."
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Which frame from_game copies."
+            },
+            "xorig": {
+              "description": "Origin x: pixels, or \"left\" / \"center\" / \"right\".",
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                }
+              ]
+            },
+            "yorig": {
+              "description": "Origin y: pixels, or \"top\" / \"middle\" / \"bottom\".",
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "enum": [
+                    "top",
+                    "middle",
+                    "bottom"
+                  ]
+                }
+              ]
+            },
+            "origin_from": {
+              "type": "string",
+              "description": "Vanilla sprite whose origin is copied."
+            },
+            "loop": {
+              "type": [
+                "boolean",
+                "integer"
+              ],
+              "description": "Captive strips in cells: the strip loops its own frames inside a longer phase (guide 22.6). A milk strip marked skins: the frames of one row and tone."
+            },
+            "canvas_w": {
+              "type": "number",
+              "description": "Ignored."
+            },
+            "canvas_h": {
+              "type": "number",
+              "description": "Ignored."
+            },
+            "skins": {
+              "enum": [
+                1,
+                3
+              ],
+              "description": "Milk and newborn strips: 3 = one block per skin tone (the captive's tone picks hers), 1 = one block (guide 24.5, 24.6)."
+            },
+            "shift_x": {
+              "type": "number",
+              "description": "Pixels to move the sprite right (negative = left), on top of the origin."
+            },
+            "shift_y": {
+              "type": "number",
+              "description": "Pixels to move the sprite down (negative = up), on top of the origin."
+            }
+          },
+          "patternProperties": {
+            "^_": {}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "monster": {
       "type": "object",
       "required": ["like"],
@@ -45,18 +162,30 @@
           "maxItems": 2,
           "description": "Walking speed [min, max], 0 < min <= max."
         },
-        "idle": {"$ref": "common.schema.json#/definitions/sprite"},
-        "walk": {"$ref": "common.schema.json#/definitions/sprite"},
-        "b_walk": {"$ref": "common.schema.json#/definitions/sprite"},
-        "icon": {"$ref": "common.schema.json#/definitions/sprite"},
-        "heads": {"$ref": "common.schema.json#/definitions/sprite"},
-        "infant_head": {"$ref": "common.schema.json#/definitions/sprite"},
+        "idle": {"$ref": "#/definitions/monster_sprite"},
+        "walk": {"$ref": "#/definitions/monster_sprite"},
+        "b_walk": {"$ref": "#/definitions/monster_sprite"},
+        "icon": {"$ref": "#/definitions/monster_sprite"},
+        "heads": {"$ref": "#/definitions/monster_sprite"},
+        "infant_head": {"$ref": "#/definitions/monster_sprite"},
         "range": {
           "type": "array",
           "items": {"type": "array", "items": {"enum": [0, 1]}, "minItems": 1},
           "minItems": 4,
           "maxItems": 4,
           "description": "Raid rows each of the 4 classes may stand in: lists of 0 (front) and 1 (back). Default: the like's."
+        },
+        "mood_shift_x": {
+          "type": "number",
+          "description": "Mood bubble offset in pixels, x. Default: the like's (goblin 6, hobgoblin 6, ogre 6)."
+        },
+        "mood_shift_y": {
+          "type": "number",
+          "description": "Mood bubble offset in pixels, y. Default: the like's (goblin -56, hobgoblin -82, ogre -92)."
+        },
+        "raid_cat_spacing": {
+          "type": "number",
+          "description": "Ignored since GNX 1.5.3 (raid categories page by 4); one info line in the log."
         },
         "skills": {
           "type": "array",

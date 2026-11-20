@@ -1,0 +1,38 @@
+{
+  "about": "Custom types P4: monster voices go by type name. A mod ships clips for 'howler' (harness_type_voice, copied from the local moan_mod; skipped without it) and none for 'wolf' (harness_type_a). Howler's species key is its name and its pool has clips, wolf's key is its name and its pool is empty (silent). A raid of only howlers picks a howler line, a raid of wolves picks none, a mixed raid never picks wolf. A nest with both types on screen runs 600 frames of ambience in balanced mode without a code error. A voice by_mon_type naming howler resolves; the undeclared 'ghost' key is only a warning.",
+  "fixture": "mid",
+  "timeout": 240,
+  "mods": ["tools/scenarios/mods/harness_type_a", "tools/scenarios/mods/harness_type_voice"],
+  "local_files": [
+    {"from": "harness_game/test_mods/moan_mod/sounds/snd_fmoan0_1.ogg", "to": "harness_type_voice/sounds/clip.ogg"}
+  ],
+  "steps": [
+    {"wait": 60},
+    {"assert": "fn", "name": "gnx_scn_species_key", "args": [{"mon": "wolf"}], "is": "wolf"},
+    {"assert": "fn", "name": "gnx_scn_species_key", "args": [{"mon": "howler"}], "is": "howler"},
+    {"assert": "fn", "name": "gnx_scn_species_key", "args": [0], "is": "goblin"},
+    {"assert": "fn", "name": "gnx_scn_species_pool", "args": ["wolf"], "is": 0, "why": "no clips: silent"},
+    {"assert": "fn", "name": "gnx_scn_species_pool", "args": ["howler"], "is": 4},
+    {"assert": "fn", "name": "gnx_scn_species_pool", "args": ["ghost"], "is": 0, "why": "an undeclared name only warns"},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["ambience.species: 'ghost' is not a monster type"], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["ambience.species: '_note'"], "is": 0, "why": "M1: a comment key gets no warning"},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["ambience.species: 'tentacle'"], "is": 0, "why": "M1: the tentacle has no ambience and is left out quietly"},
+    {"assert": "fn", "name": "gnx_scn_species_pool", "args": ["tentacle"], "is": 0},
+    {"assert": "fn", "name": "gnx_scn_species_list", "args": [], "is": "goblin,hobgoblin,ogre,howler timers=4"},
+    {"assert": "fn", "name": "gnx_voice_bank_for_mon", "args": [8, {"mon": "howler"}], "is": "harness_type_voice.base", "why": "voice_map by_mon_type with a custom type name"},
+    {"assert": "fn", "name": "gnx_voice_bank_for_mon", "args": [8, {"mon": "wolf"}], "is": "", "why": "wolf has no entry: her usual voice"},
+    {"assert": "fn", "name": "gnx_scn_raid_pick", "args": [true, ["howler"]], "is": "howler"},
+    {"assert": "fn", "name": "gnx_scn_raid_pick", "args": [false, ["howler"]], "is": "howler"},
+    {"assert": "fn", "name": "gnx_scn_raid_pick", "args": [true, ["wolf"]], "is": "", "why": "wolf has no lines"},
+    {"assert": "fn", "name": "gnx_scn_raid_pick", "args": [true, ["wolf", "howler"]], "is": "howler"},
+    {"do": {"type": "spawn_mon", "species": "wolf", "amount": 10, "class": 0}},
+    {"do": {"type": "spawn_mon", "species": "howler", "amount": 10, "class": 0}},
+    {"call": "scr_gnx_goblin_set_mode", "args": [1]},
+    {"wait": 600},
+    {"call": "scr_gnx_goblin_set_mode", "args": [2]},
+    {"wait": 300},
+    {"call": "scr_gnx_goblin_set_mode", "args": [3]},
+    {"wait": 300},
+    {"assert": "fn", "name": "gnx_scn_species_list", "args": [], "is": "goblin,hobgoblin,ogre,howler timers=6", "why": "timer slots grow by type index"}
+  ]
+}

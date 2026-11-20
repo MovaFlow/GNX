@@ -4734,7 +4734,7 @@ diff -uN gml_138/gml_GlobalScript_s_general.gml gml/gml_GlobalScript_s_general.g
 diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.gml
 --- gml_138/gml_GlobalScript_s_gnx_art.gml
 +++ gml/gml_GlobalScript_s_gnx_art.gml
-@@ -0,0 +1,2279 @@
+@@ -0,0 +1,2440 @@
 +// GNX: monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper
 +// (the functions are global, callable from any script)
 +
@@ -5130,19 +5130,21 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +// display, drink, tentacle, milk 2, recover, clean, clone, shrines) are not judged: monsters reach them another way
 +function gnx_art_called(arg0, arg1, arg2)
 +{
++    // GNX-TYPES: the game calls monsters by their raw type, so the vanilla cases and the goblin-and-hobgoblin fallback never
++    // call a custom type (4 and up); only a cell's own lists can name one. gnx_art_limit keeps the like for drawing limits
 +    switch (arg1)
 +    {
 +        case 4: case 19: return arg2 == 0;
 +        case 17: return arg2 == 1;
 +        case 20: case 21: case 22: case 24: case 38: return arg2 == 3;
-+        case 18: case 36: return arg2 != 3;
-+        case 23: case 37: case 39: return true;
++        case 18: case 36: return arg2 == 0 || arg2 == 1;
++        case 23: case 37: case 39: return arg2 < 4;
 +        case 5: case 10: case 11: case 12: case 25: case 27: case 28: case 29: case 30: case 31: case 32: case 33: case 34: case 40: case 41: case 42:
 +            return true;
 +    }
 +
 +    if (!is_struct(arg0))
-+        return arg2 != 3;
++        return arg2 < 4 && arg2 != 3;
 +
 +    if (variable_struct_exists(arg0, "physical") && is_struct(arg0.physical) && variable_struct_exists(arg0.physical, "mon_placements") && is_array(arg0.physical.mon_placements))
 +    {
@@ -5158,7 +5160,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +    if (variable_struct_exists(arg0, "mon_types") && is_array(arg0.mon_types))
 +        return array_contains(arg0.mon_types, arg2);
 +
-+    return arg2 != 3;
++    return arg2 < 4 && arg2 != 3;
 +}
 +
 +
@@ -5176,11 +5178,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +    if (arg0 == 18 || arg0 == 24)
 +        return true;
 +
++    // GNX-TYPES: the vanilla limits below follow the type's "like"; gnx_art_called reads the raw type
++    var _lk = gnx_mon_like(arg1);
++
 +    // a monster the game never calls into this cell is never there to draw
 +    if (!gnx_art_called(ds_map_find_value(global.cell_registry, arg0), arg0, arg1))
 +        return true;
 +
-+    switch (arg1)
++    switch (_lk)
 +    {
 +        case 0:
 +            if (arg0 == 4 || arg0 == 11 || arg0 == 21 || arg0 == 22 || arg0 == 36 || arg0 == 37 || arg0 == 38 || arg0 == 39)
@@ -5225,7 +5230,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +                _hit = true;
 +            }
 +
-+            if (arg2 == 3 && (arg1 == 21 || arg1 == 22 || arg1 == 23) && _pn[_j] == "body")
++            if (gnx_mon_like(arg2) == 3 && (arg1 == 21 || arg1 == 22 || arg1 == 23) && _pn[_j] == "body")
 +            {
 +                var _v = variable_struct_get_names(variable_struct_get(_parts, "body"));
 +
@@ -5255,7 +5260,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +
 +function gnx_art_monster_name(arg0)
 +{
-+    return (arg0 == 0) ? "goblin" : ((arg0 == 1) ? "hobgoblin" : ((arg0 == 3) ? "ogre" : ""));
++    // GNX-TYPES: a custom type's name ("" for the tentacle and an unknown number)
++    return (arg0 == 0) ? "goblin" : ((arg0 == 1) ? "hobgoblin" : ((arg0 == 3) ? "ogre" : ((arg0 >= 4) ? gnx_mon_type_name(arg0) : "")));
 +}
 +
 +
@@ -5416,10 +5422,66 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +}
 +
 +
++// the monsters cell JSON arg0's monster_art can name: goblin, hobgoblin, ogre, then the custom types it names (GNX-TYPES)
++function gnx_art_json_ids(arg0)
++{
++    var _out = [0, 1, 3];
++
++    if (gnx_mon_type_count() > 4 && variable_struct_exists(arg0, "monster_art") && is_struct(arg0.monster_art))
++    {
++        var _n = variable_struct_get_names(arg0.monster_art);
++
++        for (var _i = 0; _i < array_length(_n); _i++)
++        {
++            if (gnx_mon_type_id(_n[_i]) >= 4)
++                array_push(_out, gnx_mon_type_id(_n[_i]));
++        }
++    }
++
++    return _out;
++}
++
++
++// GNX-TYPES: true while a map mod waits for its map (global.gnx_map_deferred_mods): it may declare a type in the deferred load
++function gnx_art_waits_possible()
++{
++    return variable_global_exists("gnx_map_deferred_mods") && array_length(global.gnx_map_deferred_mods) > 0;
++}
++
++
++// GNX-TYPES: does a cell's monster_art block named arg0 wait for its type (gnx_art_parse_cell holds it in gnx_art_wait)? A type
++// name no loaded mod declares, while a map mod that may declare it waits for its map
++function gnx_art_name_waits(arg0)
++{
++    return gnx_mon_name_pending(arg0) && gnx_art_waits_possible();
++}
++
++
 +// has the cell JSON arg0 a monster_art block for any monster?
 +function gnx_art_json_has_any(arg0)
 +{
-+    return is_struct(gnx_art_json_block(arg0, 0)) || is_struct(gnx_art_json_block(arg0, 1)) || is_struct(gnx_art_json_block(arg0, 3));
++    var _ids = gnx_art_json_ids(arg0);
++
++    for (var _i = 0; _i < array_length(_ids); _i++)
++    {
++        if (is_struct(gnx_art_json_block(arg0, _ids[_i])))
++            return true;
++    }
++
++    // GNX-TYPES: a block that waits for a map mod's type (gnx_art_name_waits) is monster art too. Read only while a map
++    // mod is deferred, so a boot without one takes the lines above alone
++    if (gnx_art_waits_possible() && variable_struct_exists(arg0, "monster_art") && is_struct(arg0.monster_art))
++    {
++        var _n = variable_struct_get_names(arg0.monster_art);
++
++        for (var _j = 0; _j < array_length(_n); _j++)
++        {
++            if (gnx_art_name_waits(_n[_j]) && is_struct(variable_struct_get(arg0.monster_art, _n[_j])))
++                return true;
++        }
++    }
++
++    return false;
 +}
 +
 +
@@ -5649,7 +5711,29 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +            continue;
 +
 +        var _id = gnx_art_monster_id(_mn);
++
++        // GNX-TYPES: cell scope only (class and global art are sprite swaps of vanilla sprites): a custom type's name gives its type id
++        if (_id < 0 && gnx_mon_type_id(_mn) >= 4)
++            _id = gnx_mon_type_id(_mn);
++
 +        var _who = arg3 + " monster_art." + _mn;
++
++        // GNX-TYPES: a type name no loaded mod declares yet, while a map mod waits for its map (it may declare the type in the
++        // deferred load), waits on the cell as mon_types waits for it; gnx_art_wait_replay judges it once the type exists. A later
++        // block for the name replaces it. With no map mod waiting, an unknown name stays the mod error below (a typo)
++        if (_id < 0 && gnx_art_name_waits(_mn))
++        {
++            if (!variable_struct_exists(arg5, "gnx_art_wait"))
++                arg5.gnx_art_wait = {};
++
++            var _wart = {};
++            variable_struct_set(_wart, _mn, variable_struct_get(arg0, _mn));
++            variable_struct_set(arg5.gnx_art_wait, _mn, { art: _wart, spr: arg1, dir: arg2, who: arg3, mod_name: variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "" });
++            var _wl = gnx_log_open();
++            gnx_log_write(_wl, "[GNX-WARN] " + _who + ": monster type '" + _mn + "' is not installed; the art waits for it\n");
++            gnx_log_close(_wl);
++            continue;
++        }
 +
 +        if (_id < 0)
 +        {
@@ -5683,7 +5767,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +            continue;
 +        }
 +
-+        var _ok = _id != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
++        var _ok = gnx_mon_like(_id) != 3 || (gnx_art_ogre_ok(_b.phases, _who) && (_b.anal == undefined || gnx_art_ogre_ok(_b.anal, _who + ".anal")));
 +
 +        if (gnx_art_limits_hit(_b.phases, arg4, _id, _who))
 +            _ok = false;
@@ -5726,7 +5810,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +                }
 +
 +                // cell 23: an ogre stands at place 0 (the cell draws its body), the others at place 1, because place 0 is hidden
-+                if (arg4 == 23 && _pk[_j] == ((_id == 3) ? "1" : "0"))
++                if (arg4 == 23 && _pk[_j] == ((gnx_mon_like(_id) == 3) ? "1" : "0"))
 +                {
 +                    gnx_report_mod_error(_who + ".placement." + _pk[_j] + ": not drawn on this cell");
 +                    _ok = false;
@@ -5762,7 +5846,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +                        _ok = false;
 +
 +                    // each block on its own: a placement's phases never merge with the parent's
-+                    if (_id == 3 && !(gnx_art_ogre_ok(_pb.phases, _pw) && (_pb.anal == undefined || gnx_art_ogre_ok(_pb.anal, _pw + ".anal"))))
++                    if (gnx_mon_like(_id) == 3 && !(gnx_art_ogre_ok(_pb.phases, _pw) && (_pb.anal == undefined || gnx_art_ogre_ok(_pb.anal, _pw + ".anal"))))
 +                        _ok = false;
 +                }
 +            }
@@ -5796,6 +5880,71 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +    var _mod = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
 +    variable_struct_set(global.gnx_art_pending, string(arg0) + ":" + string(arg1), { art: _art, spr: arg4, dir: arg5, who: arg6, h: arg0, mod_name: _mod });
 +    return true;
++}
++
++
++// GNX-TYPES: the monster_art blocks cell arg0 (h_type arg1) holds for types that were not installed (gnx_art_parse_cell), judged
++// now for each name a mod declares (after a deferred map-mod load, gnx_recheck_cell_types), with its own mod as the loading mod
++function gnx_art_wait_replay(arg0, arg1)
++{
++    if (!variable_struct_exists(arg0, "gnx_art_wait"))
++        return;
++
++    var _was = variable_global_exists("gnx_current_loading_mod") ? global.gnx_current_loading_mod : "";
++    var _wn = variable_struct_get_names(arg0.gnx_art_wait);
++
++    for (var _i = 0; _i < array_length(_wn); _i++)
++    {
++        if (gnx_mon_type_id(_wn[_i]) < 4)
++            continue;
++
++        var _e = variable_struct_get(arg0.gnx_art_wait, _wn[_i]);
++        variable_struct_remove(arg0.gnx_art_wait, _wn[_i]);
++        global.gnx_current_loading_mod = _e.mod_name;
++        gnx_art_parse_cell(_e.art, _e.spr, _e.dir, _e.who, arg1, arg0);
++
++        // the frame rules a mod cell's art gets at registration, as a patch of the cell gets them (s_gnx_content, gnx_cell_patch)
++        if (arg1 >= 100)
++            gnx_frames_check_art_patch({ monster_art: _e.art }, arg0, _e.spr);
++    }
++
++    global.gnx_current_loading_mod = _was;
++}
++
++
++// GNX-TYPES: after a deferred map-mod load, the cells' monster_art blocks still waiting for a type no mod declared. arg0 = true
++// when every deferred map mod is loaded now: none is left that could declare it, so each is the mod error a boot without map
++// mods gives (a typo) and is dropped. Else some map mods load on other maps: one log line per block, and it keeps waiting
++function gnx_art_wait_report(arg0)
++{
++    var _k = ds_map_keys_to_array(global.cell_registry);
++
++    for (var _i = 0; _i < array_length(_k); _i++)
++    {
++        var _c = ds_map_find_value(global.cell_registry, _k[_i]);
++
++        if (!is_struct(_c) || !variable_struct_exists(_c, "gnx_art_wait"))
++            continue;
++
++        var _wn = variable_struct_get_names(_c.gnx_art_wait);
++
++        for (var _j = 0; _j < array_length(_wn); _j++)
++        {
++            var _e = variable_struct_get(_c.gnx_art_wait, _wn[_j]);
++
++            if (arg0)
++            {
++                variable_struct_remove(_c.gnx_art_wait, _wn[_j]);
++                gnx_report_mod_error(_e.who + " monster_art: unknown monster '" + _wn[_j] + "'");
++            }
++            else
++            {
++                var _l = gnx_log_open();
++                gnx_log_write(_l, "[GNX-WARN] " + _e.who + " monster_art." + _wn[_j] + ": monster type '" + _wn[_j] + "' is still not installed; it may come from a map mod of another map\n");
++                gnx_log_close(_l);
++            }
++        }
++    }
 +}
 +
 +
@@ -5948,6 +6097,18 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 +        return undefined;
 +
 +    var _mk = string(arg2);
++
++    // GNX-TYPES: a custom type draws its own block, else its own mon_spr_<name> set (or its _p<place>, read where s_mon_data
++    // reads mon_spr sets), else its "like"'s block (0-3 never reach the second line)
++    if (!variable_struct_exists(arg0.gnx_art, _mk) && arg2 >= 4)
++    {
++        var _own = "mon_spr_" + gnx_mon_type_name(arg2);
++
++        if ((arg6 >= 14 || arg1 >= 100) && (variable_struct_exists(arg0, _own) || variable_struct_exists(arg0, _own + "_p" + string(arg3))))
++            return undefined;
++
++        _mk = string(gnx_mon_like(arg2));
++    }
 +
 +    if (!variable_struct_exists(arg0.gnx_art, _mk))
 +        return undefined;
@@ -7017,7 +7178,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cells.gml
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3464 @@
+@@ -0,0 +1,3465 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -8581,9 +8742,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +{
 +    var _bad = 0;
 +    var _seen = {};
-+    var _art_i = [0, 1, 3];
-+    
-+    for (var s = 0; s < 3; s++)
++    // GNX-TYPES: goblin, hobgoblin, ogre and the custom types the art names
++    var _art_i = gnx_art_json_ids(arg0);
++
++    for (var s = 0; s < array_length(_art_i); s++)
 +    {
 +        var _ablk = gnx_art_json_blocks(arg0, _art_i[s]);
 +        
@@ -10485,7 +10647,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,5722 @@
+@@ -0,0 +1,5816 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -11282,17 +11444,21 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    var _like_ids = [0, 1, 3];
 +    var _like_food = [0.5, 0.7, 1];
 +    var _like_walk = [spr_goblin_walk, spr_hobgoblin_walk, spr_ogre_walk];
-+    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills"];
++    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills", "mood_shift_x", "mood_shift_y", "raid_cat_spacing"];
 +    var _spr_keys = ["idle", "walk", "b_walk", "icon", "heads", "infant_head"];
 +    var _base_dir = global.gnx_mods_root + arg0 + "/";
 +    var _names = variable_struct_get_names(_defs);
 +    array_sort(_names, true);  // numbering does not depend on the runtime's struct order
 +    var _log = gnx_log_open();
++    var _cat_logged = false;  // raid_cat_spacing is logged once per mod
 +
 +    for (var _i = 0; _i < array_length(_names); _i++)
 +    {
 +        var _k = _names[_i];
 +        var _d = variable_struct_get(_defs, _k);
++
++        if (string_char_at(_k, 1) == "_")  // a comment key, like "_note"
++            continue;
 +
 +        if (!is_struct(_d))
 +        {
@@ -11368,7 +11534,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +        if (_unknown != "")
 +        {
-+            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills); left out");
++            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills, mood_shift_x, mood_shift_y, raid_cat_spacing); left out");
 +            continue;
 +        }
 +
@@ -11425,8 +11591,30 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +                gnx_report_mod_error(_p + "'" + _k + "': skills must be 4 skill ids 0-15");
 +        }
 +
++        // GNX-TYPES (P4): the mood bubble offset (the like's when left out); a bad one is a mod error and the field is ignored
++        var _mood = [undefined, undefined];
++
++        for (var _mi = 0; _mi < 2; _mi++)
++        {
++            var _mk = (_mi == 0) ? "mood_shift_x" : "mood_shift_y";
++
++            if (!variable_struct_exists(_d, _mk))
++                continue;
++
++            if (is_numeric(variable_struct_get(_d, _mk)))
++                _mood[_mi] = variable_struct_get(_d, _mk);
++            else
++                gnx_report_mod_error(_p + "'" + _k + "': " + _mk + " must be a number");
++        }
++
++        if (variable_struct_exists(_d, "raid_cat_spacing") && !_cat_logged)
++        {
++            _cat_logged = true;
++            gnx_log_write(_log, "[GNX-INFO] monsters.json '" + _k + "' raid_cat_spacing: ignored since GNX 1.5.3 (raid categories page by 4)\n");
++        }
++
 +        // title: the display name for menus (monsters.json "name"), "" when there is none
-+        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, own_art: false};
++        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, mood_x: _mood[0], mood_y: _mood[1], own_art: false};
 +
 +        for (var _s = 0; _s < 6; _s++)
 +        {
@@ -11447,14 +11635,77 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            else if (is_struct(_v) && !(variable_struct_exists(_v, "strip") && !file_exists(_base_dir + string(_v.strip))))
 +            {
 +                _spr = gnx_sprref_bake(gnx_resolve_sprite(_d, _sk, _base_dir, -1));  // an atlas entry becomes a real sprite
++                // origin_from gives both axes (gnx_resolve_sprite applied it), and a from_game copy has its game sprite's
++                // origin: like xorig and yorig, they are kept
++                var _ofr = variable_struct_exists(_v, "origin_from") || variable_struct_exists(_v, "from_game");
 +
 +                if (_s < 3 && variable_struct_exists(_v, "strip") && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
 +                {
-+                    // a mod strip (only: a shared or cached sprite keeps its origin and speed): the like's walk speed, and without xorig / yorig the origin at the bottom centre
++                    // a mod strip (a game sprite named by string keeps its origin and speed): the like's walk speed, and without
++                    // xorig / yorig the origin at the bottom centre. This sets the origin on the handle itself, which the strip
++                    // cache (or the baked atlas entry) shares: another use of the same file gets this origin too
 +                    sprite_set_speed(_spr, sprite_get_speed(_like_walk[_lk]), sprite_get_speed_type(_like_walk[_lk]));
-+                    var _ox = variable_struct_exists(_v, "xorig") ? sprite_get_xoffset(_spr) : floor(sprite_get_width(_spr) / 2);
-+                    var _oy = variable_struct_exists(_v, "yorig") ? sprite_get_yoffset(_spr) : sprite_get_height(_spr);
++                    var _ox = (_ofr || variable_struct_exists(_v, "xorig")) ? sprite_get_xoffset(_spr) : floor(sprite_get_width(_spr) / 2);
++                    var _oy = (_ofr || variable_struct_exists(_v, "yorig")) ? sprite_get_yoffset(_spr) : sprite_get_height(_spr);
 +                    sprite_set_offset(_spr, _ox, _oy);
++                }
++                else if (_s >= 3 && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
++                {
++                    // GNX-TYPES (P4): icon, heads and infant_head without xorig / yorig / origin_from take the origin of the game
++                    // sheet they stand in for, so the art lands where the vanilla icon does (a mod sprite's own origin is its top
++                    // left corner), for every object form (strip, path, folder, frames). Like the branch above, this sets the
++                    // origin on the shared cached handle
++                    var _van = (_s == 3) ? spr_mon_icon : ((_s == 4) ? spr_mon_icon_head : spr_infant_ui_head);
++                    var _iox = (_ofr || variable_struct_exists(_v, "xorig")) ? sprite_get_xoffset(_spr) : sprite_get_xoffset(_van);
++                    var _ioy = (_ofr || variable_struct_exists(_v, "yorig")) ? sprite_get_yoffset(_spr) : sprite_get_yoffset(_van);
++                    sprite_set_offset(_spr, _iox, _ioy);
++                }
++            }
++
++            // GNX-TYPES (P4): "shift_x" / "shift_y" move the sprite by pixels (positive = right / down): the origin minus the shift,
++            // on a copy, since the sprite may be shared (a cached strip, the baked atlas entry)
++            if (is_struct(_v) && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
++            {
++                var _shx = 0;
++                var _shy = 0;
++
++                if (variable_struct_exists(_v, "shift_x"))
++                {
++                    if (is_numeric(_v.shift_x))
++                        _shx = _v.shift_x;
++                    else
++                        gnx_report_mod_error(_p + "'" + _k + "' " + _sk + ": shift_x must be a number");
++                }
++
++                if (variable_struct_exists(_v, "shift_y"))
++                {
++                    if (is_numeric(_v.shift_y))
++                        _shy = _v.shift_y;
++                    else
++                        gnx_report_mod_error(_p + "'" + _k + "' " + _sk + ": shift_y must be a number");
++                }
++
++                if (_shx != 0 || _shy != 0)
++                {
++                    // kept in the sprite cache by source and shift: a load that keeps the cache (menu return, travel) reuses it
++                    var _shkey = "gnxshift|" + string(_spr) + "#sx" + string(_shx) + "_sy" + string(_shy);
++
++                    if (ds_map_exists(global.gnx_sprite_cache, _shkey) && gnx_sprite_exists(ds_map_find_value(global.gnx_sprite_cache, _shkey)))
++                    {
++                        _spr = ds_map_find_value(global.gnx_sprite_cache, _shkey);
++                    }
++                    else
++                    {
++                        var _src = _spr;
++                        _spr = sprite_duplicate(_src);
++                        array_push(global.gnx_runtime_sprites, _spr);  // freed with the other runtime sprites at quit
++                        sprite_set_offset(_spr, sprite_get_xoffset(_src) - _shx, sprite_get_yoffset(_src) - _shy);
++
++                        if (ds_map_exists(global.gnx_sprite_cache, _shkey))
++                            ds_map_delete(global.gnx_sprite_cache, _shkey);
++
++                        ds_map_add(global.gnx_sprite_cache, _shkey, _spr);
++                    }
 +                }
 +            }
 +
@@ -15662,8 +15913,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +// GNX-TYPES: after a deferred map-mod load appended types, the cells that named one of them (pending) take their
 +// source lists through gnx_cell_mon_check again, and their JSON's own sets of the new types (mon_spr_<name>), as
 +// registration and patches give them for types known then. A cell whose names all resolve now is no longer pending.
-+// monster_art needs nothing here: it is keyed by the game's monsters (goblin, hobgoblin, ogre), which a custom type
-+// reads through its like.
++// Then its monster_art blocks that wait for one of the new types (gnx_art_wait_replay), judged against the lists just
++// rebuilt.
 +function gnx_recheck_cell_types()
 +{
 +    var _k = ds_map_keys_to_array(global.cell_registry);
@@ -15672,19 +15923,24 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    {
 +        var _c = ds_map_find_value(global.cell_registry, _k[_i]);
 +
-+        if (!is_struct(_c) || !variable_struct_exists(_c, "gnx_mon_types_pending") || !_c.gnx_mon_types_pending)
++        if (!is_struct(_c))
 +            continue;
 +
-+        if (variable_struct_exists(_c, "gnx_mon_types_src"))
-+            _c.mon_types = gnx_array_copy(_c.gnx_mon_types_src);
++        if (variable_struct_exists(_c, "gnx_mon_types_pending") && _c.gnx_mon_types_pending)
++        {
++            if (variable_struct_exists(_c, "gnx_mon_types_src"))
++                _c.mon_types = gnx_array_copy(_c.gnx_mon_types_src);
 +
-+        if (variable_struct_exists(_c, "gnx_mon_place_src") && is_struct(_c.physical))
-+            _c.physical.mon_placements = gnx_array_copy(_c.gnx_mon_place_src);
++            if (variable_struct_exists(_c, "gnx_mon_place_src") && is_struct(_c.physical))
++                _c.physical.mon_placements = gnx_array_copy(_c.gnx_mon_place_src);
 +
-+        var _name = variable_struct_exists(_c, "name") ? string(_c.name) : ("h_type " + string(_k[_i]));
-+        gnx_cell_mon_check(_c, _name, variable_struct_exists(_c, "mod_name") ? string(_c.mod_name) : "");
++            var _name = variable_struct_exists(_c, "name") ? string(_c.name) : ("h_type " + string(_k[_i]));
++            gnx_cell_mon_check(_c, _name, variable_struct_exists(_c, "mod_name") ? string(_c.mod_name) : "");
 +
-+        gnx_cell_type_sprs_replay(_c);
++            gnx_cell_type_sprs_replay(_c);
++        }
++
++        gnx_art_wait_replay(_c, _k[_i]);
 +    }
 +}
 +
@@ -17833,7 +18089,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,8661 @@
+@@ -0,0 +1,8913 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -20857,6 +21113,91 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
++// for {"assert": "fn"}: the ambience species key (scr_gnx_goblin_species_key) of a temporary monster of type arg0 (name or index)
++function gnx_scn_species_key(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++
++    if (_t < 0)
++        return "no type";
++
++    var _m = scr_create_mon(_t, 0, 0, 0, -1, 0);
++    var _k = scr_gnx_goblin_species_key(_m);
++
++    with (_m)
++        instance_destroy();
++
++    return _k;
++}
++
++
++// for {"assert": "fn"}: how many ambience clips (ambient, breeding, victory, defeat) the species pool arg0 holds
++function gnx_scn_species_pool(arg0)
++{
++    var _n = 0;
++    var _kinds = ["ambient", "breeding", "victory", "defeat"];
++
++    for (var _i = 0; _i < 4; _i++)
++        _n += array_length(scr_gnx_goblin_pool(arg0, _kinds[_i]));
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: the ambience species the game knows, joined by commas (vanilla three, then custom types with clips)
++function gnx_scn_species_list()
++{
++    var _names = ["goblin", "hobgoblin", "ogre"];
++
++    for (var _i = 0; _i < array_length(global.gnx_ambience_custom); _i++)
++        array_push(_names, global.gnx_ambience_custom[_i]);
++
++    var _r = "";
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++        _r += ((_i > 0) ? "," : "") + _names[_i];
++
++    return _r + " timers=" + string(array_length(global.gnx_goblin_species_next));
++}
++
++
++// for {"assert": "fn"}: the species lines scr_gnx_goblin_raid_species (arg0: won) picks over 40 draws when the formation
++// is arg1 = an array of type names, 5 of each; the distinct picks sorted and joined by commas ("none" = "")
++function gnx_scn_raid_pick(arg0, arg1)
++{
++    var _fr = global.front_row;
++    var _br = global.back_row;
++    global.front_row = ds_list_create();
++    global.back_row = ds_list_create();
++    var _names = arg1;
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++        ds_list_add(global.front_row, { unit_data: { mon_type: gnx_mon_type_id(_names[_i]) }, num: 5 });
++
++    var _seen = [];
++
++    for (var _d = 0; _d < 40; _d++)
++    {
++        var _p = scr_gnx_goblin_raid_species(arg0);
++
++        if (!array_contains(_seen, _p))
++            array_push(_seen, _p);
++    }
++
++    ds_list_destroy(global.front_row);
++    ds_list_destroy(global.back_row);
++    global.front_row = _fr;
++    global.back_row = _br;
++    array_sort(_seen, true);
++    var _r = "";
++
++    for (var _i = 0; _i < array_length(_seen); _i++)
++        _r += ((_i > 0) ? "," : "") + _seen[_i];
++
++    return _r;
++}
++
++
 +// for {"assert": "fn"}: global.val.nest_num of type arg0 (name or index): its monsters out of the nest
 +function gnx_scn_nest_out(arg0)
 +{
@@ -20895,6 +21236,49 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +            _r = 1;
 +    }
 +
++    return _r;
++}
++
++
++// for {"assert": "fn"}: one real draw (its scr_mon_draw, under the draw spy) of the monster of type arg0 that plays in
++// the cell the last occupy step filled: 1 when a drawn sprite's name contains arg1 (a mod sprite is named
++// "mod:<path>", a vanilla one by its asset name), 0 when none does, -1 when no such monster is in the cell
++function gnx_scn_occupied_mon_drawn(arg0, arg1)
++{
++    var _c = global.gnx_scn_occupied;
++    var _t = gnx_mon_type_id(arg0);
++    var _r = -1;
++    var _rev = gnx_art_rev_make();
++    var _seen = "";
++
++    with (obj_mon)
++    {
++        if (_r == -1 && mon_data.mon_type == _t && mon_data.slot_id == _c && mon_data.mon_state == 1 && scr_mon_draw != -1)
++        {
++            global.gnx_draw_spy = [];
++            script_execute(scr_mon_draw, true);
++            _r = 0;
++
++            for (var _i = 0; _i < array_length(global.gnx_draw_spy); _i++)
++            {
++                var _s = global.gnx_draw_spy[_i];
++                var _n = ds_map_find_value(_rev, string(_s));
++
++                if (is_undefined(_n))
++                    _n = (!is_struct(_s) && sprite_exists(_s)) ? sprite_get_name(_s) : string(_s);
++
++                _seen += " " + _n;
++
++                if (string_pos(arg1, _n) > 0)
++                    _r = 1;
++            }
++
++            global.gnx_draw_spy = -1;
++        }
++    }
++
++    ds_map_destroy(_rev);
++    gnx_scn_log("occupied_mon_drawn " + string(arg0) + ":" + _seen);
 +    return _r;
 +}
 +
@@ -22161,6 +22545,26 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +{
 +    var _rc = ds_map_find_value(global.class_registry, arg0);
 +    return (_rc == undefined) ? -999 : gnx_birth_class_for(_rc, arg1);
++}
++
++
++// for {"assert": "fn"}: what unit class arg0's birth_spr gives entry arg1 ("birth_1", "birth_2" ...) for a father of
++// custom type arg2, as the infant prop looks it up (gnx_birth_spr_lookup): "own" = a sprite other than its like's
++// entry, "like" = the like's, "none" = no sprite (the vanilla birth art)
++function gnx_scn_birth_spr(arg0, arg1, arg2)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++
++    if (_rc == undefined || !variable_struct_exists(_rc, "birth_spr"))
++        return "none";
++
++    var _t = gnx_mon_type_id(arg2);
++    var _s = gnx_birth_spr_lookup(_rc.birth_spr, arg1, _t);
++
++    if (!is_struct(_s) && _s == -1)
++        return "none";
++
++    return (_s == gnx_birth_spr_lookup(_rc.birth_spr, arg1, gnx_mon_like(_t))) ? "like" : "own";
 +}
 +
 +
@@ -25079,7 +25483,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
-+// GNX-ART: monster art rework. {"mon_art_dump": {"file": "name", "repeats": 12, "cells": [h_types]}}: every output of
++// GNX-ART: monster art rework. {"mon_art_dump": {"file": "name", "repeats": 12, "cells": [h_types], "mons": [type indexes, default [0, 1, 3]]}}: every output of
 +// the real scr_set_mon_spr_data per combination, on a borrowed occupied cell, into gnx_art_<name>.txt (format and
 +// compare: tools/mon_art_diff.py). Runs in batches across frames. Each repeat has its own fixed seed; results are a set.
 +function gnx_scn_st_mon_art_dump(_s, _st)
@@ -25145,6 +25549,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +function gnx_art_begin(_d)
 +{
 +    var _a = { d: _d, repeats: gnx_opt(_d, "repeats", 12), ci: 0, pos: 0, combos: [], count: 0, seed: 0, done: false, cell: -1, saved: -1, mons: [], mons2: [] };
++    // Custom types P4: the monsters the dump walks, by type index (step key "mons"); the default is the three vanilla ones
++    _a.mon_list = gnx_opt(_d, "mons", [0, 1, 3]);
++    _a.top = 3;
++
++    for (var _ti = 0; _ti < array_length(_a.mon_list); _ti++)
++        _a.top = max(_a.top, _a.mon_list[_ti]);
++
 +    _a.path = "gnx_art_" + string(_d.file) + ".txt";
 +    _a.fh = file_text_open_write(_a.path);
 +    _a.dict = ds_map_create();
@@ -25196,7 +25607,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    _a.mons = [];
 +    _a.mons2 = [];
 +
-+    for (var _m = 0; _m <= 3; _m++)
++    // _a.top: the dump's highest monster type (custom types are above 3); other callers have no such key
++    var _top = variable_struct_exists(_a, "top") ? _a.top : 3;
++
++    for (var _m = 0; _m <= _top; _m++)
 +    {
 +        array_push(_a.mons, (_m == 2) ? -1 : scr_create_mon(_m, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0));
 +        array_push(_a.mons2, (_m == 2) ? -1 : scr_create_mon(_m, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0));
@@ -25209,7 +25623,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +// puts the cell back; true when every field is back
 +function gnx_art_release(_a)
 +{
-+    for (var _m = 0; _m <= 3; _m++)
++    var _top = variable_struct_exists(_a, "top") ? _a.top : 3;
++
++    for (var _m = 0; _m <= _top; _m++)
 +    {
 +        if (_m != 2)
 +        {
@@ -25270,10 +25686,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    var _places = max(1, min(3, gnx_opt(_rp, "max_mon_num", 1)));
 +    var _props = (_h == 1 || _h == 2 || _h == 7 || _h == 8) ? [-1, 0] : [-1];
 +    var _vis = (_h == 36) ? [1, 0] : [1];
-+    var _mons = [0, 1, 3];
++    var _mons = _a.mon_list;
 +    var _out = [];
 +
-+    for (var _mi = 0; _mi < 3; _mi++)
++    for (var _mi = 0; _mi < array_length(_mons); _mi++)
 +    for (var _ph = 0; _ph < array_length(_phases); _ph++)
 +    for (var _pl = 0; _pl < _places; _pl++)
 +    {
@@ -25435,11 +25851,11 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    var _rp = ds_map_find_value(global.cell_registry, _h).physical;
 +    var _two = gnx_opt(_rp, "max_mon_num", 1) > 1;
 +    var _seq = [-1, 0, 2, 2, 3, 2];
-+    var _mons = [0, 1, 3];
++    var _mons = _a.mon_list;
 +    var _c = _a.cell;
 +
 +    for (var _ci = 0; _ci < array_length(_a.scene_classes); _ci++)
-+    for (var _mi = 0; _mi < 3; _mi++)
++    for (var _mi = 0; _mi < array_length(_mons); _mi++)
 +    {
 +        var _ids = [];
 +
@@ -26494,6 +26910,98 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    Value_33 = 33,
 +    Value_40 = 40,
 +    Value_56 = 56
++}
++
++
++// for {"assert": "fn"}: how many times text arg0 is in the debug log
++function gnx_scn_log_count(arg0)
++{
++    if (!file_exists("gnx_debug.txt"))
++        return 0;
++
++    var _buf = buffer_load("gnx_debug.txt");
++    var _t = buffer_read(_buf, buffer_text);
++    buffer_delete(_buf);
++    return string_count(arg0, _t);
++}
++
++
++// for {"assert": "fn"}: "xorig yorig" of the sprite field arg1 (spr_icon, spr_walk ...) of custom type arg0; "none" when it has no own sprite
++function gnx_scn_type_origin(arg0, arg1)
++{
++    var _spr = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id(arg0)], arg1);
++
++    if (_spr == -1 || is_struct(_spr) || !sprite_exists(_spr))
++        return "none";
++
++    return string(sprite_get_xoffset(_spr)) + " " + string(sprite_get_yoffset(_spr));
++}
++
++
++// for {"assert": "fn"}: "mood_shift_x mood_shift_y" of the unit gnx_scn_spawn_walker made last
++function gnx_scn_walker_mood()
++{
++    if (!variable_global_exists("gnx_scn_walker") || !instance_exists(global.gnx_scn_walker))
++        return "gone";
++
++    return string(global.gnx_scn_walker.mon_data.mood_shift_x) + " " + string(global.gnx_scn_walker.mon_data.mood_shift_y);
++}
++
++
++// for {"call"}: every monster of custom type arg0 (a name) gets the mood bubble offset arg1, arg2, as an old save holds it
++function gnx_scn_type_set_mood(arg0, arg1, arg2)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _mx = arg1;
++    var _my = arg2;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == _t)
++        {
++            mon_data.mood_shift_x = _mx;
++            mon_data.mood_shift_y = _my;
++        }
++    }
++}
++
++
++// for {"assert": "fn"}: "mood_shift_x mood_shift_y" of the first monster of custom type arg0 (a name), "none" when there is none
++function gnx_scn_type_mood(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _r = "none";
++
++    with (obj_mon)
++    {
++        if (_r == "none" && mon_data.mon_type == _t)
++            _r = string(mon_data.mood_shift_x) + " " + string(mon_data.mood_shift_y);
++    }
++
++    return _r;
++}
++
++
++// for {"call"}: gnx_scn_mon_old_icon = the icon sprite of custom type arg0 now, gnx_scn_mon_old_count = the runtime sprite count
++function gnx_scn_mon_note_icon(arg0)
++{
++    global.gnx_scn_mon_old_icon = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id(arg0)], "spr_icon");
++    global.gnx_scn_mon_old_count = array_length(global.gnx_runtime_sprites);
++}
++
++
++// for {"assert": "fn"}: reloads monsters.json of mod arg0 as a menu return does (the type table back to the 4 game types, the sprite cache and
++// the runtime sprite list kept) and tells "same|other new|missing +N": whether the shifted icon noted by gnx_scn_mon_note_icon is the same
++// sprite, and how many runtime sprites the reload added
++function gnx_scn_monsters_reload(arg0)
++{
++    for (var _i = 4; _i < array_length(global.gnx_mon_types); _i++)
++        variable_struct_remove(global.gnx_mon_type_ids, global.gnx_mon_types[_i].name);
++
++    global.gnx_mon_types = [global.gnx_mon_types[0], global.gnx_mon_types[1], global.gnx_mon_types[2], global.gnx_mon_types[3]];
++    scr_gnx_load_monsters(arg0, "monsters.json");
++    var _new = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id("mavwolf")], "spr_icon");
++    return ((_new == global.gnx_scn_mon_old_icon) ? "same" : "other") + " " + (sprite_exists(_new) ? "new" : "missing") + " +" + string(array_length(global.gnx_runtime_sprites) - global.gnx_scn_mon_old_count);
 +}
 diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_items.gml
 --- gml_138/gml_GlobalScript_s_gnx_items.gml
@@ -37268,7 +37776,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_raid.gml gml/gml_GlobalScript_s_gnx_raid
 diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sound.gml
 --- gml_138/gml_GlobalScript_s_gnx_sound.gml
 +++ gml/gml_GlobalScript_s_gnx_sound.gml
-@@ -0,0 +1,617 @@
+@@ -0,0 +1,682 @@
 +// GNX: sounds.json, voices, sfx, ambience
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -37502,6 +38010,39 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +        
 +        var _amb_species = gnx_opt(_amb, "species", {});
 +        var _sp_names = ["goblin", "hobgoblin", "ogre"];
++
++        if (!is_struct(_amb_species))
++        {
++            gnx_report_mod_error("Mod '" + arg0 + "': sounds.json ambience.species must be an object like { \"goblin\": { \"ambient\": [...] } }; left out");
++            _amb_species = {};
++        }
++
++        // GNX-TYPES: a species key that is not a vanilla one names a custom type (declared by this or another mod);
++        // an unknown name is a warning only, since the type may come from a mod that is not installed. "_" keys are
++        // comments, and the tentacle (no ambience) is left out quietly, as before custom types
++        var _amb_keys = variable_struct_get_names(_amb_species);
++
++        for (var _aki = 0; _aki < array_length(_amb_keys); _aki++)
++        {
++            var _akey = _amb_keys[_aki];
++
++            if (array_contains(_sp_names, _akey) || _akey == "tentacle" || string_char_at(_akey, 1) == "_")
++                continue;
++            
++            if (gnx_mon_type_id(_akey) < 4)
++            {
++                _log = gnx_log_open();
++                gnx_log_write(_log, "[GNX-WARN] mod '" + arg0 + "' sounds.json ambience.species: '" + _akey + "' is not a monster type any installed mod declares (ignored)\n");
++                gnx_log_close(_log);
++                continue;
++            }
++            
++            if (!variable_struct_exists(global.gnx_ambience, _akey))
++                variable_struct_set(global.gnx_ambience, _akey, { ambient: [], breeding: [], victory: [], defeat: [] });
++            
++            array_push(_sp_names, _akey);
++        }
++        
 +        var _kind_names = ["ambient", "breeding", "victory", "defeat"];
 +        var _amb_loaded = 0;
 +        
@@ -37537,6 +38078,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +                    {
 +                        array_push(_ktarget, _ksnd);
 +                        _amb_loaded++;
++                        
++                        if (_spi >= 3 && !array_contains(global.gnx_ambience_custom, _spk))
++                            array_push(global.gnx_ambience_custom, _spk);  // GNX-TYPES
 +                    }
 +                }
 +            }
@@ -37641,6 +38185,35 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +    if (!is_struct(arg0))
 +        return _out;
 +
++    // GNX-TYPES: a custom type's name (a mod's monsters.json) fills its slot, the table index; the array stays 4 long with no custom type
++    var _keys = variable_struct_get_names(arg0);
++
++    for (var _ki = 0; _ki < array_length(_keys); _ki++)
++    {
++        if (array_contains(_names, _keys[_ki]) || string_char_at(_keys[_ki], 1) == "_")
++            continue;
++
++        var _ct = gnx_mon_type_id(_keys[_ki]);
++
++        if (_ct < 4)
++        {
++            var _wl = gnx_log_open();
++            gnx_log_write(_wl, "[GNX-WARN] mod '" + arg1 + "' voice by_mon_type: '" + _keys[_ki] + "' is not a monster type any installed mod declares (ignored)\n");
++            gnx_log_close(_wl);
++            continue;
++        }
++
++        var _ce = variable_struct_get(arg0, _keys[_ki]);
++
++        while (array_length(_out) <= _ct)
++            array_push(_out, -1);
++
++        if (is_string(_ce))
++            _out[_ct] = { bank: arg1 + "." + _ce, pitch: -1 };
++        else if (is_struct(_ce) && variable_struct_exists(_ce, "bank"))
++            _out[_ct] = { bank: arg1 + "." + _ce.bank, pitch: gnx_opt(_ce, "pitch", -1) };
++    }
++
 +    for (var _t = 0; _t < 4; _t++)
 +    {
 +        if (!variable_struct_exists(arg0, _names[_t]))
@@ -37662,14 +38235,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +// {bank, pitch} from sounds.json voice_map, else from the class's voice.by_mon_type; -1 = her usual voice
 +function gnx_voice_for_mon(arg0, arg1)
 +{
-+    if (arg1 < 0 || arg1 > 3)
++    if (arg1 < 0 || arg1 >= gnx_mon_type_count())  // GNX-TYPES: custom types may have a voice too (their slot is the type index)
 +        return -1;
 +
 +    if (ds_map_exists(global.gnx_voice_class_map, arg0))
 +    {
 +        var _vm = ds_map_find_value(global.gnx_voice_class_map, arg0);
 +
-+        if (variable_struct_exists(_vm, "by_mon") && is_array(_vm.by_mon) && is_struct(_vm.by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _vm.by_mon[arg1].bank))
++        if (variable_struct_exists(_vm, "by_mon") && is_array(_vm.by_mon) && arg1 < array_length(_vm.by_mon) && is_struct(_vm.by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _vm.by_mon[arg1].bank))
 +            return _vm.by_mon[arg1];
 +    }
 +
@@ -37677,7 +38250,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_sound.gml gml/gml_GlobalScript_s_gnx_sou
 +    {
 +        var _rc = ds_map_find_value(global.class_registry, arg0);
 +
-+        if (is_struct(_rc) && variable_struct_exists(_rc, "voice_by_mon") && is_array(_rc.voice_by_mon) && is_struct(_rc.voice_by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _rc.voice_by_mon[arg1].bank))
++        if (is_struct(_rc) && variable_struct_exists(_rc, "voice_by_mon") && is_array(_rc.voice_by_mon) && arg1 < array_length(_rc.voice_by_mon) && is_struct(_rc.voice_by_mon[arg1]) && ds_map_exists(global.gnx_voice_banks, _rc.voice_by_mon[arg1].bank))
 +            return _rc.voice_by_mon[arg1];
 +    }
 +
@@ -42113,7 +42686,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tools.gml gml/gml_GlobalScript_s_gnx_too
 diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_travel.gml
 --- gml_138/gml_GlobalScript_s_gnx_travel.gml
 +++ gml/gml_GlobalScript_s_gnx_travel.gml
-@@ -0,0 +1,2417 @@
+@@ -0,0 +1,2418 @@
 +// GNX: multi-map travel: maps, selector, carry, troops
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -44275,6 +44848,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_travel.gml gml/gml_GlobalScript_s_gnx_tr
 +        gnx_types_tables_fix();  // GNX-TYPES (P2): a map mod may have added types
 +        scr_gnx_build_spawn_tools();  // GNX-TYPES (P3): the tools MONSTERS menu follows the type table
 +        gnx_recheck_cell_types();  // GNX-TYPES (P3): cells of boot mods that name a type of these map mods
++        gnx_art_wait_report(_loaded == array_length(global.gnx_map_deferred_mods));  // GNX-TYPES (P4): art still waiting
 +        scr_gnx_deferred_resolve_class_map();
 +        scr_gnx_apply_unlocks();
 +        scr_gnx_apply_prop_unlocks();
@@ -45270,7 +45844,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
      global.base_raid_time = [2760, 3240, 4000, 5100, 4800];
      var _goblin_alpha_c = make_color_rgb(35, 101, 0);
      var _hobgoblin_alpha_c = make_color_rgb(11, 105, 183);
-@@ -167,12 +192,3264 @@
+@@ -167,12 +192,3265 @@
      scr_set_mon_range();
      scr_stage_raid_reward();
      scr_set_trade_list();
@@ -48451,6 +49025,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
 +        defeat: []
 +    };
 +    global.gnx_ambience_variants = [];
++    global.gnx_ambience_custom = [];  // GNX-TYPES: names of custom types that have ambience clips (their pools join gnx_ambience)
 +    global.gnx_goblin_species_next = [0, 0, 0, 0];
 +    global.gnx_goblin_lane_next = [0, 0, 0];
 +    global.gnx_goblin_ambience_logged = false;
@@ -48537,7 +49112,7 @@ diff -uN gml_138/gml_GlobalScript_s_initials.gml gml/gml_GlobalScript_s_initials
  }
  
  enum UnknownEnum
-@@ -183,42 +3460,9 @@
+@@ -183,42 +3461,9 @@
      Value_3,
      Value_4,
      Value_5,
@@ -49791,8 +50366,8 @@ diff -uN gml_138/gml_GlobalScript_s_mon_data.gml gml/gml_GlobalScript_s_mon_data
      
 -    switch (_mon_type)
 +    // GNX-ART: a cell's monster_art, for this monster and call; undefined keeps everything below as it was
-+    // GNX-TYPES: a custom type uses its "like"'s monster_art (0-3 are their own)
-+    var _gnx_art = gnx_art_for(ds_map_find_value(global.cell_registry, _slot_type), _slot_type, gnx_mon_like(_mon_type), mon_data.placement_num, _anal, _gnx_inter_ph, _class, _leg, _spr_data);
++    // GNX-TYPES: a custom type uses its own monster_art block, else its "like"'s (gnx_art_for; 0-3 are their own)
++    var _gnx_art = gnx_art_for(ds_map_find_value(global.cell_registry, _slot_type), _slot_type, _mon_type, mon_data.placement_num, _anal, _gnx_inter_ph, _class, _leg, _spr_data);
 +    var _gnx_art_hit = _gnx_art != undefined;
 +    var _gnx_art_anal = _gnx_art_hit && _gnx_art.from_anal;
 +
@@ -52846,7 +53421,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
          {
              case UnknownEnum.Value_0:
                  if (_slot_h_type == UnknownEnum.Value_4)
-@@ -161,7 +162,35 @@
+@@ -161,7 +162,42 @@
                  };
                  break;
          }
@@ -52877,13 +53452,20 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
 +
 +                if (is_array(_gdef.speed))
 +                    mon_data.spd = random_range(_gdef.speed[0], _gdef.speed[1]);
++
++                // GNX-TYPES (P4): the mood bubble offset of monsters.json (else the like's, set above)
++                if (!is_undefined(_gdef.mood_x))
++                    mon_data.mood_shift_x = _gdef.mood_x;
++
++                if (!is_undefined(_gdef.mood_y))
++                    mon_data.mood_shift_y = _gdef.mood_y;
 +            }
 +        }
 +
          mon_data.mon_state = _state;
          scr_mon_step = scr_mon_state;
          sprite_index = spr_empty;
-@@ -263,7 +292,9 @@
+@@ -263,7 +299,9 @@
      
      for (var i = 0; i < array_length(arg1); i++)
      {
@@ -52894,7 +53476,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
          {
              array_delete(arg1, i, 1);
              i--;
-@@ -292,17 +323,29 @@
+@@ -292,17 +330,29 @@
      var _slot_width = -1;
      var _carry = false;
      var _set_spr = false;
@@ -52925,7 +53507,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
          case UnknownEnum.Value_0:
              mon_data.mon_state = UnknownEnum.Value_1;
              mon_data.ff = true;
-@@ -312,9 +355,9 @@
+@@ -312,9 +362,9 @@
              {
                  if (slot_data.anal != -1)
                  {
@@ -52937,7 +53519,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
                          slot_data.anal = true;
                      else
                          slot_data.anal = false;
-@@ -339,7 +382,7 @@
+@@ -339,7 +389,7 @@
                  }
              }
              
@@ -52946,7 +53528,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
              break;
          
          case UnknownEnum.Value_1:
-@@ -393,6 +436,14 @@
+@@ -393,6 +443,14 @@
                          break;
                      
                      case UnknownEnum.Value_17:
@@ -52961,7 +53543,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
                          var _set_move = true;
                          
                          for (var i = 0; i < slot_data.max_mon_num; i++)
-@@ -553,6 +604,8 @@
+@@ -553,6 +611,8 @@
          }
      }
      
@@ -52970,7 +53552,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
      if (_set_spr)
          scr_set_mon_spr_data(mon_data.slot_id, -1);
  }
-@@ -627,7 +680,35 @@
+@@ -627,7 +687,35 @@
                  if (global.val.ogre.num[i] != -1)
                      _num += global.val.ogre.num[i];
              }
@@ -53007,7 +53589,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_function.gml gml/gml_GlobalScript_s_mon_
              break;
      }
      
-@@ -687,7 +768,7 @@
+@@ -687,7 +775,7 @@
          {
              spd_b = 0.75;
              
@@ -58039,7 +58621,24 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
              }
          }
          
-@@ -482,22 +820,14 @@
+@@ -467,6 +805,16 @@
+                 var _old_slot_id = mon_data.slot_id;
+                 mon_data = _data.mon_data;
+                 mon_data.slot_id = _old_slot_id;
++
++                // GNX-TYPES (P4): a custom type's mood bubble offset as monsters.json sets it now (a save made before the
++                // mod set or changed mood_shift_x / y holds the old one), as scr_create_mon gives it
++                var _gnx_mdef = (mon_data.mon_type >= 4) ? gnx_mon_type_def(mon_data.mon_type) : undefined;
++
++                if (is_struct(_gnx_mdef) && !is_undefined(_gnx_mdef.mood_x))
++                    mon_data.mood_shift_x = _gnx_mdef.mood_x;
++
++                if (is_struct(_gnx_mdef) && !is_undefined(_gnx_mdef.mood_y))
++                    mon_data.mood_shift_y = _gnx_mdef.mood_y;
+                 var _place = mon_data.placement_num;
+                 
+                 if (_old_slot_id != -1 && _old_slot_id.slot_data.slot_type != UnknownEnum.Value_3)
+@@ -482,22 +830,14 @@
                  
                  var _spr_data = _data.mon_data.spr_data;
                  
@@ -58064,7 +58663,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                              break;
                          
                          case UnknownEnum.Value_8:
-@@ -554,6 +884,10 @@
+@@ -554,6 +894,10 @@
                      case UnknownEnum.Value_10:
                          sprite_index = spr_patrol;
                          spr_unit = scr_set_patrol_spr_data(_old_slot_id.unit_data);
@@ -58075,7 +58674,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
                          scr_mon_draw = scr_draw_orgre_patrol;
                          scr_mon_begin_step = scr_ogre_spd_b;
                          break;
-@@ -567,7 +901,72 @@
+@@ -567,7 +911,72 @@
          obj_np.obj_raid.raid_data = _load_data.raid_data;
          var _global = _load_data.global_list;
          global.val = _global.val;
@@ -58148,7 +58747,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          ds_list_clear(global.unit_list);
          _num = array_length(_global.unit_list);
          
-@@ -585,7 +984,22 @@
+@@ -585,7 +994,22 @@
          
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row, _global.back_row[i]);
@@ -58172,7 +58771,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          ds_list_clear(global.new_button_list);
          _num = array_length(_global.new_button_list);
          
-@@ -606,11 +1020,21 @@
+@@ -606,11 +1030,21 @@
          
          ds_list_clear(global.quest_list);
          _num = array_length(_global.quest_list);
@@ -58195,7 +58794,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          }
          
          for (var i = 0; i < ds_list_size(global.quest_list); i++)
-@@ -634,7 +1058,12 @@
+@@ -634,7 +1068,12 @@
          _num = array_length(_global.noti_list);
          
          for (var i = 0; i < _num; i++)
@@ -58208,7 +58807,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1083,395 @@
+@@ -654,8 +1093,395 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -58604,7 +59203,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1479,7 @@
+@@ -663,6 +1489,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -58612,7 +59211,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1499,25 @@
+@@ -682,33 +1509,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -58657,7 +59256,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1542,119 @@
+@@ -733,3 +1552,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
@@ -58992,7 +59591,7 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
  }
  
  function scr_play_milk_sfx()
-@@ -352,6 +517,430 @@
+@@ -352,6 +517,475 @@
      }
  }
  
@@ -59016,6 +59615,10 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +            return "ogre";
 +        
 +        default:
++            // GNX-TYPES: a custom type speaks as its own name (silent when no mod ships clips for it); tentacle (2) stays silent
++            if (arg0.mon_data.mon_type >= 4)
++                return gnx_mon_type_name(arg0.mon_data.mon_type);
++            
 +            return "";
 +    }
 +}
@@ -59160,6 +59763,9 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +    if (!is_array(arg1) || array_length(arg1) == 0)
 +        exit;
 +    
++    if (arg0 >= array_length(global.gnx_goblin_species_next))
++        global.gnx_goblin_species_next[arg0] = 0;
++    
 +    if (current_time < global.gnx_goblin_species_next[arg0])
 +        exit;
 +    
@@ -59188,6 +59794,23 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +    scr_gnx_goblin_try_species(0, _g, 3000, 7000);
 +    scr_gnx_goblin_try_species(1, _h, 4500, 9000);
 +    scr_gnx_goblin_try_species(3, _o, 6500, 12000);
++    
++    // GNX-TYPES: every custom type with clips gets its own lane (timer slot = type index); nothing runs without one
++    var _cn = array_length(global.gnx_ambience_custom);
++    
++    for (var _ci = 0; _ci < _cn; _ci++)
++    {
++        var _cname = global.gnx_ambience_custom[_ci];
++        var _cl = [];
++        
++        for (var _i = 0; _i < array_length(arg0); _i++)
++        {
++            if (scr_gnx_goblin_species_key(arg0[_i]) == _cname)
++                array_push(_cl, arg0[_i]);
++        }
++        
++        scr_gnx_goblin_try_species(gnx_mon_type_id(_cname), _cl, 4500, 9000);
++    }
 +}
 +
 +function scr_gnx_goblin_step_three_lane(arg0)
@@ -59299,6 +59922,10 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +{
 +    global.val.gnx_ambience_mode = scr_gnx_goblin_mode_allowed(arg0) ? arg0 : 0;
 +    global.gnx_goblin_species_next = [current_time + 800, current_time + 1200, 0, current_time + 1600];
++    
++    for (var _ci = 0; _ci < array_length(global.gnx_ambience_custom); _ci++)  // GNX-TYPES
++        global.gnx_goblin_species_next[gnx_mon_type_id(global.gnx_ambience_custom[_ci])] = current_time + 1800 + _ci * 400;
++    
 +    global.gnx_goblin_lane_next = [current_time + irandom_range(700, 1800), current_time + irandom_range(1800, 3200), current_time + irandom_range(3000, 4500)];
 +    
 +    with (obj_mon)
@@ -59351,7 +59978,16 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +function scr_gnx_goblin_raid_species(arg0)
 +{
 +    var _kind = arg0 ? "victory" : "defeat";
-+    var _weights = [0, 0, 0, 0];
++    // GNX-TYPES: the speakers by name: the vanilla three, then every custom type with clips
++    var _names = ["goblin", "hobgoblin", "ogre"];
++    var _weights = [0, 0, 0];
++    
++    for (var _ci = 0; _ci < array_length(global.gnx_ambience_custom); _ci++)
++    {
++        array_push(_names, global.gnx_ambience_custom[_ci]);
++        array_push(_weights, 0);
++    }
++    
 +    var _lists = [global.front_row, global.back_row];
 +    
 +    for (var _li = 0; _li < 2; _li++)
@@ -59369,7 +60005,7 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +                continue;
 +            
 +            var _t = _info.unit_data.mon_type;
-+            var _spk = (_t == 0) ? "goblin" : ((_t == 1) ? "hobgoblin" : ((_t == 3) ? "ogre" : ""));
++            var _spk = (_t == 0) ? "goblin" : ((_t == 1) ? "hobgoblin" : ((_t == 3) ? "ogre" : ((_t >= 4) ? gnx_mon_type_name(_t) : "")));
 +            
 +            if (_spk == "")
 +                continue;
@@ -59377,27 +60013,35 @@ diff -uN gml_138/gml_GlobalScript_s_sfx.gml gml/gml_GlobalScript_s_sfx.gml
 +            if (array_length(scr_gnx_goblin_pool(_spk, _kind)) == 0)
 +                continue;
 +            
++            var _wi = array_get_index(_names, _spk);
++            
++            if (_wi < 0)
++                continue;
++            
 +            var _num = variable_struct_exists(_info, "num") ? max(1, _info.num) : 1;
-+            _weights[_t] += _num;
++            _weights[_wi] += _num;
 +        }
 +    }
 +    
-+    var _total = _weights[0] + _weights[1] + _weights[3];
++    var _total = 0;
++    
++    for (var _wi = 0; _wi < array_length(_weights); _wi++)
++        _total += _weights[_wi];
 +    
 +    if (_total <= 0)
 +        return "";
 +    
 +    var _roll = irandom(_total - 1);
 +    
-+    if (_roll < _weights[0])
-+        return "goblin";
++    for (var _wi = 0; _wi < array_length(_weights) - 1; _wi++)
++    {
++        if (_roll < _weights[_wi])
++            return _names[_wi];
++        
++        _roll -= _weights[_wi];
++    }
 +    
-+    _roll -= _weights[0];
-+    
-+    if (_roll < _weights[1])
-+        return "hobgoblin";
-+    
-+    return "ogre";
++    return _names[array_length(_names) - 1];
 +}
 +
 +function scr_gnx_play_goblin_raid_result(arg0)

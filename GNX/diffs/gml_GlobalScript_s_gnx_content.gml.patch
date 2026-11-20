@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,5722 @@
+@@ -0,0 +1,5816 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -797,17 +797,21 @@
 +    var _like_ids = [0, 1, 3];
 +    var _like_food = [0.5, 0.7, 1];
 +    var _like_walk = [spr_goblin_walk, spr_hobgoblin_walk, spr_ogre_walk];
-+    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills"];
++    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills", "mood_shift_x", "mood_shift_y", "raid_cat_spacing"];
 +    var _spr_keys = ["idle", "walk", "b_walk", "icon", "heads", "infant_head"];
 +    var _base_dir = global.gnx_mods_root + arg0 + "/";
 +    var _names = variable_struct_get_names(_defs);
 +    array_sort(_names, true);  // numbering does not depend on the runtime's struct order
 +    var _log = gnx_log_open();
++    var _cat_logged = false;  // raid_cat_spacing is logged once per mod
 +
 +    for (var _i = 0; _i < array_length(_names); _i++)
 +    {
 +        var _k = _names[_i];
 +        var _d = variable_struct_get(_defs, _k);
++
++        if (string_char_at(_k, 1) == "_")  // a comment key, like "_note"
++            continue;
 +
 +        if (!is_struct(_d))
 +        {
@@ -883,7 +887,7 @@
 +
 +        if (_unknown != "")
 +        {
-+            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills); left out");
++            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills, mood_shift_x, mood_shift_y, raid_cat_spacing); left out");
 +            continue;
 +        }
 +
@@ -940,8 +944,30 @@
 +                gnx_report_mod_error(_p + "'" + _k + "': skills must be 4 skill ids 0-15");
 +        }
 +
++        // GNX-TYPES (P4): the mood bubble offset (the like's when left out); a bad one is a mod error and the field is ignored
++        var _mood = [undefined, undefined];
++
++        for (var _mi = 0; _mi < 2; _mi++)
++        {
++            var _mk = (_mi == 0) ? "mood_shift_x" : "mood_shift_y";
++
++            if (!variable_struct_exists(_d, _mk))
++                continue;
++
++            if (is_numeric(variable_struct_get(_d, _mk)))
++                _mood[_mi] = variable_struct_get(_d, _mk);
++            else
++                gnx_report_mod_error(_p + "'" + _k + "': " + _mk + " must be a number");
++        }
++
++        if (variable_struct_exists(_d, "raid_cat_spacing") && !_cat_logged)
++        {
++            _cat_logged = true;
++            gnx_log_write(_log, "[GNX-INFO] monsters.json '" + _k + "' raid_cat_spacing: ignored since GNX 1.5.3 (raid categories page by 4)\n");
++        }
++
 +        // title: the display name for menus (monsters.json "name"), "" when there is none
-+        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, own_art: false};
++        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, mood_x: _mood[0], mood_y: _mood[1], own_art: false};
 +
 +        for (var _s = 0; _s < 6; _s++)
 +        {
@@ -962,14 +988,77 @@
 +            else if (is_struct(_v) && !(variable_struct_exists(_v, "strip") && !file_exists(_base_dir + string(_v.strip))))
 +            {
 +                _spr = gnx_sprref_bake(gnx_resolve_sprite(_d, _sk, _base_dir, -1));  // an atlas entry becomes a real sprite
++                // origin_from gives both axes (gnx_resolve_sprite applied it), and a from_game copy has its game sprite's
++                // origin: like xorig and yorig, they are kept
++                var _ofr = variable_struct_exists(_v, "origin_from") || variable_struct_exists(_v, "from_game");
 +
 +                if (_s < 3 && variable_struct_exists(_v, "strip") && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
 +                {
-+                    // a mod strip (only: a shared or cached sprite keeps its origin and speed): the like's walk speed, and without xorig / yorig the origin at the bottom centre
++                    // a mod strip (a game sprite named by string keeps its origin and speed): the like's walk speed, and without
++                    // xorig / yorig the origin at the bottom centre. This sets the origin on the handle itself, which the strip
++                    // cache (or the baked atlas entry) shares: another use of the same file gets this origin too
 +                    sprite_set_speed(_spr, sprite_get_speed(_like_walk[_lk]), sprite_get_speed_type(_like_walk[_lk]));
-+                    var _ox = variable_struct_exists(_v, "xorig") ? sprite_get_xoffset(_spr) : floor(sprite_get_width(_spr) / 2);
-+                    var _oy = variable_struct_exists(_v, "yorig") ? sprite_get_yoffset(_spr) : sprite_get_height(_spr);
++                    var _ox = (_ofr || variable_struct_exists(_v, "xorig")) ? sprite_get_xoffset(_spr) : floor(sprite_get_width(_spr) / 2);
++                    var _oy = (_ofr || variable_struct_exists(_v, "yorig")) ? sprite_get_yoffset(_spr) : sprite_get_height(_spr);
 +                    sprite_set_offset(_spr, _ox, _oy);
++                }
++                else if (_s >= 3 && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
++                {
++                    // GNX-TYPES (P4): icon, heads and infant_head without xorig / yorig / origin_from take the origin of the game
++                    // sheet they stand in for, so the art lands where the vanilla icon does (a mod sprite's own origin is its top
++                    // left corner), for every object form (strip, path, folder, frames). Like the branch above, this sets the
++                    // origin on the shared cached handle
++                    var _van = (_s == 3) ? spr_mon_icon : ((_s == 4) ? spr_mon_icon_head : spr_infant_ui_head);
++                    var _iox = (_ofr || variable_struct_exists(_v, "xorig")) ? sprite_get_xoffset(_spr) : sprite_get_xoffset(_van);
++                    var _ioy = (_ofr || variable_struct_exists(_v, "yorig")) ? sprite_get_yoffset(_spr) : sprite_get_yoffset(_van);
++                    sprite_set_offset(_spr, _iox, _ioy);
++                }
++            }
++
++            // GNX-TYPES (P4): "shift_x" / "shift_y" move the sprite by pixels (positive = right / down): the origin minus the shift,
++            // on a copy, since the sprite may be shared (a cached strip, the baked atlas entry)
++            if (is_struct(_v) && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
++            {
++                var _shx = 0;
++                var _shy = 0;
++
++                if (variable_struct_exists(_v, "shift_x"))
++                {
++                    if (is_numeric(_v.shift_x))
++                        _shx = _v.shift_x;
++                    else
++                        gnx_report_mod_error(_p + "'" + _k + "' " + _sk + ": shift_x must be a number");
++                }
++
++                if (variable_struct_exists(_v, "shift_y"))
++                {
++                    if (is_numeric(_v.shift_y))
++                        _shy = _v.shift_y;
++                    else
++                        gnx_report_mod_error(_p + "'" + _k + "' " + _sk + ": shift_y must be a number");
++                }
++
++                if (_shx != 0 || _shy != 0)
++                {
++                    // kept in the sprite cache by source and shift: a load that keeps the cache (menu return, travel) reuses it
++                    var _shkey = "gnxshift|" + string(_spr) + "#sx" + string(_shx) + "_sy" + string(_shy);
++
++                    if (ds_map_exists(global.gnx_sprite_cache, _shkey) && gnx_sprite_exists(ds_map_find_value(global.gnx_sprite_cache, _shkey)))
++                    {
++                        _spr = ds_map_find_value(global.gnx_sprite_cache, _shkey);
++                    }
++                    else
++                    {
++                        var _src = _spr;
++                        _spr = sprite_duplicate(_src);
++                        array_push(global.gnx_runtime_sprites, _spr);  // freed with the other runtime sprites at quit
++                        sprite_set_offset(_spr, sprite_get_xoffset(_src) - _shx, sprite_get_yoffset(_src) - _shy);
++
++                        if (ds_map_exists(global.gnx_sprite_cache, _shkey))
++                            ds_map_delete(global.gnx_sprite_cache, _shkey);
++
++                        ds_map_add(global.gnx_sprite_cache, _shkey, _spr);
++                    }
 +                }
 +            }
 +
@@ -5177,8 +5266,8 @@
 +// GNX-TYPES: after a deferred map-mod load appended types, the cells that named one of them (pending) take their
 +// source lists through gnx_cell_mon_check again, and their JSON's own sets of the new types (mon_spr_<name>), as
 +// registration and patches give them for types known then. A cell whose names all resolve now is no longer pending.
-+// monster_art needs nothing here: it is keyed by the game's monsters (goblin, hobgoblin, ogre), which a custom type
-+// reads through its like.
++// Then its monster_art blocks that wait for one of the new types (gnx_art_wait_replay), judged against the lists just
++// rebuilt.
 +function gnx_recheck_cell_types()
 +{
 +    var _k = ds_map_keys_to_array(global.cell_registry);
@@ -5187,19 +5276,24 @@
 +    {
 +        var _c = ds_map_find_value(global.cell_registry, _k[_i]);
 +
-+        if (!is_struct(_c) || !variable_struct_exists(_c, "gnx_mon_types_pending") || !_c.gnx_mon_types_pending)
++        if (!is_struct(_c))
 +            continue;
 +
-+        if (variable_struct_exists(_c, "gnx_mon_types_src"))
-+            _c.mon_types = gnx_array_copy(_c.gnx_mon_types_src);
++        if (variable_struct_exists(_c, "gnx_mon_types_pending") && _c.gnx_mon_types_pending)
++        {
++            if (variable_struct_exists(_c, "gnx_mon_types_src"))
++                _c.mon_types = gnx_array_copy(_c.gnx_mon_types_src);
 +
-+        if (variable_struct_exists(_c, "gnx_mon_place_src") && is_struct(_c.physical))
-+            _c.physical.mon_placements = gnx_array_copy(_c.gnx_mon_place_src);
++            if (variable_struct_exists(_c, "gnx_mon_place_src") && is_struct(_c.physical))
++                _c.physical.mon_placements = gnx_array_copy(_c.gnx_mon_place_src);
 +
-+        var _name = variable_struct_exists(_c, "name") ? string(_c.name) : ("h_type " + string(_k[_i]));
-+        gnx_cell_mon_check(_c, _name, variable_struct_exists(_c, "mod_name") ? string(_c.mod_name) : "");
++            var _name = variable_struct_exists(_c, "name") ? string(_c.name) : ("h_type " + string(_k[_i]));
++            gnx_cell_mon_check(_c, _name, variable_struct_exists(_c, "mod_name") ? string(_c.mod_name) : "");
 +
-+        gnx_cell_type_sprs_replay(_c);
++            gnx_cell_type_sprs_replay(_c);
++        }
++
++        gnx_art_wait_replay(_c, _k[_i]);
 +    }
 +}
 +

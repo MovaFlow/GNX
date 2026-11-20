@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,8661 @@
+@@ -0,0 +1,8913 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -3024,6 +3024,91 @@
 +}
 +
 +
++// for {"assert": "fn"}: the ambience species key (scr_gnx_goblin_species_key) of a temporary monster of type arg0 (name or index)
++function gnx_scn_species_key(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++
++    if (_t < 0)
++        return "no type";
++
++    var _m = scr_create_mon(_t, 0, 0, 0, -1, 0);
++    var _k = scr_gnx_goblin_species_key(_m);
++
++    with (_m)
++        instance_destroy();
++
++    return _k;
++}
++
++
++// for {"assert": "fn"}: how many ambience clips (ambient, breeding, victory, defeat) the species pool arg0 holds
++function gnx_scn_species_pool(arg0)
++{
++    var _n = 0;
++    var _kinds = ["ambient", "breeding", "victory", "defeat"];
++
++    for (var _i = 0; _i < 4; _i++)
++        _n += array_length(scr_gnx_goblin_pool(arg0, _kinds[_i]));
++
++    return _n;
++}
++
++
++// for {"assert": "fn"}: the ambience species the game knows, joined by commas (vanilla three, then custom types with clips)
++function gnx_scn_species_list()
++{
++    var _names = ["goblin", "hobgoblin", "ogre"];
++
++    for (var _i = 0; _i < array_length(global.gnx_ambience_custom); _i++)
++        array_push(_names, global.gnx_ambience_custom[_i]);
++
++    var _r = "";
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++        _r += ((_i > 0) ? "," : "") + _names[_i];
++
++    return _r + " timers=" + string(array_length(global.gnx_goblin_species_next));
++}
++
++
++// for {"assert": "fn"}: the species lines scr_gnx_goblin_raid_species (arg0: won) picks over 40 draws when the formation
++// is arg1 = an array of type names, 5 of each; the distinct picks sorted and joined by commas ("none" = "")
++function gnx_scn_raid_pick(arg0, arg1)
++{
++    var _fr = global.front_row;
++    var _br = global.back_row;
++    global.front_row = ds_list_create();
++    global.back_row = ds_list_create();
++    var _names = arg1;
++
++    for (var _i = 0; _i < array_length(_names); _i++)
++        ds_list_add(global.front_row, { unit_data: { mon_type: gnx_mon_type_id(_names[_i]) }, num: 5 });
++
++    var _seen = [];
++
++    for (var _d = 0; _d < 40; _d++)
++    {
++        var _p = scr_gnx_goblin_raid_species(arg0);
++
++        if (!array_contains(_seen, _p))
++            array_push(_seen, _p);
++    }
++
++    ds_list_destroy(global.front_row);
++    ds_list_destroy(global.back_row);
++    global.front_row = _fr;
++    global.back_row = _br;
++    array_sort(_seen, true);
++    var _r = "";
++
++    for (var _i = 0; _i < array_length(_seen); _i++)
++        _r += ((_i > 0) ? "," : "") + _seen[_i];
++
++    return _r;
++}
++
++
 +// for {"assert": "fn"}: global.val.nest_num of type arg0 (name or index): its monsters out of the nest
 +function gnx_scn_nest_out(arg0)
 +{
@@ -3062,6 +3147,49 @@
 +            _r = 1;
 +    }
 +
++    return _r;
++}
++
++
++// for {"assert": "fn"}: one real draw (its scr_mon_draw, under the draw spy) of the monster of type arg0 that plays in
++// the cell the last occupy step filled: 1 when a drawn sprite's name contains arg1 (a mod sprite is named
++// "mod:<path>", a vanilla one by its asset name), 0 when none does, -1 when no such monster is in the cell
++function gnx_scn_occupied_mon_drawn(arg0, arg1)
++{
++    var _c = global.gnx_scn_occupied;
++    var _t = gnx_mon_type_id(arg0);
++    var _r = -1;
++    var _rev = gnx_art_rev_make();
++    var _seen = "";
++
++    with (obj_mon)
++    {
++        if (_r == -1 && mon_data.mon_type == _t && mon_data.slot_id == _c && mon_data.mon_state == 1 && scr_mon_draw != -1)
++        {
++            global.gnx_draw_spy = [];
++            script_execute(scr_mon_draw, true);
++            _r = 0;
++
++            for (var _i = 0; _i < array_length(global.gnx_draw_spy); _i++)
++            {
++                var _s = global.gnx_draw_spy[_i];
++                var _n = ds_map_find_value(_rev, string(_s));
++
++                if (is_undefined(_n))
++                    _n = (!is_struct(_s) && sprite_exists(_s)) ? sprite_get_name(_s) : string(_s);
++
++                _seen += " " + _n;
++
++                if (string_pos(arg1, _n) > 0)
++                    _r = 1;
++            }
++
++            global.gnx_draw_spy = -1;
++        }
++    }
++
++    ds_map_destroy(_rev);
++    gnx_scn_log("occupied_mon_drawn " + string(arg0) + ":" + _seen);
 +    return _r;
 +}
 +
@@ -4328,6 +4456,26 @@
 +{
 +    var _rc = ds_map_find_value(global.class_registry, arg0);
 +    return (_rc == undefined) ? -999 : gnx_birth_class_for(_rc, arg1);
++}
++
++
++// for {"assert": "fn"}: what unit class arg0's birth_spr gives entry arg1 ("birth_1", "birth_2" ...) for a father of
++// custom type arg2, as the infant prop looks it up (gnx_birth_spr_lookup): "own" = a sprite other than its like's
++// entry, "like" = the like's, "none" = no sprite (the vanilla birth art)
++function gnx_scn_birth_spr(arg0, arg1, arg2)
++{
++    var _rc = ds_map_find_value(global.class_registry, arg0);
++
++    if (_rc == undefined || !variable_struct_exists(_rc, "birth_spr"))
++        return "none";
++
++    var _t = gnx_mon_type_id(arg2);
++    var _s = gnx_birth_spr_lookup(_rc.birth_spr, arg1, _t);
++
++    if (!is_struct(_s) && _s == -1)
++        return "none";
++
++    return (_s == gnx_birth_spr_lookup(_rc.birth_spr, arg1, gnx_mon_like(_t))) ? "like" : "own";
 +}
 +
 +
@@ -7246,7 +7394,7 @@
 +}
 +
 +
-+// GNX-ART: monster art rework. {"mon_art_dump": {"file": "name", "repeats": 12, "cells": [h_types]}}: every output of
++// GNX-ART: monster art rework. {"mon_art_dump": {"file": "name", "repeats": 12, "cells": [h_types], "mons": [type indexes, default [0, 1, 3]]}}: every output of
 +// the real scr_set_mon_spr_data per combination, on a borrowed occupied cell, into gnx_art_<name>.txt (format and
 +// compare: tools/mon_art_diff.py). Runs in batches across frames. Each repeat has its own fixed seed; results are a set.
 +function gnx_scn_st_mon_art_dump(_s, _st)
@@ -7312,6 +7460,13 @@
 +function gnx_art_begin(_d)
 +{
 +    var _a = { d: _d, repeats: gnx_opt(_d, "repeats", 12), ci: 0, pos: 0, combos: [], count: 0, seed: 0, done: false, cell: -1, saved: -1, mons: [], mons2: [] };
++    // Custom types P4: the monsters the dump walks, by type index (step key "mons"); the default is the three vanilla ones
++    _a.mon_list = gnx_opt(_d, "mons", [0, 1, 3]);
++    _a.top = 3;
++
++    for (var _ti = 0; _ti < array_length(_a.mon_list); _ti++)
++        _a.top = max(_a.top, _a.mon_list[_ti]);
++
 +    _a.path = "gnx_art_" + string(_d.file) + ".txt";
 +    _a.fh = file_text_open_write(_a.path);
 +    _a.dict = ds_map_create();
@@ -7363,7 +7518,10 @@
 +    _a.mons = [];
 +    _a.mons2 = [];
 +
-+    for (var _m = 0; _m <= 3; _m++)
++    // _a.top: the dump's highest monster type (custom types are above 3); other callers have no such key
++    var _top = variable_struct_exists(_a, "top") ? _a.top : 3;
++
++    for (var _m = 0; _m <= _top; _m++)
 +    {
 +        array_push(_a.mons, (_m == 2) ? -1 : scr_create_mon(_m, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0));
 +        array_push(_a.mons2, (_m == 2) ? -1 : scr_create_mon(_m, _c.x, _c.y, _c.slot_data.slot_floor, -1, 0));
@@ -7376,7 +7534,9 @@
 +// puts the cell back; true when every field is back
 +function gnx_art_release(_a)
 +{
-+    for (var _m = 0; _m <= 3; _m++)
++    var _top = variable_struct_exists(_a, "top") ? _a.top : 3;
++
++    for (var _m = 0; _m <= _top; _m++)
 +    {
 +        if (_m != 2)
 +        {
@@ -7437,10 +7597,10 @@
 +    var _places = max(1, min(3, gnx_opt(_rp, "max_mon_num", 1)));
 +    var _props = (_h == 1 || _h == 2 || _h == 7 || _h == 8) ? [-1, 0] : [-1];
 +    var _vis = (_h == 36) ? [1, 0] : [1];
-+    var _mons = [0, 1, 3];
++    var _mons = _a.mon_list;
 +    var _out = [];
 +
-+    for (var _mi = 0; _mi < 3; _mi++)
++    for (var _mi = 0; _mi < array_length(_mons); _mi++)
 +    for (var _ph = 0; _ph < array_length(_phases); _ph++)
 +    for (var _pl = 0; _pl < _places; _pl++)
 +    {
@@ -7602,11 +7762,11 @@
 +    var _rp = ds_map_find_value(global.cell_registry, _h).physical;
 +    var _two = gnx_opt(_rp, "max_mon_num", 1) > 1;
 +    var _seq = [-1, 0, 2, 2, 3, 2];
-+    var _mons = [0, 1, 3];
++    var _mons = _a.mon_list;
 +    var _c = _a.cell;
 +
 +    for (var _ci = 0; _ci < array_length(_a.scene_classes); _ci++)
-+    for (var _mi = 0; _mi < 3; _mi++)
++    for (var _mi = 0; _mi < array_length(_mons); _mi++)
 +    {
 +        var _ids = [];
 +
@@ -8661,4 +8821,96 @@
 +    Value_33 = 33,
 +    Value_40 = 40,
 +    Value_56 = 56
++}
++
++
++// for {"assert": "fn"}: how many times text arg0 is in the debug log
++function gnx_scn_log_count(arg0)
++{
++    if (!file_exists("gnx_debug.txt"))
++        return 0;
++
++    var _buf = buffer_load("gnx_debug.txt");
++    var _t = buffer_read(_buf, buffer_text);
++    buffer_delete(_buf);
++    return string_count(arg0, _t);
++}
++
++
++// for {"assert": "fn"}: "xorig yorig" of the sprite field arg1 (spr_icon, spr_walk ...) of custom type arg0; "none" when it has no own sprite
++function gnx_scn_type_origin(arg0, arg1)
++{
++    var _spr = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id(arg0)], arg1);
++
++    if (_spr == -1 || is_struct(_spr) || !sprite_exists(_spr))
++        return "none";
++
++    return string(sprite_get_xoffset(_spr)) + " " + string(sprite_get_yoffset(_spr));
++}
++
++
++// for {"assert": "fn"}: "mood_shift_x mood_shift_y" of the unit gnx_scn_spawn_walker made last
++function gnx_scn_walker_mood()
++{
++    if (!variable_global_exists("gnx_scn_walker") || !instance_exists(global.gnx_scn_walker))
++        return "gone";
++
++    return string(global.gnx_scn_walker.mon_data.mood_shift_x) + " " + string(global.gnx_scn_walker.mon_data.mood_shift_y);
++}
++
++
++// for {"call"}: every monster of custom type arg0 (a name) gets the mood bubble offset arg1, arg2, as an old save holds it
++function gnx_scn_type_set_mood(arg0, arg1, arg2)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _mx = arg1;
++    var _my = arg2;
++
++    with (obj_mon)
++    {
++        if (mon_data.mon_type == _t)
++        {
++            mon_data.mood_shift_x = _mx;
++            mon_data.mood_shift_y = _my;
++        }
++    }
++}
++
++
++// for {"assert": "fn"}: "mood_shift_x mood_shift_y" of the first monster of custom type arg0 (a name), "none" when there is none
++function gnx_scn_type_mood(arg0)
++{
++    var _t = gnx_mon_type_id(arg0);
++    var _r = "none";
++
++    with (obj_mon)
++    {
++        if (_r == "none" && mon_data.mon_type == _t)
++            _r = string(mon_data.mood_shift_x) + " " + string(mon_data.mood_shift_y);
++    }
++
++    return _r;
++}
++
++
++// for {"call"}: gnx_scn_mon_old_icon = the icon sprite of custom type arg0 now, gnx_scn_mon_old_count = the runtime sprite count
++function gnx_scn_mon_note_icon(arg0)
++{
++    global.gnx_scn_mon_old_icon = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id(arg0)], "spr_icon");
++    global.gnx_scn_mon_old_count = array_length(global.gnx_runtime_sprites);
++}
++
++
++// for {"assert": "fn"}: reloads monsters.json of mod arg0 as a menu return does (the type table back to the 4 game types, the sprite cache and
++// the runtime sprite list kept) and tells "same|other new|missing +N": whether the shifted icon noted by gnx_scn_mon_note_icon is the same
++// sprite, and how many runtime sprites the reload added
++function gnx_scn_monsters_reload(arg0)
++{
++    for (var _i = 4; _i < array_length(global.gnx_mon_types); _i++)
++        variable_struct_remove(global.gnx_mon_type_ids, global.gnx_mon_types[_i].name);
++
++    global.gnx_mon_types = [global.gnx_mon_types[0], global.gnx_mon_types[1], global.gnx_mon_types[2], global.gnx_mon_types[3]];
++    scr_gnx_load_monsters(arg0, "monsters.json");
++    var _new = variable_struct_get(global.gnx_mon_types[gnx_mon_type_id("mavwolf")], "spr_icon");
++    return ((_new == global.gnx_scn_mon_old_icon) ? "same" : "other") + " " + (sprite_exists(_new) ? "new" : "missing") + " +" + string(array_length(global.gnx_runtime_sprites) - global.gnx_scn_mon_old_count);
 +}

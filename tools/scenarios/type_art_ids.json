@@ -1,0 +1,99 @@
+{
+  "about": "Custom types P4: a cell's monster_art takes a custom type's name (wolf, like goblin): the block is kept under the type's id and a wolf in the cell draws its start strip. A class's monster_art naming wolf is one mod error. A like-ogre type (bear) is held to the ogre rule (hand needs a line on every body). Fix wave: art for wolf on a cell that never calls wolves (no mon_types) is the 'never calls' error (I2); a wolf-only cell's wolf block counts as monster strips for an intermission and its strips are checked (M2); a wolf draws the cell's own mon_spr_wolf set before the goblin block (M3).",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_type_a",
+    "tools/scenarios/mods/harness_type_b",
+    "tools/scenarios/mods/harness_type_art",
+    "tools/scenarios/mods/harness_type_art2"
+  ],
+  "check_boot_suite": false,
+  "expect_dialog": "monster_art",
+  "expect_mod_errors": [
+    "class 'TYPE ART CLASS' monster_art: unknown monster 'wolf'",
+    "an ogre's hand, head and pen needs a line on every body",
+    "Cell 'TYPE ART NOLIST' monster_art.wolf: the game never calls this monster to this cell",
+    "Cell 'TYPE ART INTER': strip 'a5' (monster_art.wolf.loop_ej) has 5 frames, it needs 6 per row"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_blocks",
+      "args": [
+        9230
+      ],
+      "is": 1,
+      "why": "the wolf block is kept"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_blocks",
+      "args": [
+        9231
+      ],
+      "is": 0,
+      "why": "the bear block breaks the ogre rule and is dropped"
+    },
+    {
+      "mon_spr_probe": {
+        "cell": 9230,
+        "mon_type": {
+          "mon": "wolf"
+        },
+        "phase": 0,
+        "body": "spr_h_goblin_body_start_v1_alpha"
+      },
+      "why": "a wolf in the cell draws the block's start strip"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_blocks",
+      "args": [
+        9235
+      ],
+      "is": 0,
+      "why": "I2: the wolf block of a cell that never calls wolves is dropped"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_art_blocks",
+      "args": [
+        9236
+      ],
+      "is": 1,
+      "why": "M2: the wolf block of the wolf-only cell is kept"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_log_has",
+      "args": [
+        "Cell 'TYPE ART INTER': intermission loop_ej has 6 frames but the cell has no mon_spr"
+      ],
+      "is": 0,
+      "why": "M2: the wolf block counts as monster strips (before the fix: this false error)"
+    },
+    {
+      "mon_spr_probe": {
+        "cell": 9237,
+        "mon_type": {
+          "mon": "wolf"
+        },
+        "phase": 0,
+        "body": "spr_h_goblin_body_start_v2_alpha"
+      },
+      "why": "M3: a wolf draws the cell's mon_spr_wolf, not the goblin monster_art block"
+    },
+    {
+      "mon_spr_probe": {
+        "cell": 9237,
+        "mon_type": 0,
+        "phase": 0,
+        "body": "spr_h_goblin_body_start_v1_alpha"
+      },
+      "why": "M3: a goblin draws the goblin block"
+    }
+  ]
+}

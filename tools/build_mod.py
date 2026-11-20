@@ -37,7 +37,7 @@ def load_json_loose(path: Path):
 
 
 def art_paths(manifest, mod_dir: Path) -> list[Path]:
-    """Every file the manifest's sprite_replace and monster_art name. They may live in any folder and the key may be a file
+    """Every file the manifest's sprite_replace, monster_art and monsters name. They may live in any folder and the key may be a file
     name or the object itself, so the fixed folders (strips/, atlas/ ...) do not cover them. Reads the value forms the loader
     reads (gnx_resolve_sprite_raw): a .png or a folder name, or an object with strip, path, folder or a frames list of files.
     A path that leaves the mod folder, or names nothing, is skipped. In order, once each."""
@@ -93,6 +93,12 @@ def art_paths(manifest, mod_dir: Path) -> list[Path]:
             todo = []
         for v in todo:
             value(v)
+    # monsters.json: the six sprite keys of each type. A text there is a game sprite's name, so only objects name files
+    for name, mon in block("monsters").items():
+        if isinstance(mon, dict) and not str(name).startswith(("_", "//")):
+            for k in ("idle", "walk", "b_walk", "icon", "heads", "infant_head"):
+                if isinstance(mon.get(k), dict):
+                    value(mon[k])
     return out
 
 
@@ -286,7 +292,7 @@ def main():
     print("--- Pack verification ---")
     leftovers = []
     json_files = {}
-    for role in ("classes", "cells", "quests", "tools", "sounds", "props", "items", "raids"):
+    for role in ("classes", "cells", "quests", "tools", "sounds", "props", "items", "raids", "monsters"):
         rel = manifest.get(role)
         if not rel or not isinstance(rel, str):  # absent, or the object itself: nothing to look up
             continue
@@ -379,7 +385,7 @@ def main():
                 shutil.copytree(src_dir, dest / folder)
                 n = sum(1 for f in (dest / folder).rglob("*") if f.is_file())
                 print(f"  copied: {folder}/ ({n} files)")
-        # sprite_replace and monster_art art lives in any folder: copy what the manifest names, unless a folder above had it
+        # sprite_replace, monster_art and monsters art lives in any folder: copy what the manifest names, unless a folder above had it
         for src in art_paths(manifest, mod_dir):
             dst = dest / src.relative_to(mod_dir)
             if not dst.exists():

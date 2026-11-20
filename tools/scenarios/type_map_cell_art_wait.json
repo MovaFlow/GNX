@@ -1,0 +1,30 @@
+{
+  "about": "Custom types P4 residual round (N1, N2): boot cells (harness_type_gart2, map all) with waiting monster_art while the map mod harness_map_type (map harness_t) is deferred. A typo ('nwet') waits at boot with no error, and is the 'unknown monster' mod error after the deferred load of a harness_t save, when no deferred map mod is left. A waiting newt-only cell with an intermission gives no false 'no mon_spr' error at boot, and its replayed art gets the frame rules (its 5-frame loop_ej strip is reported). The travel boot loads harness_map_type before the cells, so both errors show there at once: that is the one dialog.",
+  "mods": ["tools/scenarios/mods/harness_map_type", "tools/scenarios/mods/harness_type_gart2"],
+  "timeout": 180,
+  "expect_dialog": "unknown monster 'nwet'",
+  "expect_mod_errors": [
+    "Cell 'TYPE GART TYPO' monster_art: unknown monster 'nwet'",
+    "Cell 'TYPE GART FRAMES': strip 'a5' (monster_art.newt.loop_ej) has 5 frames, it needs 6 per row"
+  ],
+  "steps": [
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["TYPE GART TYPO' monster_art.nwet: monster type 'nwet' is not installed; the art waits for it"], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["unknown monster 'nwet'"], "is": 0, "why": "N1: no error while a map mod is deferred"},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["TYPE GART FRAMES': intermission loop_ej has 6 frames but the cell has no mon_spr"], "is": 0, "why": "N2: the waiting newt block counts as monster art"},
+    {"do": {"type": "add_gold", "amount": 5000}},
+    {"do": {"type": "add_food", "amount": 300}},
+    {"travel_with": {"to": "harness_t"}},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"save": 9},
+    {"reload": 9, "why": "quit to menu, then load the save: harness_map_type is loaded in the deferred load"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["TYPE GART FRAMES': intermission loop_ej has 6 frames but the cell has no mon_spr"], "is": 0, "why": "N2: none at the menu boot either"},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["Cell 'TYPE GART TYPO' monster_art: unknown monster 'nwet'"], "is": 1, "why": "N1: reported once every deferred map mod has loaded"},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["Cell 'TYPE GART FRAMES': strip 'a5' (monster_art.newt.loop_ej) has 5 frames, it needs 6 per row"], "is": 1, "why": "N2: the replayed block gets the frame rules"},
+    {"assert": "fn", "name": "gnx_scn_art_blocks", "args": [9238], "is": 0},
+    {"assert": "registry_ok"}
+  ]
+}

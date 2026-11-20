@@ -33,6 +33,7 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5.x
 - [25. Items and raid loot (items.json)](#25-items-and-raid-loot-itemsjson)
 - [26. Checking your mod: schemas and check_mod.py](#26-checking-your-mod-schemas-and-check_modpy)
 - [27. Raid stages (raids.json)](#27-raid-stages-raidsjson)
+- [28. Custom monster types (monsters.json)](#28-custom-monster-types-monstersjson)
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
 - [Appendix C. Old monster keys](#appendix-c-old-monster-keys)
@@ -440,6 +441,7 @@ In GNX files `-1` almost always means **"none" or "not used"**: `"icon_hair": -1
 | Give a cell its own frame counts and timing, or add intermissions | [22. Scene timing](#22-scene-timing-frame-counts-start-ej-and-loop-strips), [23. Intermissions](#23-intermissions) |
 | Make a cell below the floor line | [24. Underground cells](#24-underground-cells) |
 | Add items, raid loot or blueprints of my cells to raids | [25. Items and raid loot](#25-items-and-raid-loot-itemsjson) |
+| Add a monster type of my own (a wolf) | [28. Custom monster types](#28-custom-monster-types-monstersjson) |
 | Let several monsters use a cell each on their own | [11.5 Independent places](#115-independent-places) |
 | Make many sprites load faster | [20. Atlas packing](#20-atlas-packing) |
 | Write quests and events | [QUESTS_SCHEMA.md](QUESTS_SCHEMA.md) |
@@ -736,7 +738,7 @@ State keys are read and written by quests (the `set_state` side effect and the `
 
 ### 4.4 Data file keys
 
-Each data file key (`classes`, `cells`, `quests`, `tools`, `sounds`, `props`, `items`, `raids`) holds a path relative to your mod folder. The file is loaded only when its key is present.
+Each data file key (`classes`, `cells`, `quests`, `tools`, `sounds`, `props`, `items`, `raids`, `monsters`) holds a path relative to your mod folder. The file is loaded only when its key is present.
 
 ```json
 {
@@ -750,11 +752,12 @@ Each data file key (`classes`, `cells`, `quests`, `tools`, `sounds`, `props`, `i
   "sounds": "sounds.json",
   "props": "props.json",
   "items": "items.json",
-  "raids": "raids.json"
+  "raids": "raids.json",
+  "monsters": "monsters.json"
 }
 ```
 
-This loads all eight files, in the phases of [3.3](#33-load-order). Paths can point into subfolders, for example `"cells": "data/cells.json"`.
+This loads all nine files, in the phases of [3.3](#33-load-order). `monsters` (new in 1.5.3, [28](#28-custom-monster-types-monstersjson)) loads first, before the classes, so that classes and cells can name the types. Paths can point into subfolders, for example `"cells": "data/cells.json"`.
 
 `sprite_replace` ([5.9](#59-replacing-game-sprites-sprite_replace)) and `monster_art` ([16.7](#167-monster_art-by-class-and-for-all-monsters)) are manifest keys that hold either a path like these or the object itself:
 
@@ -1768,8 +1771,9 @@ If you do write `h_type`:
 
 ### 8.5 mon_types: which monsters come
 
-`mon_types` lists the monster types the cell calls in: `0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre. Each call picks one type from the list at random; without the key, goblins and hobgoblins come.
+`mon_types` lists the monster types the cell calls in: `0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre, or the name of a custom monster type from a `monsters.json` ([28](#28-custom-monster-types-monstersjson)), such as `[0, "wolf"]`. Each call picks one type from the list at random; without the key, goblins and hobgoblins come.
 
+- A custom type is written by name, never by number: `4` is a mod error. A name that no installed mod declares is left out with a warning (a map mod's type can still arrive later, [28.6](#286-maps-and-village)). The names work in `mon_placements` too.
 - `mon_types` also filters your custom monster sprites: a type not in the list never gets this cell's `mon_spr` sprites, and `monster_art` for it is a mod error.
 - With `mon_placements` ([§11](#11-multi-monster-cells)) the placements decide which types come. `mon_types` is then only the sprite filter, so it must still list every type used in the placements.
 - In the vanilla cells 4, 17–24 and 36–39 the game itself decides which monsters come; a patched `mon_types` only filters the sprites there.
@@ -2345,7 +2349,7 @@ In fixed and class_map mode `base_body` only decides whether the start uses `pha
 
 ### 10.8 monster_art: monster sprites in a cell
 
-`monster_art` (new in 1.5.2) gives the monsters of one cell their own sprites. It holds one block per monster type (`goblin`, `hobgoblin`, `ogre`), and inside each block one block per phase. It uses the cell's `sprites` block ([5.1](#51-the-sprites-dict)), so `gnx:` keys work as everywhere else, and so do game sprite names.
+`monster_art` (new in 1.5.2) gives the monsters of one cell their own sprites. It holds one block per monster type (`goblin`, `hobgoblin`, `ogre`, or the name of a custom type, [28.5](#285-where-a-type-name-works)), and inside each block one block per phase. It uses the cell's `sprites` block ([5.1](#51-the-sprites-dict)), so `gnx:` keys work as everywhere else, and so do game sprite names.
 
 ```json
 {
@@ -2385,7 +2389,7 @@ In fixed and class_map mode `base_body` only decides whether the start uses `pha
 
 - `monster_art` is a cell key, like `human_spr`. It works in new cells and in patches of vanilla cells and of other mods' cells ([§12](#12-patching-vanilla-cells-and-classes)). A patch replaces the whole block of each monster type it names, as `mon_spr` patches do.
 - **Old keys:** per monster type and per call, if the cell's `monster_art` has art that fits, it is used; otherwise the old keys `mon_spr`, `mon_spr_hob`, `mon_spr_ogr` and the placement keys apply as before. Load order does not change this. A cell can carry both: GNX 1.5.1 and older read only the old keys. The old keys are described in [Appendix C](#appendix-c-old-monster-keys).
-- **There is no fallback between monster types.** A cell whose `monster_art` has only `goblin` gives its hobgoblins the same sprites they would have without it. If the cell also has `mon_spr`, that includes the old fallback to `mon_spr`.
+- **There is no fallback between the game's monster types.** A cell whose `monster_art` has only `goblin` gives its hobgoblins the same sprites they would have without it. A custom type is the one exception: with no block of its own it draws its `like`'s block (a wolf that is `like` a goblin draws the goblin block). Its own old set `mon_spr_<name>` comes before that like's block: a cell with `mon_spr_wolf` and a `goblin` block draws wolves with `mon_spr_wolf`. The full order is in [28.4](#284-art-what-is-drawn-when). If the cell also has `mon_spr`, that includes the old fallback to `mon_spr`.
 - **Your own sprites beat class and global art** ([16.7](#167-monster_art-by-class-and-for-all-monsters)), because those swap game sprites by name and your sprites have other names. A game sprite you use here is swapped like any other.
 - **Old versions:** set `"min_gnx_version": "1.5.2"` in the manifest ([4.2](#42-the-version-check)). GNX 1.5.0 and older ignore that key, load the mod anyway and do not know `monster_art`: a mod cell that has only `monster_art` shows vanilla monsters there.
 
@@ -2598,7 +2602,7 @@ Class and global art ([16.7](#167-monster_art-by-class-and-for-all-monsters)) st
 
 ### 11.1 mon_placements
 
-`mon_placements` has one entry per placement, as many as `max_mon_num`. Each entry lists the monster types allowed there (`0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre).
+`mon_placements` has one entry per placement, as many as `max_mon_num`. Each entry lists the monster types allowed there (`0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre, or a custom type's name, see [28](#28-custom-monster-types-monstersjson)).
 
 - **Calling.** About every 4–6 s a cell that has room calls a monster: it picks a random free placement, then a random type from that placement's list. In a mod cell (new in 1.5) the pick is narrowed to the placements a monster can come to right now, and to those types there. A monster can come when one of its type wanders free on that floor and the scene's script may send it (`scr_slot_call_mon(true)`, as the standard scripts and independent places do; the vanilla MILK 1 and PATROL scripts use `false` and do not send wanderers), or when one waits in the nest and a door of that floor lets it through. When no placement can be filled right now, the pick is as in vanilla and nobody comes this time. Before 1.5 a mod cell could pick a placement whose types were all busy, and nobody came although another placement could have been filled.
 - `mon_types` then no longer decides who comes, but it still filters the custom sprites, so it must contain every type from the placements.
@@ -2607,7 +2611,7 @@ Class and global art ([16.7](#167-monster_art-by-class-and-for-all-monsters)) st
 **Checks** (new in 1.5), when the cell loads and when a patch changes `mon_types` or `mon_placements`:
 
 - A list with more or fewer entries than `max_mon_num` is cut or filled to fit; filled placements take `mon_types`. Before, placements past `max_mon_num` could leave the cell waiting for good. The log says `[GNX-WARN] cell '<name>' of mod '<folder>': mon_placements has <n> places, max_mon_num is <m>; ...`
-- A type outside 0–3, or one not in `mon_types` (it would be invisible), is dropped with a mod error. A placement left without a type takes `mon_types`.
+- A number outside 0–3, or a type not in `mon_types` (it would be invisible), is a mod error and is left out. An unknown type name is left out with a warning in the log ([28.5](#285-where-a-type-name-works)). A placement left without a type takes `mon_types`.
 
 ### 11.2 Per-placement sprite keys
 
@@ -2993,7 +2997,7 @@ Each unit has a pregnancy counter: the pregnancies she has left. Each birth lowe
 | Key | What it means | Type | Default |
 |---|---|---|---|
 | `preg_c_override` | Starting value of the counter. `-1` = unlimited births. | number | random by unit level: 4–5 at level 0 up to 8–9 at level 4; 4–5 again at levels 5–7 |
-| `preg_mon_type_override` | Species of every child, whoever bred her: `0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre. Another value is a mod error and the key is left out (new in 1.5). | number | species of the first monster in the cell |
+| `preg_mon_type_override` | Species of every child, whoever bred her: `0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre, or the name of a custom monster type (`"wolf"`, [28](#28-custom-monster-types-monstersjson); GNX 1.5.3). Another number is a mod error and the key is left out (new in 1.5). A name no mod declares is kept, with a warning in the log, and takes effect once the type exists; until then the father's type is kept. | number or text | species of the first monster in the cell |
 
 Both keys also work on vanilla classes through `override` ([6.2](#62-override-changing-an-existing-class)). With `scr_unit: 1` ([6.3](#63-core-fields)) the counter slowly refills to its starting value.
 
@@ -3003,7 +3007,7 @@ Every monster species has four troop types, 0–3: separate groups on the raid s
 
 | Key | What it means | Type | Default |
 |---|---|---|---|
-| `birth_class.goblin`, `.hobgoblin`, `.tentacle`, `.ogre` | Troop type of children of that species. Rounded down and limited to 0–3; a species left out gets type 0. A number written as text is read; another value is a mod error and 0 is used. A list of four numbers (goblin, hobgoblin, tentacle, ogre) works too. | number 0–3 | `0` |
+| `birth_class.goblin`, `.hobgoblin`, `.tentacle`, `.ogre`, and `.<type name>` for a custom monster type (GNX 1.5.3) | Troop type of children of that species. Rounded down and limited to 0–3; a species left out gets type 0. A number written as text is read; another value is a mod error and 0 is used. A list of four numbers (goblin, hobgoblin, tentacle, ogre) works too. | number 0–3 | `0` |
 
 What the types do, from the game's skill descriptions. The names are the labels of GNX's SPAWN menu ([17.3](#173-built-in-menus-spawn-and-gnx-debug)), the same for every species; they are not the captive classes Warrior, Ranger and Shaman.
 
@@ -3036,7 +3040,7 @@ At a birth the game draws a birth sprite over the cell (the newborn appearing). 
 
 | Key | Cell | Value | Frames per skin (× 3 for a normal class) |
 |---|---|---|---|
-| `birth_1` | BIRTH 1 (5) | object with `goblin`/`hobgoblin`/`tentacle`/`ogre` sprites | 6 |
+| `birth_1` | BIRTH 1 (5) | object with `goblin`/`hobgoblin`/`tentacle`/`ogre` sprites, and a custom type's name (GNX 1.5.3) | 6 |
 | `birth_2` | BIRTH 2 (12) | object like `birth_1` | 6 |
 | `bind_1`, `bind_2` | BIND 1 (27), BIND 2 (28) | one sprite for all species | 5 |
 | `t_wall_1`, `t_wall_2`, `t_wall_3` | T.WALL 1 (31), T.WALL 2 (32), T.WALL 3 (29) | one sprite | 6 |
@@ -3370,6 +3374,8 @@ To change monster sprites there, patch the cell's `mon_spr`, `mon_spr_hob` or `m
 ### 16.7 monster_art by class and for all monsters
 
 `monster_art` (new in 1.5.2) replaces vanilla monster sprites by an address instead of by sprite name. In a class it applies to the captives of that class; in the manifest (**global** scope) it applies to every captive. Cells have their own form of the key ([10.8](#108-monster_art-monster-sprites-in-a-cell)).
+
+> **Custom monster types** ([28](#28-custom-monster-types-monstersjson)) have no address here. Naming one (`"wolf"`) in class or manifest `monster_art` is a mod error, `monster_art: unknown monster 'wolf'`: only a cell's `monster_art` takes the name. A wolf that is `like` a goblin draws goblin art wherever it has no block of its own, so `goblin.*` here re-skins it too.
 
 > **A swap changes a sprite everywhere it is drawn.** An address names the vanilla sprites it swaps, and the game draws many of them in more than one place. A `loop` address also changes the ejaculation (`ej`), the intermissions and the pose a monster has when it reaches the cell, wherever those phases draw the same sprite. For example `goblin.standard.loop.body.leg_1` swaps `spr_h_goblin_body_loop_v1_alpha`, and the game also draws that sprite in `ej`, `ej_end`, `loop_ej` and `start_loop`; `spr_h_goblin_pen_loop` is drawn in `loop` and `ej`; `leg_0` and `leg_1` of a goblin share one sprite, so they share one address. A few addresses are drawn by another monster: `spr_h_ogre_touch_loop` is drawn by goblins in G.BANG only, so its address is `goblin.gbang_1.loop.touch.any`. The address list ([16.9](#169-address-list)) names, for every address, the other phases and monsters that draw its sprites. Art for a sprite shared this way must fit every place it is drawn.
 
@@ -3868,7 +3874,7 @@ GNX builds both after all mods have loaded.
 
 **SPAWN** has three sub-menus:
 
-- **MONSTERS**: one entry per species (Goblin, Hobgoblin, Tentacle, Ogre), each with `Warrior x1`, `Ranger x1`, `Mage x1` and `Shaman x1`, one per troop type 0–3 ([14.2](#142-birth_class-which-troop-the-child-joins)).
+- **MONSTERS**: one entry per species (Goblin, Hobgoblin, Tentacle, Ogre, then every custom monster type by its `name`, [28](#28-custom-monster-types-monstersjson)), each with `Warrior x1`, `Ranger x1`, `Mage x1` and `Shaman x1`, one per troop type 0–3 ([14.2](#142-birth_class-which-troop-the-child-joins)).
 - **UNITS**: a `VANILLA` group with classes 0–13, then one group per mod (folder name in capitals) with its classes. Each button creates one captive in the prison.
 - **CELLS**: a `VANILLA` group with the vanilla cells of the build menus, then one group per mod with **every** cell it registered. Each button unlocks that cell in the build menu, with a popup such as `ALTAR unlocked!`.
 
@@ -3976,7 +3982,7 @@ An action is an object with a `type` and the fields it needs. GNX knows **40** a
 
 | Type | Fields | What it does |
 |---|---|---|
-| `spawn_mon` | `species`, `amount` (required), `class` (optional) | Adds `amount` monsters to that troop type, or without `class` to **each** of the four. A `species` outside 0–3 does nothing. |
+| `spawn_mon` | `species`, `amount` (required), `class` (optional) | Adds `amount` monsters to that troop type, or without `class` to **each** of the four. A `species` that names no type (an unknown name, or a number outside the type table) does nothing. Use the type's name for a custom type: its number depends on the load order. |
 | `set_troop_level` | `species`, `class`, `value` (all required) | Sets the level of that troop type. |
 | `add_troop_exp` | `species`, `class`, `amount` (all required) | Adds experience through the normal level-up logic. |
 | `set_skill_level` | `species`, `class`, `value` (all required) | Sets the skill level of that troop type. |
@@ -4296,7 +4302,7 @@ Each key is a class ID as text (read as a number, so a mod class's numeric ID wo
 }
 ```
 
-With a hobgoblin she uses `my_mod.rough` at her own pitch, with an ogre `my_mod.deep` at 0.9, with goblins or tentacles her normal `soft` voice.
+With a hobgoblin she uses `my_mod.rough` at her own pitch, with an ogre `my_mod.deep` at 0.9, with goblins or tentacles her normal `soft` voice. A custom monster type ([28](#28-custom-monster-types-monstersjson)) is a key of its own name, next to those (`"wolf": "growl"`); a name no mod declares is ignored with a warning.
 
 - Keys: `goblin`, `hobgoblin`, `tentacle`, `ogre`; a value is a bank name or `{ "bank": …, "pitch": … }`, with your folder prefix added.
 - It is checked on every moan. The first monster in the cell decides, and tentacle cells count as `tentacle`. An unlisted type or an unloaded bank uses her normal voice.
@@ -4367,7 +4373,7 @@ Only the first mod in load order that brings voice or sfx clips sets these value
 
 ### 18.7 Ambience: monster voices
 
-The `ambience` block adds short voice lines that goblins, hobgoblins and ogres say while on screen, plus one line at the end of a raid. Tentacles have no ambience.
+The `ambience` block adds short voice lines that goblins, hobgoblins and ogres say while on screen, plus one line at the end of a raid. Tentacles have no ambience. A custom monster type ([28](#28-custom-monster-types-monstersjson)) speaks as its own name: the species is the type's name, and a type that no mod gives clips is silent (the others keep playing).
 
 ```json
 {
@@ -4393,7 +4399,7 @@ The player may choose `balanced` or `individual`; goblins get all four clip list
 | Key | What it means | Type | Default |
 |---|---|---|---|
 | `variants` | Allowed modes: any of `"balanced"`, `"three_lane"`, `"individual"`; other names are ignored. The modes of all mods are combined. | list | all three |
-| `species` | Object with the keys `goblin`, `hobgoblin`, `ogre`. | object | none |
+| `species` | Object with the keys `goblin`, `hobgoblin`, `ogre`, and the name of a custom monster type (GNX 1.5.3). A name no installed mod declares is ignored with a warning. Custom types get victory and defeat lines like the game's. | object | none |
 | `ambient` | Normal lines of that species. | list | none |
 | `breeding` | Second pool: each time a monster speaks, it is picked with a 45 % chance (if it has clips), otherwise `ambient`. Whether the monster is actually breeding is not checked. | list | none |
 | `victory`, `defeat` | Line played once when a raid is won / lost. | list | none |
@@ -5775,6 +5781,149 @@ Keys are the vanilla names: VILLAGE, MOUNTAIN, FOREST, CASTLE, TOWER.
 
 ---
 
+## 28. Custom monster types (monsters.json)
+
+**In short:** a mod adds a monster type, such as a wolf, with a `monsters.json` file and the manifest key `monsters`. The type walks, fights, breeds and eats like the game monster it is `like`, and it has its own name, numbers and art. New in GNX 1.5.3: set `"min_gnx_version": "1.5.3"` in a mod that uses it ([4.2](#42-the-version-check)). The reference mod's `monsters.json` shows every key without sprites.
+
+### 28.1 Minimal example
+
+```json
+{
+  "wolf": { "like": "goblin" }
+}
+```
+
+With `"monsters": "monsters.json"` in the manifest ([4.4](#44-data-file-keys)) this is a working type: it appears in the SPAWN menu and the raid window, a cell can call it, and it walks as a goblin in a blue tint, so it can be told apart. Everything else is optional and comes from the `like`.
+
+A fuller entry:
+
+```json
+{
+  "wolf": {
+    "like": "goblin",
+    "name": "Wolf",
+    "idle": { "strip": "strips/spr_wolf_idle.png", "frames": 5 },
+    "walk": { "strip": "strips/spr_wolf_walk.png", "frames": 8 },
+    "icon": { "strip": "strips/spr_mon_icon_wolf.png", "frames": 1 },
+    "heads": { "strip": "strips/spr_mon_icon_head_wolf.png", "frames": 4 },
+    "infant_head": { "strip": "strips/spr_infant_ui_head_wolf.png", "frames": 1 },
+    "stat": [2, 3, 3, 4],
+    "range": [[0, 1], [1], [0], [1]],
+    "skills": [0, 5, 2, 1],
+    "food": 0.5,
+    "speed": [1.3, 1.5]
+  }
+}
+```
+
+### 28.2 Keys
+
+The key of an entry is the type's name: `a-z`, `0-9` and `_`, starting with a letter. The keys inside an entry are listed below; an unknown key is a mod error and the entry is left out. A key that starts with `_` (such as `"_note"`) is a comment, inside an entry and at the top of the file.
+
+| Key | What it means | Type | Default |
+|---|---|---|---|
+| `like` | **Required.** The game monster this type behaves like: `"goblin"`, `"hobgoblin"` or `"ogre"`. It decides the walking code, the art a cell draws for it ([28.4](#284-art-what-is-drawn-when)), the birth art and the one-body ogre drawing. `"tentacle"` is refused: tentacles have no walking body. | text | none |
+| `name` | The name shown in the tool menu. | text | the key with a capital first letter |
+| `food` | Food eaten per unit and day. | number, 0 or more | the like's (goblin 0.5, hobgoblin 0.7, ogre 1) |
+| `stat` | Raid AP of the four troop types. | 4 numbers | the like's |
+| `speed` | Walking speed `[min, max]`; each monster rolls one value. | 2 numbers, `0 < min <= max` | the like's |
+| `range` | The raid rows each troop type may stand in: one list per troop type, of `0` (front) and `1` (back). | 4 lists | the like's |
+| `skills` | The raid skill of each troop type, as a skill ID 0–15. It reuses the game's effects, icons and texts; a new effect needs code. Two rows of troops that share one ID do not stack. | 4 integers | the like's |
+| `idle`, `walk`, `b_walk` | The nest sprites: standing, walking, and walking away from the viewer. | sprite | the like's, tinted |
+| `icon` | The type's picture in the top bar and the raid window: one frame. | sprite | the like's frame |
+| `heads` | The head of each troop type in the raid window: **4 frames**, one per troop type. | sprite | the like's heads |
+| `infant_head` | The head on a newborn's card. | sprite | the like's |
+| `mood_shift_x`, `mood_shift_y` | Where the mood bubble sits over the monster, in pixels. | number | the like's (goblin 6 / -56, hobgoblin 6 / -82, ogre 6 / -92) |
+| `raid_cat_spacing` | Accepted and ignored ([28.9](#289-keys-of-older-builds)). | number | none |
+
+A bad `like`, `food`, `stat` or `speed` is a mod error and leaves the whole entry out. A bad `range`, `skills` or `mood_shift_*` is a mod error and that key is ignored. A sprite is an object of [5.2](#52-where-gnx-takes-the-image-from) (`strip`, a `frames` list, `path`, `folder` or `from_game`), or a game sprite's name as text. Text is read only as a game sprite's name: `"strips/wolf.png"` or `"gnx:spr_wolf_walk"` there loads nothing. With an atlas, an object finds its atlas entry through its file, as everywhere else ([§20](#20-atlas-packing)). One that cannot load logs `[GNX-WARN] monsters.json '<name>' <key>: sprite not loaded, <like> art used`, and the like's art stays.
+
+### 28.3 Names, numbers and saves
+
+- **Mods name types.** In every JSON file a type is written by its name: `"wolf"`. The numbers `0`–`3` still mean goblin, hobgoblin, tentacle and ogre. A number from `4` up for a type is a mod error, because the numbers are not fixed (below).
+- **Names that are refused.** `goblin`, `hobgoblin`, `tentacle` and `ogre` cannot be declared again. `hob`, `ogr`, `p1`, `p2` and any name that ends in `_p<number>` are reserved too: the cell keys `mon_spr_hob`, `mon_spr_ogr` and `mon_spr_<name>_pN` use them. If two mods declare one name, the first mod loaded keeps it and the second gets a mod error.
+- **Numbering.** GNX numbers the custom types from 4 at each start, in the load order of the mods ([3.3](#33-load-order)), and by name inside one file. Your mod never sees the numbers, and they change when the mod list changes.
+- **Saves hold the name.** A save lists the custom types it knows by name, and keeps each type's counts, levels, experience and skills under that name. On loading, GNX renumbers everything to the current start, so adding or removing another mod does not mix up your monsters.
+- **Old keys.** `mon_spr_<name>` keys on cells ([C.2](#c2-mon_spr-reference)) keep working for a custom type. The order is `mon_spr_<name>`, then `mon_spr`, then the like's own sprites.
+
+### 28.4 Art: what is drawn when
+
+A type draws as its `like` wherever it has no art of its own.
+
+- **No `idle` and `walk`:** the monster walks with the like's sprites and speed, in a blue tint. Give both `idle` and `walk` to lose the tint; one alone is not enough. `b_walk` is optional and falls back to `walk`.
+- **No `icon`, `heads` or `infant_head`:** the like's frame is used. `heads` needs 4 frames; fewer logs `[GNX-WARN] monsters.json '<name>' heads: needs 4 frames (one per class), like's heads used`.
+- **In a cell:** the cell's `mon_spr` keys and `monster_art` ([10.8](#108-monster_art-monster-sprites-in-a-cell)) draw it. With none, it draws the like's art. The order, first match wins:
+  1. the cell's `monster_art` block named after the type;
+  2. the type's own set `mon_spr_<name>` (or `mon_spr_<name>_p<place>` for its placement) on a mod cell, or for a mod class;
+  3. the like's `monster_art` block;
+  4. the like's old keys (`mon_spr_hob`, `mon_spr_ogr`, then `mon_spr`), else the like's game sprites.
+
+  So a cell with `mon_spr_wolf` and a `goblin` block draws its wolves with `mon_spr_wolf` and its goblins with the block.
+- **Origin of the three UI sprites.** An `icon`, `heads` or `infant_head` written as an object, in any form of [5.2](#52-where-gnx-takes-the-image-from), takes, on each axis with no `xorig` or `yorig`, the origin of the game sheet it stands in for: `spr_mon_icon`, `spr_mon_icon_head` and `spr_infant_ui_head`. The art then lands where the game's own icon does. Without this rule a mod sprite's origin would be its top left corner ([5.3](#53-the-origin)). Write `xorig` and `yorig`, or `origin_from`, to choose your own; `origin_from` sets both axes. A `from_game` frame keeps the origin of its game sprite. A `walk`, `idle` or `b_walk` strip with no origin takes the bottom centre and the like's animation speed.
+- **`shift_x` and `shift_y`.** A sprite of `monsters.json` written as an object may carry `shift_x` and `shift_y`: pixels to move it right and down (negative: left and up), on top of the origin above. Use them to fine tune art without redrawing the strip. They work on `monsters.json` sprites only.
+
+### 28.5 Where a type name works
+
+| Place | How |
+|---|---|
+| `cells.json` `mon_types` and `physical.mon_placements` | The name next to the numbers: `"mon_types": [0, "wolf"]`. A cell may name a type of a map mod ([28.6](#286-maps-and-village)). |
+| `cells.json` `monster_art` | A block named after the type: `"monster_art": { "wolf": { ... } }`, with the keys of a goblin block. **Cell scope only.** The cell must name the type in `mon_types` or `mon_placements`. A mod cell with neither list calls only goblins and hobgoblins, and most vanilla cells call fixed game types, so there the block is a mod error (`the game never calls this monster to this cell`, on a vanilla cell `not drawn on this cell`). The type's `like` sets the limits: a type that is `like` an ogre has the ogre's hand and pen rules ([10.9](#109-monster_art-reference)). |
+| class and manifest `monster_art` | **Not accepted.** A custom type's name there is a mod error: `monster_art: unknown monster '<name>'`. Those scopes swap the game's own sprites by address ([16.7](#167-monster_art-by-class-and-for-all-monsters)), and a custom type's own art has none. A wolf that draws goblin art is re-skinned by `goblin.*`. |
+| `by_mon_type` in `human_spr` ([10.4](#104-by_class-and-by_mon_type-fixed-mode-only)) and in `voice` ([18.3](#183-which-voice-a-captive-gets)) | A key named after the type, next to `goblin` and `ogre`. |
+| `preg_mon_type_override` ([14.1](#141-pregnancy-preg_c_override-and-preg_mon_type_override)) | `"preg_mon_type_override": "wolf"`: her children are wolves. |
+| `birth_class` and `birth_spr` ([14.2](#142-birth_class-which-troop-the-child-joins), [14.4](#144-birth_spr-birth-animations)) | A key named after the type, next to `goblin`: `"birth_class": { "wolf": 1 }` sends wolf children to troop type 1. |
+| `sounds.json` `ambience.species` ([18.7](#187-ambience-monster-voices)) | A key named after the type. A type with no clips is silent. |
+| `tools.json` `spawn_mon` `species`, `map_start` `troops` `type` | The name, or 0–3. |
+
+A name that no installed mod declares is not a crash. In a `mon_types` it is left out with `[GNX-WARN] Cell '<name>': monster type '<name>' is not installed; left out`. A cell's `monster_art` block for it waits while a map mod is not loaded yet (it may declare the type, [28.6](#286-maps-and-village)), with `[GNX-WARN] Cell '<name>' monster_art.<type>: monster type '<type>' is not installed; the art waits for it`. With no map mod waiting, the name is a mod error: `monster_art: unknown monster '<type>'`. A block still waiting when every map mod has loaded (a misspelled name) gets that error then; while map mods of other maps are not loaded yet, the log says `is still not installed; it may come from a map mod of another map`. In `preg_mon_type_override`, `birth_class` and `birth_spr` the name is kept and works once a mod adds the type; the log says so.
+
+### 28.6 Maps and village
+
+A type belongs to the mod that declares it, and exists wherever that mod loads: the village, or the maps its `map` key lists ([21](#21-multi-map-travel)).
+
+- **A village mod, or one with `"map": "all"`,** declares types that exist on every map it loads on.
+- **A map mod** declares types that exist while that map is loaded. A cell of a mod that loads at the start may still name such a type: the log shows `monster type '<name>' is not installed; left out` at the start, and the cell takes the type when the map mod loads. A patch of that cell by the map mod keeps the cell's own sprite sets. A `monster_art` block named after the type waits the same way: the log shows `the art waits for it` at the start, not a mod error, and the block is checked and drawn once the map mod loads.
+- **Travel.** The TROOPS tab of the travel selector offers a custom type only when its owner mod loads on the destination map, and carries the troops by type name. A carried type the destination does not have arrives as its `like`, with a warning in the log.
+
+### 28.7 What the player sees
+
+- **Tool menu:** SPAWN > MONSTERS lists every type by name, the four game types first, then the custom ones.
+- **Top bar:** a custom type shows once the player owns a unit of it, while it fits next to the buttons and the food counter. The rest show in the raid and travel screens.
+- **Raid window:** each type's troops are a category of their own. The categories page by 4, with arrows.
+- **Travel selector:** troops page by 4, with arrows.
+- **MODS page:** a mod's monsters are counted with its cells, units and maps, so a removed mod whose monsters wait in a save raises the missing-mod warning on the load page.
+
+### 28.8 If the mod is removed
+
+A save keeps the data of a type whose mod is off or gone, and gives it back when the mod returns. Nothing is deleted.
+
+| What | Result |
+|---|---|
+| Counts, levels, experience | Stay in the save, saved again each time. Reinstalling brings them back. |
+| Live monsters (walking or in a cell) | Left out when loading. Their count is unaffected, so they count as back in the nest. |
+| Population, food, mood | Count only installed types, so the numbers drop while the mod is off. |
+| Formation rows and saved formations | The row is dropped; the troops of a live row go back to the kept counts. |
+| A raid on its way | Its rows go back, and the raid continues with what is left. An army of only that type comes home with nothing; the monsters are safe in the kept data. |
+| Pregnant captive, newborn, caged unit | Becomes the type's `like`: she gives birth to a goblin, not to nothing. |
+| Troops carried by travel | Not saved. |
+
+The log says what happened: `[GNX] load: monster type '<name>' not installed: <n> monster(s) taken off the board, <n> pregnancies and infants become <like>; its counts stay in the save`.
+
+### 28.9 Keys of older builds
+
+Some keys come from a wolf build made before `like` existed. GNX 1.5.3 reads them like this:
+
+- `mood_shift_x`, `mood_shift_y`: supported, for custom types only. A game monster's bubble does not move.
+- `shift_x`, `shift_y` inside a sprite of `monsters.json`: supported ([28.4](#284-art-what-is-drawn-when)).
+- `raid_cat_spacing`: accepted and ignored, since the raid window now pages by 4. The log says so once per mod: `[GNX-INFO] monsters.json '<name>' raid_cat_spacing: ignored since GNX 1.5.3 (raid categories page by 4)`.
+- A top-level key that starts with `_`: skipped, as a comment.
+- An entry without `like`: a mod error. Add `"like": "goblin"`.
+- A number for a type (`"mon_types": [4]`, `"preg_mon_type_override": 4`): a mod error. Write the name.
+
+The schema of the file is `tools/schemas/monsters.schema.json`, and `check_mod.py` ([26](#26-checking-your-mod-schemas-and-check_modpy)) reads it.
+
+---
+
 ## Appendix A. Vanilla IDs and cell list
 
 **In short:** the ID numbers of the unmodded game's classes, monster types, raid stages and cells, for numeric IDs, vanilla patches and `character_row`.
@@ -5804,7 +5953,7 @@ Keys are the vanilla names: VILLAGE, MOUNTAIN, FOREST, CASTLE, TOWER.
 
 ### A.2 Monster types (mon_type)
 
-`0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre; JSON keys use the same names (`goblin`, `hobgoblin`, `tentacle`, `ogre`).
+`0` goblin, `1` hobgoblin, `2` tentacle, `3` ogre; JSON keys use the same names (`goblin`, `hobgoblin`, `tentacle`, `ogre`). A custom monster type ([28](#28-custom-monster-types-monstersjson)) has no fixed number: write its name. A number from 4 up for a type in a mod's JSON is a mod error.
 
 ### A.3 Raid stages
 
@@ -5978,6 +6127,19 @@ Rows whose meaning starts with "Information" (such as `override (merge)` and `pa
 | `[GNX] ERROR: class '<name>' monster_art.<monster>...: no address <address>` | The address is not in the list (1.5.2). | Take it from [16.9](#169-address-list); `goblin.standard` has `leg_1`, not `leg_0`. |
 | `[GNX] ERROR: ... art for <sprite> has <N> frames, the game sprite <M>` | A swap must have the frame count of the sprite it replaces (1.5.2). | Match the count; size and origin are not checked, so keep the layout too ([16.7](#167-monster_art-by-class-and-for-all-monsters)). |
 | `[GNX] ERROR: ... at another size xorig and yorig are required` | `world` art with a size other than the game sprite's has no origin (1.5.2). | Give both `xorig` and `yorig` ([16.8](#168-world-art-how-monsters-stand-walk-and-carry)). |
+| `[GNX] ERROR: Mod '<folder>' monsters.json: '<name>': <problem>; left out` | An entry of `monsters.json` was refused: not an object, a game monster's name, a bad name (`a-z`, `0-9`, `_`), a reserved name (`hob`, `ogr`, `pN`, `<name>_pN`), a name another mod declared first, no `like`, a `like` that is not goblin, hobgoblin or ogre, an unknown key (the message lists the known ones), or a bad `food`, `stat` or `speed`. | Fix the entry ([28.2](#282-keys), [28.3](#283-names-numbers-and-saves)). |
+| `[GNX] ERROR: Mod '<folder>' monsters.json: '<name>': range must be 4 lists ...` (also `skills must be 4 skill ids 0-15`, `mood_shift_x must be a number`, `<key>: shift_x must be a number`) | One key of the entry is wrong and is ignored; the type still loads. | Fix the key ([28.2](#282-keys)). |
+| `[GNX-WARN] monsters.json '<name>' <key>: sprite not loaded, <like> art used` (also `heads: needs 4 frames (one per class), like's heads used`) | A sprite of the type could not load, or `heads` has fewer than 4 frames; the like's art is used. | Check the path ([5.2](#52-where-gnx-takes-the-image-from)); give `heads` 4 frames ([28.4](#284-art-what-is-drawn-when)). |
+| `[GNX-INFO] monsters.json '<name>' raid_cat_spacing: ignored since GNX 1.5.3 (raid categories page by 4)` | Information: the key is accepted and does nothing. | Remove it, or leave it ([28.9](#289-keys-of-older-builds)). |
+| `[GNX] monster type '<name>' = <n> (like <like>) from <folder>` | Information: the type was added, with its number of this start. | Nothing. |
+| `[GNX] ERROR: Cell '<name>': mon_types entry <value> is no monster (0-3 or a type name); left out` | A number from 4 up, or other text, in `mon_types` or `mon_placements`. | Write the type's name ([28.3](#283-names-numbers-and-saves)). |
+| `[GNX-WARN] <where>: monster type '<name>' is not installed; left out` | A cell names a type that no installed mod declares (yet). | Install the mod that declares it, or fix the name; a map mod's type is taken when that map loads ([28.6](#286-maps-and-village)). |
+| `[GNX] ERROR: Class '<name>' (mod <folder>): preg_mon_type_override must be 0-3 (goblin, hobgoblin, tentacle, ogre) or a monster type name, not <value>; ignored` | A number from 4 up, or a value that is neither a number nor a name. | Write 0-3 or the type's name ([14.1](#141-pregnancy-preg_c_override-and-preg_mon_type_override)). |
+| `[GNX-WARN] class <name>: preg_mon_type_override '<name>' is not installed, <what is used instead>` (also `class <name>: birth_class.<name>, birth_spr.<key>.<name>: no installed mod declares that monster type yet; kept by name, it takes effect once a mod adds the type`) | A class names a type no mod declares yet. The name is kept. | Install the mod that declares it ([28.5](#285-where-a-type-name-works)). |
+| `[GNX] ERROR: <cell or class> monster_art: unknown monster '<name>'` | `monster_art` names something that is not a monster. In class and manifest scope a custom type's name is not accepted. | Use `goblin`, `hobgoblin` or `ogre` there, or a cell's `monster_art` for a custom type ([28.5](#285-where-a-type-name-works)). |
+| `[GNX-WARN] mod '<folder>' sounds.json ambience.species: '<name>' is not a monster type any installed mod declares (ignored)` (also `voice by_mon_type: '<name>' ...`) | A sound key names an unknown custom type. | Fix the name, or install the mod that declares the type ([28.5](#285-where-a-type-name-works)). |
+| `[GNX-WARN] travel: monster type '<name>' not on this map, its troops arrive as <like>` | Troops of a custom type were carried to a map where its mod does not load. | Nothing; the TROOPS tab only offers types the map has ([28.6](#286-maps-and-village)). |
+| `[GNX] load: monster type '<name>' not installed: <n> monster(s) taken off the board, ...; its counts stay in the save` (also `was <n>, is now <m>`) | Information: a save holds a type whose mod is off, or numbered otherwise. Nothing is lost. | Switch the mod back on ([28.8](#288-if-the-mod-is-removed)). |
 
 
 ### B.3 Common mistakes

@@ -1,0 +1,24 @@
+{
+  "about": "Custom types P4 (I1): a boot-loaded cell (harness_type_gart, map all) has monster_art for newt, the type of the map mod harness_map_type (map harness_t). At boot newt does not exist: the block waits with a warning, not a mod error. After travel newt loads before the cells, and after a menu load of a harness_t save the deferred load appends newt and replays the waiting block: the cell holds its newt art both times.",
+  "mods": ["tools/scenarios/mods/harness_map_type", "tools/scenarios/mods/harness_type_gart"],
+  "timeout": 180,
+  "steps": [
+    {"wait": 30},
+    {"assert": "fn", "name": "gnx_scn_art_blocks", "args": [9234], "is": 0, "why": "newt is not installed at boot: its block waits"},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["TYPE GART' monster_art.newt: monster type 'newt' is not installed; the art waits for it"], "is": 1},
+    {"assert": "fn", "name": "gnx_scn_log_has", "args": ["unknown monster 'newt'"], "is": 0, "why": "no mod error (before the fix: one at every boot)"},
+    {"do": {"type": "add_gold", "amount": 5000}},
+    {"do": {"type": "add_food", "amount": 300}},
+    {"travel_with": {"to": "harness_t"}},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"assert": "fn", "name": "gnx_scn_art_blocks", "args": [9234], "is": 1, "why": "after travel the map mod loads before the cells: the newt block is kept"},
+    {"save": 9},
+    {"reload": 9, "why": "quit to menu, then load the save: the map mod is loaded in the deferred load"},
+    {"wait": 30},
+    {"assert": "active_map", "is": "harness_t"},
+    {"assert": "fn", "name": "gnx_scn_cell_mon_types", "args": [9234], "is": "0 4"},
+    {"assert": "fn", "name": "gnx_scn_art_blocks", "args": [9234], "is": 1, "why": "the waiting block is replayed after the deferred load (before the fix: 0)"},
+    {"assert": "registry_ok"}
+  ]
+}
