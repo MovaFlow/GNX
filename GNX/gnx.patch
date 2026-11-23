@@ -7192,7 +7192,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cells.gml
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3511 @@
+@@ -0,0 +1,3555 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -10666,6 +10666,50 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +    return gnx_cell_is_home(arg0, arg1) || (arg0 == 37 && arg1 == 11);
 +}
 +
++// F56: a cell's "tentacle_type" (arg0) checked when it loads: a type name, or 2 for the game's tentacle. Kept as
++// given (a name is resolved at use, since a map mod can add types later); a type that is not like "tentacle" is
++// a mod error and the key is left out (undefined). arg1 = cell name, arg2 = mod, for the message
++function gnx_tent_type_check(arg0, arg1, arg2)
++{
++    if (is_numeric(arg0) && arg0 == 2)
++        return 2;
++
++    if (is_string(arg0))
++    {
++        var _t = gnx_mon_type_id(arg0);
++
++        if (_t < 0 || gnx_mon_like(_t) == 2)
++            return arg0;
++
++        gnx_report_mod_error("Mod '" + string(arg2) + "': cell '" + string(arg1) + "' tentacle_type '" + arg0 + "' is not a tentacle type (its monsters.json \"like\" must be \"tentacle\"); left out");
++        return undefined;
++    }
++
++    gnx_report_mod_error("Mod '" + string(arg2) + "': cell '" + string(arg1) + "' tentacle_type must be a monster type name, not " + string(arg0) + "; left out");
++    return undefined;
++}
++
++// F56: the tentacle type of cell h_type arg0: births there are of this type and its moving tentacle is drawn as it.
++// 2 (the game's tentacle) without "tentacle_type", or when the named type is not installed (one warning per name)
++function gnx_cell_tent_type(arg0)
++{
++    if (!ds_map_exists(global.cell_registry, arg0))
++        return 2;
++
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++
++    if (!variable_struct_exists(_c, "gnx_tent_type") || is_undefined(_c.gnx_tent_type) || _c.gnx_tent_type == 2)
++        return 2;
++
++    var _t = gnx_mon_type_id(_c.gnx_tent_type);
++
++    if (_t >= 4 && gnx_mon_like(_t) == 2)
++        return _t;
++
++    gnx_log_once("tent_type " + string(_c.gnx_tent_type), "[GNX-WARN] tentacle_type '" + string(_c.gnx_tent_type) + "' is not an installed tentacle type: the game's tentacle is used\n");
++    return 2;
++}
++
 +// GNX-BIRTH (F46): the step of scr_slot_h_giant_birth in a cell's scene list (arg0 = its scr_slot), -1 = none;
 +// mod lists hold script indices from asset_get_index, so the same lookup is used here
 +function gnx_birth_step(arg0)
@@ -10707,7 +10751,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_content.gml
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,5824 @@
+@@ -0,0 +1,5850 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -11500,12 +11544,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    }
 +
 +    var _vanilla = ["goblin", "hobgoblin", "tentacle", "ogre"];
-+    var _likes = ["goblin", "hobgoblin", "ogre"];
-+    var _like_ids = [0, 1, 3];
-+    var _like_food = [0.5, 0.7, 1];
-+    var _like_walk = [spr_goblin_walk, spr_hobgoblin_walk, spr_ogre_walk];
-+    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills", "mood_shift_x", "mood_shift_y", "raid_cat_spacing"];
-+    var _spr_keys = ["idle", "walk", "b_walk", "icon", "heads", "infant_head"];
++    // F56: "tentacle" too (like id 2): a type without a walking body, as the vanilla tentacle (its walk art is never used)
++    var _likes = ["goblin", "hobgoblin", "ogre", "tentacle"];
++    var _like_ids = [0, 1, 3, 2];
++    var _like_food = [0.5, 0.7, 1, 0.5];
++    var _like_walk = [spr_goblin_walk, spr_hobgoblin_walk, spr_ogre_walk, spr_goblin_walk];
++    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills", "mood_shift_x", "mood_shift_y", "raid_cat_spacing", "tent", "tent_ej"];
++    // F56: tent / tent_ej = the moving tentacle of the vanilla tentacle cells (sheets laid out as spr_h_tent_mon / _ej_mon)
++    var _spr_keys = ["idle", "walk", "b_walk", "icon", "heads", "infant_head", "tent", "tent_ej"];
 +    var _base_dir = global.gnx_mods_root + arg0 + "/";
 +    var _names = variable_struct_get_names(_defs);
 +    array_sort(_names, true);  // numbering does not depend on the runtime's struct order
@@ -11571,7 +11617,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +        var _lk = -1;
 +
-+        for (var _l = 0; _l < 3; _l++)
++        for (var _l = 0; _l < 4; _l++)
 +        {
 +            if (is_string(_d.like) && _d.like == _likes[_l])
 +                _lk = _l;
@@ -11579,7 +11625,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +        if (_lk < 0)
 +        {
-+            gnx_report_mod_error(_p + "'" + _k + "': like '" + string(_d.like) + "' is not goblin, hobgoblin or ogre" + ((string(_d.like) == "tentacle") ? " (tentacles have no walking body)" : "") + "; left out");
++            gnx_report_mod_error(_p + "'" + _k + "': like '" + string(_d.like) + "' is not goblin, hobgoblin, ogre or tentacle; left out");
 +            continue;
 +        }
 +
@@ -11594,7 +11640,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +
 +        if (_unknown != "")
 +        {
-+            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills, mood_shift_x, mood_shift_y, raid_cat_spacing); left out");
++            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills, mood_shift_x, mood_shift_y, raid_cat_spacing, tent, tent_ej); left out");
 +            continue;
 +        }
 +
@@ -11674,9 +11720,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +        }
 +
 +        // title: the display name for menus (monsters.json "name"), "" when there is none
-+        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, mood_x: _mood[0], mood_y: _mood[1], own_art: false};
++        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, spr_tent: -1, spr_tent_ej: -1, range: _range, skills: _skills, mood_x: _mood[0], mood_y: _mood[1], own_art: false};
 +
-+        for (var _s = 0; _s < 6; _s++)
++        for (var _s = 0; _s < array_length(_spr_keys); _s++)
 +        {
 +            var _sk = _spr_keys[_s];
 +
@@ -11711,11 +11757,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +                }
 +                else if (_s >= 3 && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
 +                {
++                    // F56: tent / tent_ej take the origin of the tentacle sheets
++
 +                    // GNX-TYPES (P4): icon, heads and infant_head without xorig / yorig / origin_from take the origin of the game
 +                    // sheet they stand in for, so the art lands where the vanilla icon does (a mod sprite's own origin is its top
 +                    // left corner), for every object form (strip, path, folder, frames). Like the branch above, this sets the
 +                    // origin on the shared cached handle
-+                    var _van = (_s == 3) ? spr_mon_icon : ((_s == 4) ? spr_mon_icon_head : spr_infant_ui_head);
++                    var _van = (_s == 3) ? spr_mon_icon : ((_s == 4) ? spr_mon_icon_head : ((_s == 5) ? spr_infant_ui_head : ((_s == 6) ? spr_h_tent_mon : spr_h_tent_ej_mon)));
 +                    var _iox = (_ofr || variable_struct_exists(_v, "xorig")) ? sprite_get_xoffset(_spr) : sprite_get_xoffset(_van);
 +                    var _ioy = (_ofr || variable_struct_exists(_v, "yorig")) ? sprite_get_yoffset(_spr) : sprite_get_yoffset(_van);
 +                    sprite_set_offset(_spr, _iox, _ioy);
@@ -11778,6 +11826,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +            if (_sk == "heads" && sprite_get_number(_spr) < 4)
 +            {
 +                gnx_log_write(_log, "[GNX-WARN] monsters.json '" + _k + "' heads: needs 4 frames (one per class), like's heads used\n");
++                continue;
++            }
++
++            // F56: a tentacle sheet has a row of frames per vanilla tentacle cell, as the game's sheet
++            var _tvan = (_sk == "tent") ? spr_h_tent_mon : ((_sk == "tent_ej") ? spr_h_tent_ej_mon : -1);
++
++            if (_tvan != -1 && sprite_get_number(_spr) < sprite_get_number(_tvan))
++            {
++                gnx_log_write(_log, "[GNX-WARN] monsters.json '" + _k + "' " + _sk + ": needs " + string(sprite_get_number(_tvan)) + " frames (as " + sprite_get_name(_tvan) + "), the tinted tentacle used\n");
 +                continue;
 +            }
 +
@@ -12694,6 +12751,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    if (variable_struct_exists(arg0, "mon_types"))
 +        _cell.mon_types = arg0.mon_types;
 +
++    // F56: the tentacle type of a tentacle cell (its births and its moving tentacle)
++    if (variable_struct_exists(arg0, "tentacle_type"))
++        _cell.gnx_tent_type = gnx_tent_type_check(arg0.tentacle_type, _cn, arg1);
++
 +    // GNX-FIX: monster species and places checked once (audit P5)
 +    gnx_cell_mon_check(_cell, _cn, arg1);
 +
@@ -13215,6 +13276,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +    
 +    if (variable_struct_exists(arg1, "price"))
 +        _cell.gnx_price = arg1.price;
++
++    // F56: a patch can give a cell (a vanilla tentacle cell too) its tentacle type
++    if (variable_struct_exists(arg1, "tentacle_type"))
++        _cell.gnx_tent_type = gnx_tent_type_check(arg1.tentacle_type, variable_struct_exists(_cell, "name") ? _cell.name : ("h_type " + string(arg0)), arg2);
 +    
 +    if (variable_struct_exists(arg1, "code_text"))
 +        _cell.gnx_code_text = arg1.code_text;
@@ -15840,7 +15905,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +                // GNX-TYPES: a game number 0-3 or a type name (gnx_mon_type_json reports anything else)
 +                var _v = gnx_mon_type_json(arg0.mon_types[i], "Cell '" + string(arg1) + "'");
 +
-+                if (_v >= 0)
++                // F56: a tentacle-like type has no walking body: a cell gets it through tentacle_type, never as a caller
++                if (_v >= 4 && gnx_mon_like(_v) == 2)
++                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_types has '" + gnx_mon_type_name(_v) + "', a tentacle type, which does not walk to cells (give a tentacle cell \"tentacle_type\" instead); left out");
++                else if (_v >= 0)
 +                    array_push(_new_mt, _v);
 +                else if (gnx_mon_name_pending(arg0.mon_types[i]))
 +                    arg0.gnx_mon_types_pending = true;
@@ -15900,6 +15968,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 +                    if (gnx_mon_name_pending(_e[i]))
 +                        arg0.gnx_mon_types_pending = true;
 +                }
++                else if (_v >= 4 && gnx_mon_like(_v) == 2)
++                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] has '" + gnx_mon_type_name(_v) + "', a tentacle type, which does not walk to cells; left out");
 +                else if (is_array(_mt) && !array_contains(_mt, _v))
 +                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] has species " + string(_v) + ", which is not in mon_types (it would be invisible); left out");
 +                else
@@ -18147,7 +18217,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9033 @@
+@@ -0,0 +1,9057 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -22693,6 +22763,30 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +{
 +    var _d = gnx_mon_data(arg0);
 +    return is_undefined(_d) ? -999 : _d.num[arg1];
++}
++
++
++// F56 checks: all monsters of custom type arg0 (by name), every class; -999 when the type is unknown
++function gnx_scn_type_total(arg0)
++{
++    var _d = gnx_mon_data(arg0);
++
++    if (is_undefined(_d))
++        return -999;
++
++    var _n = 0;
++
++    for (var _i = 0; _i < array_length(_d.num); _i++)
++        _n += max(0, _d.num[_i]);
++
++    return _n;
++}
++
++
++// F56 checks: the tentacle type of cell h_type arg0 by name ("tentacle" = the game's)
++function gnx_scn_tent_type(arg0)
++{
++    return gnx_mon_type_name(gnx_cell_tent_type(arg0));
 +}
 +
 +
@@ -40800,7 +40894,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 +
 +function scr_gnx_test_t87(_r, _log)
 +{
-+    // T87: the monster type table: 0-3 are the game's types with like == index; every mod type is like 0, 1 or 3,
++    // T87: the monster type table: 0-3 are the game's types with like == index; every mod type is like 0, 1, 2 (F56) or 3,
 +    // has its mod, and its name maps back to its index; the name map holds exactly the table's names
 +    var _bad87 = "";
 +    var _van87 = ["goblin", "hobgoblin", "tentacle", "ogre"];
@@ -40815,7 +40909,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_tests.gml gml/gml_GlobalScript_s_gnx_tes
 +            if (_e87.name != _van87[_i87] || _e87.like != _i87)
 +                _bad87 += string(_i87) + " is " + string(_e87.name) + "/" + string(_e87.like) + " ";
 +        }
-+        else if (!(_e87.like == 0 || _e87.like == 1 || _e87.like == 3) || string(variable_struct_get(_e87, "mod")) == "" || gnx_mon_type_id(_e87.name) != _i87)
++        else if (!(_e87.like >= 0 && _e87.like <= 3) || string(variable_struct_get(_e87, "mod")) == "" || gnx_mon_type_id(_e87.name) != _i87)
 +            _bad87 += string(_i87) + " " + string(_e87.name) + " ";
 +    }
 +
@@ -53429,8 +53523,10 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
 +                        
 +                        if (_mon_spr.hand_l != -1)
 +                            gnx_draw_sprite_ext(_mon_spr.hand_l, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, 16777215, global.val.mon_alpha);
-+                    }
-+                    
+                     }
+                     
+-                    draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
+-                    draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
 +                    if (global.gnx_trace_entities && _spr_data.h_type == 3)
 +                    {
 +                        var _fi = floor(_mon_index);
@@ -53439,10 +53535,8 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
 +                        var _sw = _se ? gnx_sprite_get_width(_mon_spr.body_b) : 0;  // Mav (1.4.7.5): atlas-safe
 +                        var _sh = _se ? gnx_sprite_get_height(_mon_spr.body_b) : 0;  // Mav (1.4.7.5): atlas-safe
 +                        scr_gnx_trace("RENDER", id, "body_b=" + string(_mon_spr.body_b) + " frame=" + string(_fi) + " exists=" + string(_se) + " nframes=" + string(_nf2) + " w=" + string(_sw) + " h=" + string(_sh) + " dx=" + string(_x + _x_flip) + " dy=" + string(_y) + " head=" + string(_mon_spr.head_b) + " hand=" + string(_mon_spr.hand_b) + " pen=" + string(_mon_spr.pen));
-                     }
-                     
--                    draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
--                    draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
++                    }
++                    
 +                    gnx_draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
 +                    
 +                    if (_mon_spr.body_l != -1)
@@ -53642,7 +53736,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
                          
                          break;
                  }
-@@ -226,14 +287,24 @@
+@@ -226,14 +287,41 @@
  
  function scr_tent_draw()
  {
@@ -53654,6 +53748,23 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
 +    }
 +    var _row_type = mon_data.h_type - 26 - 1;
      image_index = (_row_type * 5) + mon_data.index;
++    // F56: a cell with a custom tentacle_type draws that type's tent / tent_ej sheet, else the game's sheet tinted
++    // as other custom types without art
++    var _tt = gnx_cell_tent_type(mon_data.h_type);
++
++    if (_tt >= 4)
++    {
++        var _td = global.gnx_mon_types[_tt];
++        var _own = (spr_type == spr_h_tent_ej_mon) ? _td.spr_tent_ej : _td.spr_tent;
++
++        if (_own != -1)
++            draw_sprite(_own, image_index, x, y);
++        else
++            draw_sprite_ext(spr_type, image_index, x, y, 1, 1, 0, make_color_rgb(150, 170, 255), 1);
++
++        exit;
++    }
++
      draw_sprite(spr_type, image_index, x, y);
  }
  
@@ -53669,7 +53780,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_draw.gml gml/gml_GlobalScript_s_mon_draw
      
      if (spr_unit != -1)
      {
-@@ -241,35 +312,17 @@
+@@ -241,35 +329,17 @@
          var _hair = spr_unit.hair;
          var _hair_c = spr_unit.hair_c;
          var _spr_c = 8;
@@ -67547,7 +67658,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  }
                  
 -                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && arg1.source_id.slot_data.h_type >= UnknownEnum.Value_26 && arg1.source_id.slot_data.h_type < UnknownEnum.Value_35 && (_old_unit_data.preg != -1 && _old_unit_data.preg != UnknownEnum.Value_2))
-+                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && arg1.source_id.slot_data.h_type >= 26 && arg1.source_id.slot_data.h_type < 35 && (_old_unit_data.preg != -1 && _old_unit_data.preg != 2))
++                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && arg1.source_id.slot_data.h_type >= 26 && arg1.source_id.slot_data.h_type < 35 && (_old_unit_data.preg != -1 && gnx_mon_like(_old_unit_data.preg) != 2))
                  {
                      _result = false;
                      
@@ -67629,7 +67740,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
                  }
                  
 -                if (_result && _old_unit_data != -1 && arg1.drag_type == UnknownEnum.Value_2 && arg1.source_id.slot_data.h_type >= UnknownEnum.Value_26 && arg1.source_id.slot_data.h_type < UnknownEnum.Value_35 && (_old_unit_data.preg != -1 && _old_unit_data.preg != UnknownEnum.Value_2))
-+                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && arg1.source_id.slot_data.h_type >= 26 && arg1.source_id.slot_data.h_type < 35 && (_old_unit_data.preg != -1 && _old_unit_data.preg != 2))
++                if (_result && _old_unit_data != -1 && arg1.drag_type == 2 && arg1.source_id.slot_data.h_type >= 26 && arg1.source_id.slot_data.h_type < 35 && (_old_unit_data.preg != -1 && gnx_mon_like(_old_unit_data.preg) != 2))
                  {
                      _result = false;
                      
@@ -68969,7 +69080,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
          var _pris_unit = ds_list_find_value(global.unit_list, i);
          
 -        if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class == _class && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == UnknownEnum.Value_2)))))
-+        if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class == _class && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == _tent_preg)))))
++        if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class == _class && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && (_pris_unit.preg == _tent_preg || (_tent_preg == 2 && gnx_mon_like(_pris_unit.preg) == 2)))))))
          {
              _swap_pos = i;
              i = _num;
@@ -68985,7 +69096,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_function.gml gml/gml_GlobalScript_s_slo
              var _pris_unit = ds_list_find_value(global.unit_list, i);
              
 -            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class != UnknownEnum.Value_11 && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == UnknownEnum.Value_2)))))
-+            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class != 11 && gnx_class_cell_listed_ok(arg1, _pris_unit.class) && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && _pris_unit.preg == _tent_preg)))))
++            if (_pris_unit != -1 && i != _hold_pos && floor(_pris_unit.preg_c) != 0 && _pris_unit.class != 11 && gnx_class_cell_listed_ok(arg1, _pris_unit.class) && (!_tent || (_tent && (_pris_unit.preg == -1 || (_pris_unit.preg != -1 && (_pris_unit.preg == _tent_preg || (_tent_preg == 2 && gnx_mon_like(_pris_unit.preg) == 2)))))))
              {
                  _swap_pos = i;
                  i = _num;
@@ -70819,7 +70930,7 @@ diff -uN gml_138/gml_GlobalScript_s_slot_state.gml gml/gml_GlobalScript_s_slot_s
 +                            if (irandom_range(0, 100) <= unit_data.preg_prd || unit_data.class == 12)
                              {
 -                                unit_data.preg = UnknownEnum.Value_2;
-+                                unit_data.preg = 2;
++                                unit_data.preg = gnx_cell_tent_type(slot_data.h_type);  // F56: the cell's tentacle_type (2 = the game's tentacle)
                                  unit_data.preg_prd = 10;
                                  slot_data.h_step++;
                              }

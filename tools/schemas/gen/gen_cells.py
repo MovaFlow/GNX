@@ -129,6 +129,7 @@ cell = obj({
     "category": {"enum": CATS, "description": "Build menu tab and cell size (guide 8.4)."},
     "locked": d(B, "Not in the build menu until unlocked."),
     "mon_types": {"type": "array", "items": {"oneOf": [{"type": "integer", "minimum": 0, "maximum": 3}, {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}]}, "description": "Which monsters come: 0 goblin, 1 hobgoblin, 2 tentacle, 3 ogre, or a type name (\"goblin\", \"hobgoblin\", \"tentacle\", \"ogre\", or a custom type from a monsters.json, e.g. \"wolf\"); a number 4 or more is a mod error (guide 8.5)."},
+    "tentacle_type": {"oneOf": [{"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}, {"const": 2}], "description": "A tentacle cell's tentacle: a monster type whose monsters.json \"like\" is \"tentacle\". Births in the cell are of that type and its moving tentacle is drawn with the type's tent / tent_ej art (tinted without). Works on vanilla tentacle cells through a patch (since 1.5.4, guide 28)."},
     "slot_type": d(INT, "Only affects the default base_body (guide 8.4)."),
     "price": N,
     "code_text": S,

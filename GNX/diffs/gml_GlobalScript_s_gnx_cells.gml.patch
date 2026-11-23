@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3511 @@
+@@ -0,0 +1,3555 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -3472,6 +3472,50 @@
 +function gnx_swap_into_special_ok(arg0, arg1)
 +{
 +    return gnx_cell_is_home(arg0, arg1) || (arg0 == 37 && arg1 == 11);
++}
++
++// F56: a cell's "tentacle_type" (arg0) checked when it loads: a type name, or 2 for the game's tentacle. Kept as
++// given (a name is resolved at use, since a map mod can add types later); a type that is not like "tentacle" is
++// a mod error and the key is left out (undefined). arg1 = cell name, arg2 = mod, for the message
++function gnx_tent_type_check(arg0, arg1, arg2)
++{
++    if (is_numeric(arg0) && arg0 == 2)
++        return 2;
++
++    if (is_string(arg0))
++    {
++        var _t = gnx_mon_type_id(arg0);
++
++        if (_t < 0 || gnx_mon_like(_t) == 2)
++            return arg0;
++
++        gnx_report_mod_error("Mod '" + string(arg2) + "': cell '" + string(arg1) + "' tentacle_type '" + arg0 + "' is not a tentacle type (its monsters.json \"like\" must be \"tentacle\"); left out");
++        return undefined;
++    }
++
++    gnx_report_mod_error("Mod '" + string(arg2) + "': cell '" + string(arg1) + "' tentacle_type must be a monster type name, not " + string(arg0) + "; left out");
++    return undefined;
++}
++
++// F56: the tentacle type of cell h_type arg0: births there are of this type and its moving tentacle is drawn as it.
++// 2 (the game's tentacle) without "tentacle_type", or when the named type is not installed (one warning per name)
++function gnx_cell_tent_type(arg0)
++{
++    if (!ds_map_exists(global.cell_registry, arg0))
++        return 2;
++
++    var _c = ds_map_find_value(global.cell_registry, arg0);
++
++    if (!variable_struct_exists(_c, "gnx_tent_type") || is_undefined(_c.gnx_tent_type) || _c.gnx_tent_type == 2)
++        return 2;
++
++    var _t = gnx_mon_type_id(_c.gnx_tent_type);
++
++    if (_t >= 4 && gnx_mon_like(_t) == 2)
++        return _t;
++
++    gnx_log_once("tent_type " + string(_c.gnx_tent_type), "[GNX-WARN] tentacle_type '" + string(_c.gnx_tent_type) + "' is not an installed tentacle type: the game's tentacle is used\n");
++    return 2;
 +}
 +
 +// GNX-BIRTH (F46): the step of scr_slot_h_giant_birth in a cell's scene list (arg0 = its scr_slot), -1 = none;

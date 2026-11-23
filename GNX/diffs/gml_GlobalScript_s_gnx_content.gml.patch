@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,5824 @@
+@@ -0,0 +1,5850 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -793,12 +793,14 @@
 +    }
 +
 +    var _vanilla = ["goblin", "hobgoblin", "tentacle", "ogre"];
-+    var _likes = ["goblin", "hobgoblin", "ogre"];
-+    var _like_ids = [0, 1, 3];
-+    var _like_food = [0.5, 0.7, 1];
-+    var _like_walk = [spr_goblin_walk, spr_hobgoblin_walk, spr_ogre_walk];
-+    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills", "mood_shift_x", "mood_shift_y", "raid_cat_spacing"];
-+    var _spr_keys = ["idle", "walk", "b_walk", "icon", "heads", "infant_head"];
++    // F56: "tentacle" too (like id 2): a type without a walking body, as the vanilla tentacle (its walk art is never used)
++    var _likes = ["goblin", "hobgoblin", "ogre", "tentacle"];
++    var _like_ids = [0, 1, 3, 2];
++    var _like_food = [0.5, 0.7, 1, 0.5];
++    var _like_walk = [spr_goblin_walk, spr_hobgoblin_walk, spr_ogre_walk, spr_goblin_walk];
++    var _known = ["like", "name", "food", "stat", "speed", "idle", "walk", "b_walk", "icon", "heads", "infant_head", "range", "skills", "mood_shift_x", "mood_shift_y", "raid_cat_spacing", "tent", "tent_ej"];
++    // F56: tent / tent_ej = the moving tentacle of the vanilla tentacle cells (sheets laid out as spr_h_tent_mon / _ej_mon)
++    var _spr_keys = ["idle", "walk", "b_walk", "icon", "heads", "infant_head", "tent", "tent_ej"];
 +    var _base_dir = global.gnx_mods_root + arg0 + "/";
 +    var _names = variable_struct_get_names(_defs);
 +    array_sort(_names, true);  // numbering does not depend on the runtime's struct order
@@ -864,7 +866,7 @@
 +
 +        var _lk = -1;
 +
-+        for (var _l = 0; _l < 3; _l++)
++        for (var _l = 0; _l < 4; _l++)
 +        {
 +            if (is_string(_d.like) && _d.like == _likes[_l])
 +                _lk = _l;
@@ -872,7 +874,7 @@
 +
 +        if (_lk < 0)
 +        {
-+            gnx_report_mod_error(_p + "'" + _k + "': like '" + string(_d.like) + "' is not goblin, hobgoblin or ogre" + ((string(_d.like) == "tentacle") ? " (tentacles have no walking body)" : "") + "; left out");
++            gnx_report_mod_error(_p + "'" + _k + "': like '" + string(_d.like) + "' is not goblin, hobgoblin, ogre or tentacle; left out");
 +            continue;
 +        }
 +
@@ -887,7 +889,7 @@
 +
 +        if (_unknown != "")
 +        {
-+            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills, mood_shift_x, mood_shift_y, raid_cat_spacing); left out");
++            gnx_report_mod_error(_p + "'" + _k + "': unknown key '" + _unknown + "' (known: like, name, food, stat, speed, idle, walk, b_walk, icon, heads, infant_head, range, skills, mood_shift_x, mood_shift_y, raid_cat_spacing, tent, tent_ej); left out");
 +            continue;
 +        }
 +
@@ -967,9 +969,9 @@
 +        }
 +
 +        // title: the display name for menus (monsters.json "name"), "" when there is none
-+        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, range: _range, skills: _skills, mood_x: _mood[0], mood_y: _mood[1], own_art: false};
++        var _entry = {name: _k, title: (variable_struct_exists(_d, "name") && is_string(_d.name)) ? _d.name : "", like: _like_ids[_lk], food: variable_struct_exists(_d, "food") ? _d.food : _like_food[_lk], stat: variable_struct_exists(_d, "stat") ? [_d.stat[0], _d.stat[1], _d.stat[2], _d.stat[3]] : -1, speed: variable_struct_exists(_d, "speed") ? [_d.speed[0], _d.speed[1]] : -1, spr_idle: -1, spr_walk: -1, spr_b_walk: -1, spr_icon: -1, spr_heads: -1, spr_infant_head: -1, spr_tent: -1, spr_tent_ej: -1, range: _range, skills: _skills, mood_x: _mood[0], mood_y: _mood[1], own_art: false};
 +
-+        for (var _s = 0; _s < 6; _s++)
++        for (var _s = 0; _s < array_length(_spr_keys); _s++)
 +        {
 +            var _sk = _spr_keys[_s];
 +
@@ -1004,11 +1006,13 @@
 +                }
 +                else if (_s >= 3 && !is_struct(_spr) && _spr != -1 && sprite_exists(_spr))
 +                {
++                    // F56: tent / tent_ej take the origin of the tentacle sheets
++
 +                    // GNX-TYPES (P4): icon, heads and infant_head without xorig / yorig / origin_from take the origin of the game
 +                    // sheet they stand in for, so the art lands where the vanilla icon does (a mod sprite's own origin is its top
 +                    // left corner), for every object form (strip, path, folder, frames). Like the branch above, this sets the
 +                    // origin on the shared cached handle
-+                    var _van = (_s == 3) ? spr_mon_icon : ((_s == 4) ? spr_mon_icon_head : spr_infant_ui_head);
++                    var _van = (_s == 3) ? spr_mon_icon : ((_s == 4) ? spr_mon_icon_head : ((_s == 5) ? spr_infant_ui_head : ((_s == 6) ? spr_h_tent_mon : spr_h_tent_ej_mon)));
 +                    var _iox = (_ofr || variable_struct_exists(_v, "xorig")) ? sprite_get_xoffset(_spr) : sprite_get_xoffset(_van);
 +                    var _ioy = (_ofr || variable_struct_exists(_v, "yorig")) ? sprite_get_yoffset(_spr) : sprite_get_yoffset(_van);
 +                    sprite_set_offset(_spr, _iox, _ioy);
@@ -1071,6 +1075,15 @@
 +            if (_sk == "heads" && sprite_get_number(_spr) < 4)
 +            {
 +                gnx_log_write(_log, "[GNX-WARN] monsters.json '" + _k + "' heads: needs 4 frames (one per class), like's heads used\n");
++                continue;
++            }
++
++            // F56: a tentacle sheet has a row of frames per vanilla tentacle cell, as the game's sheet
++            var _tvan = (_sk == "tent") ? spr_h_tent_mon : ((_sk == "tent_ej") ? spr_h_tent_ej_mon : -1);
++
++            if (_tvan != -1 && sprite_get_number(_spr) < sprite_get_number(_tvan))
++            {
++                gnx_log_write(_log, "[GNX-WARN] monsters.json '" + _k + "' " + _sk + ": needs " + string(sprite_get_number(_tvan)) + " frames (as " + sprite_get_name(_tvan) + "), the tinted tentacle used\n");
 +                continue;
 +            }
 +
@@ -1987,6 +2000,10 @@
 +    if (variable_struct_exists(arg0, "mon_types"))
 +        _cell.mon_types = arg0.mon_types;
 +
++    // F56: the tentacle type of a tentacle cell (its births and its moving tentacle)
++    if (variable_struct_exists(arg0, "tentacle_type"))
++        _cell.gnx_tent_type = gnx_tent_type_check(arg0.tentacle_type, _cn, arg1);
++
 +    // GNX-FIX: monster species and places checked once (audit P5)
 +    gnx_cell_mon_check(_cell, _cn, arg1);
 +
@@ -2508,6 +2525,10 @@
 +    
 +    if (variable_struct_exists(arg1, "price"))
 +        _cell.gnx_price = arg1.price;
++
++    // F56: a patch can give a cell (a vanilla tentacle cell too) its tentacle type
++    if (variable_struct_exists(arg1, "tentacle_type"))
++        _cell.gnx_tent_type = gnx_tent_type_check(arg1.tentacle_type, variable_struct_exists(_cell, "name") ? _cell.name : ("h_type " + string(arg0)), arg2);
 +    
 +    if (variable_struct_exists(arg1, "code_text"))
 +        _cell.gnx_code_text = arg1.code_text;
@@ -5133,7 +5154,10 @@
 +                // GNX-TYPES: a game number 0-3 or a type name (gnx_mon_type_json reports anything else)
 +                var _v = gnx_mon_type_json(arg0.mon_types[i], "Cell '" + string(arg1) + "'");
 +
-+                if (_v >= 0)
++                // F56: a tentacle-like type has no walking body: a cell gets it through tentacle_type, never as a caller
++                if (_v >= 4 && gnx_mon_like(_v) == 2)
++                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_types has '" + gnx_mon_type_name(_v) + "', a tentacle type, which does not walk to cells (give a tentacle cell \"tentacle_type\" instead); left out");
++                else if (_v >= 0)
 +                    array_push(_new_mt, _v);
 +                else if (gnx_mon_name_pending(arg0.mon_types[i]))
 +                    arg0.gnx_mon_types_pending = true;
@@ -5193,6 +5217,8 @@
 +                    if (gnx_mon_name_pending(_e[i]))
 +                        arg0.gnx_mon_types_pending = true;
 +                }
++                else if (_v >= 4 && gnx_mon_like(_v) == 2)
++                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] has '" + gnx_mon_type_name(_v) + "', a tentacle type, which does not walk to cells; left out");
 +                else if (is_array(_mt) && !array_contains(_mt, _v))
 +                    gnx_report_mod_error("Cell '" + string(arg1) + "': mon_placements[" + string(p) + "] has species " + string(_v) + ", which is not in mon_types (it would be invisible); left out");
 +                else

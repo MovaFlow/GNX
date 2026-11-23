@@ -1,0 +1,109 @@
+{
+  "about": "F56: a custom monster type like \"tentacle\" (slime, harness_type_tent): it loads (it was refused before), has no walking body (a cell listing it in mon_types gets a mod error and leaves it out), and a tentacle cell with \"tentacle_type\": \"slime\" (vanilla T.WALL 1 patched) gives slime births: class 12 always gets pregnant there.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_type_tent"
+  ],
+  "expect_dialog": "a tentacle type",
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_tent_type",
+      "args": [
+        31
+      ],
+      "is": "slime",
+      "why": "T.WALL 1 is patched to slime"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_tent_type",
+      "args": [
+        32
+      ],
+      "is": "tentacle",
+      "why": "control: T.WALL 2 keeps the game's tentacle"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_type_total",
+      "args": [
+        "slime"
+      ],
+      "is": 0,
+      "why": "no slime yet"
+    },
+    {
+      "call": "gnx_scn_build_on_last",
+      "args": [
+        2
+      ]
+    },
+    {
+      "call": "gnx_scn_set_last_cell",
+      "args": [
+        31
+      ]
+    },
+    {
+      "wait": 5
+    },
+    {
+      "occupy": {
+        "h_type": 31,
+        "class": 12
+      }
+    },
+    {
+      "wait": 4000
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_type_total",
+      "args": [
+        "slime"
+      ],
+      "is": 1,
+      "why": "the tentacle scene made her pregnant with slime, and she gave birth to one"
+    },
+    {
+      "call": "gnx_scn_camera_on_occupied"
+    },
+    {
+      "wait": 5
+    },
+    {
+      "screenshot": "slime_tentacle"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_type_total",
+      "args": [
+        "slime"
+      ],
+      "is": 1,
+      "why": "kept by the save"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_tent_type",
+      "args": [
+        31
+      ],
+      "is": "slime",
+      "why": "the patch is applied again after a load"
+    }
+  ]
+}

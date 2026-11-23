@@ -5842,9 +5842,9 @@ The key of an entry is the type's name: `a-z`, `0-9` and `_`, starting with a le
 
 | Key | What it means | Type | Default |
 |---|---|---|---|
-| `like` | **Required.** The game monster this type behaves like: `"goblin"`, `"hobgoblin"` or `"ogre"`. It decides the walking code, the art a cell draws for it ([28.4](#284-art-what-is-drawn-when)), the birth art and the one-body ogre drawing. `"tentacle"` is refused: tentacles have no walking body. | text | none |
+| `like` | **Required.** The game monster this type behaves like: `"goblin"`, `"hobgoblin"`, `"ogre"` or `"tentacle"`. It decides the walking code, the art a cell draws for it ([28.4](#284-art-what-is-drawn-when)), the birth art and the one-body ogre drawing. A `"tentacle"` type (new in 1.5.4) has no walking body, as the game's tentacles: see [28.10](#2810-tentacle-types). GNX 1.5.3 refused `"tentacle"`. | text | none |
 | `name` | The name shown in the tool menu. | text | the key with a capital first letter |
-| `food` | Food eaten per unit and day. | number, 0 or more | the like's (goblin 0.5, hobgoblin 0.7, ogre 1) |
+| `food` | Food eaten per unit and day. | number, 0 or more | the like's (goblin 0.5, hobgoblin 0.7, ogre 1, tentacle 0.5) |
 | `stat` | Raid AP of the four troop types. | 4 numbers | the like's |
 | `speed` | Walking speed `[min, max]`; each monster rolls one value. | 2 numbers, `0 < min <= max` | the like's |
 | `range` | The raid rows each troop type may stand in: one list per troop type, of `0` (front) and `1` (back). | 4 lists | the like's |
@@ -5853,6 +5853,7 @@ The key of an entry is the type's name: `a-z`, `0-9` and `_`, starting with a le
 | `icon` | The type's picture in the top bar and the raid window: one frame. | sprite | the like's frame |
 | `heads` | The head of each troop type in the raid window: **4 frames**, one per troop type. | sprite | the like's heads |
 | `infant_head` | The head on a newborn's card. | sprite | the like's |
+| `tent`, `tent_ej` | A tentacle type only ([28.10](#2810-tentacle-types)): its moving tentacle in the game's tentacle cells, laid out as the game's `spr_h_tent_mon` and `spr_h_tent_ej_mon` (one row of 5 frames per tentacle cell, at least as many frames). New in 1.5.4. | sprite | the game's tentacle, tinted |
 | `mood_shift_x`, `mood_shift_y` | Where the mood bubble sits over the monster, in pixels. | number | the like's (goblin 6 / -56, hobgoblin 6 / -82, ogre 6 / -92) |
 | `raid_cat_spacing` | Accepted and ignored ([28.9](#289-keys-of-older-builds)). | number | none |
 
@@ -5941,6 +5942,28 @@ Some keys come from a wolf build made before `like` existed. GNX 1.5.3 reads the
 - A number for a type (`"mon_types": [4]`, `"preg_mon_type_override": 4`): a mod error. Write the name.
 
 The schema of the file is `tools/schemas/monsters.schema.json`, and `check_mod.py` ([26](#26-checking-your-mod-schemas-and-check_modpy)) reads it.
+
+### 28.10 Tentacle types
+
+New in 1.5.4. A type with `"like": "tentacle"` works as the game's tentacles: it has no body that walks to cells. It is a troop count, with its own numbers, raid rows, skills, icon and food, and the SPAWN menu and quest rewards can give it. Tentacle cells breed it:
+
+```json
+{ "slime": { "like": "tentacle", "name": "Slime", "stat": [3, 3, 4, 4], "tent": { "strip": "strips/spr_slime_tent.png", "frames": 35 } } }
+```
+
+```json
+[ { "h_type": 31, "tentacle_type": "slime" } ]
+```
+
+The cells.json entry above is a patch of the game's T.WALL 1 ([§12](#12-patching-vanilla-cells-and-classes)); a mod tentacle cell can have `"tentacle_type"` too. In such a cell:
+
+- a captive who gets pregnant there carries a slime, and her birth adds a slime of her class;
+- its moving tentacle is drawn with the type's `tent` (and `tent_ej` during the ejaculation) sheet, else with the game's tentacle tinted blue;
+- a captive pregnant with any tentacle type may enter or stay, as with the game's tentacles.
+
+> **When** `tentacle_type` names a type whose `like` is not `"tentacle"`, it is a mod error and the key is left out. A name no installed mod declares writes `[GNX-WARN] tentacle_type '<name>' is not an installed tentacle type: the game's tentacle is used` once.
+>
+> **When** a cell lists a tentacle type in `mon_types` or `mon_placements`, it is a mod error (`… a tentacle type, which does not walk to cells …`) and that entry is left out.
 
 ---
 

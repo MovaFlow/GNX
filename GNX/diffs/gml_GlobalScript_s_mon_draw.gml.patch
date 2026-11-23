@@ -84,8 +84,10 @@
 +                        
 +                        if (_mon_spr.hand_l != -1)
 +                            gnx_draw_sprite_ext(_mon_spr.hand_l, _mon_index, _x + _x_hand_flip, _y, _spr_data.hand_xscale, 1, 0, 16777215, global.val.mon_alpha);
-+                    }
-+                    
+                     }
+                     
+-                    draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
+-                    draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
 +                    if (global.gnx_trace_entities && _spr_data.h_type == 3)
 +                    {
 +                        var _fi = floor(_mon_index);
@@ -94,10 +96,8 @@
 +                        var _sw = _se ? gnx_sprite_get_width(_mon_spr.body_b) : 0;  // Mav (1.4.7.5): atlas-safe
 +                        var _sh = _se ? gnx_sprite_get_height(_mon_spr.body_b) : 0;  // Mav (1.4.7.5): atlas-safe
 +                        scr_gnx_trace("RENDER", id, "body_b=" + string(_mon_spr.body_b) + " frame=" + string(_fi) + " exists=" + string(_se) + " nframes=" + string(_nf2) + " w=" + string(_sw) + " h=" + string(_sh) + " dx=" + string(_x + _x_flip) + " dy=" + string(_y) + " head=" + string(_mon_spr.head_b) + " hand=" + string(_mon_spr.hand_b) + " pen=" + string(_mon_spr.pen));
-                     }
-                     
--                    draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
--                    draw_sprite_ext(_mon_spr.body_l, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, c_white, global.val.mon_alpha);
++                    }
++                    
 +                    gnx_draw_sprite_ext(_mon_spr.body_b, _mon_index, _x + _x_flip, _y, image_xscale, 1, 0, 16777215, global.val.mon_alpha);
 +                    
 +                    if (_mon_spr.body_l != -1)
@@ -297,7 +297,7 @@
                          
                          break;
                  }
-@@ -226,14 +287,24 @@
+@@ -226,14 +287,41 @@
  
  function scr_tent_draw()
  {
@@ -309,6 +309,23 @@
 +    }
 +    var _row_type = mon_data.h_type - 26 - 1;
      image_index = (_row_type * 5) + mon_data.index;
++    // F56: a cell with a custom tentacle_type draws that type's tent / tent_ej sheet, else the game's sheet tinted
++    // as other custom types without art
++    var _tt = gnx_cell_tent_type(mon_data.h_type);
++
++    if (_tt >= 4)
++    {
++        var _td = global.gnx_mon_types[_tt];
++        var _own = (spr_type == spr_h_tent_ej_mon) ? _td.spr_tent_ej : _td.spr_tent;
++
++        if (_own != -1)
++            draw_sprite(_own, image_index, x, y);
++        else
++            draw_sprite_ext(spr_type, image_index, x, y, 1, 1, 0, make_color_rgb(150, 170, 255), 1);
++
++        exit;
++    }
++
      draw_sprite(spr_type, image_index, x, y);
  }
  
@@ -324,7 +341,7 @@
      
      if (spr_unit != -1)
      {
-@@ -241,35 +312,17 @@
+@@ -241,35 +329,17 @@
          var _hair = spr_unit.hair;
          var _hair_c = spr_unit.hair_c;
          var _spr_c = 8;
