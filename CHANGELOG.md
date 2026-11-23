@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.4 (unreleased)
+
+**Game version:** 1.40
+
+### Bug Fixes
+
+- Swapping two captives could put a girl into a cell that does not allow her. Dragging a girl out of a cell with its own class list (`required_class`, such as a mod's TVs or MILK BAR) onto an occupied cell sent the other girl into that cell, whatever her class. The swap is now refused unless she is allowed there (the cell's list and her `only_listed_cells`).
+
 ## v1.5.3
 
 **Game version:** 1.40

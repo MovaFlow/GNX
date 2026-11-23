@@ -10,7 +10,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 |---|---|---|---|
 | `s_gnx_art.gml` | monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper | 68 | 2441 |
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 91 | 3476 |
-| `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 111 | 5817 |
+| `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 112 | 5825 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 48 | 1619 |
 | `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 404 | 9018 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 316 |
@@ -189,6 +189,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_cell_type_sprs_replay` | `s_gnx_content.gml` |
 | `gnx_cell_unlocked` | `s_gnx_content.gml` |
 | `gnx_class_cell_listed_ok` | `s_gnx_content.gml` |
+| `gnx_class_cell_req_ok` | `s_gnx_content.gml` |
 | `gnx_class_has` | `s_gnx_content.gml` |
 | `gnx_class_has_home_cell` | `s_gnx_content.gml` |
 | `gnx_class_key_id` | `s_gnx_cells.gml` |

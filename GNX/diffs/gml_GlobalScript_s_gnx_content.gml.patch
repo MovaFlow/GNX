@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_content.gml
 +++ gml/gml_GlobalScript_s_gnx_content.gml
-@@ -0,0 +1,5816 @@
+@@ -0,0 +1,5824 @@
 +// GNX: content registries: class/cell loading and resolving, hashes, JSON readers, unlocks
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -3714,14 +3714,22 @@
 +    if (gnx_cell_no_transfer(arg0.slot_data.h_type))
 +        return false;
 +    
++    return gnx_class_cell_req_ok(arg0.slot_data.h_type, arg1);
++}
++
++
++// GNX: may class arg1 be in cell type arg0? Its "only_listed_cells" and the cell's required_class list agree
++// (a cell without a list takes every class)
++function gnx_class_cell_req_ok(arg0, arg1)
++{
 +    // POPRAWKA (GNX): klasa z "only_listed_cells" nie trafia do celi, ktora jej nie wymienia
-+    if (!gnx_class_cell_listed_ok(arg0.slot_data.h_type, arg1))
++    if (!gnx_class_cell_listed_ok(arg0, arg1))
 +        return false;
 +
-+    if (!ds_map_exists(global.cell_registry, arg0.slot_data.h_type))
++    if (!ds_map_exists(global.cell_registry, arg0))
 +        return true;
 +    
-+    var _rp = ds_map_find_value(global.cell_registry, arg0.slot_data.h_type).physical;
++    var _rp = ds_map_find_value(global.cell_registry, arg0).physical;
 +    
 +    if (!variable_struct_exists(_rp, "required_class"))
 +        return true;
