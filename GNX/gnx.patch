@@ -1056,11 +1056,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
 -                    var _scale, _spr;
 -                    
 -                    switch (button_num)
-+
-+                    // GNX-FLOOR: vanilla's style change, now in gnx_set_between; from the entrance's FLOOR menu, for
-+                    // the whole floor (all or none)
-+                    if (gnx_floor_edit_on(_slot_id))
-                     {
+-                    {
 -                        case UnknownEnum.Value_0:
 -                            _spr = spr_bet_plank;
 -                            _scale = 11;
@@ -1090,7 +1086,11 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
 -                    _diff = _scale - _diff;
 -                    
 -                    if ((global.slot_x[_floor] + _diff) <= room_width)
--                    {
++
++                    // GNX-FLOOR: vanilla's style change, now in gnx_set_between; from the entrance's FLOOR menu, for
++                    // the whole floor (all or none)
++                    if (gnx_floor_edit_on(_slot_id))
+                     {
 -                        with (_slot_id)
 -                        {
 -                            slot_data.between_type = other.button_num;
@@ -1833,7 +1833,21 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          instance_destroy();
                                  }
                              }
-@@ -1673,6 +1994,12 @@
+@@ -1641,8 +1962,11 @@
+                     {
+                         obj_np.obj_raid.raid_data.stage = -1;
+                     }
+-                    
+-                    image_index = button_num;
++
++                    // GNX-STAGE: a button showing another stage's picture (a mod stage's or a map's "icon": 0-4) keeps
++                    // it; image_index = button_num turned a mod stage's tower picture into the Village's (frames wrap)
++                    var _gnx_ic = (gnx_stage_def(button_num) != undefined) ? gnx_stage_def(button_num).icon : gnx_vstage_icon(button_num);
++                    image_index = (_gnx_ic != undefined) ? max(0, _gnx_ic.vanilla) : button_num;
+                     break;
+                 
+                 case UnknownEnum.Value_44:
+@@ -1673,6 +1997,12 @@
                      break;
                  
                  case UnknownEnum.Value_45:
@@ -1846,7 +1860,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      with (obj_np.obj_raid)
                      {
                          raid_data.ff = true;
-@@ -1824,7 +2151,7 @@
+@@ -1824,7 +2154,7 @@
                  
                  case UnknownEnum.Value_30:
                      var _stage = source_id.button_num;
@@ -1855,7 +1869,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      var _val;
                      
                      if (button_num == 0)
-@@ -1853,6 +2180,7 @@
+@@ -1853,6 +2183,7 @@
                          raid_data.ff = true;
                          raid_data.raid_state = UnknownEnum.Value_0;
                          scr_create_map_buttons();
@@ -1863,7 +1877,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                      }
                      
                      break;
-@@ -2046,6 +2374,17 @@
+@@ -2046,6 +2377,17 @@
                              break;
                          
                          case 3:
@@ -1881,7 +1895,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              game_end();
                              break;
                      }
-@@ -2056,43 +2395,43 @@
+@@ -2056,43 +2398,43 @@
                      switch (button_num)
                      {
                          case 0:
@@ -1935,7 +1949,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                              break;
                      }
                      
-@@ -2135,6 +2474,9 @@
+@@ -2135,6 +2477,9 @@
                          switch (button_num)
                          {
                              case 0:
@@ -1945,7 +1959,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  if (source_id.load_data.ver > 0.43 && source_id.load_data.ver < 1.07)
                                  {
                                      scr_sfx_play(UnknownEnum.Value_1);
-@@ -2167,45 +2509,45 @@
+@@ -2167,45 +2512,45 @@
                                  
                                  switch (global.val.language)
                                  {
@@ -2001,7 +2015,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                          _text = "Deletar arquivo salvo?";
                                          break;
                                  }
-@@ -2233,27 +2575,13 @@
+@@ -2233,27 +2578,13 @@
                              instance_destroy();
                      }
                      
@@ -2033,7 +2047,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                          load_data = scr_set_save_date(button_pos);
                      }
                      else
-@@ -2265,48 +2593,48 @@
+@@ -2265,48 +2596,48 @@
                          
                          switch (global.val.language)
                          {
@@ -2092,7 +2106,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                                  _text = "Sobrescrever arquivo salvo?";
                                  break;
                          }
-@@ -2377,6 +2705,10 @@
+@@ -2377,6 +2708,10 @@
                      {
                          var _info = ds_list_find_value(global.front_row_save, i);
                          var _ar = scr_mon_type_construct(_info.mon_type);
@@ -2103,7 +2117,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                          var _new_val = _info.num;
                          
                          if (_ar.num[_info.class] > 0)
-@@ -2412,6 +2744,10 @@
+@@ -2412,6 +2747,10 @@
                      {
                          var _info = ds_list_find_value(global.back_row_save, i);
                          var _ar = scr_mon_type_construct(_info.mon_type);
@@ -2114,7 +2128,7 @@ diff -uN gml_138/gml_GlobalScript_s_button_activate.gml gml/gml_GlobalScript_s_b
                          var _new_val = _info.num;
                          
                          if (_ar.num[_info.class] > 0)
-@@ -2481,6 +2817,315 @@
+@@ -2481,6 +2820,315 @@
                      
                      scr_reset_unit_window(-1);
                      break;

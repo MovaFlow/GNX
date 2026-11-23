@@ -6,6 +6,7 @@
 
 ### Bug Fixes
 
+- Raid map: a stage button showing a vanilla stage's picture (a mod stage's or a map's `"icon": 0-4`) turned into the Village's picture once clicked, until the map was opened again. It keeps its picture now.
 - Swapping two captives could put a girl into a cell that does not allow her. Dragging a girl out of a cell with its own class list (`required_class`, such as a mod's TVs or MILK BAR) onto an occupied cell sent the other girl into that cell, whatever her class. The swap is now refused unless she is allowed there (the cell's list and her `only_listed_cells`).
 
 ## v1.5.3
