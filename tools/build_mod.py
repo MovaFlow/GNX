@@ -293,14 +293,16 @@ def main():
     leftovers = []
     json_files = {}
     for role in ("classes", "cells", "quests", "tools", "sounds", "props", "items", "raids", "monsters"):
-        rel = manifest.get(role)
-        if not rel or not isinstance(rel, str):  # absent, or the object itself: nothing to look up
-            continue
-        p = mod_dir / rel
-        if not p.exists():
-            print(f"WARN: {role}: file '{rel}' not found (referenced by manifest.json)")
-            continue
-        json_files[role] = (rel, p)
+        v = manifest.get(role)
+        # a file name, or a list of them ("cells": ["cells1.json", "cells2.json"]); absent or an object: nothing to look up
+        rels = [v] if isinstance(v, str) else [r for r in v if isinstance(r, str)] if isinstance(v, list) else []
+        for rel in rels:
+            p = mod_dir / rel
+            if not p.exists():
+                print(f"WARN: {role}: file '{rel}' not found (referenced by manifest.json)")
+                continue
+            json_files[(role, rel)] = (rel, p)
+    for (role, _), (rel, p) in json_files.items():
         if role not in ("classes", "cells"):
             continue  # only classes/cells reference packed sprites
         data = load_json_loose(p)

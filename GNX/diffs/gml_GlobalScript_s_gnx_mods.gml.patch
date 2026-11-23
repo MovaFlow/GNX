@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,3075 @@
+@@ -0,0 +1,3111 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2793,8 +2793,14 @@
 +    }
 +    if (arg2 == 2)
 +    {
++        // F52: "cells" is one file name or a list of them, loaded in order
 +        if (variable_struct_exists(_manifest, "cells"))
-+            scr_gnx_load_cells(arg0, _manifest.cells);
++        {
++            var _cfs = gnx_manifest_files(arg0, "cells", _manifest.cells);
++
++            for (var _cfi = 0; _cfi < array_length(_cfs); _cfi++)
++                scr_gnx_load_cells(arg0, _cfs[_cfi]);
++        }
 +
 +        if (variable_struct_exists(_manifest, "items"))
 +            scr_gnx_load_items(arg0, _manifest.items);
@@ -2863,6 +2869,36 @@
 +    
 +    if (is_array(global.gnx_loaded_mods))
 +        array_push(global.gnx_loaded_mods, arg0);
++}
++
++
++// F52: the file names a manifest key arg2 holds: one name, or a list of names (B-Imp: big cell mods split
++// cells.json). arg0 = mod folder, arg1 = the key for a mod error on a bad entry ("" = no error, the loader
++// reports it); a list entry that is not a name is skipped
++function gnx_manifest_files(arg0, arg1, arg2)
++{
++    if (is_string(arg2))
++        return [arg2];
++
++    var _out = [];
++
++    if (is_array(arg2))
++    {
++        for (var _i = 0; _i < array_length(arg2); _i++)
++        {
++            if (is_string(arg2[_i]))
++                array_push(_out, arg2[_i]);
++            else if (arg1 != "")
++                gnx_report_mod_error("Mod '" + arg0 + "': manifest \"" + arg1 + "\" entry " + string(_i + 1) + " is " + string(arg2[_i]) + ", not a file name; skipped");
++        }
++
++        return _out;
++    }
++
++    if (arg1 != "")
++        gnx_report_mod_error("Mod '" + arg0 + "': manifest \"" + arg1 + "\" must be a file name or a list of file names, not " + string(arg2));
++
++    return _out;
 +}
 +
 +

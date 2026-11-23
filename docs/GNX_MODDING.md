@@ -774,6 +774,8 @@ Each data file key (`classes`, `cells`, `quests`, `tools`, `sounds`, `props`, `i
 
 This loads all nine files, in the phases of [3.3](#33-load-order). `monsters` (new in 1.5.3, [28](#28-custom-monster-types-monstersjson)) loads first, before the classes, so that classes and cells can name the types. Paths can point into subfolders, for example `"cells": "data/cells.json"`.
 
+`cells` can also be a list of files, loaded in that order (new in 1.5.4), so a big cell mod can keep each cell or group of cells in its own file: `"cells": ["cells/breeding.json", "cells/utility.json"]`. Each file holds a list of cells as usual. An `extend` entry in one file can name a cell from another file. `build_mod.py` checks and deploys every file of the list.
+
 `sprite_replace` ([5.9](#59-replacing-game-sprites-sprite_replace)) and `monster_art` ([16.7](#167-monster_art-by-class-and-for-all-monsters)) are manifest keys that hold either a path like these or the object itself:
 
 ```json

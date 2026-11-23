@@ -36,10 +36,13 @@ def find_json_files(mod_dir: Path, manifest: dict) -> dict[str, Path]:
     """Return {role: path} for cells and classes JSON files listed in manifest."""
     found = {}
     for role in ("cells", "classes"):
-        if isinstance(manifest.get(role), str):  # an inline object has no file to pack
-            p = mod_dir / manifest[role]
+        v = manifest.get(role)
+        # a file name or a list of them ("cells": ["cells1.json", "cells2.json"]); an inline object has no file to pack
+        rels = [v] if isinstance(v, str) else [r for r in v if isinstance(r, str)] if isinstance(v, list) else []
+        for rel in rels:
+            p = mod_dir / rel
             if p.exists():
-                found[role] = p
+                found[f"{role}:{rel}"] = p
     return found
 
 

@@ -9,12 +9,12 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | File | What it holds | Functions | Lines |
 |---|---|---|---|
 | `s_gnx_art.gml` | monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper | 68 | 2441 |
-| `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 93 | 3499 |
+| `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 94 | 3512 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 112 | 5825 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 48 | 1609 |
 | `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 405 | 9034 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 316 |
-| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 58 | 3076 |
+| `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 59 | 3112 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 44 | 1193 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2343 |
 | `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 40 | 1919 |
@@ -329,6 +329,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_loot_resolve` | `s_gnx_items.gml` |
 | `gnx_loot_sync` | `s_gnx_items.gml` |
 | `gnx_make_unit` | `s_gnx_quests.gml` |
+| `gnx_manifest_files` | `s_gnx_mods.gml` |
 | `gnx_map_decl_has` | `s_gnx_travel.gml` |
 | `gnx_map_decl_list` | `s_gnx_travel.gml` |
 | `gnx_map_decl_mod_maps` | `s_gnx_travel.gml` |
@@ -969,6 +970,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_ug_load_assets` | `s_gnx_cells.gml` |
 | `gnx_ug_ref_problem` | `s_gnx_cells.gml` |
 | `gnx_ug_strips_check` | `s_gnx_cells.gml` |
+| `gnx_ug_strips_check_file` | `s_gnx_cells.gml` |
 | `gnx_ui_layout_problems` | `s_gnx_harness.gml` |
 | `gnx_ui_rect` | `s_gnx_harness.gml` |
 | `gnx_ui_spr` | `s_gnx_harness.gml` |

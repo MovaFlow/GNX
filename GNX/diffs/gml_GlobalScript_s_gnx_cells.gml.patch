@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3498 @@
+@@ -0,0 +1,3511 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2986,10 +2986,23 @@
 +{
 +    if (!is_struct(arg1) || !variable_struct_exists(arg1, "cells"))
 +        return 0;
-+    
++
++    // F52: every cells file of the list
++    var _cfs = gnx_manifest_files(arg0, "", arg1.cells);
++    var _n = 0;
++
++    for (var _cfi = 0; _cfi < array_length(_cfs); _cfi++)
++        _n += gnx_ug_strips_check_file(arg0, _cfs[_cfi]);
++
++    return _n;
++}
++
++// gnx_ug_strips_check for one cells file arg1 of mod arg0
++function gnx_ug_strips_check_file(arg0, arg1)
++{
 +    var _dir = global.gnx_mods_root + arg0 + "/";
-+    var _path = _dir + string(arg1.cells);
-+    
++    var _path = _dir + arg1;
++
 +    if (!file_exists(_path))
 +        return 0;
 +    

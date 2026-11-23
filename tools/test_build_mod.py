@@ -150,6 +150,23 @@ with tempfile.TemporaryDirectory() as tmp:
     assert (game / "GNX_mods" / "inline_roles" / "manifest.json").is_file()
 print("inline roles ok")
 
+# F52: "cells" may be a list of files; each one is checked and deployed
+with tempfile.TemporaryDirectory() as tmp:
+    src = Path(tmp) / "src" / "cells_list"
+    src.mkdir(parents=True)
+    (src / "manifest.json").write_text(json.dumps({"mod_id": "cells_list", "name": "x", "version": "1", "compatible_game_versions": ["1.40"],
+                                                   "cells": ["cells_a.json", "more/cells_b.json"]}), encoding="utf-8")
+    (src / "more").mkdir()
+    for f in ("cells_a.json", "more/cells_b.json"):
+        (src / f).write_text("[]", encoding="utf-8")
+    game = Path(tmp) / "game"
+    game.mkdir()
+    r = subprocess.run([sys.executable, str(ROOT / "tools/build_mod.py"), str(src), str(game), "--skip-pack", "--deploy-anyway"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    for f in ("cells_a.json", "more/cells_b.json"):
+        assert (game / "GNX_mods" / "cells_list" / f).is_file(), f"cells list: {f} not deployed"
+print("cells list ok")
+
 # a source mod that already is GNX_mods/<mod_id> is checked (and packed) in place, never deleted; one inside it is refused
 with tempfile.TemporaryDirectory() as tmp:
     game = Path(tmp) / "game"
