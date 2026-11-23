@@ -7192,7 +7192,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cells.gml
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3475 @@
+@@ -0,0 +1,3488 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -10651,6 +10651,19 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +function gnx_swap_into_special_ok(arg0, arg1)
 +{
 +    return gnx_cell_is_home(arg0, arg1) || (arg0 == 37 && arg1 == 11);
++}
++
++// a cell's name in a language other than English: the vanilla table (scr_lang_slot_text) knows only vanilla
++// cells and gives -1 for a mod cell, which the CUSTOM list, the cell window and item names showed as "-1";
++// a cell it does not know gets its registry name, translated when the mod has a lang file
++function gnx_lang_slot_text(arg0)
++{
++    var _t = scr_lang_slot_text(arg0);
++
++    if (!is_string(_t) && ds_map_exists(global.cell_registry, arg0))
++        _t = gnx_tr(ds_map_find_value(global.cell_registry, arg0).name);
++
++    return _t;
 +}
 +
 +
@@ -49469,7 +49482,8 @@ diff -uN gml_138/gml_GlobalScript_s_item_draw.gml gml/gml_GlobalScript_s_item_dr
                          break;
 -                    
                      case UnknownEnum.Value_5:
-                         _name = scr_lang_slot_text(_item_data.num);
+-                        _name = scr_lang_slot_text(_item_data.num);
++                        _name = gnx_lang_slot_text(_item_data.num);
                          break;
 -                    
                      case UnknownEnum.Value_7:
@@ -49519,7 +49533,8 @@ diff -uN gml_138/gml_GlobalScript_s_item_draw.gml gml/gml_GlobalScript_s_item_dr
                      switch (_item_data.item_type)
                      {
                          case UnknownEnum.Value_5:
-                             _name = scr_lang_slot_text(_item_data.num);
+-                            _name = scr_lang_slot_text(_item_data.num);
++                            _name = gnx_lang_slot_text(_item_data.num);
                              break;
 -                        
                          case UnknownEnum.Value_7:
@@ -49572,7 +49587,8 @@ diff -uN gml_138/gml_GlobalScript_s_item_draw.gml gml/gml_GlobalScript_s_item_dr
                  switch (_item_data.item_type)
                  {
                      case UnknownEnum.Value_5:
-                         _name = scr_lang_slot_text(_item_data.num);
+-                        _name = scr_lang_slot_text(_item_data.num);
++                        _name = gnx_lang_slot_text(_item_data.num);
                          break;
 -                    
                      case UnknownEnum.Value_7:
@@ -56111,6 +56127,15 @@ diff -uN gml_138/gml_GlobalScript_s_quest_function.gml gml/gml_GlobalScript_s_qu
                  
                  if (global.val.language == UnknownEnum.Value_2 || global.val.language == UnknownEnum.Value_9 || global.val.language == UnknownEnum.Value_1 || global.val.language == UnknownEnum.Value_3)
                  {
+@@ -216,7 +235,7 @@
+                     switch (_quest.quest_reward.item_type)
+                     {
+                         case UnknownEnum.Value_5:
+-                            _h_text = scr_lang_slot_text(_quest.quest_reward.num);
++                            _h_text = gnx_lang_slot_text(_quest.quest_reward.num);
+                             break;
+                         
+                         case UnknownEnum.Value_7:
 @@ -1096,9 +1115,27 @@
      if (_quest != undefined && _quest.quest_clear)
      {
@@ -60316,6 +60341,15 @@ diff -uN gml_138/gml_GlobalScript_s_slot_button.gml gml/gml_GlobalScript_s_slot_
 +
      var _data = scr_slot_type_price_data(button_num);
      button_text = _data.button_text;
+     price = _data.price;
+@@ -12,7 +21,7 @@
+     var _data = scr_h_slot_text_data(button_num);
+     
+     if (global.val.language != UnknownEnum.Value_0)
+-        _data.text_type = scr_lang_slot_text(button_num);
++        _data.text_type = gnx_lang_slot_text(button_num);
+     
+     button_text = _data.text_type;
      price = _data.price;
 @@ -159,3 +168,126 @@
      Value_0,
@@ -73370,8 +73404,9 @@ diff -uN gml_138/gml_GlobalScript_s_slot_windows.gml gml/gml_GlobalScript_s_slot
              scr_window_draw = scr_draw_mod_window;
              
 -            if (global.val.language != UnknownEnum.Value_0)
+-                title = scr_lang_slot_text(arg0.slot_data.h_type);
 +            if (global.val.language != 0)
-                 title = scr_lang_slot_text(arg0.slot_data.h_type);
++                title = gnx_lang_slot_text(arg0.slot_data.h_type);
              else
                  title = scr_h_slot_text_data(arg0.slot_data.h_type).text_type;
              

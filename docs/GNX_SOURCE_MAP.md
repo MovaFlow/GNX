@@ -9,7 +9,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | File | What it holds | Functions | Lines |
 |---|---|---|---|
 | `s_gnx_art.gml` | monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper | 68 | 2441 |
-| `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 91 | 3476 |
+| `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 92 | 3489 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 112 | 5825 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 48 | 1619 |
 | `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 404 | 9018 |
@@ -311,6 +311,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_json_pair` | `s_gnx_content.gml` |
 | `gnx_json_point` | `s_gnx_raid.gml` |
 | `gnx_lang_codes` | `s_gnx_mods.gml` |
+| `gnx_lang_slot_text` | `s_gnx_cells.gml` |
 | `gnx_last_raid_is` | `s_gnx_raid.gml` |
 | `gnx_load_atlas_mod` | `s_gnx_draw.gml` |
 | `gnx_load_page_turn` | `s_gnx_nest.gml` |
