@@ -10,6 +10,7 @@
 
 ### Bug Fixes
 
+- A captive whose face sat under the scroll bar (right edge of the screen, zoomed out) was hard to drag out of her cell: the press went to the scroll bar. Only the bar's handle takes the mouse now; the rest of its track leaves the press to the game (the mouse wheel and camera drag still scroll).
 - Mod cells showed "-1" as their name when the game was not in English: in the CUSTOM build list, as the cell window title, in item names and in quest rewards. The game's name tables list only vanilla cells; a mod cell now shows its own name (translated when the mod has a lang file).
 - Raid map: a stage button showing a vanilla stage's picture (a mod stage's or a map's `"icon": 0-4`) turned into the Village's picture once clicked, until the map was opened again. It keeps its picture now.
 - Swapping two captives could put a girl into a cell that does not allow her. Dragging a girl out of a cell with its own class list (`required_class`, such as a mod's TVs or MILK BAR) onto an occupied cell sent the other girl into that cell, whatever her class. The swap is now refused unless she is allowed there (the cell's list and her `only_listed_cells`).

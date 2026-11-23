@@ -11,8 +11,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_art.gml` | monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper | 68 | 2441 |
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 93 | 3499 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 112 | 5825 |
-| `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 48 | 1619 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 404 | 9018 |
+| `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 48 | 1609 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 405 | 9034 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 316 |
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 58 | 3076 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 44 | 1193 |
@@ -735,6 +735,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_save_type_shape` | `s_gnx_harness.gml` |
 | `gnx_scn_saved_row_types` | `s_gnx_harness.gml` |
 | `gnx_scn_scene_past_end` | `s_gnx_harness.gml` |
+| `gnx_scn_scrollbar_takes` | `s_gnx_harness.gml` |
 | `gnx_scn_sel_has` | `s_gnx_harness.gml` |
 | `gnx_scn_selector` | `s_gnx_harness.gml` |
 | `gnx_scn_set_frame_limit` | `s_gnx_harness.gml` |

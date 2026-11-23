@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1618 @@
+@@ -0,0 +1,1608 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1179,27 +1179,17 @@
 +    var _mx = device_mouse_x_to_gui(0);
 +    var _my = device_mouse_y_to_gui(0);
 +    var _in_thumb = _mx >= _track_x && _mx <= (_track_x + _track_w) && _my >= _thumb_y && _my <= (_thumb_y + _thumb_h);
-+    var _in_track = _mx >= _track_x && _mx <= (_track_x + _track_w) && _my >= _track_top && _my <= _track_bot;
-+    
-+    // zapamietaj obszar paska, zeby klik w niego nie trafial tez w gre (gnx_scrollbar_blocks_click)
-+    global.gnx_scrollbar_rect = [_track_x - 2, _track_top, _track_x + _track_w + 2, _track_bot];
++    // GNX-FIX (Discord #30): only the thumb takes the mouse (gnx_scrollbar_blocks_click). The whole track did, so a
++    // captive whose face sat under the bar (right edge, zoomed out) could not be dragged out of her cell; a press on
++    // the track outside the thumb now goes to the game (the wheel and camera drag still scroll)
++    global.gnx_scrollbar_rect = [_track_x - 2, _thumb_y, _track_x + _track_w + 2, _thumb_y + _thumb_h];
 +
 +    // POPRAWKA: przycisk wyboru z ustawien gry (po zamianie przyciskow myszy nie lewy na sztywno)
 +    // POPRAWKA: przycisk GUI pod kursorem (np. strzalki okna ustawien przy prawej krawedzi) ma pierwszenstwo przed paskiem
-+    if (mouse_check_button_pressed(global.val.select_click) && !gnx_gui_under_mouse())
++    if (mouse_check_button_pressed(global.val.select_click) && !gnx_gui_under_mouse() && _in_thumb)
 +    {
-+        if (_in_thumb)
-+        {
-+            global.gnx_scrollbar_dragging = true;
-+            global.gnx_scrollbar_drag_offset = _my - _thumb_y;
-+        }
-+        else if (_in_track)
-+        {
-+            var _click_frac = clamp((_my - _track_top - (_thumb_h * 0.5)) / (_track_h - _thumb_h), 0, 1);
-+            obj_camera.y = _start_y + (_click_frac * _max_y);
-+            global.gnx_scrollbar_dragging = true;
-+            global.gnx_scrollbar_drag_offset = _thumb_h * 0.5;
-+        }
++        global.gnx_scrollbar_dragging = true;
++        global.gnx_scrollbar_drag_offset = _my - _thumb_y;
 +    }
 +    
 +    if (global.gnx_scrollbar_dragging)
