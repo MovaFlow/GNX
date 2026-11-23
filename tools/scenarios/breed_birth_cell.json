@@ -1,0 +1,68 @@
+{
+  "about": "F46: a small mod cell whose scene list ends with the GIANT birth scripts (scr_slot_h_giant_birth, _birth_ej) breeds and gives birth in the same cell. Before, only the GIANT cell (h_type 37) jumped to its birth step when the monster left a pregnant captive, so a mod cell's scene ended after the ej. A captive pregnant with a wolf (harness_type_a) in BREED BIRTH CELL (harness_breed_birth, h_type 9301) gives birth there: the wolf count of monster class 0 becomes 1.",
+  "fixture": "mid",
+  "mods": [
+    "tools/scenarios/mods/harness_type_a",
+    "tools/scenarios/mods/harness_breed_birth"
+  ],
+  "steps": [
+    {
+      "wait": 30
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_type_num",
+      "args": [
+        {
+          "mon": "wolf"
+        },
+        0
+      ],
+      "is": -1,
+      "why": "control: no wolf of class 0 yet"
+    },
+    {
+      "call": "gnx_scn_build_on_last",
+      "args": [
+        0
+      ]
+    },
+    {
+      "call": "gnx_scn_set_last_cell",
+      "args": [
+        9301
+      ]
+    },
+    {
+      "wait": 5
+    },
+    {
+      "occupy": {
+        "h_type": 9301,
+        "class": 0,
+        "preg": {
+          "mon": "wolf"
+        }
+      }
+    },
+    {
+      "wait": 4000
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_type_num",
+      "args": [
+        {
+          "mon": "wolf"
+        },
+        0
+      ],
+      "is": 1,
+      "why": "the birth happened in the breed cell"
+    },
+    {
+      "assert": "infants",
+      "h_type": 9301
+    }
+  ]
+}

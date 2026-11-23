@@ -7192,7 +7192,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_art.gml gml/gml_GlobalScript_s_gnx_art.g
 diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cells.gml
 --- gml_138/gml_GlobalScript_s_gnx_cells.gml
 +++ gml/gml_GlobalScript_s_gnx_cells.gml
-@@ -0,0 +1,3488 @@
+@@ -0,0 +1,3498 @@
 +// GNX: cell runtime: scene frames, intermissions, underground cells, monster places
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -10651,6 +10651,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_cells.gml gml/gml_GlobalScript_s_gnx_cel
 +function gnx_swap_into_special_ok(arg0, arg1)
 +{
 +    return gnx_cell_is_home(arg0, arg1) || (arg0 == 37 && arg1 == 11);
++}
++
++// GNX-BIRTH (F46): the step of scr_slot_h_giant_birth in a cell's scene list (arg0 = its scr_slot), -1 = none;
++// mod lists hold script indices from asset_get_index, so the same lookup is used here
++function gnx_birth_step(arg0)
++{
++    if (!is_struct(arg0) || !variable_struct_exists(arg0, "h") || !is_array(arg0.h))
++        return -1;
++
++    return array_get_index(arg0.h, asset_get_index("scr_slot_h_giant_birth"));
 +}
 +
 +// a cell's name in a language other than English: the vanilla table (scr_lang_slot_text) knows only vanilla
@@ -54461,7 +54471,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                                  
                                  if (_ar != -1)
                                  {
-@@ -390,39 +538,87 @@
+@@ -390,39 +538,101 @@
                              
                              if (_place != -1)
                              {
@@ -54544,6 +54554,20 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                  break;
          }
 +
++        // GNX-BIRTH (F46): any other cell whose scene list has scr_slot_h_giant_birth breeds and gives birth like
++        // the GIANT cell (case 37 above): a pregnant captive goes on to that step when the monster leaves
++        if (slot_data.h_type != 37 && unit_data != -1 && unit_data.preg != -1)
++        {
++            var _gnx_bs = gnx_birth_step(scr_slot);
++
++            if (_gnx_bs >= 0)
++            {
++                slot_data.anim_struct.char_state = 1;
++                slot_data.anim_struct.ff = true;
++                slot_data.h_step = _gnx_bs;
++            }
++        }
++
 +        // GNX-PLACES: in a cell with independent places the others go on with their own scenes when one
 +        // leaves (as the vanilla gang cells above); ff false keeps the captive's pictures and frame
 +        if (_exists && unit_data != -1 && gnx_cell_places(slot_data.h_type))
@@ -54554,7 +54578,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
      }
      else
      {
-@@ -448,7 +644,8 @@
+@@ -448,7 +658,8 @@
  function scr_remove_mon(arg0, arg1, arg2, arg3)
  {
      var _h_num = array_length(h_unit_list);
@@ -54564,7 +54588,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
      
      for (var i = 0; i < _h_num; i++)
      {
-@@ -461,53 +658,57 @@
+@@ -461,53 +672,57 @@
                  var _old_placement_num = mon_data.placement_num;
                  visible = true;
                  scr_mon_draw = -1;
@@ -54633,7 +54657,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                          
                          if (arg3 == -1)
                              arg3 = scr_find_nearest_door(x, y, mon_data.mon_floor);
-@@ -515,7 +716,7 @@
+@@ -515,7 +730,7 @@
                          mon_data.slot_id = arg3;
                          break;
                      
@@ -54642,7 +54666,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                          with (_old_slot_id)
                          {
                              slot_data.mod_index[0] = 0;
-@@ -547,15 +748,15 @@
+@@ -547,15 +762,15 @@
                          {
                              with (_id)
                              {
@@ -54661,7 +54685,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                                  {
                                      mon_data.carry_end_id.slot_data.load = false;
                                      mon_data.carry_end_id.slot_data.carry = false;
-@@ -564,12 +765,12 @@
+@@ -564,12 +779,12 @@
                                  }
                                  
                                  _old_slot_id.scr_slot_step = scr_slot_state;
@@ -54676,7 +54700,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                          
                          if (carry_emitter != -1)
                          {
-@@ -580,53 +781,66 @@
+@@ -580,53 +795,66 @@
                          
                          break;
                      
@@ -54757,7 +54781,7 @@ diff -uN gml_138/gml_GlobalScript_s_mon_remove.gml gml/gml_GlobalScript_s_mon_re
                          mon_data.mood_timer = 180;
                          scr_mood_value_set(-0.7);
                          break;
-@@ -644,30 +858,15 @@
+@@ -644,30 +872,15 @@
          }
      }
      

@@ -433,7 +433,7 @@
                                  
                                  if (_ar != -1)
                                  {
-@@ -390,39 +538,87 @@
+@@ -390,39 +538,101 @@
                              
                              if (_place != -1)
                              {
@@ -516,6 +516,20 @@
                  break;
          }
 +
++        // GNX-BIRTH (F46): any other cell whose scene list has scr_slot_h_giant_birth breeds and gives birth like
++        // the GIANT cell (case 37 above): a pregnant captive goes on to that step when the monster leaves
++        if (slot_data.h_type != 37 && unit_data != -1 && unit_data.preg != -1)
++        {
++            var _gnx_bs = gnx_birth_step(scr_slot);
++
++            if (_gnx_bs >= 0)
++            {
++                slot_data.anim_struct.char_state = 1;
++                slot_data.anim_struct.ff = true;
++                slot_data.h_step = _gnx_bs;
++            }
++        }
++
 +        // GNX-PLACES: in a cell with independent places the others go on with their own scenes when one
 +        // leaves (as the vanilla gang cells above); ff false keeps the captive's pictures and frame
 +        if (_exists && unit_data != -1 && gnx_cell_places(slot_data.h_type))
@@ -526,7 +540,7 @@
      }
      else
      {
-@@ -448,7 +644,8 @@
+@@ -448,7 +658,8 @@
  function scr_remove_mon(arg0, arg1, arg2, arg3)
  {
      var _h_num = array_length(h_unit_list);
@@ -536,7 +550,7 @@
      
      for (var i = 0; i < _h_num; i++)
      {
-@@ -461,53 +658,57 @@
+@@ -461,53 +672,57 @@
                  var _old_placement_num = mon_data.placement_num;
                  visible = true;
                  scr_mon_draw = -1;
@@ -605,7 +619,7 @@
                          
                          if (arg3 == -1)
                              arg3 = scr_find_nearest_door(x, y, mon_data.mon_floor);
-@@ -515,7 +716,7 @@
+@@ -515,7 +730,7 @@
                          mon_data.slot_id = arg3;
                          break;
                      
@@ -614,7 +628,7 @@
                          with (_old_slot_id)
                          {
                              slot_data.mod_index[0] = 0;
-@@ -547,15 +748,15 @@
+@@ -547,15 +762,15 @@
                          {
                              with (_id)
                              {
@@ -633,7 +647,7 @@
                                  {
                                      mon_data.carry_end_id.slot_data.load = false;
                                      mon_data.carry_end_id.slot_data.carry = false;
-@@ -564,12 +765,12 @@
+@@ -564,12 +779,12 @@
                                  }
                                  
                                  _old_slot_id.scr_slot_step = scr_slot_state;
@@ -648,7 +662,7 @@
                          
                          if (carry_emitter != -1)
                          {
-@@ -580,53 +781,66 @@
+@@ -580,53 +795,66 @@
                          
                          break;
                      
@@ -729,7 +743,7 @@
                          mon_data.mood_timer = 180;
                          scr_mood_value_set(-0.7);
                          break;
-@@ -644,30 +858,15 @@
+@@ -644,30 +872,15 @@
          }
      }
      

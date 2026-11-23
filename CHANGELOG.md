@@ -4,6 +4,10 @@
 
 **Game version:** 1.40
 
+### New Features
+
+- **Breed and give birth in one cell:** any cell whose `scr_h` ends with `scr_slot_h_giant_birth` and `scr_slot_h_giant_birth_ej` (as the vanilla GIANT cell) now goes on to the birth when the monster leaves a pregnant captive. Before, only the GIANT cell did; a mod cell's scene ended after the ejaculation and never reached the birth. See GNX_MODDING.md section 9.5.
+
 ### Bug Fixes
 
 - Mod cells showed "-1" as their name when the game was not in English: in the CUSTOM build list, as the cell window title, in item names and in quest rewards. The game's name tables list only vanilla cells; a mod cell now shows its own name (translated when the mod has a lang file).
