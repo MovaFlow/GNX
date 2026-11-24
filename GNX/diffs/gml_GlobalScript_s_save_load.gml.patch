@@ -429,7 +429,9 @@
 +                    // load order (audit P10)
 +                    var _gnx_pt = gnx_prop_saved_type(_pd);
 +                    var _prop = (_gnx_pt == -1) ? -1 : scr_create_prop(id, _gnx_pt, _infant, _pd.prop_step);
-+                    
+                     
+-                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
+-                    _prop.prop_data = _data.slot_data.prop[ii];
 +                    // GNX-FIX: no prop made (its mod is missing): kept aside, not read (that stopped the load)
 +                    if (is_undefined(_prop) || _prop == -1 || !instance_exists(_prop))
 +                    {
@@ -440,9 +442,7 @@
 +                        gnx_log_close(_gnx_pl);
 +                        continue;
 +                    }
-                     
--                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
--                    _prop.prop_data = _data.slot_data.prop[ii];
++                    
 +                    array_push(_gnx_kept, _pd);
 +                    
 +                    if (variable_struct_exists(_pd, "prop_pos"))
@@ -710,7 +710,7 @@
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1095,395 @@
+@@ -654,8 +1095,438 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -965,6 +965,49 @@
 +                }
 +            }
 +        }
++
++        // GNX-FIX (Discord #42): no more monsters than the cell has seats (the saves of builds where rebuilt cells were
++        // rebuilt on every load, s_patch_updates, hold cells with several monsters on one seat). The ones past the count
++        // leave for the door: first those on a seat already taken, then the ones called last. A cell that does not hold
++        // more monsters than seats is left alone, whatever their seat numbers. No carry tasks
++        if (is_array(h_unit_list) && slot_data.slot_type != 3 && slot_data.anim_struct != -1 && variable_struct_exists(slot_data, "max_mon_num") && slot_data.max_mon_num > 0)
++        {
++            var _seat_used = array_create(slot_data.max_mon_num, false);
++            var _bound = 0;
++            var _extra = [];
++
++            for (var _hi = 0; _hi < array_length(h_unit_list); _hi++)
++            {
++                var _hm = h_unit_list[_hi];
++
++                if (!gnx_is_live_inst(_hm) || _hm.object_index != obj_mon || _hm.mon_data.task != 0 || _hm.mon_data.slot_id != id)
++                    continue;
++
++                _bound++;
++                var _seat = _hm.mon_data.placement_num;
++
++                if (is_numeric(_seat) && _seat >= 0 && _seat < slot_data.max_mon_num && !_seat_used[_seat])
++                    _seat_used[_seat] = true;
++                else
++                    array_push(_extra, _hm);
++            }
++
++            var _out = _bound - slot_data.max_mon_num;
++
++            for (var _ei = array_length(_extra) - 1; _ei >= 0 && _out > 0; _ei--)
++            {
++                with (_extra[_ei])
++                    gnx_mon_release_from_slot();
++
++                if (_sweep_f == -1)
++                    _sweep_f = gnx_log_open();
++
++                gnx_log_write(_sweep_f, "[GNX] SWEEP extra monster mon=" + string(_extra[_ei]) + " sent out of h_type=" + string(slot_data.h_type) + " (the cell has " + string(slot_data.max_mon_num) + " seat(s))");
++                gnx_log_writeln(_sweep_f);
++                _sweep_n++;
++                _out--;
++            }
++        }
 +    }
 +
 +    if (_sweep_refs > 0)
@@ -1106,7 +1149,7 @@
      }
      
      return _load;
-@@ -663,6 +1491,7 @@
+@@ -663,6 +1534,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -1114,7 +1157,7 @@
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1511,25 @@
+@@ -682,33 +1554,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -1159,7 +1202,7 @@
  }
  
  enum UnknownEnum
-@@ -733,3 +1554,119 @@
+@@ -733,3 +1597,119 @@
      Value_40 = 40,
      Value_52 = 52
  }

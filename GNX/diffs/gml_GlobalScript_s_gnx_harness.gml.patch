@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9057 @@
+@@ -0,0 +1,9218 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -4549,6 +4549,156 @@
 +}
 +
 +
++// Discord #42 (stuck monsters): snapshot of every monster's place and state, compared by gnx_scn_mon_stuck
++function gnx_scn_mon_snap()
++{
++    global.gnx_scn_mon_snap = {};
++
++    with (obj_mon)
++        variable_struct_set(global.gnx_scn_mon_snap, string(real(id)), [x, y, mon_data.mon_state]);
++
++    return instance_number(obj_mon);
++}
++
++
++// Discord #42: the monsters that have not moved since gnx_scn_mon_snap and are not in a scene (state 1) or on
++// patrol (10): "type/state/task floor x -> cell h_type (captive class)" joined with "; ", "" when none. Logged too.
++function gnx_scn_mon_stuck()
++{
++    var _out = "";
++
++    if (!variable_global_exists("gnx_scn_mon_snap"))
++        return "no snap";
++
++    with (obj_mon)
++    {
++        var _k = string(real(id));
++
++        if (!variable_struct_exists(global.gnx_scn_mon_snap, _k))
++            continue;
++
++        var _s = variable_struct_get(global.gnx_scn_mon_snap, _k);
++
++        if (_s[0] != x || _s[1] != y || _s[2] != mon_data.mon_state || mon_data.mon_state == 1 || mon_data.mon_state == 10)
++            continue;
++
++        var _sid = mon_data.slot_id;
++        var _cell = (_sid != -1 && instance_exists(_sid)) ? (string(_sid.slot_data.h_type) + ((_sid.unit_data != -1) ? (" (" + string(_sid.unit_data.class) + ")") : " (empty)")) : "none";
++        _out += ((_out != "") ? "; " : "") + string(mon_data.mon_type) + "/" + string(mon_data.mon_state) + "/" + string(mon_data.task) + " f" + string(mon_data.mon_floor) + " x" + string(round(x)) + " -> " + _cell;
++    }
++
++    gnx_scn_log("mon_stuck: " + ((_out != "") ? _out : "none"));
++    return _out;
++}
++
++
++// #42 probe: cells of h_type arg0 whose seat list (mon_placement or mon_timer) is longer than their seats
++function gnx_scn_seat_lists_long(arg0)
++{
++    var _n = 0;
++
++    with (obj_slot)
++    {
++        if (variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg0 && slot_data.anim_struct != -1 && (array_length(slot_data.mon_placement) > slot_data.max_mon_num || array_length(slot_data.mon_timer) > slot_data.max_mon_num))
++            _n++;
++    }
++
++    return _n;
++}
++
++// #42 probe: monsters bound to the cell the last gnx_scn_overbind picked (found again by floor and place after a reload)
++function gnx_scn_overbind_count()
++{
++    var _cell = ds_list_find_value(global.slot_list[global.gnx_scn_ob[0]], global.gnx_scn_ob[1]);
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.slot_id == _cell)
++            _n++;
++    }
++
++    return _n;
++}
++
++// #42: {"call": "gnx_scn_overbind", "args": [n]}: n more goblins called to the first cell with a captive that takes
++// monsters, all on the seat its first monster has (0 without one), as the cells of saves made before the fix hold them
++function gnx_scn_overbind(arg0)
++{
++    var _cell = -1;
++
++    with (obj_slot)
++    {
++        if (_cell == -1 && is_struct(unit_data) && slot_data.anim_struct != -1 && slot_data.slot_type != 3 && slot_data.max_mon_num > 0 && is_array(h_unit_list))
++            _cell = id;
++    }
++
++    if (_cell == -1)
++        return 0;
++
++    var _seat = 0;
++
++    if (array_length(_cell.h_unit_list) > 0 && instance_exists(_cell.h_unit_list[0]) && _cell.h_unit_list[0].object_index == obj_mon)
++        _seat = _cell.h_unit_list[0].mon_data.placement_num;
++
++    global.gnx_scn_ob = [_cell.slot_data.slot_floor, ds_list_find_index(global.slot_list[_cell.slot_data.slot_floor], _cell)];
++
++    for (var i = 0; i < arg0; i++)
++    {
++        var _m = scr_create_mon(0, _cell.x, _cell.y, _cell.slot_data.slot_floor, ds_list_find_index(global.slot_list[_cell.slot_data.slot_floor], _cell), _seat);
++        global.val.nest_num[1]++;
++        array_push(_cell.h_unit_list, _m);
++    }
++
++    gnx_scn_log("overbind: " + string(arg0) + " on h_type " + string(_cell.slot_data.h_type) + ", list " + string(array_length(_cell.h_unit_list)));
++    return arg0;
++}
++
++// #42 probe: cells whose slot_data still holds the orphan rebuild flag (it must go after the one rebuild)
++function gnx_scn_rebuild_flags()
++{
++    var _n = 0;
++
++    with (obj_slot)
++    {
++        if (variable_instance_exists(id, "slot_data") && is_struct(slot_data) && variable_struct_exists(slot_data, "gnx_rebuild"))
++            _n++;
++    }
++
++    return _n;
++}
++
++// #42 probe: cells with more monsters than seats, as "h fF n/max list L place P cs C; ..." ("" = none). Counts the
++// monsters in the cell (state 1); with argument 1 = true every monster bound to the cell with no carry task (task 0),
++// walking ones too
++function gnx_scn_cell_overfull()
++{
++    var _all = (argument_count > 0) && argument[0];
++    var _out = "";
++
++    with (obj_slot)
++    {
++        if (!variable_struct_exists(slot_data, "h_type") || slot_data.h_type <= 0)
++            continue;
++
++        var _me = id;
++        var _n = 0;
++
++        with (obj_mon)
++        {
++            if (mon_data.slot_id == _me && (_all ? (mon_data.task == 0) : (mon_data.mon_state == 1)))
++                _n++;
++        }
++
++        if (_n > max(1, slot_data.max_mon_num))
++            _out += ((_out != "") ? "; " : "") + string(slot_data.h_type) + " f" + string(slot_data.slot_floor) + " " + string(_n) + "/" + string(slot_data.max_mon_num) + " list " + string(array_length(h_unit_list)) + " place " + string(is_array(slot_data.mon_placement) ? array_length(slot_data.mon_placement) : -1) + " cs " + string((slot_data.anim_struct != -1) ? slot_data.anim_struct.char_state : -1);
++    }
++
++    gnx_scn_log("cell_overfull: " + ((_out != "") ? _out : "none"));
++    return _out;
++}
++
++
 +// F56 checks: all monsters of custom type arg0 (by name), every class; -999 when the type is unknown
 +function gnx_scn_type_total(arg0)
 +{
@@ -5660,6 +5810,17 @@
 +                _w.tmp.mon_data.slot_id = _dc;
 +                _w.tmp.mon_data.mon_state = 1;
 +                _w.mon = _w.tmp;
++
++                if (_keep)  // saved with the cell: its own monster leaves, or the cell would hold more than its seats (the load sends those out)
++                {
++                    with (obj_mon)
++                    {
++                        if (id != _w.tmp && mon_data.slot_id == _dc)
++                            gnx_mon_release_from_slot();
++                    }
++
++                    array_push(_dc.h_unit_list, _w.tmp);  // in the list, so the cell does not call another one
++                }
 +            }
 +
 +            var _sd0 = _w.mon.mon_data.spr_data;

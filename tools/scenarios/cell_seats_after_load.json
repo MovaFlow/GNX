@@ -1,0 +1,123 @@
+{
+  "about": "Discord #42: cells rebuilt from an orphaned mod cell kept their rebuild flag in the save and were rebuilt on every load after their monsters came back (list emptied, seats added), so they called more monsters than they have seats. Fixture mid holds such cells (h19 with 3 monsters on 2 seats). Then extra goblins bound to a cell in a save are sent out by the load sweep.",
+  "fixture": "mid",
+  "check_boot_suite": false,
+  "timeout": 300,
+  "steps": [
+    {
+      "wait": 1500
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_seat_lists_long",
+      "args": [
+        19
+      ],
+      "is": 0,
+      "why": "the seats the repeated rebuilds added are trimmed"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_rebuild_flags",
+      "args": [],
+      "is": 0
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cell_overfull",
+      "args": [],
+      "is": ""
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cell_overfull",
+      "args": [
+        true
+      ],
+      "is": ""
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "wait": 1500
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_rebuild_flags",
+      "args": [],
+      "is": 0
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cell_overfull",
+      "args": [],
+      "is": ""
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cell_overfull",
+      "args": [
+        true
+      ],
+      "is": ""
+    },
+    {
+      "call": "gnx_scn_overbind",
+      "args": [
+        1
+      ],
+      "why": "a second monster on the taken seat of a 2 seat cell: not more than its seats"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_overbind_count",
+      "args": [],
+      "is": 2,
+      "why": "control: 2 bound"
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_overbind_count",
+      "args": [],
+      "is": 2,
+      "why": "a cell within its seats keeps its monsters"
+    },
+    {
+      "call": "gnx_scn_overbind",
+      "args": [
+        4
+      ]
+    },
+    {
+      "save": 9
+    },
+    {
+      "reload": 9
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_overbind_count",
+      "args": [],
+      "is": 2,
+      "why": "only down to the seats"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_cell_overfull",
+      "args": [
+        true
+      ],
+      "is": ""
+    }
+  ]
+}

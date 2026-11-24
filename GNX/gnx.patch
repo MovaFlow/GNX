@@ -18217,7 +18217,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9057 @@
+@@ -0,0 +1,9218 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -22766,6 +22766,156 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +}
 +
 +
++// Discord #42 (stuck monsters): snapshot of every monster's place and state, compared by gnx_scn_mon_stuck
++function gnx_scn_mon_snap()
++{
++    global.gnx_scn_mon_snap = {};
++
++    with (obj_mon)
++        variable_struct_set(global.gnx_scn_mon_snap, string(real(id)), [x, y, mon_data.mon_state]);
++
++    return instance_number(obj_mon);
++}
++
++
++// Discord #42: the monsters that have not moved since gnx_scn_mon_snap and are not in a scene (state 1) or on
++// patrol (10): "type/state/task floor x -> cell h_type (captive class)" joined with "; ", "" when none. Logged too.
++function gnx_scn_mon_stuck()
++{
++    var _out = "";
++
++    if (!variable_global_exists("gnx_scn_mon_snap"))
++        return "no snap";
++
++    with (obj_mon)
++    {
++        var _k = string(real(id));
++
++        if (!variable_struct_exists(global.gnx_scn_mon_snap, _k))
++            continue;
++
++        var _s = variable_struct_get(global.gnx_scn_mon_snap, _k);
++
++        if (_s[0] != x || _s[1] != y || _s[2] != mon_data.mon_state || mon_data.mon_state == 1 || mon_data.mon_state == 10)
++            continue;
++
++        var _sid = mon_data.slot_id;
++        var _cell = (_sid != -1 && instance_exists(_sid)) ? (string(_sid.slot_data.h_type) + ((_sid.unit_data != -1) ? (" (" + string(_sid.unit_data.class) + ")") : " (empty)")) : "none";
++        _out += ((_out != "") ? "; " : "") + string(mon_data.mon_type) + "/" + string(mon_data.mon_state) + "/" + string(mon_data.task) + " f" + string(mon_data.mon_floor) + " x" + string(round(x)) + " -> " + _cell;
++    }
++
++    gnx_scn_log("mon_stuck: " + ((_out != "") ? _out : "none"));
++    return _out;
++}
++
++
++// #42 probe: cells of h_type arg0 whose seat list (mon_placement or mon_timer) is longer than their seats
++function gnx_scn_seat_lists_long(arg0)
++{
++    var _n = 0;
++
++    with (obj_slot)
++    {
++        if (variable_struct_exists(slot_data, "h_type") && slot_data.h_type == arg0 && slot_data.anim_struct != -1 && (array_length(slot_data.mon_placement) > slot_data.max_mon_num || array_length(slot_data.mon_timer) > slot_data.max_mon_num))
++            _n++;
++    }
++
++    return _n;
++}
++
++// #42 probe: monsters bound to the cell the last gnx_scn_overbind picked (found again by floor and place after a reload)
++function gnx_scn_overbind_count()
++{
++    var _cell = ds_list_find_value(global.slot_list[global.gnx_scn_ob[0]], global.gnx_scn_ob[1]);
++    var _n = 0;
++
++    with (obj_mon)
++    {
++        if (mon_data.slot_id == _cell)
++            _n++;
++    }
++
++    return _n;
++}
++
++// #42: {"call": "gnx_scn_overbind", "args": [n]}: n more goblins called to the first cell with a captive that takes
++// monsters, all on the seat its first monster has (0 without one), as the cells of saves made before the fix hold them
++function gnx_scn_overbind(arg0)
++{
++    var _cell = -1;
++
++    with (obj_slot)
++    {
++        if (_cell == -1 && is_struct(unit_data) && slot_data.anim_struct != -1 && slot_data.slot_type != 3 && slot_data.max_mon_num > 0 && is_array(h_unit_list))
++            _cell = id;
++    }
++
++    if (_cell == -1)
++        return 0;
++
++    var _seat = 0;
++
++    if (array_length(_cell.h_unit_list) > 0 && instance_exists(_cell.h_unit_list[0]) && _cell.h_unit_list[0].object_index == obj_mon)
++        _seat = _cell.h_unit_list[0].mon_data.placement_num;
++
++    global.gnx_scn_ob = [_cell.slot_data.slot_floor, ds_list_find_index(global.slot_list[_cell.slot_data.slot_floor], _cell)];
++
++    for (var i = 0; i < arg0; i++)
++    {
++        var _m = scr_create_mon(0, _cell.x, _cell.y, _cell.slot_data.slot_floor, ds_list_find_index(global.slot_list[_cell.slot_data.slot_floor], _cell), _seat);
++        global.val.nest_num[1]++;
++        array_push(_cell.h_unit_list, _m);
++    }
++
++    gnx_scn_log("overbind: " + string(arg0) + " on h_type " + string(_cell.slot_data.h_type) + ", list " + string(array_length(_cell.h_unit_list)));
++    return arg0;
++}
++
++// #42 probe: cells whose slot_data still holds the orphan rebuild flag (it must go after the one rebuild)
++function gnx_scn_rebuild_flags()
++{
++    var _n = 0;
++
++    with (obj_slot)
++    {
++        if (variable_instance_exists(id, "slot_data") && is_struct(slot_data) && variable_struct_exists(slot_data, "gnx_rebuild"))
++            _n++;
++    }
++
++    return _n;
++}
++
++// #42 probe: cells with more monsters than seats, as "h fF n/max list L place P cs C; ..." ("" = none). Counts the
++// monsters in the cell (state 1); with argument 1 = true every monster bound to the cell with no carry task (task 0),
++// walking ones too
++function gnx_scn_cell_overfull()
++{
++    var _all = (argument_count > 0) && argument[0];
++    var _out = "";
++
++    with (obj_slot)
++    {
++        if (!variable_struct_exists(slot_data, "h_type") || slot_data.h_type <= 0)
++            continue;
++
++        var _me = id;
++        var _n = 0;
++
++        with (obj_mon)
++        {
++            if (mon_data.slot_id == _me && (_all ? (mon_data.task == 0) : (mon_data.mon_state == 1)))
++                _n++;
++        }
++
++        if (_n > max(1, slot_data.max_mon_num))
++            _out += ((_out != "") ? "; " : "") + string(slot_data.h_type) + " f" + string(slot_data.slot_floor) + " " + string(_n) + "/" + string(slot_data.max_mon_num) + " list " + string(array_length(h_unit_list)) + " place " + string(is_array(slot_data.mon_placement) ? array_length(slot_data.mon_placement) : -1) + " cs " + string((slot_data.anim_struct != -1) ? slot_data.anim_struct.char_state : -1);
++    }
++
++    gnx_scn_log("cell_overfull: " + ((_out != "") ? _out : "none"));
++    return _out;
++}
++
++
 +// F56 checks: all monsters of custom type arg0 (by name), every class; -999 when the type is unknown
 +function gnx_scn_type_total(arg0)
 +{
@@ -23877,6 +24027,17 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +                _w.tmp.mon_data.slot_id = _dc;
 +                _w.tmp.mon_data.mon_state = 1;
 +                _w.mon = _w.tmp;
++
++                if (_keep)  // saved with the cell: its own monster leaves, or the cell would hold more than its seats (the load sends those out)
++                {
++                    with (obj_mon)
++                    {
++                        if (id != _w.tmp && mon_data.slot_id == _dc)
++                            gnx_mon_release_from_slot();
++                    }
++
++                    array_push(_dc.h_unit_list, _w.tmp);  // in the list, so the cell does not call another one
++                }
 +            }
 +
 +            var _sd0 = _w.mon.mon_data.spr_data;
@@ -55411,7 +55572,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  }
                  
                  break;
-@@ -48,21 +49,275 @@
+@@ -48,21 +49,299 @@
          _var += 0.01;
      }
      
@@ -55422,6 +55583,24 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
 +    {
 +        var _gnx_entry = arg0.slot_list[_gnx_i];
 +        var _gnx_sd = _gnx_entry.slot_data;
++
++        // GNX-FIX (Discord #42): a rebuild flag saved by an older build (it stayed in slot_data after the rebuild)
++        // rebuilt the cell again on every load, after its monsters came back: the cell's monster list was emptied
++        // with the monsters still bound (the cell then called more) and every rebuild added max_mon_num seats
++        if (variable_struct_exists(_gnx_sd, "gnx_rebuild"))
++        {
++            variable_struct_remove(_gnx_sd, "gnx_rebuild");
++            variable_struct_remove(_gnx_sd, "gnx_had_unit");
++
++            if (variable_struct_exists(_gnx_sd, "max_mon_num") && is_numeric(_gnx_sd.max_mon_num) && _gnx_sd.max_mon_num >= 0)
++            {
++                if (variable_struct_exists(_gnx_sd, "mon_placement") && is_array(_gnx_sd.mon_placement) && array_length(_gnx_sd.mon_placement) > _gnx_sd.max_mon_num)
++                    array_resize(_gnx_sd.mon_placement, _gnx_sd.max_mon_num);
++
++                if (variable_struct_exists(_gnx_sd, "mon_timer") && is_array(_gnx_sd.mon_timer) && array_length(_gnx_sd.mon_timer) > _gnx_sd.max_mon_num)
++                    array_resize(_gnx_sd.mon_timer, _gnx_sd.max_mon_num);
++            }
++        }
 +        
 +        if (!variable_struct_exists(_gnx_sd, "h_type"))
 +            continue;
@@ -55457,8 +55636,13 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
 +        _gnx_sd.gnx_rebuild = _gnx_fb;
 +        _gnx_sd.gnx_had_unit = is_struct(_gnx_entry.unit_data);
 +        _gnx_sd.prop = [];
++        // GNX-FIX (Discord #42): the rebuild (scr_set_slot_h_data) adds the new cell's seats; the old cell's go
++        _gnx_sd.mon_placement = [];
++        _gnx_sd.mon_timer = [];
 +        arg0.slot_list[_gnx_i].unit_data = -1;
-+        ds_map_add(_gnx_orphaned, _gnx_i, true);
++        // GNX-FIX (Discord #42): keyed by floor and place on the floor, as a monster's slot_pos is (its index on its floor's
++        // list); the index into this save's slot_list of every floor matched other cells' monsters and missed these
++        ds_map_add(_gnx_orphaned, string(_gnx_sd.slot_floor) + ":" + string(_gnx_entry.pos), true);
 +        var _gnx_lf = gnx_log_open();
 +        gnx_log_write(_gnx_lf, "[GNX-SANITIZE] orphaned cell h=" + string(_gnx_old_h) + " -> rebuild as h=" + string(_gnx_fb) + "\n");
 +        gnx_log_close(_gnx_lf);
@@ -55474,8 +55658,9 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
 +        {
 +            var _gnx_mon = _gnx_ml[_gnx_i];
 +            
-+            if (_gnx_mon.slot_pos != -1 && ds_map_exists(_gnx_orphaned, _gnx_mon.slot_pos))
++            if (_gnx_mon.slot_pos != -1 && ds_map_exists(_gnx_orphaned, string(_gnx_mon.mon_data.mon_floor) + ":" + string(_gnx_mon.slot_pos)))
 +            {
++                // out of the nest counts (nest_num) are recounted by the game from the live monsters (scr_reset_nest_num)
 +                var _gnx_lf = gnx_log_open();
 +                gnx_log_write(_gnx_lf, "[GNX-SANITIZE] goblin dropped (slot=" + string(_gnx_mon.slot_pos) + ")\n");
 +                gnx_log_close(_gnx_lf);
@@ -55690,7 +55875,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      global.val.crate_alpha = 1;
                  }
                  
-@@ -73,7 +328,7 @@
+@@ -73,7 +352,7 @@
                  
                  with (obj_slot)
                  {
@@ -55699,7 +55884,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _a = slot_data.mod_index[3];
                          slot_data.mod_index[3] = 0;
-@@ -86,7 +341,7 @@
+@@ -86,7 +365,7 @@
                  
                  for (var i = 0; i < _num; i++)
                  {
@@ -55708,7 +55893,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists++;
                          
-@@ -104,7 +359,7 @@
+@@ -104,7 +383,7 @@
                  
                  for (var i = 0; i < _num; i++)
                  {
@@ -55717,7 +55902,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists++;
                          
-@@ -116,7 +371,7 @@
+@@ -116,7 +395,7 @@
                              
                              for (var ii = 0; ii < array_length(obj_np.obj_raid.raid_data.shop_item); ii++)
                              {
@@ -55726,7 +55911,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                                      obj_np.obj_raid.raid_data.shop_item[ii] = -1;
                              }
                          }
-@@ -133,7 +388,7 @@
+@@ -133,7 +412,7 @@
                  
                  for (var i = 0; i < array_length(global.unlock.utility); i++)
                  {
@@ -55735,7 +55920,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          _exists = true;
                          i = array_length(global.unlock.utility);
-@@ -142,27 +397,27 @@
+@@ -142,27 +421,27 @@
                  
                  if (_exists)
                  {
@@ -55770,7 +55955,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  
                  break;
              
-@@ -182,15 +437,15 @@
+@@ -182,15 +461,15 @@
                  global.val.ogre.expe = [0, 0, 0, 0];
                  global.val.ogre.skill_lvl = [0, 0, 0, 0];
                  global.val.ogre.skill_exp = [0, 0, 0, 0];
@@ -55790,7 +55975,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              depth = -751;
                              
-@@ -245,7 +500,7 @@
+@@ -245,7 +524,7 @@
                  
                  with (obj_slot)
                  {
@@ -55799,7 +55984,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -253,7 +508,7 @@
+@@ -253,7 +532,7 @@
                          _l_num++;
                      }
                      
@@ -55808,7 +55993,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -266,7 +521,7 @@
+@@ -266,7 +545,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -55817,7 +56002,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -274,7 +529,7 @@
+@@ -274,7 +553,7 @@
                          _l_num++;
                      }
                      
@@ -55826,7 +56011,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -287,7 +542,7 @@
+@@ -287,7 +566,7 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -55835,7 +56020,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              global.val.cage[i] = -1;
-@@ -295,7 +550,7 @@
+@@ -295,7 +574,7 @@
                          _l_num++;
                      }
                      
@@ -55844,7 +56029,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              global.val.cage[i] = -1;
-@@ -308,7 +563,7 @@
+@@ -308,7 +587,7 @@
                  {
                      with (obj_button)
                      {
@@ -55853,7 +56038,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              instance_destroy();
                      }
                      
-@@ -316,7 +571,7 @@
+@@ -316,7 +595,7 @@
                      
                      with (obj_button)
                      {
@@ -55862,7 +56047,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              image_index = (button_num * 2) + 1;
                              switch_type = true;
-@@ -354,7 +609,7 @@
+@@ -354,7 +633,7 @@
                  
                  with (obj_slot)
                  {
@@ -55871,7 +56056,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_h_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -362,7 +617,7 @@
+@@ -362,7 +641,7 @@
                          _h_num++;
                      }
                      
@@ -55880,7 +56065,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_n_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -370,7 +625,7 @@
+@@ -370,7 +649,7 @@
                          _n_num++;
                      }
                      
@@ -55889,7 +56074,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_s_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -378,7 +633,7 @@
+@@ -378,7 +657,7 @@
                          _s_num++;
                      }
                      
@@ -55898,7 +56083,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_b_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -386,7 +641,7 @@
+@@ -386,7 +665,7 @@
                          _b_num++;
                      }
                      
@@ -55907,7 +56092,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -394,7 +649,7 @@
+@@ -394,7 +673,7 @@
                          _m_num++;
                      }
                      
@@ -55916,7 +56101,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              scr_occupy_slot(id, -1, false, -1);
-@@ -407,7 +662,7 @@
+@@ -407,7 +686,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -55925,7 +56110,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_h_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -415,7 +670,7 @@
+@@ -415,7 +694,7 @@
                          _h_num++;
                      }
                      
@@ -55934,7 +56119,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_n_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -423,7 +678,7 @@
+@@ -423,7 +702,7 @@
                          _n_num++;
                      }
                      
@@ -55943,7 +56128,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_s_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -431,7 +686,7 @@
+@@ -431,7 +710,7 @@
                          _s_num++;
                      }
                      
@@ -55952,7 +56137,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_m_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -439,7 +694,7 @@
+@@ -439,7 +718,7 @@
                          _m_num++;
                      }
                      
@@ -55961,7 +56146,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_b_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -447,7 +702,7 @@
+@@ -447,7 +726,7 @@
                          _b_num++;
                      }
                      
@@ -55970,7 +56155,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          if (_l_num != 0)
                              ds_list_set(global.unit_list, i, -1);
-@@ -461,13 +716,13 @@
+@@ -461,13 +740,13 @@
              case 1.13:
                  with (obj_slot)
                  {
@@ -55986,7 +56171,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              bar_glow_rep = -1;
                      }
                  }
-@@ -476,7 +731,7 @@
+@@ -476,7 +755,7 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -55995,7 +56180,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _new = scr_create_unit_base(_id.class, 7);
                          ds_list_replace(global.unit_list, i, _new);
-@@ -487,7 +742,7 @@
+@@ -487,7 +766,7 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -56004,7 +56189,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _new = scr_create_unit_base(_id.class, 7);
                          global.val.cage[i] = _new;
-@@ -498,7 +753,7 @@
+@@ -498,7 +777,7 @@
                  {
                      with (obj_button)
                      {
@@ -56013,7 +56198,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              instance_destroy();
                      }
                      
-@@ -506,7 +761,7 @@
+@@ -506,7 +785,7 @@
                      
                      with (obj_button)
                      {
@@ -56022,7 +56207,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          {
                              image_index = (button_num * 2) + 1;
                              switch_type = true;
-@@ -522,10 +777,10 @@
+@@ -522,10 +801,10 @@
                  
                  with (obj_slot)
                  {
@@ -56036,7 +56221,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          array_insert(slot_data.mod_index, 1, 0);
                  }
                  
-@@ -533,9 +788,9 @@
+@@ -533,9 +812,9 @@
                  {
                      var _id = ds_list_find_value(global.unit_list, i);
                      
@@ -56048,7 +56233,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          ds_list_set(global.unit_list, i, _id);
                      }
                  }
-@@ -544,9 +799,9 @@
+@@ -544,9 +823,9 @@
                  {
                      var _id = global.val.cage[i];
                      
@@ -56060,7 +56245,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          global.val.cage[i] = _id;
                      }
                  }
-@@ -556,13 +811,13 @@
+@@ -556,13 +835,13 @@
              case 1.15:
                  with (obj_slot)
                  {
@@ -56076,7 +56261,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                              {
                                  with (slot_data.prop[i].prop_id)
                                      instance_destroy();
-@@ -583,7 +838,7 @@
+@@ -583,7 +862,7 @@
              case 1.16:
                  with (obj_slot)
                  {
@@ -56085,7 +56270,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          array_push(slot_data.mod_index, false);
                          array_push(slot_data.mod_index, false);
-@@ -597,7 +852,7 @@
+@@ -597,7 +876,7 @@
              case 1.23:
                  with (obj_slot)
                  {
@@ -56094,7 +56279,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          var _unit_id = unit_data;
                          scr_occupy_slot(id, -1, false, -1);
-@@ -614,23 +869,23 @@
+@@ -614,23 +893,23 @@
                  if (!variable_struct_exists(global.val, "old_t_lvl"))
                      global.val.old_t_lvl = 0;
                  
@@ -56127,7 +56312,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  }
                  
                  break;
-@@ -638,7 +893,7 @@
+@@ -638,7 +917,7 @@
              case 1.29:
                  with (obj_slot)
                  {
@@ -56136,7 +56321,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                          array_push(slot_data.mod_index, 0);
                  }
                  
-@@ -723,6 +978,21 @@
+@@ -723,6 +1002,25 @@
          global.val.version += 0.01;
      }
      
@@ -56144,9 +56329,13 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
 +    {
 +        if (variable_struct_exists(slot_data, "gnx_rebuild"))
 +        {
++            var _gnx_had = slot_data.gnx_had_unit;
 +            scr_set_slot_h_data(id, slot_data.gnx_rebuild);
++            // GNX-FIX (Discord #42): once only; saved, the flag rebuilt the cell on every later load
++            variable_struct_remove(slot_data, "gnx_rebuild");
++            variable_struct_remove(slot_data, "gnx_had_unit");
 +            
-+            if (slot_data.gnx_had_unit)
++            if (_gnx_had)
 +                scr_occupy_slot(id, scr_create_unit_base(0, 1), false, 0);
 +        }
 +    }
@@ -56158,7 +56347,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
      return arg0;
  }
  
-@@ -736,7 +1006,7 @@
+@@ -736,7 +1034,7 @@
          
          for (var i = 0; i < _num; i++)
          {
@@ -56167,7 +56356,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
              {
                  _exists = true;
                  i = _num;
-@@ -749,7 +1019,7 @@
+@@ -749,7 +1047,7 @@
              
              for (var i = 0; i < _num; i++)
              {
@@ -56176,7 +56365,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                  {
                      _exists = true;
                      i = _num;
-@@ -758,10 +1028,10 @@
+@@ -758,10 +1056,10 @@
          }
          
          if (_exists)
@@ -56190,7 +56379,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
          
          var _a = global.val.shop_item[0];
          scr_set_shop_list();
-@@ -794,17 +1064,17 @@
+@@ -794,17 +1092,17 @@
          global.val.stage_item[0][0] = _st_1_1;
          global.val.stage_item[0][1] = _st_1_2;
          global.val.stage_item[1][0] = _st_2_1;
@@ -56211,7 +56400,7 @@ diff -uN gml_138/gml_GlobalScript_s_patch_updates.gml gml/gml_GlobalScript_s_pat
                      {
                          scr_create_textbox(_noti, -1, obj_np);
                          instance_destroy();
-@@ -815,32 +1085,3 @@
+@@ -815,32 +1113,3 @@
          }
      }
  }
@@ -58972,7 +59161,9 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +                    // load order (audit P10)
 +                    var _gnx_pt = gnx_prop_saved_type(_pd);
 +                    var _prop = (_gnx_pt == -1) ? -1 : scr_create_prop(id, _gnx_pt, _infant, _pd.prop_step);
-+                    
+                     
+-                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
+-                    _prop.prop_data = _data.slot_data.prop[ii];
 +                    // GNX-FIX: no prop made (its mod is missing): kept aside, not read (that stopped the load)
 +                    if (is_undefined(_prop) || _prop == -1 || !instance_exists(_prop))
 +                    {
@@ -58983,9 +59174,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +                        gnx_log_close(_gnx_pl);
 +                        continue;
 +                    }
-                     
--                    var _prop = scr_create_prop(id, _data.slot_data.prop[ii].prop_type, _infant, _data.slot_data.prop[ii].prop_step);
--                    _prop.prop_data = _data.slot_data.prop[ii];
++                    
 +                    array_push(_gnx_kept, _pd);
 +                    
 +                    if (variable_struct_exists(_pd, "prop_pos"))
@@ -59253,7 +59442,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
          
          ds_list_clear(global.new_guide_list);
          _num = array_length(_global.new_guide_list);
-@@ -654,8 +1095,395 @@
+@@ -654,8 +1095,438 @@
          for (var i = 0; i < _num; i++)
              ds_list_add(global.back_row_save, _global.back_row_save[i]);
          
@@ -59508,6 +59697,49 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
 +                }
 +            }
 +        }
++
++        // GNX-FIX (Discord #42): no more monsters than the cell has seats (the saves of builds where rebuilt cells were
++        // rebuilt on every load, s_patch_updates, hold cells with several monsters on one seat). The ones past the count
++        // leave for the door: first those on a seat already taken, then the ones called last. A cell that does not hold
++        // more monsters than seats is left alone, whatever their seat numbers. No carry tasks
++        if (is_array(h_unit_list) && slot_data.slot_type != 3 && slot_data.anim_struct != -1 && variable_struct_exists(slot_data, "max_mon_num") && slot_data.max_mon_num > 0)
++        {
++            var _seat_used = array_create(slot_data.max_mon_num, false);
++            var _bound = 0;
++            var _extra = [];
++
++            for (var _hi = 0; _hi < array_length(h_unit_list); _hi++)
++            {
++                var _hm = h_unit_list[_hi];
++
++                if (!gnx_is_live_inst(_hm) || _hm.object_index != obj_mon || _hm.mon_data.task != 0 || _hm.mon_data.slot_id != id)
++                    continue;
++
++                _bound++;
++                var _seat = _hm.mon_data.placement_num;
++
++                if (is_numeric(_seat) && _seat >= 0 && _seat < slot_data.max_mon_num && !_seat_used[_seat])
++                    _seat_used[_seat] = true;
++                else
++                    array_push(_extra, _hm);
++            }
++
++            var _out = _bound - slot_data.max_mon_num;
++
++            for (var _ei = array_length(_extra) - 1; _ei >= 0 && _out > 0; _ei--)
++            {
++                with (_extra[_ei])
++                    gnx_mon_release_from_slot();
++
++                if (_sweep_f == -1)
++                    _sweep_f = gnx_log_open();
++
++                gnx_log_write(_sweep_f, "[GNX] SWEEP extra monster mon=" + string(_extra[_ei]) + " sent out of h_type=" + string(slot_data.h_type) + " (the cell has " + string(slot_data.max_mon_num) + " seat(s))");
++                gnx_log_writeln(_sweep_f);
++                _sweep_n++;
++                _out--;
++            }
++        }
 +    }
 +
 +    if (_sweep_refs > 0)
@@ -59649,7 +59881,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      }
      
      return _load;
-@@ -663,6 +1491,7 @@
+@@ -663,6 +1534,7 @@
  
  function scr_delete_save(arg0)
  {
@@ -59657,7 +59889,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
      var _load_type;
      
      switch (arg0)
-@@ -682,33 +1511,25 @@
+@@ -682,33 +1554,25 @@
          case 3:
              _load_type = "save_file_3.json";
              break;
@@ -59702,7 +59934,7 @@ diff -uN gml_138/gml_GlobalScript_s_save_load.gml gml/gml_GlobalScript_s_save_lo
  }
  
  enum UnknownEnum
-@@ -733,3 +1554,119 @@
+@@ -733,3 +1597,119 @@
      Value_40 = 40,
      Value_52 = 52
  }
