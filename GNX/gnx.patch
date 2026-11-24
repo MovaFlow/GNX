@@ -4571,11 +4571,12 @@ diff -uN gml_138/gml_GlobalScript_s_draw_gui.gml gml/gml_GlobalScript_s_draw_gui
          }
      }
      
-@@ -95,6 +127,8 @@
+@@ -95,6 +127,9 @@
          draw_text(20, 20, "button =" + string(instance_number(obj_button)));
          draw_text(20, 30, "window =" + string(instance_number(obj_window)));
      }
 +    
++    gnx_draw_cell_label();
 +    scr_gnx_draw_scrollbar();
  }
  
@@ -16605,7 +16606,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw.gml
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1608 @@
+@@ -0,0 +1,1664 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18185,6 +18186,62 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +}
 +
 +
++// F43: the name of the cell under the mouse when no captive is in it (gnx_cell_label_text), over the top of the cell. In the
++// GUI, so it keeps its size at every zoom and no neighbouring cell covers it; a window in front takes the mouse, and the
++// cell is not pointed at then (the game sets and clears hover)
++function gnx_draw_cell_label()
++{
++    var _cell = -1;
++
++    with (obj_slot)
++    {
++        if (hover != -1 && hover)
++            _cell = id;
++    }
++
++    if (_cell == -1)
++        return;
++
++    var _t = gnx_cell_label_text(_cell);
++
++    if (_t == "")
++        return;
++
++    var _cam = view_camera[0];
++    var _vw = camera_get_view_width(_cam);
++    var _vh = camera_get_view_height(_cam);
++    var _lp = scr_change_lang();  // the player's language font and its shift
++    draw_set_halign(fa_center);
++    var _hw = string_width(_t) * 0.5;
++    var _th = string_height(_t);
++    // 18: under the top bar; 480 x 270 is the GUI size
++    var _x = clamp(floor(((((_cell.bbox_left + _cell.bbox_right) * 0.5) - camera_get_view_x(_cam)) * 480) / _vw), ceil(_hw) + 2, 478 - ceil(_hw));
++    var _y = clamp(floor(((_cell.bbox_top - camera_get_view_y(_cam)) * 270) / _vh) + 2, 18, 268 - _th);
++    draw_text_color(_x + 1 + _lp[0], _y + 1 + _lp[1], _t, c_black, c_black, c_black, c_black, 1);
++    draw_text_color(_x + _lp[0], _y + _lp[1], _t, c_white, c_white, c_white, c_white, 1);
++    gnx_ui_rect("leaf", _x - _hw, _y, _x + _hw, _y + _th, "cell_name:" + _t);
++    draw_set_font(fnt_base_font_eng);
++}
++
++
++// F43: the name to show over cell arg0 while the mouse is on it, "" for none: nothing built (doors and
++// pillars included), a captive inside, or its window open (that shows the name)
++function gnx_cell_label_text(arg0)
++{
++    var _sd = arg0.slot_data;
++
++    if (_sd.anim_struct == -1 || is_struct(arg0.unit_data))
++        return "";
++
++    if (arg0.mod_window != -1 && instance_exists(arg0.mod_window))
++        return "";
++
++    // as the cell window's title (scr_create_window_slot_mod)
++    var _t = (global.val.language != 0) ? gnx_lang_slot_text(_sd.h_type) : scr_h_slot_text_data(_sd.h_type).text_type;
++    return is_string(_t) ? _t : "";
++}
++
++
 +// GNX-FIX: text arg0 (gnx_tr of arg1) drawn by GNX in the player's language: when it differs from arg1 (a mod
 +// translated it), the font of that language is set, as the game does before its own translated texts
 +// (scr_change_lang), and its position shift is returned; else nothing changes and the shift is [0, 0]. GNX drew
@@ -18217,7 +18274,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9218 @@
+@@ -0,0 +1,9309 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -22808,6 +22865,97 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    return _out;
 +}
 +
++
++// F43: {"assert": "fn", "name": "gnx_scn_cell_label", "args": [h_type, kind]}: the name the GUI writes over the first cell of
++// that h_type on the screen (the view moves to it) while the mouse is on it; "" = none. kind "empty", "occupied" (has a captive),
++// "window" (empty, its window open), "away" (empty, mouse elsewhere), "edge" (empty, mostly past the screen's top left corner)
++// or "zoom" (empty, zoomed out); h_type -1 = a slot with nothing built (as one whose
++// G.BANG 1 was removed). Adds " off screen" / " not over the cell" when it is
++function gnx_scn_cell_label(arg0, arg1)
++{
++    var _want = arg0;
++    var _occ = (arg1 == "occupied");
++    var _cell = -1;
++
++    with (obj_slot)
++    {
++        hover = false;
++
++        if (_cell != -1 || slot_data.slot_type == 3 || slot_data.slot_type == 4 || slot_data.slot_type == 5)
++            continue;
++
++        if (_want == -1)
++        {
++            if (slot_data.anim_struct == -1)
++                _cell = id;
++        }
++        else if (slot_data.anim_struct != -1 && slot_data.h_type == _want && is_struct(unit_data) == _occ)
++            _cell = id;
++    }
++
++    if (_cell == -1)
++        return "no such cell";
++
++    var _cam = view_camera[0];
++    var _vw = camera_get_view_width(_cam);
++    var _vh = camera_get_view_height(_cam);
++    var _vx = camera_get_view_x(_cam);
++    var _vy = camera_get_view_y(_cam);
++    var _zoom = (arg1 == "zoom") ? 2 : 1;
++    camera_set_view_size(_cam, 480 * _zoom, 270 * _zoom);
++
++    if (arg1 == "edge")
++        camera_set_view_pos(_cam, _cell.bbox_right - 8, _cell.bbox_bottom - 4);
++    else
++        camera_set_view_pos(_cam, _cell.x - 200, _cell.y - 150);
++
++    var _win = _cell.mod_window;
++
++    if (arg1 == "window")
++        _cell.mod_window = instance_find(obj_gui, 0);
++
++    if (_want == -1)
++        _cell.slot_data.h_type = 19;
++
++    _cell.hover = (arg1 != "away");
++    global.gnx_ui_rects = [];
++
++    with (obj_gui)
++        scr_draw_gui();
++
++    var _out = "";
++    var _off = "";
++
++    for (var i = 0; i < array_length(global.gnx_ui_rects); i++)
++    {
++        var _r = global.gnx_ui_rects[i];
++
++        if (string_pos("cell_name:", _r.label) != 1)
++            continue;
++
++        _out += string_delete(_r.label, 1, 10);
++
++        if (_r.x0 < 0 || _r.y0 < 0 || _r.x1 > 480 || _r.y1 > 270)
++            _off = " off screen " + string([_r.x0, _r.y0, _r.x1, _r.y1]);
++
++        var _cx = (_r.x0 + _r.x1) * 0.5;
++        var _gx0 = (_cell.bbox_left - camera_get_view_x(_cam)) / _zoom;
++        var _gx1 = (_cell.bbox_right - camera_get_view_x(_cam)) / _zoom;
++        var _gy0 = (_cell.bbox_top - camera_get_view_y(_cam)) / _zoom;
++        var _gy1 = (_cell.bbox_bottom - camera_get_view_y(_cam)) / _zoom;
++
++        if (arg1 != "edge" && (_cx < _gx0 || _cx > _gx1 || _r.y0 < _gy0 || _r.y1 > _gy1))
++            _off += " not over the cell";
++    }
++
++    global.gnx_ui_rects = -1;
++    _cell.mod_window = _win;
++    _cell.hover = false;
++    camera_set_view_size(_cam, _vw, _vh);
++    camera_set_view_pos(_cam, _vx, _vy);
++    gnx_scn_log("cell_label h=" + string(arg0) + " " + arg1 + ": '" + _out + "'" + _off);
++    return _out + _off;
++}
 +
 +// #42 probe: cells of h_type arg0 whose seat list (mon_placement or mon_timer) is longer than their seats
 +function gnx_scn_seat_lists_long(arg0)

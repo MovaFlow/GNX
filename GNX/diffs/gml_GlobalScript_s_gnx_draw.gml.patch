@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1608 @@
+@@ -0,0 +1,1664 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1577,6 +1577,62 @@
 +    var _l = gnx_log_open();
 +    gnx_log_write(_l, "[GNX] " + _who + ": sprite_replace " + string(_done) + " game sprite(s)\n");
 +    gnx_log_close(_l);
++}
++
++
++// F43: the name of the cell under the mouse when no captive is in it (gnx_cell_label_text), over the top of the cell. In the
++// GUI, so it keeps its size at every zoom and no neighbouring cell covers it; a window in front takes the mouse, and the
++// cell is not pointed at then (the game sets and clears hover)
++function gnx_draw_cell_label()
++{
++    var _cell = -1;
++
++    with (obj_slot)
++    {
++        if (hover != -1 && hover)
++            _cell = id;
++    }
++
++    if (_cell == -1)
++        return;
++
++    var _t = gnx_cell_label_text(_cell);
++
++    if (_t == "")
++        return;
++
++    var _cam = view_camera[0];
++    var _vw = camera_get_view_width(_cam);
++    var _vh = camera_get_view_height(_cam);
++    var _lp = scr_change_lang();  // the player's language font and its shift
++    draw_set_halign(fa_center);
++    var _hw = string_width(_t) * 0.5;
++    var _th = string_height(_t);
++    // 18: under the top bar; 480 x 270 is the GUI size
++    var _x = clamp(floor(((((_cell.bbox_left + _cell.bbox_right) * 0.5) - camera_get_view_x(_cam)) * 480) / _vw), ceil(_hw) + 2, 478 - ceil(_hw));
++    var _y = clamp(floor(((_cell.bbox_top - camera_get_view_y(_cam)) * 270) / _vh) + 2, 18, 268 - _th);
++    draw_text_color(_x + 1 + _lp[0], _y + 1 + _lp[1], _t, c_black, c_black, c_black, c_black, 1);
++    draw_text_color(_x + _lp[0], _y + _lp[1], _t, c_white, c_white, c_white, c_white, 1);
++    gnx_ui_rect("leaf", _x - _hw, _y, _x + _hw, _y + _th, "cell_name:" + _t);
++    draw_set_font(fnt_base_font_eng);
++}
++
++
++// F43: the name to show over cell arg0 while the mouse is on it, "" for none: nothing built (doors and
++// pillars included), a captive inside, or its window open (that shows the name)
++function gnx_cell_label_text(arg0)
++{
++    var _sd = arg0.slot_data;
++
++    if (_sd.anim_struct == -1 || is_struct(arg0.unit_data))
++        return "";
++
++    if (arg0.mod_window != -1 && instance_exists(arg0.mod_window))
++        return "";
++
++    // as the cell window's title (scr_create_window_slot_mod)
++    var _t = (global.val.language != 0) ? gnx_lang_slot_text(_sd.h_type) : scr_h_slot_text_data(_sd.h_type).text_type;
++    return is_string(_t) ? _t : "";
 +}
 +
 +
