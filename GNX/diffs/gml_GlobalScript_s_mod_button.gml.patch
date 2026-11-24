@@ -9,30 +9,42 @@
          var _shift_min, _shift_max;
          
          switch (_mod_type)
-@@ -61,10 +61,15 @@
+@@ -61,10 +61,17 @@
      var _pos_array = source_id.pos_array;
      var _mod_pos = _pos_array[button_num + source_id.skip_row];
      
 -    if (source_id.source_id.slot_data.mod_index[_mod_pos] == 1)
 +    if (_mod_pos == -1)  // GNX-OFF: the on/off row
 +        sprite_index = gnx_slot_off(source_id.source_id) ? spr_button_oval_2 : spr_button_oval;
++    else if (_mod_pos == -2)  // F38: the frog row
++        sprite_index = gnx_frog_off(source_id.source_id) ? spr_button_oval_2 : spr_button_oval;
 +    else if (source_id.source_id.slot_data.mod_index[_mod_pos] == 1)
          sprite_index = spr_button_oval_2;
      else
          sprite_index = spr_button_oval;
 +    
-+    // GNX-OUTFIT: a clothing button showing a variant has that variant's colour (-1 = the on/off row: white)
-+    image_blend = (_mod_pos == -1) ? c_white : gnx_outfit_blend(source_id.source_id, _mod_pos);
++    // GNX-OUTFIT: a clothing button showing a variant has that variant's colour (below 0 = the on/off and frog rows: white)
++    image_blend = (_mod_pos < 0) ? c_white : gnx_outfit_blend(source_id.source_id, _mod_pos);
  }
  
  function scr_create_mod_icon()
-@@ -72,6 +77,18 @@
+@@ -72,6 +79,28 @@
      follow = true;
      var _array = source_id.icon_array;
      image_index = _array[button_num];
 +
 +    // GNX-OFF: the on/off row of a utility cell shows the power icon (GNX asset), not the breeding icon
-+    if (source_id.pos_array[button_num] == -1 && gnx_cell_off_power(source_id.source_id.slot_data.h_type))
++    if (source_id.pos_array[button_num] == -2)  // F38
++    {
++        var _gnx_fr = gnx_frog_icon(source_id.source_id);
++
++        if (sprite_exists(_gnx_fr))
++        {
++            sprite_index = _gnx_fr;
++            image_index = 0;
++        }
++    }
++    else if (source_id.pos_array[button_num] == -1 && gnx_cell_off_power(source_id.source_id.slot_data.h_type))
 +    {
 +        var _gnx_pw = asset_get_index("spr_gnx_power_icon");
 +

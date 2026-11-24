@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_nest.gml
 +++ gml/gml_GlobalScript_s_gnx_nest.gml
-@@ -0,0 +1,1192 @@
+@@ -0,0 +1,1361 @@
 +// GNX: nest features: floor edit and copy, save slots, prison sort, mod birth list
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -585,6 +585,175 @@
 +    _cell.slot_data.gnx_off = !gnx_slot_off(_cell);
 +    sprite_index = _cell.slot_data.gnx_off ? spr_button_oval_2 : spr_button_oval;
 +    scr_gnx_pop_up_create(_cell.slot_data.gnx_off ? "Cell off: no monster comes in" : "Cell on");
++}
++
++
++// F38: the frog shrine (F.SHRINE) swaps a used-up captive of a cell in its reach for another one of the prison. A cell kept out
++// of it keeps its captive: its own setting (slot_data.gnx_frog_off, set by its window's frog row), else its floor's
++function gnx_frog_off(arg0)
++{
++    if (variable_struct_exists(arg0.slot_data, "gnx_frog_off"))
++        return arg0.slot_data.gnx_frog_off;
++
++    return gnx_frog_floor_off(arg0.slot_data.slot_floor);
++}
++
++
++// F38: the frog setting of floor arg0: it is on the floor's entrance (slot type 4), so it is saved and moves with the floor
++function gnx_frog_floor_off(arg0)
++{
++    var _e = gnx_frog_entrance(arg0);
++    return _e != -1 && variable_struct_exists(_e.slot_data, "gnx_frog_floor_off") && _e.slot_data.gnx_frog_floor_off;
++}
++
++
++// F38: the entrance of floor arg0, -1 when it has none
++function gnx_frog_entrance(arg0)
++{
++    var _list = global.slot_list[arg0];
++
++    for (var i = 0; i < ds_list_size(_list); i++)
++    {
++        var _s = ds_list_find_value(_list, i);
++
++        if (_s.slot_data.slot_type == 4)
++            return _s;
++    }
++
++    return -1;
++}
++
++
++// F38: whether floor arg0 has a frog shrine (h_type 41)
++function gnx_frog_floor_shrine(arg0)
++{
++    var _list = global.slot_list[arg0];
++
++    for (var i = 0; i < ds_list_size(_list); i++)
++    {
++        var _s = ds_list_find_value(_list, i);
++
++        if (_s.slot_data.slot_type == 1 && _s.slot_data.anim_struct != -1 && _s.slot_data.h_type == 41)
++            return true;
++    }
++
++    return false;
++}
++
++
++// F38: whether the shrine can swap the captive of cell arg0: the cells scr_check_frog_unit_swap handles
++function gnx_frog_cell_ok(arg0)
++{
++    var _h = arg0.slot_data.h_type;
++    return arg0.slot_data.allow_preg || _h == 4 || _h == 5 || _h == 12 || _h == 30 || _h == 33 || gnx_cell_is_ug(_h);
++}
++
++
++// F38: whether cell arg0's window offers the frog row: the shrine can swap its captive and the floor has a shrine (its exact reach
++// is not asked: a cell out of reach is never swapped anyway)
++function gnx_frog_row_offered(arg0)
++{
++    return gnx_frog_cell_ok(arg0) && gnx_frog_floor_shrine(arg0.slot_data.slot_floor);
++}
++
++
++// F38: a crossed out frog on every cell kept out of the swap, on the floors on screen that have a shrine: right of the captive's
++// head (the loading icon's place, mirrored), on empty cells too. Drawn by obj_fg (over the ceiling, behind the heads and their
++// windows); hidden with the heads
++function gnx_draw_frog_marks()
++{
++    if (!global.val.show_head)
++        return;
++
++    var _spr = asset_get_index("spr_gnx_frog_mark");
++
++    if (!sprite_exists(_spr))
++        return;
++
++    var _w = sprite_get_width(_spr) * 0.5;
++    var _h = sprite_get_height(_spr) * 0.5;
++    var _vy = camera_get_view_y(view_camera[0]);
++    var _vh = camera_get_view_height(view_camera[0]);
++
++    for (var _f = 0; _f <= global.val.floor; _f++)
++    {
++        var _y = (175 + gnx_floor_off(_f)) - 93;
++
++        if (_y < (_vy - 20) || _y > (_vy + _vh + 20) || !gnx_frog_floor_shrine(_f))
++            continue;
++
++        var _off = gnx_frog_floor_off(_f);
++        var _list = global.slot_list[_f];
++
++        for (var i = 0; i < ds_list_size(_list); i++)
++        {
++            var _s = ds_list_find_value(_list, i);
++            var _sd = _s.slot_data;
++
++            // the cell's own setting, else its floor's (gnx_frog_off, with the floor's read once)
++            if (!(variable_struct_exists(_sd, "gnx_frog_off") ? _sd.gnx_frog_off : _off))
++                continue;
++
++            if (_sd.anim_struct == -1 || !gnx_frog_cell_ok(_s))
++                continue;
++
++            var _x = _s.x + floor(_s.image_xscale * 0.5) + 15;
++            draw_sprite(_spr, 0, _x, _y);
++            gnx_ui_rect("leaf", _x - _w, _y - _h, _x + _w, _y + _h, "frog_mark");
++        }
++    }
++}
++
++
++// F38: the sprite of the frog row's icon for cell arg0: crossed out while the cell is kept out
++function gnx_frog_icon(arg0)
++{
++    return asset_get_index(gnx_frog_off(arg0) ? "spr_gnx_frog_off_icon" : "spr_gnx_frog_icon");
++}
++
++
++// F38: the window's frog row pressed (self = its oval button; source_id = the window, its source_id = the cell): the cell is set
++// apart from its floor. Dark oval = no swap, as the on/off row (gnx_cell_off_toggle)
++function gnx_frog_toggle()
++{
++    var _cell = source_id.source_id;
++    _cell.slot_data.gnx_frog_off = !gnx_frog_off(_cell);
++    sprite_index = _cell.slot_data.gnx_frog_off ? spr_button_oval_2 : spr_button_oval;
++    var _win = source_id;
++    var _icon = gnx_frog_icon(_cell);
++
++    // the row's icon: the only button of the window without an action (interact_type -1) at place -2
++    with (obj_button)
++    {
++        if (interact_type == -1 && source_id == _win && button_num < array_length(_win.pos_array) && _win.pos_array[button_num] == -2 && sprite_exists(_icon))
++            sprite_index = _icon;
++    }
++
++    scr_gnx_pop_up_create(_cell.slot_data.gnx_frog_off ? "Frog shrine: no swap in this cell" : "Frog shrine: swaps in this cell");
++}
++
++
++// F38: FROG of the FLOOR menu pressed on floor arg0: the floor's setting changes and every cell of the floor takes it (the ones
++// set apart lose their own)
++function gnx_frog_floor_toggle(arg0)
++{
++    var _e = gnx_frog_entrance(arg0);
++
++    if (_e == -1)
++        return;
++
++    _e.slot_data.gnx_frog_floor_off = !gnx_frog_floor_off(arg0);
++    var _list = global.slot_list[arg0];
++
++    for (var i = 0; i < ds_list_size(_list); i++)
++    {
++        var _s = ds_list_find_value(_list, i);
++
++        if (variable_struct_exists(_s.slot_data, "gnx_frog_off"))
++            variable_struct_remove(_s.slot_data, "gnx_frog_off");
++    }
++
++    scr_gnx_pop_up_create(_e.slot_data.gnx_frog_floor_off ? "Frog shrine: no swap on this floor" : "Frog shrine: swaps on this floor");
 +}
 +
 +

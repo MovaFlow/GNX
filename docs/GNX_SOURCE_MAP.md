@@ -12,10 +12,10 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 96 | 3556 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 112 | 5851 |
 | `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 50 | 1665 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 415 | 9310 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 431 | 9646 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 316 |
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 59 | 3112 |
-| `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 44 | 1193 |
+| `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 54 | 1362 |
 | `s_gnx_props.gml` | props.json: registration, effects, reactions, counters, menu groups | 38 | 2343 |
 | `s_gnx_quests.gml` | quests, triggers, dialogs, popups, rewards | 40 | 1919 |
 | `s_gnx_raid.gml` | raid encounter pools, post-raid escape, no-capture encounters | 58 | 1929 |
@@ -230,6 +230,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_create_save_page_arrows` | `s_gnx_nest.gml` |
 | `gnx_dest_prison_free` | `s_gnx_travel.gml` |
 | `gnx_draw_cell_label` | `s_gnx_draw.gml` |
+| `gnx_draw_frog_marks` | `s_gnx_nest.gml` |
 | `gnx_draw_sprite` | `s_gnx_draw.gml` |
 | `gnx_draw_sprite_clip` | `s_gnx_draw.gml` |
 | `gnx_draw_sprite_ext` | `s_gnx_draw.gml` |
@@ -270,6 +271,15 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_frames_register` | `s_gnx_cells.gml` |
 | `gnx_frames_report_bad` | `s_gnx_cells.gml` |
 | `gnx_frames_tables_loop` | `s_gnx_cells.gml` |
+| `gnx_frog_cell_ok` | `s_gnx_nest.gml` |
+| `gnx_frog_entrance` | `s_gnx_nest.gml` |
+| `gnx_frog_floor_off` | `s_gnx_nest.gml` |
+| `gnx_frog_floor_shrine` | `s_gnx_nest.gml` |
+| `gnx_frog_floor_toggle` | `s_gnx_nest.gml` |
+| `gnx_frog_icon` | `s_gnx_nest.gml` |
+| `gnx_frog_off` | `s_gnx_nest.gml` |
+| `gnx_frog_row_offered` | `s_gnx_nest.gml` |
+| `gnx_frog_toggle` | `s_gnx_nest.gml` |
 | `gnx_fx_check_keys` | `s_gnx_props.gml` |
 | `gnx_fx_draw` | `s_gnx_props.gml` |
 | `gnx_fx_floor` | `s_gnx_props.gml` |
@@ -625,6 +635,21 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_floor_prop_total` | `s_gnx_harness.gml` |
 | `gnx_scn_floor_styles` | `s_gnx_harness.gml` |
 | `gnx_scn_frames_ok` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_icon` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_icon2` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_kept` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_marks` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_menu` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_menu_press` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_move_floor` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_open` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_other` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_rebuilt` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_row` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_set` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_shrine` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_state` | `s_gnx_harness.gml` |
+| `gnx_scn_frog_try` | `s_gnx_harness.gml` |
 | `gnx_scn_gold_mark` | `s_gnx_harness.gml` |
 | `gnx_scn_gold_not_spent` | `s_gnx_harness.gml` |
 | `gnx_scn_gold_spent` | `s_gnx_harness.gml` |
@@ -712,6 +737,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_preg_is_custom` | `s_gnx_harness.gml` |
 | `gnx_scn_press_all_tools` | `s_gnx_harness.gml` |
 | `gnx_scn_press_cell_off` | `s_gnx_harness.gml` |
+| `gnx_scn_press_frog_row` | `s_gnx_harness.gml` |
 | `gnx_scn_press_nth` | `s_gnx_harness.gml` |
 | `gnx_scn_press_save` | `s_gnx_harness.gml` |
 | `gnx_scn_press_tool_cats` | `s_gnx_harness.gml` |

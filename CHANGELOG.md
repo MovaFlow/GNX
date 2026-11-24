@@ -10,6 +10,7 @@
 - **Several cells files:** the manifest's `"cells"` can be a list, `["cells1.json", "cells2.json"]`, loaded in that order, so a big cell mod can split its cells over several files. `build_mod.py`, the strip packer and the manifest schema take the list too. See GNX_MODDING.md section 4.4.
 - **Breed and give birth in one cell:** any cell whose `scr_h` ends with `scr_slot_h_giant_birth` and `scr_slot_h_giant_birth_ej` (as the vanilla GIANT cell) now goes on to the birth when the monster leaves a pregnant captive. Before, only the GIANT cell did; a mod cell's scene ended after the ejaculation and never reached the birth. See GNX_MODDING.md section 9.5.
 - **Cell names on hover:** with the mouse on a built cell that holds no captive, its name is written over it, in the player's language, mod cells included. It keeps its size at every zoom. Also while dragging a captive over a cell she can go into.
+- **Frog shrine on or off per floor and per cell:** the FLOOR menu of an entrance has FROG: ON / OFF on floors with an F.SHRINE. Off, the shrine swaps no captive of that floor. Pressing it sets every cell of the floor; a cell can then be set apart with the frog row of its window (dark, crossed out frog = no swap). Cells kept out have a crossed out frog next to the captive's head (hidden with the heads). Saved, and moved with the floor.
 
 ### Bug Fixes
 

@@ -5516,7 +5516,7 @@ How a milk strip plays:
 - **Squirt and splash.** `sq_x`, `sq_y`, `sp_x`, `sp_y` are measured on the strip: x from its left edge, y from the floor line (pixel row − `yorig`, so positive is down, in the pit); `sq_y` and `sp_y` are lists. Once set, the cell plays as the tentacle cells do: slap sound and squirt on frame 2 of the loop, drips, the squirt and ejaculation sound at the start of the ejaculation, and the splash (`sp_spr`) growing during idle after it.
 - **Where drops land.** The drops and drips fall to the pit floor: `physical.fx_floor`, by default `underground` − 4 px below the floor line ([9.8](#98-fluid-effects-sp_spr-sq_-sp_)), and they are drawn over the floor band.
 - **TRANSFER.** The hobgoblins of a TRANSFER cell take no captive out of an underground cell and bring none in. The player can still move captives in and out by hand. `"transfer": true` in `physical` allows it ([9.9](#99-optional-keys)).
-- **Frog shrine.** It works for underground cells: a captive with no pregnancies left, and not pregnant, is swapped for a unit of the same class from the prison that still has pregnancies. In a cell that milks, the swap waits until her milk is used up.
+- **Frog shrine.** It works for underground cells: a captive with no pregnancies left, and not pregnant, is swapped for a unit of the same class from the prison that still has pregnancies. In a cell that milks, the swap waits until her milk is used up. A player can turn the swap off for a floor (FROG in the FLOOR menu of its entrance) or for a cell (frog row of its window); such a cell shows a crossed out frog next to the captive's head.
 - **Payout.** `spawn_info` is paid after each ejaculation, as in other cells ([8.6](#86-spawn_info-gold-and-mood)).
 
 ---

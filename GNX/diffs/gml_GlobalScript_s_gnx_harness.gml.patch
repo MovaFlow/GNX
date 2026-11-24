@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9309 @@
+@@ -0,0 +1,9645 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -4591,6 +4591,342 @@
 +    return _out;
 +}
 +
++
++// F38: puts an F.SHRINE (h_type 41) into a big slot of the last occupied cell's floor, within the shrine's reach (a bare one,
++// else an empty cage); 1 when done, 0 when the floor has no such slot
++function gnx_scn_frog_shrine()
++{
++    var _cell = global.gnx_scn_occupied;
++    var _f = _cell.slot_data.slot_floor;
++    var _at = ds_list_find_index(global.slot_list[_f], _cell);
++
++    for (var i = max(0, _at - 9); i <= min(ds_list_size(global.slot_list[_f]) - 1, _at + 9); i++)
++    {
++        var _have = ds_list_find_value(global.slot_list[_f], i);
++
++        if (_have.slot_data.slot_type == 1 && _have.slot_data.anim_struct != -1 && _have.slot_data.h_type == 41)
++            return 1;
++    }
++
++    for (var _pass = 0; _pass < 2; _pass++)
++    {
++        for (var i = max(0, _at - 9); i <= min(ds_list_size(global.slot_list[_f]) - 1, _at + 9); i++)
++        {
++            var _s = ds_list_find_value(global.slot_list[_f], i);
++
++            if (_s.slot_data.slot_type != 1 || is_struct(_s.unit_data))
++                continue;
++
++            if ((_pass == 0 && _s.slot_data.anim_struct == -1) || (_pass == 1 && _s.slot_data.anim_struct != -1 && _s.slot_data.h_type != 41))
++            {
++                scr_set_slot_h_data(_s, 41);
++                return 1;
++            }
++        }
++    }
++
++    return 0;
++}
++
++// F38: the last occupied cell's captive has no pregnancies left and a prisoner of her class has some: the cell's scene end calls
++// the frog shrine's check; 1 when she was swapped out. The prisoner comes into an empty prison place
++function gnx_scn_frog_try()
++{
++    var _cell = global.gnx_scn_occupied;
++    var _u = _cell.unit_data;
++    _u.preg_c = 0;
++    _u.preg = -1;
++    _u.milk = 0;
++    var _place = -1;
++
++    for (var i = 0; i < ds_list_size(global.unit_list); i++)
++    {
++        var _v = ds_list_find_value(global.unit_list, i);
++
++        if (_v == -1 && _place == -1)
++            _place = i;
++        else if (is_struct(_v))
++            _v.preg_c = 0;
++    }
++
++    if (_place == -1)
++        return -1;
++
++    var _n = scr_create_unit_base(_u.class, 1);
++    _n.preg_c = 3;
++    ds_list_set(global.unit_list, _place, _n);
++
++    with (_cell)
++        scr_check_frog_unit_swap(slot_data.h_type);
++
++    return (_cell.unit_data != _u) ? 1 : 0;
++}
++
++// F38: opens the FLOOR menu of the last occupied cell's floor (arg0 true) or of another floor without a shrine, through the
++// entrance's menu; the text of its frog button, "" when it has none, "no menu" when it did not open
++function gnx_scn_frog_menu(arg0)
++{
++    with (obj_window)
++    {
++        if (!gui)
++            instance_destroy();
++    }
++
++    var _f = global.gnx_scn_occupied.slot_data.slot_floor;
++
++    if (!arg0)
++        _f = (_f == 0) ? 1 : 0;
++
++    gnx_scn_open_slot_menu(_f, false);
++
++    with (obj_button)
++    {
++        if (interact_type == 0 && button_num == 4)
++        {
++            gnx_scn_click();
++            break;
++        }
++    }
++
++    var _n = 0;
++    var _t = "";
++
++    with (obj_button)
++    {
++        if (interact_type != 2)
++            continue;
++
++        _n++;
++
++        if (button_num == 6)
++            _t = button_text;
++    }
++
++    return (_n > 0) ? _t : "no menu";
++}
++
++// F38: presses button arg0 of the open FLOOR menu; 1 when found
++function gnx_scn_frog_menu_press(arg0)
++{
++    var _hit = 0;
++
++    with (obj_button)
++    {
++        if (_hit == 0 && interact_type == 2 && button_num == arg0)
++        {
++            gnx_scn_click();
++            _hit = 1;
++        }
++    }
++
++    return _hit;
++}
++
++// F38: another built cell of the last occupied cell's floor with a frog row becomes the "last occupied" one; 1 when found
++function gnx_scn_frog_other()
++{
++    var _c = global.gnx_scn_occupied;
++    var _l = global.slot_list[_c.slot_data.slot_floor];
++
++    for (var i = 0; i < ds_list_size(_l); i++)
++    {
++        var _s = ds_list_find_value(_l, i);
++
++        if (_s != _c && _s.slot_data.slot_type != 3 && _s.slot_data.anim_struct != -1 && gnx_frog_row_offered(_s))
++        {
++            global.gnx_scn_occupied = _s;
++            global.gnx_scn_occupied_pos = [_s.slot_data.slot_floor, i];
++            return 1;
++        }
++    }
++
++    return 0;
++}
++
++// F38: whether the last occupied cell keeps its captive out of the swap (1 / 0)
++function gnx_scn_frog_state()
++{
++    return gnx_frog_off(global.gnx_scn_occupied) ? 1 : 0;
++}
++
++// F38: the last occupied cell's floor trades places with the one above (arg0 -1) or below (1)
++function gnx_scn_frog_move_floor(arg0)
++{
++    var _f = global.gnx_scn_occupied.slot_data.slot_floor;
++    scr_swap_floors(_f, _f + arg0);
++    return global.gnx_scn_occupied.slot_data.slot_floor - _f;
++}
++
++// F38: the crossed out frogs obj_fg draws with the view on the last occupied cell's floor: "<number> <1 when that cell has one,
++// at its place right of the head> <cells with one that the shrine could not swap or that are not kept out>". arg0 = show heads
++function gnx_scn_frog_marks(arg0)
++{
++    var _cell = global.gnx_scn_occupied;
++    var _cam = view_camera[0];
++    var _vx = camera_get_view_x(_cam);
++    var _vy = camera_get_view_y(_cam);
++    var _head = global.val.show_head;
++    global.val.show_head = arg0;
++    camera_set_view_pos(_cam, 0, _cell.y - 150);
++    global.gnx_ui_rects = [];
++
++    with (obj_fg)
++        event_perform(ev_draw, 0);
++
++    var _n = 0;
++    var _here = 0;
++    var _wrong = 0;
++
++    for (var i = 0; i < array_length(global.gnx_ui_rects); i++)
++    {
++        var _r = global.gnx_ui_rects[i];
++
++        if (_r.label != "frog_mark")
++            continue;
++
++        _n++;
++        var _cx = (_r.x0 + _r.x1) * 0.5;
++        var _cy = (_r.y0 + _r.y1) * 0.5;
++        var _hit = -1;
++
++        with (obj_slot)
++        {
++            if (slot_data.anim_struct != -1 && slot_data.slot_type != 3 && abs(_cx - (x + floor(image_xscale * 0.5) + 15)) <= 1 && abs(_cy - (y - 93)) <= 1)
++                _hit = id;
++        }
++
++        if (_hit == _cell)
++            _here = 1;
++
++        if (_hit == -1 || !gnx_frog_row_offered(_hit) || !gnx_frog_off(_hit))
++            _wrong++;
++    }
++
++    global.gnx_ui_rects = -1;
++    global.val.show_head = _head;
++    camera_set_view_pos(_cam, _vx, _vy);
++    gnx_scn_log("frog_marks " + string(_n) + " " + string(_here) + " " + string(_wrong));
++    return string(_n) + " " + string(_here) + " " + string(_wrong);
++}
++
++// F38: how many cells of the last occupied cell's floor the shrine could swap and are kept out
++function gnx_scn_frog_kept()
++{
++    var _n = 0;
++    var _f = global.gnx_scn_occupied.slot_data.slot_floor;
++
++    with (obj_slot)
++    {
++        if (slot_data.slot_floor == _f && slot_data.slot_type != 3 && slot_data.anim_struct != -1 && gnx_frog_row_offered(id) && gnx_frog_off(id))
++            _n++;
++    }
++
++    return _n;
++}
++
++// F38: the last occupied cell's own setting, without its window (a cell of a floor with no shrine has no frog row)
++function gnx_scn_frog_set(arg0)
++{
++    global.gnx_scn_occupied.slot_data.gnx_frog_off = arg0;
++    return 1;
++}
++
++// F38: the last occupied cell's frog row icon: "<sprite>", "" without one
++function gnx_scn_frog_icon2()
++{
++    var _name = "";
++
++    with (obj_button)
++    {
++        if (sprite_index != -1 && instance_exists(source_id) && variable_instance_exists(source_id, "pos_array") && is_array(source_id.pos_array) && interact_type == -1 && button_num < array_length(source_id.pos_array) && source_id.pos_array[button_num] == -2)
++            _name = sprite_get_name(sprite_index);
++    }
++
++    return _name;
++}
++
++// F38: the last occupied cell is built anew, as a new cell in its place; 1 when its swap is still off
++function gnx_scn_frog_rebuilt()
++{
++    with (global.gnx_scn_occupied)
++    {
++        var _u = unit_data;
++        var _h = slot_data.h_type;
++        scr_set_slot_h_base();
++        scr_set_slot_h_data(id, _h);
++
++        if (is_struct(_u))
++            scr_occupy_slot(id, _u, false, 0);
++    }
++
++    return gnx_frog_off(global.gnx_scn_occupied) ? 1 : 0;
++}
++
++// F38: opens the window of the first built cell of type arg0 on the last occupied cell's floor; 1 when found
++function gnx_scn_frog_open(arg0)
++{
++    var _l = global.slot_list[global.gnx_scn_occupied.slot_data.slot_floor];
++
++    for (var i = 0; i < ds_list_size(_l); i++)
++    {
++        var _s = ds_list_find_value(_l, i);
++
++        if (_s.slot_data.slot_type != 3 && _s.slot_data.anim_struct != -1 && _s.slot_data.h_type == arg0)
++        {
++            with (_s)
++                scr_create_window_slot_mod(id, 240, 135, false);
++
++            return 1;
++        }
++    }
++
++    return 0;
++}
++
++// F38: the open cell window's frog row: 1 = there is one, 2 = and it is dark (swap off), 0 = none
++function gnx_scn_frog_row()
++{
++    var _r = 0;
++
++    with (obj_button)
++    {
++        if (interact_type == 27 && instance_exists(source_id) && source_id.pos_array[button_num + source_id.skip_row] == -2)
++            _r = (sprite_index == spr_button_oval_2) ? 2 : 1;
++    }
++
++    return _r;
++}
++
++// F38: clicks the open cell window's frog row as the mouse does; 1 when found
++function gnx_scn_press_frog_row()
++{
++    var _hit = 0;
++
++    with (obj_button)
++    {
++        if (_hit == 0 && interact_type == 27 && instance_exists(source_id) && source_id.pos_array[button_num + source_id.skip_row] == -2)
++        {
++            gnx_scn_click();
++            _hit = 1;
++        }
++    }
++
++    return _hit;
++}
++
++// F38: the sprite of the frog row's icon, "" when there is none
++function gnx_scn_frog_icon()
++{
++    var _name = "";
++
++    with (obj_button)
++    {
++        if (sprite_index != -1 && sprite_get_name(sprite_index) == "spr_gnx_frog_icon" && instance_exists(source_id) && variable_instance_exists(source_id, "pos_array") && source_id.pos_array[button_num] == -2)
++            _name = sprite_get_name(sprite_index);
++    }
++
++    return _name;
++}
 +
 +// F43: {"assert": "fn", "name": "gnx_scn_cell_label", "args": [h_type, kind]}: the name the GUI writes over the first cell of
 +// that h_type on the screen (the view moves to it) while the mouse is on it; "" = none. kind "empty", "occupied" (has a captive),
