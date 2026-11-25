@@ -66,6 +66,8 @@ func restoreBackup() {
 		showErrorExit("Failed to restore: " + err.Error())
 	}
 
+	removeBundled()
+
 	printFormattedln(Green, false, true, "   Vanilla "+chosen.variant+" restored successfully   ")
 	printFormattedln(Purple, false, false, "GNX has been uninstalled. Your mods in GNX_mods/ are untouched.")
 	waitForEnterKey()

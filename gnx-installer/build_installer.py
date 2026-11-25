@@ -23,6 +23,7 @@ Options:
   --gnx-source PATH       Path to GNX source root (default: ../GNX)
   --gnx-version VER       GNX version string (default: read from constants.go)
   --output NAME           Output exe name (default: GNX_v<version>.exe)
+  --bundle DIR            Put the mods (folders) of DIR in the exe: installed to GNX_mods with GNX (default: none)
   --skip-verify           Skip round-trip verification step
 """
 
@@ -175,6 +176,18 @@ def stamp_versioninfo(installer_root, gnx_version):
         print("  SKIP: goversioninfo not found, no Windows version info embedded")
 
 
+def fill_bundle(installer_root, mods_dir):
+    """Make bundle/ (embedded in the exe) hold the mod folders of mods_dir, or none."""
+    bundle = os.path.join(installer_root, "bundle")
+    for name in os.listdir(bundle):
+        if os.path.isdir(os.path.join(bundle, name)):
+            shutil.rmtree(os.path.join(bundle, name))
+    for name in sorted(os.listdir(mods_dir)) if mods_dir else []:
+        if os.path.isfile(os.path.join(mods_dir, name, "manifest.json")):
+            shutil.copytree(os.path.join(mods_dir, name), os.path.join(bundle, name))
+            print(f"  Bundled {name}")
+
+
 def build_exe(installer_root, output_name):
     """go build the installer."""
     run(["go", "build", "-trimpath", "-ldflags=-s -w", "-o", output_name, "."], cwd=installer_root)
@@ -247,6 +260,7 @@ def main():
     parser.add_argument("--gnx-source", default="../GNX", help="Path to GNX source root")
     parser.add_argument("--gnx-version", help="Override GNX version string")
     parser.add_argument("--output", help="Output exe name (default: GNX_v<version>.exe)")
+    parser.add_argument("--bundle", help="Folder of mods to put in the exe (default: none)")
     parser.add_argument("--skip-verify", action="store_true", help="Skip round-trip verification")
     args = parser.parse_args()
 
@@ -378,6 +392,7 @@ def main():
     # --- Build ---
 
     print("\n=== Building ===")
+    fill_bundle(installer_root, args.bundle and os.path.abspath(args.bundle))
     exe_path = build_exe(installer_root, output_name)
 
     # --- Verify ---

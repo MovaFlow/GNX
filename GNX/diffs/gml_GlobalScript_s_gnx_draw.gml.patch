@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1793 @@
+@@ -0,0 +1,1826 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1352,6 +1352,41 @@
 +}
 +
 +
++// GNX-REPLACE: true when arg0 is a well-formed "active_dates": two "MM-DD" texts
++function gnx_dates_valid(arg0)
++{
++    return is_array(arg0) && array_length(arg0) == 2 && is_string(arg0[0]) && is_string(arg0[1]) && string_length(string_digits(arg0[0])) == 4 && string_length(string_digits(arg0[1])) == 4;
++}
++
++
++// GNX-REPLACE: true when manifest arg0 (folder arg1) has dates, today is outside them and the player did not choose ALL YEAR (MODS
++// menu, gnx_mods_all_year.json)
++function gnx_dates_out(arg0, arg1)
++{
++    return variable_struct_exists(arg0, "active_dates") && gnx_dates_valid(arg0.active_dates) && !gnx_in_dates(arg0.active_dates) && !gnx_array_has(scr_gnx_read_mods_off("gnx_mods_all_year.json"), arg1);
++}
++
++
++// GNX-SEASON: true when the atlas of manifest arg0 (folder arg1) has no use today: out of season, and the mod holds nothing but the
++// art its dates rule. Any other key may draw from the atlas, so then it loads
++function gnx_atlas_out_of_season(arg0, arg1)
++{
++    if (!gnx_dates_out(arg0, arg1))
++        return false;
++
++    var _plain = ["name", "mod_id", "version", "author", "description", "compatible_game_versions", "min_gnx_version", "requires", "active_dates", "season_notice", "sprite_replace"];
++    var _keys = variable_struct_get_names(arg0);
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        if (string_char_at(_keys[_i], 1) != "_" && !gnx_array_has(_plain, _keys[_i]))
++            return false;
++    }
++
++    return true;
++}
++
++
 +// GNX-REPLACE: true when manifest arg1's active_dates rule the art of mod arg0 (the text "Mod 'folder'") off today (arg2 = the key, for the
 +// log). Bad dates are reported, and ignored
 +function gnx_mod_dates_off(arg0, arg1, arg2)
@@ -1361,17 +1396,15 @@
 +
 +    var _ad = arg1.active_dates;
 +
-+    // two "MM-DD" texts, else the dates are ignored (! = not, || = or)
-+    if (!is_array(_ad) || array_length(_ad) != 2 || !is_string(_ad[0]) || !is_string(_ad[1]) || string_length(string_digits(_ad[0])) != 4 || string_length(string_digits(_ad[1])) != 4)
++    // two "MM-DD" texts, else the dates are ignored
++    if (!gnx_dates_valid(_ad))
 +    {
 +        gnx_report_mod_error(arg0 + ": active_dates must be two dates like [\"12-01\", \"01-06\"]; ignored, " + ((arg2 == "sprite_replace") ? "the sprites are replaced all year" : "the art applies all year"));
 +        return false;
 +    }
 +
-+    // ALL YEAR (MODS menu, gnx_mods_all_year.json): the player wants it outside its dates too. The folder name is the text in arg0's quotes
-+    var _folder = string_copy(arg0, 6, string_length(arg0) - 6);
-+
-+    if (!gnx_in_dates(_ad) && !gnx_array_has(scr_gnx_read_mods_off("gnx_mods_all_year.json"), _folder))
++    // the folder name is the text in arg0's quotes
++    if (gnx_dates_out(arg1, string_copy(arg0, 6, string_length(arg0) - 6)))
 +    {
 +        var _ol = gnx_log_open();
 +        gnx_log_write(_ol, "[GNX] " + arg0 + ": " + arg2 + " off today (active_dates " + _ad[0] + " to " + _ad[1] + ")\n");

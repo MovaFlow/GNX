@@ -140,6 +140,7 @@ func applyDelta(variant string, sourcePath string) {
 	}
 
 	ensureModDir()
+	installBundled(bundledMods)
 
 	printFormattedln(Green, false, true, "   GNX "+GNX_VERSION+" installed successfully!   ")
 	printFormattedln(Purple, false, false, "Drop mod .zip files onto this exe to install them.")

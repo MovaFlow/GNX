@@ -15694,7 +15694,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw.gml
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1793 @@
+@@ -0,0 +1,1826 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -17046,6 +17046,41 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +}
 +
 +
++// GNX-REPLACE: true when arg0 is a well-formed "active_dates": two "MM-DD" texts
++function gnx_dates_valid(arg0)
++{
++    return is_array(arg0) && array_length(arg0) == 2 && is_string(arg0[0]) && is_string(arg0[1]) && string_length(string_digits(arg0[0])) == 4 && string_length(string_digits(arg0[1])) == 4;
++}
++
++
++// GNX-REPLACE: true when manifest arg0 (folder arg1) has dates, today is outside them and the player did not choose ALL YEAR (MODS
++// menu, gnx_mods_all_year.json)
++function gnx_dates_out(arg0, arg1)
++{
++    return variable_struct_exists(arg0, "active_dates") && gnx_dates_valid(arg0.active_dates) && !gnx_in_dates(arg0.active_dates) && !gnx_array_has(scr_gnx_read_mods_off("gnx_mods_all_year.json"), arg1);
++}
++
++
++// GNX-SEASON: true when the atlas of manifest arg0 (folder arg1) has no use today: out of season, and the mod holds nothing but the
++// art its dates rule. Any other key may draw from the atlas, so then it loads
++function gnx_atlas_out_of_season(arg0, arg1)
++{
++    if (!gnx_dates_out(arg0, arg1))
++        return false;
++
++    var _plain = ["name", "mod_id", "version", "author", "description", "compatible_game_versions", "min_gnx_version", "requires", "active_dates", "season_notice", "sprite_replace"];
++    var _keys = variable_struct_get_names(arg0);
++
++    for (var _i = 0; _i < array_length(_keys); _i++)
++    {
++        if (string_char_at(_keys[_i], 1) != "_" && !gnx_array_has(_plain, _keys[_i]))
++            return false;
++    }
++
++    return true;
++}
++
++
 +// GNX-REPLACE: true when manifest arg1's active_dates rule the art of mod arg0 (the text "Mod 'folder'") off today (arg2 = the key, for the
 +// log). Bad dates are reported, and ignored
 +function gnx_mod_dates_off(arg0, arg1, arg2)
@@ -17055,17 +17090,15 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +
 +    var _ad = arg1.active_dates;
 +
-+    // two "MM-DD" texts, else the dates are ignored (! = not, || = or)
-+    if (!is_array(_ad) || array_length(_ad) != 2 || !is_string(_ad[0]) || !is_string(_ad[1]) || string_length(string_digits(_ad[0])) != 4 || string_length(string_digits(_ad[1])) != 4)
++    // two "MM-DD" texts, else the dates are ignored
++    if (!gnx_dates_valid(_ad))
 +    {
 +        gnx_report_mod_error(arg0 + ": active_dates must be two dates like [\"12-01\", \"01-06\"]; ignored, " + ((arg2 == "sprite_replace") ? "the sprites are replaced all year" : "the art applies all year"));
 +        return false;
 +    }
 +
-+    // ALL YEAR (MODS menu, gnx_mods_all_year.json): the player wants it outside its dates too. The folder name is the text in arg0's quotes
-+    var _folder = string_copy(arg0, 6, string_length(arg0) - 6);
-+
-+    if (!gnx_in_dates(_ad) && !gnx_array_has(scr_gnx_read_mods_off("gnx_mods_all_year.json"), _folder))
++    // the folder name is the text in arg0's quotes
++    if (gnx_dates_out(arg1, string_copy(arg0, 6, string_length(arg0) - 6)))
 +    {
 +        var _ol = gnx_log_open();
 +        gnx_log_write(_ol, "[GNX] " + arg0 + ": " + arg2 + " off today (active_dates " + _ad[0] + " to " + _ad[1] + ")\n");
@@ -17491,7 +17524,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9769 @@
+@@ -0,0 +1,9776 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -20020,6 +20053,13 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +
 +    return _r;
++}
++
++
++// for {"assert": "fn"}: 1 when the atlas of mod folder arg0 is loaded
++function gnx_scn_atlas_loaded(arg0)
++{
++    return ds_map_exists(global.gnx_mod_atlases, arg0) ? 1 : 0;
 +}
 +
 +
@@ -27583,7 +27623,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_items.gml gml/gml_GlobalScript_s_gnx_ite
 diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods.gml
 --- gml_138/gml_GlobalScript_s_gnx_mods.gml
 +++ gml/gml_GlobalScript_s_gnx_mods.gml
-@@ -0,0 +1,3111 @@
+@@ -0,0 +1,3163 @@
 +// GNX: mod loading, per-mod state, mod menu, save mod records
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -27649,12 +27689,14 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    
 +    if (array_length(_kept) != array_length(_off))
 +        scr_gnx_write_mods_off(_kept);
++
++    var _seen = scr_gnx_read_mods_off("gnx_season_seen.json");  // GNX-SEASON: mods whose season_notice was shown on this PC
 +    
 +    var _list = [];
 +    
 +    for (var _i = 0; _i < array_length(arg0); _i++)
 +    {
-+        var _e = { folder: arg0[_i], mod_id: arg0[_i], name: arg0[_i], version: "?", requires: [], status: "on", why: "" };
++        var _e = { folder: arg0[_i], mod_id: arg0[_i], name: arg0[_i], version: "?", requires: [], status: "on", why: "", hidden: false, notice: [] };
 +        var _f = file_text_open_read(global.gnx_mods_root + arg0[_i] + "/manifest.json");
 +        var _raw = "";
 +        
@@ -27690,6 +27732,16 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +
 +            // GNX-REPLACE: a seasonal mod; its MODS row also offers ALL YEAR
 +            _e.dated = variable_struct_exists(_m, "active_dates");
++
++            // GNX-SEASON: "season_notice": [lines], with active_dates: the mod is not listed until its first season, which the main
++            // menu announces once with these lines (scr_gnx_season_notice)
++            if (_e.dated && gnx_dates_valid(_m.active_dates) && variable_struct_exists(_m, "season_notice") && is_array(_m.season_notice) && array_length(_m.season_notice) > 0 && !gnx_array_has(_seen, _e.mod_id))
++            {
++                if (gnx_in_dates(_m.active_dates))
++                    _e.notice = _m.season_notice;
++                else
++                    _e.hidden = !gnx_array_has(_kept, _e.folder) && gnx_dates_out(_m, _e.folder);
++            }
 +
 +            // "min_gnx_version": "1.5.0": a mod that uses newer GNX keys is not loaded by an older GNX (those keys
 +            // would do nothing) and the player is told to update GNX
@@ -28295,6 +28347,33 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    {
 +        global.gnx_reopen_mod_menu = false;
 +        scr_gnx_open_mod_menu();
++        return;
++    }
++
++    scr_gnx_season_notice();
++}
++
++
++// GNX-SEASON: the first season of a loaded mod with "season_notice": its lines in a dialog, once per PC (gnx_season_seen.json). The
++// menu's buttons wait for OK (gnx_mod_menu_leave makes them again, and shows the next notice)
++function scr_gnx_season_notice()
++{
++    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
++    {
++        var _e = global.gnx_mod_list[_i];
++
++        if (_e.status != "on" || array_length(_e.notice) == 0)
++            continue;
++
++        with (obj_button)
++            instance_destroy();
++
++        scr_gnx_mod_confirm(_e.notice, ["OK", "", ""], "notice", -1);
++        _e.notice = [];
++        var _seen = scr_gnx_read_mods_off("gnx_season_seen.json");
++        array_push(_seen, _e.mod_id);
++        scr_gnx_write_mods_off(_seen, "gnx_season_seen.json");
++        return;
 +    }
 +}
 +
@@ -28472,7 +28551,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +                continue;
 +
 +            var _x3 = [175, 305, 240];  // 3 buttons: 0 left, 2 middle, 1 right
-+            var _bx = (_nb == 2) ? ((_bi == 0) ? 200 : 280) : _x3[_i];
++            var _bx = (_nb == 1) ? 240 : ((_nb == 2) ? ((_bi == 0) ? 200 : 280) : _x3[_i]);
 +            var _b = scr_create_button(_bx, _by, depth - 1, spr_button_long, 9077, id, scr_gnx_init_label_button, -1, scr_gnx_draw_label_button, _i, 0);
 +            _b.text = arg1[_i];
 +            _bi++;
@@ -28727,6 +28806,12 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +            if (_btn == 1)
 +                break;
 +
++            if (_act == "notice")  // GNX-SEASON: OK, the main menu's buttons come back
++            {
++                gnx_mod_menu_leave();
++                break;
++            }
++
 +            if (_act == "back")  // leaving the mod page with changes: 0 APPLY, 2 DISCARD (1 STAY returned above)
 +            {
 +                if (_btn == 0)
@@ -28816,6 +28901,10 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
 +    {
 +        var _e = global.gnx_mod_list[_i];
++
++        if (_e.hidden)  // GNX-SEASON
++            continue;
++
 +        array_push(_rows, { folder: _e.folder, name: _e.name, version: _e.version, status: _e.status, why: _e.why, installed: true, used: [], cells: 0, units: 0, mons: 0, requires: _e.requires, mod_id: _e.mod_id, description: gnx_opt(_e, "description", ""), author: gnx_opt(_e, "author", ""), adds: gnx_mod_adds(_e), dated: gnx_opt(_e, "dated", false) });
 +    }
 +
@@ -29180,6 +29269,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    
 +    for (var _i = 0; _i < array_length(global.gnx_mod_list); _i++)
 +    {
++        if (global.gnx_mod_list[_i].hidden)  // GNX-SEASON
++            continue;
++
 +        if (global.gnx_mod_list[_i].status == "on")
 +            _on++;
 +        else
@@ -30166,7 +30258,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_mods.gml gml/gml_GlobalScript_s_gnx_mods
 +    global.gnx_loading_manifest = _manifest;
 +    var _atlas_root = global.gnx_mods_root + arg0 + "/atlas/";
 +    
-+    if (file_exists(_atlas_root + "uv.json") && !ds_map_exists(global.gnx_mod_atlases, arg0))
++    if (file_exists(_atlas_root + "uv.json") && !ds_map_exists(global.gnx_mod_atlases, arg0) && !gnx_atlas_out_of_season(_manifest, arg0))
 +    {
 +        var _atref = gnx_load_atlas_mod(global.gnx_mods_root + arg0 + "/", arg0);
 +        

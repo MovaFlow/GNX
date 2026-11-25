@@ -9,6 +9,7 @@ installs mod zips dropped on it, and offers newer releases from GitHub.
 - this Go code, the Go runtime and the modules in `go.mod` (licenses in `THIRD_PARTY_NOTICES.txt`)
 - `deltas/gnx_<game version>_<steam|itch>.fossil`: a binary diff (fossil delta) from the vanilla
   `data.win` of each store build to the GNX-patched one, embedded with `go:embed`
+- `bundle/`: mod folders to install along with GNX (`build_installer.py --bundle`, none in the repository)
 
 No game files and no UndertaleModTool code are in the exe or in the repository.
 

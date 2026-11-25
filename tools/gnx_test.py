@@ -1002,6 +1002,7 @@ def prepare_scenario(box, sc):
         if sc.get("mods_off"):
             (box.save_dir / "gnx_mods_off.json").write_text(json.dumps(sc["mods_off"]), encoding="utf-8")
         (box.save_dir / "gnx_mods_all_year.json").unlink(missing_ok=True)  # MODS menu ALL YEAR list
+        (box.save_dir / "gnx_season_seen.json").unlink(missing_ok=True)  # season_notice already shown
         if sc.get("mods_all_year"):
             (box.save_dir / "gnx_mods_all_year.json").write_text(json.dumps(sc["mods_all_year"]), encoding="utf-8")
         for slot, spec in sc.get("player_slots", {}).items():
