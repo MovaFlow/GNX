@@ -1,9 +1,10 @@
 # GNX Modding Guide
 
-Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5.x (current release 1.5.3), game version 1.40. Written by Mav. Quests have their own reference in `QUESTS_SCHEMA.md`; a step-by-step walkthrough is in `TUTORIAL.md`.
+Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5.x (current release 1.5.4), game version 1.40. Written by Mav. Quests have their own reference in `QUESTS_SCHEMA.md`; a step-by-step walkthrough is in `TUTORIAL.md`.
 
 ## Contents
 
+- [New stuff (GNX 1.5.4)](#new-stuff-gnx-154)
 - [New stuff (GNX 1.5.3)](#new-stuff-gnx-153)
 - [New stuff (GNX 1.5.2)](#new-stuff-gnx-152)
 - [New stuff (GNX 1.5.1)](#new-stuff-gnx-151)
@@ -38,6 +39,19 @@ Reference for writing mods for Goblin Nest with GNX (Goblin Nest Extender) 1.5.x
 - [Appendix A. Vanilla IDs and cell list](#appendix-a-vanilla-ids-and-cell-list)
 - [Appendix B. Troubleshooting](#appendix-b-troubleshooting)
 - [Appendix C. Old monster keys](#appendix-c-old-monster-keys)
+
+## New stuff (GNX 1.5.4)
+
+**In short:** what GNX 1.5.4 adds, in one place. Set `"min_gnx_version"` to `"1.5.4"` in a mod that uses any of this ([4.2](#42-the-version-check)): GNX 1.5.1 to 1.5.3 then refuse the mod and ask the player to update; GNX 1.5.0 and older do not know the key and load the mod without the new parts.
+
+| What | Details |
+|---|---|
+| Re-skins drawn from your atlas: a `sprite_replace` entry `{"atlas": "<entry>"}` costs no sprite frames, so a mod can dress every girl | [5.9](#59-replacing-game-sprites-sprite_replace) |
+| Trimmed atlas frames: `ox`, `oy` in a frame and `w`, `h` in an entry of `uv.json` | [20.3](#203-uvjson-format) |
+| Tentacle monster types: `"like": "tentacle"`, a cell's `tentacle_type`, the art keys `tent` and `tent_ej` | [28.10](#2810-tentacle-types) |
+| Several cells files: the manifest's `cells` can be a list | [4.4](#44-data-file-keys) |
+| Breed and give birth in one cell: any cell whose `scr_h` ends with `scr_slot_h_giant_birth`, `scr_slot_h_giant_birth_ej` | [9.5](#95-scr_idle-and-scr_h-the-scene-scripts) |
+| A player can keep captives out of the frog shrine, per floor and per cell | [24.7](#247-effects-transfer-and-the-frog-shrine) |
 
 ## New stuff (GNX 1.5.3)
 
@@ -391,6 +405,7 @@ This is one event of a mod's `quests.json` (`QUESTS_SCHEMA.md` describes the fil
 - Features new in 1.5 or later say which GNX added them. Set `min_gnx_version` to the newest you use ([4.2](#42-the-version-check)); `CHANGELOG.md` lists every change.
 - **GNX 1.5.1** adds what [New stuff (GNX 1.5.1)](#new-stuff-gnx-151) lists. Each item there says what GNX 1.5.0 does with the same JSON.
 - **GNX 1.5.2** adds what [New stuff (GNX 1.5.2)](#new-stuff-gnx-152) lists. Each item there says what GNX 1.5.1 does with the same JSON.
+- **GNX 1.5.4** adds what [New stuff (GNX 1.5.4)](#new-stuff-gnx-154) lists.
 - **GNX 1.5.3** adds what [New stuff (GNX 1.5.3)](#new-stuff-gnx-153) lists.
 - The statements in this guide were checked against the GNX source code.
 

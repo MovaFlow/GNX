@@ -27,6 +27,8 @@ def main():
             continue  # identical to vanilla: no patch
         if r.returncode != 1:
             sys.exit(f"diff failed on {f.name}: {r.stderr.decode(errors='replace')}")
+        if not (base / f.name).exists() and not f.read_bytes().startswith(b"// GNX:"):
+            print(f'WARNING: {f.name} is not vanilla and does not start with "// GNX:": all of it goes into the public patches and the build')
         text = r.stdout.decode("utf-8").replace("\r\n", "\n")
         (out / f"{f.name}.patch").write_bytes(text.encode("utf-8"))
         written.append(f.name)

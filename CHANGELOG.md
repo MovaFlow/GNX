@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.5.4 (unreleased)
+## v1.5.4
 
 **Game version:** 1.40
 
@@ -10,7 +10,7 @@
 - **Several cells files:** the manifest's `"cells"` can be a list, `["cells1.json", "cells2.json"]`, loaded in that order, so a big cell mod can split its cells over several files. `build_mod.py`, the strip packer and the manifest schema take the list too. See GNX_MODDING.md section 4.4.
 - **Breed and give birth in one cell:** any cell whose `scr_h` ends with `scr_slot_h_giant_birth` and `scr_slot_h_giant_birth_ej` (as the vanilla GIANT cell) now goes on to the birth when the monster leaves a pregnant captive. Before, only the GIANT cell did; a mod cell's scene ended after the ejaculation and never reached the birth. See GNX_MODDING.md section 9.5.
 - **Cell names on hover:** with the mouse on a built cell that holds no captive, its name is written over it, in the player's language, mod cells included. It keeps its size at every zoom, and is not shown while the mouse is on the counters, the clock or the other parts of the screen's frame. Also while dragging a captive over a cell she can go into.
-- **Re-skins drawn from an atlas:** a `sprite_replace` entry can be `{"atlas": "<entry>"}`: the art in the mod's atlas is drawn in place of that captive's game sprite, with no sprite frames used (they count three times otherwise), so a mod can dress every girl. Follows `active_dates` as the rest. Atlas frames can be trimmed: `ox` / `oy` per frame and `w` / `h` per entry in `uv.json`. See GNX_MODDING 5.9 and 20.3.
+- **Re-skins drawn from an atlas:** a `sprite_replace` entry can be `{"atlas": "<entry>"}`: the art in the mod's atlas is drawn in place of that captive's game sprite, with no sprite frames used (they count three times otherwise), so a mod can dress every girl. Atlas frames can be trimmed: `ox` / `oy` per frame and `w` / `h` per entry in `uv.json`. See GNX_MODDING 5.9 and 20.3.
 - **Frog shrine on or off per floor and per cell:** the FLOOR menu of an entrance has FROG: ON / OFF on floors with an F.SHRINE. Off, the shrine swaps no captive of that floor. Pressing it sets every cell of the floor; a cell can then be set apart with the frog row of its window (dark, crossed out frog = no swap). Cells kept out have a crossed out frog next to the captive's head (hidden with the heads). Saved, and moved with the floor.
 
 ### Bug Fixes
@@ -21,6 +21,10 @@
 - Mod cells showed "-1" as their name when the game was not in English: in the CUSTOM build list, as the cell window title, in item names and in quest rewards. The game's name tables list only vanilla cells; a mod cell now shows its own name (translated when the mod has a lang file).
 - Raid map: a stage button showing a vanilla stage's picture (a mod stage's or a map's `"icon": 0-4`) turned into the Village's picture once clicked, until the map was opened again. It keeps its picture now.
 - Swapping two captives could put a girl into a cell that does not allow her. Dragging a girl out of a cell with its own class list (`required_class`, such as a mod's TVs or MILK BAR) onto an occupied cell sent the other girl into that cell, whatever her class. The swap is now refused unless she is allowed there (the cell's list and her `only_listed_cells`).
+
+### Removed
+
+- Unused GMLC helper scripts are removed from the build (11 files, called by nothing).
 
 ## v1.5.3
 
