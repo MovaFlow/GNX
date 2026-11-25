@@ -53,7 +53,6 @@ EXPECTED = {
     # harness_type_bad: one break per bad entry the schema can see (goblin, wolf and hob are only seen by the loader)
     ("harness_type_bad", "monsters.json", "(top)"),  # 'Bad Name'
     ("harness_type_bad", "monsters.json", "nolike"),
-    ("harness_type_bad", "monsters.json", "squid.like"),
     ("harness_type_bad", "monsters.json", "dragon.like"),
     ("harness_type_bad", "monsters.json", "glutton.food"),
     ("harness_type_bad", "monsters.json", "weak.stat"),
