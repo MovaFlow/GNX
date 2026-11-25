@@ -1119,6 +1119,7 @@ frame number = skin × (frames ÷ 3) + pose
 | a folder | one PNG per frame, ordered by the number at the end of the name; numbering from 0 or from 1 both work (as exported by UndertaleModTool or Aseprite) |
 | a `.png` file | a strip with as many frames as the game sprite |
 | an object | a sprite entry as in [5.2](#52-where-gnx-takes-the-image-from) (`strip` + `frames`, `folder`, `frames` list) |
+| `{"atlas": "<entry>"}` | new in 1.5.4: the entry of your own atlas ([20](#20-atlas-packing)), drawn in place of the game sprite; see below |
 
 - Your art takes the game sprite's origin; give `xorig` / `yorig` in an object only to change it.
 - Each frame must have the game sprite's size. Otherwise it is a mod error and the game sprite stays as it is.
@@ -1129,11 +1130,12 @@ frame number = skin × (frames ÷ 3) + pose
 
 - A sprite sheet that is shared by many monsters or screens (`spr_mon_icon`, `spr_mon_icon_head`, `spr_infant_ui_head`), props and backgrounds are replaced with `sprite_replace`; `monster_art` ([§10](#10-cell-sprites-human_spr-and-monster_art), [16.7](#167-monster_art-by-class-and-for-all-monsters)) is for the monsters by class, by cell, and at other sizes.
 - **Atlas mods:** the file name of a `sprite_replace` entry may be the name of an entry in your own atlas ([§20](#20-atlas-packing)). Before 1.5.2 that gave a wrong size error, or could assign wrong art when the sizes matched; GNX now bakes the atlas art into a real sprite first. The same loader serves the `world` art of `monster_art` ([16.8](#168-world-art-how-monsters-stand-walk-and-carry)).
+- **Drawn from the atlas (new in 1.5.4):** `"spr_h_nun_idle_head": {"atlas": "nun_idle_head"}` draws that entry of your `atlas/uv.json` wherever GNX draws the game sprite, and leaves the game sprite alone. It costs no sprite frames ([5.8](#58-packing-tool-and-atlas)), so a re-skin of every girl fits: 28,000 frames took two atlas pages. The origin is the entry's `xo` / `yo`: give it the game sprite's. Sizes are not compared; another frame count is logged. Only captives' sprites can be drawn this way (`spr_h_...` but not `spr_h_goblin_...`, `spr_h_hobgoblin_...`, `spr_h_ogre_...`, `spr_h_tent_...`; `spr_giant_...`; `spr_ogre_carry_...`): another sprite is a mod error, give it a folder or a strip. Set `"min_gnx_version": "1.5.4"`: an older GNX reports every such entry as a mod error.
 - **Several mods:** the game's own sprite is the one your art is compared with, also when an earlier mod already replaced it. Before 1.5.2 a `sprite_replace` after a mod that changed the size of that sprite failed its size check.
 - **`active_dates`:** a manifest key `"active_dates": ["12-01", "01-06"]` (two `MM-DD` dates, a window that may cross the new year) puts the manifest's `sprite_replace` and `monster_art` in place only between those dates. Outside them the game's own art stays, and the player can turn the art on all year with the MODS menu's ALL YEAR switch. The cells and classes of the mod are not affected. Dates that are not two `MM-DD` texts are a mod error and the art applies all year.
 - **Deploying:** `build_mod.py` copies every file the manifest's `sprite_replace` and global `monster_art` name, from any folder of the mod.
 - **The collision box stays the game's.** The game uses a sprite's collision box for patrol speed and for sending monsters into transfer cells, so after the swap GNX puts the game's own box back on the sprite, as a rectangle, when your art would give another one. This holds for `sprite_replace` at the same size too. Gameplay does not depend on the art you ship.
-- **The frame limit** counts a replaced sprite three times: the frames of your art, the copy in the game's sprite and a backup of the game's own art ([5.8](#58-packing-tool-and-atlas)).
+- **The frame limit** counts a replaced sprite three times: the frames of your art, the copy in the game's sprite and a backup of the game's own art ([5.8](#58-packing-tool-and-atlas)). An `{"atlas": ...}` entry counts none.
 
 > **When** two mods replace the same game sprite, the one loaded last wins.
 
@@ -4945,6 +4947,8 @@ Measured on one two-mod setup (results depend on the mods and the computer):
 | `entries` | One object per strip, named after the strip's file name without folder and extension. | object | required |
 | `frames` | Per frame: `atlas` (page number), `x`, `y`, `w`, `h` (pixel rectangle). A frame with `w` or `h` 0 is empty and skipped. | list | required |
 | `xo`, `yo` | Origin of the sprite. | number | 0 |
+| `ox`, `oy` | In a frame, new in 1.5.4: where the rectangle sits in the whole frame, for frames trimmed of their transparent border. | number | 0 |
+| `w`, `h` | In an entry, new in 1.5.4: the size of the whole frame. Needed with trimmed frames. | number | each frame's own |
 
 ### 20.4 How GNX uses the atlas
 
@@ -4967,7 +4971,7 @@ Useful log lines:
 
 ### 20.5 Known limits
 
-> **When** the packer trims transparent borders, the frames jump around: every frame is drawn at the entry's `xo`/`yo`, with no per-frame offset. Frames must be **untrimmed**.
+> **When** the packer trims transparent borders, the frames jump around: every frame is drawn at the entry's `xo`/`yo`. Give each frame its `ox`/`oy` and the entry its `w`/`h` (new in 1.5.4), or leave the frames **untrimmed**, as `gnx_atlas_pack` does.
 
 > **When** a sprite uses a `frames` **list of files**, treat it as not using the atlas: GNX looks up only the first file's name, and a matching entry would replace the whole list.
 

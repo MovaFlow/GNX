@@ -1,0 +1,182 @@
+{
+  "about": "sprite_replace from the mod's atlas ({\"atlas\": entry}): the atlas art is drawn in place of the game sprite, with no sprite frames used; a sprite that is not a captive's and a missing entry are mod errors. Trimmed atlas frames (ox, oy, entry w and h).",
+  "mods": [
+    "tools/scenarios/mods/harness_atlas_swap",
+    "tools/scenarios/mods/harness_replace"
+  ],
+  "check_boot_suite": false,
+  "timeout": 90,
+  "expect_dialog": "is not a game sprite",
+  "expect_mod_errors": [
+    "only captives' sprites",
+    "no entry 'nope' in the mod's atlas",
+    "is 5 x 10, the game sprite 7 x 7",
+    "'spr_not_a_game_sprite' is not a game sprite"
+  ],
+  "steps": [
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_trim",
+      "args": [
+        "harness_atlas_swap",
+        "hat_trim",
+        "hat_full"
+      ],
+      "is": "",
+      "why": "a trimmed entry draws as the same art untrimmed: plain, mirrored, scaled, rotated, clipped, in parts, baked, and has its size"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_h_lilith_hand_c",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": "swap",
+      "why": "every frame, the game sprite itself untouched"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_h_cat_hand_c",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": "game",
+      "why": "another sprite"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_goblin_idle",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": "game",
+      "why": "not a captive: left out"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_h_goblin_dairy_pump",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": "game",
+      "why": "a monster: left out"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_swap_frames",
+      "args": [
+        "spr_h_lilith_hand_c",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": 0,
+      "why": "no sprite frames used"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_atlas_entries",
+      "args": [
+        "harness_atlas_swap"
+      ],
+      "is": 3,
+      "why": "an entry whose ox is no number is left out"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_giant_loop_head",
+        "harness_atlas_swap",
+        "hat_trim"
+      ],
+      "is": "swap",
+      "why": "2 frames over 5"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_giant_idle_head",
+        "harness_atlas_swap",
+        "hat_trim"
+      ],
+      "is": "game",
+      "why": "a mod loaded later replaces that sprite: the last one wins"
+    },
+    {
+      "do": {
+        "type": "reload_mods"
+      }
+    },
+    {
+      "wait": 60
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_h_lilith_hand_c",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": "swap",
+      "why": "again after a reload"
+    },
+    {
+      "call": "gnx_sprite_replace_restore"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_h_lilith_hand_c",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": "game",
+      "why": "what turning the mod off does"
+    },
+    {
+      "call": "gnx_swap_from_atlas",
+      "args": [
+        "Mod 'x'",
+        "harness_atlas_swap",
+        "spr_h_cat_hand_c",
+        "hand"
+      ]
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_h_cat_hand_c",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": "swap",
+      "why": "another mod's swap after that"
+    },
+    {
+      "assert": "fn",
+      "name": "gnx_scn_draw_swap",
+      "args": [
+        "spr_h_lilith_hand_c",
+        "harness_atlas_swap",
+        "hand"
+      ],
+      "is": "game",
+      "why": "still off"
+    }
+  ]
+}

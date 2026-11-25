@@ -11,8 +11,8 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `s_gnx_art.gml` | monster art: the monster_art key (cell art sets, class and global swaps, world art) and the old sets' lookup helper | 68 | 2441 |
 | `s_gnx_cells.gml` | cell runtime: scene frames, intermissions, underground cells, monster places | 96 | 3556 |
 | `s_gnx_content.gml` | content registries: class/cell loading and resolving, hashes, JSON readers, unlocks | 112 | 5851 |
-| `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 51 | 1692 |
-| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 431 | 9650 |
+| `s_gnx_draw.gml` | draw wrappers (atlas-aware SprRefs), sprite helpers | 52 | 1794 |
+| `s_gnx_harness.gml` | scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players | 436 | 9770 |
 | `s_gnx_items.gml` | mod items (items.json): registry, raid loot, inventory counts for quests | 10 | 316 |
 | `s_gnx_mods.gml` | mod loading, per-mod state, mod menu, save mod records | 59 | 3112 |
 | `s_gnx_nest.gml` | nest features: floor edit and copy, save slots, prison sort, mod birth list | 54 | 1362 |
@@ -583,6 +583,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_atlas_failed_pages` | `s_gnx_harness.gml` |
 | `gnx_scn_atlas_pages_left` | `s_gnx_harness.gml` |
 | `gnx_scn_atlas_timeout` | `s_gnx_harness.gml` |
+| `gnx_scn_atlas_trim` | `s_gnx_harness.gml` |
 | `gnx_scn_bgm` | `s_gnx_harness.gml` |
 | `gnx_scn_bgm_pool` | `s_gnx_harness.gml` |
 | `gnx_scn_birth` | `s_gnx_harness.gml` |
@@ -623,6 +624,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_cost_mark` | `s_gnx_harness.gml` |
 | `gnx_scn_day` | `s_gnx_harness.gml` |
 | `gnx_scn_door_window_icons` | `s_gnx_harness.gml` |
+| `gnx_scn_draw_swap` | `s_gnx_harness.gml` |
 | `gnx_scn_dup_captives` | `s_gnx_harness.gml` |
 | `gnx_scn_enc_base` | `s_gnx_harness.gml` |
 | `gnx_scn_enc_count` | `s_gnx_harness.gml` |
@@ -891,8 +893,11 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_scn_step_handler` | `s_gnx_harness.gml` |
 | `gnx_scn_strip_prop_place` | `s_gnx_harness.gml` |
 | `gnx_scn_sure_yes` | `s_gnx_harness.gml` |
+| `gnx_scn_swap_frames` | `s_gnx_harness.gml` |
 | `gnx_scn_swap_has` | `s_gnx_harness.gml` |
 | `gnx_scn_swap_ok` | `s_gnx_harness.gml` |
+| `gnx_scn_swap_same` | `s_gnx_harness.gml` |
+| `gnx_scn_swap_shot` | `s_gnx_harness.gml` |
 | `gnx_scn_swap_to` | `s_gnx_harness.gml` |
 | `gnx_scn_tag_captives` | `s_gnx_harness.gml` |
 | `gnx_scn_tamper_item` | `s_gnx_harness.gml` |
@@ -967,6 +972,7 @@ Until October 2026 almost all of GNX lived in one file, `gml_GlobalScript_s_init
 | `gnx_stage_ref` | `s_gnx_raid.gml` |
 | `gnx_stage_xp_need` | `s_gnx_raid.gml` |
 | `gnx_struct_copy` | `s_gnx_util.gml` |
+| `gnx_swap_from_atlas` | `s_gnx_draw.gml` |
 | `gnx_swap_has_list` | `s_gnx_content.gml` |
 | `gnx_swap_into_special_ok` | `s_gnx_cells.gml` |
 | `gnx_tent_for` | `s_gnx_cells.gml` |

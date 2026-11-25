@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9649 @@
+@@ -0,0 +1,9769 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -2097,6 +2097,126 @@
 +    var _c = surface_getpixel(_surf, arg2, arg3);
 +    surface_free(_surf);
 +    return _c;
++}
++
++
++// Scenario atlas_swap: one draw of kind arg1 of sprite arg0 (a sprite or an atlas sprite), frame arg2, on a 64 x 64 surface, as a buffer
++function gnx_scn_swap_shot(arg0, arg1, arg2)
++{
++    var _sf = surface_create(64, 64);
++    surface_set_target(_sf);
++    draw_clear_alpha(c_black, 0);
++    gpu_push_state();
++    gpu_set_blendmode_ext(bm_one, bm_zero);
++
++    switch (arg1)
++    {
++        case "plain": gnx_draw_sprite_ext(arg0, arg2, 32, 32, 1, 1, 0, c_white, 1); break;
++        case "mirror": gnx_draw_sprite_ext(arg0, arg2, 32, 32, -1, 1, 0, c_white, 1); break;
++        case "scale": gnx_draw_sprite_ext(arg0, arg2, 32, 32, 2, 1, 0, c_white, 1); break;
++        case "angle": gnx_draw_sprite_ext(arg0, arg2, 32, 32, 1, 1, 90, c_white, 1); break;
++        case "clip":
++            global.gnx_clip_top = 22;
++            gnx_draw_sprite_ext(arg0, arg2, 32, 32, 1, 1, 0, c_white, 1);
++            global.gnx_clip_top = undefined;
++            break;
++        case "part": gnx_draw_sprite_part_ext(arg0, arg2, 3, 4, 10, 9, 20, 20, 1, 1, c_white, 1); break;
++        case "part2": gnx_draw_sprite_part_ext(arg0, arg2, 4, 2, 18, 14, 50, 20, -1, 1, c_white, 1); break;
++        case "raw": draw_sprite_ext(arg0, arg2, 32, 32, 1, 1, 0, c_white, 1); break;
++    }
++
++    gpu_pop_state();
++    surface_reset_target();
++    var _b = buffer_create(64 * 64 * 4, buffer_fixed, 1);
++    buffer_get_surface(_b, _sf, 0);
++    surface_free(_sf);
++    return _b;
++}
++
++
++// 1 = the two buffers hold the same picture, 2 = the same with nothing in it, 0 = not the same; both are freed
++function gnx_scn_swap_same(arg0, arg1)
++{
++    var _r = buffer_md5(arg0, 0, 16384) == buffer_md5(arg1, 0, 16384);
++    var _lit = false;
++
++    for (var i = 3; i < 16384 && !_lit; i += 4)
++        _lit = buffer_peek(arg0, i, buffer_u8) > 0;
++
++    buffer_delete(arg0);
++    buffer_delete(arg1);
++    return _r ? (_lit ? 1 : 2) : 0;
++}
++
++
++// for {"assert": "fn"}: the draws in which atlas entries arg1 and arg2 of mod arg0 (the same art, trimmed and not) differ, "" = none
++function gnx_scn_atlas_trim(arg0, arg1, arg2)
++{
++    var _refs = ds_map_find_value(global.gnx_mod_atlases, arg0).sprrefs;
++    var _a = variable_struct_get(_refs, arg1);
++    var _b = variable_struct_get(_refs, arg2);
++    var _kinds = ["plain", "mirror", "scale", "angle", "clip", "part", "part2"];
++    var _out = "";
++
++    for (var _f = 0; _f < 2; _f++)
++    {
++        for (var i = 0; i < array_length(_kinds); i++)
++        {
++            if (gnx_scn_swap_same(gnx_scn_swap_shot(_a, _kinds[i], _f), gnx_scn_swap_shot(_b, _kinds[i], _f)) != 1)
++                _out += _kinds[i] + string(_f) + " ";
++        }
++
++        if (gnx_scn_swap_same(gnx_scn_swap_shot(gnx_sprref_bake(_a), "raw", _f), gnx_scn_swap_shot(gnx_sprref_bake(_b), "raw", _f)) != 1)
++            _out += "bake" + string(_f) + " ";
++
++        if (gnx_scn_swap_same(gnx_scn_swap_shot(gnx_sprref_with_origin(_a, 2, 3), "plain", _f), gnx_scn_swap_shot(gnx_sprref_with_origin(_b, 2, 3), "plain", _f)) != 1)
++            _out += "origin" + string(_f) + " ";
++
++        if (gnx_sprite_get_width(_a, _f) != gnx_sprite_get_width(_b, _f) || gnx_sprite_get_height(_a, _f) != gnx_sprite_get_height(_b, _f) || gnx_sprite_get_width(gnx_sprref_with_origin(_a, 2, 3), _f) != gnx_sprite_get_width(_b, _f))
++            _out += "size" + string(_f) + " ";
++    }
++
++    return _out;
++}
++
++
++// for {"assert": "fn"}: what GNX draws for game sprite arg0: "swap" = entry arg2 of mod arg1's atlas (every frame, whole and in
++// part) with the sprite itself left alone, "game" = its own art, else what is wrong
++function gnx_scn_draw_swap(arg0, arg1, arg2)
++{
++    var _spr = (arg0 == "spr_h_lilith_hand_c") ? spr_h_lilith_hand_c : asset_get_index(arg0);  // as the game's code names it, and by name
++    var _ref = variable_struct_get(ds_map_find_value(global.gnx_mod_atlases, arg1).sprrefs, arg2);
++    var _swap = 0;
++    var _game = 0;
++    var _n = sprite_get_number(_spr);
++
++    for (var i = 0; i < _n; i++)
++    {
++        if (gnx_scn_swap_same(gnx_scn_swap_shot(_spr, "raw", i), gnx_scn_swap_shot(_ref, "plain", i)) == 1)
++            return "the game sprite itself has the art";
++
++        if (gnx_scn_swap_same(gnx_scn_swap_shot(_spr, "plain", i), gnx_scn_swap_shot(_ref, "plain", i)) == 1)
++            _swap++;
++
++        if (gnx_scn_swap_same(gnx_scn_swap_shot(_spr, "part", i), gnx_scn_swap_shot(_ref, "part", i)) > 0)
++            _swap++;
++
++        if (gnx_scn_swap_same(gnx_scn_swap_shot(_spr, "plain", i), gnx_scn_swap_shot(_spr, "raw", i)) > 0)
++            _game++;
++    }
++
++    if (_swap == _n * 2 && _game == 0)
++        return "swap";
++
++    return (_game == _n) ? "game" : ("swap " + string(_swap) + " game " + string(_game) + " of " + string(_n));
++}
++
++
++// for {"assert": "fn"}: 1 when the swap of game sprite arg0 by entry arg2 of mod arg1's atlas cost sprite frames (a kept copy, a bake)
++function gnx_scn_swap_frames(arg0, arg1, arg2)
++{
++    var _ref = variable_struct_get(ds_map_find_value(global.gnx_mod_atlases, arg1).sprrefs, arg2);
++    return (ds_map_exists(global.gnx_sprite_backup, asset_get_index(arg0)) || variable_struct_exists(_ref, "baked")) ? 1 : 0;
 +}
 +
 +
@@ -7966,7 +8086,7 @@
 +{
 +    var _spr = gnx_atlas_page_add(global.gnx_mods_root + arg0 + "/atlas/" + arg1, arg0, arg1);
 +    var _pages = [_spr];
-+    var _frames = [{ atlas: 0, x: 0, y: 0, w: arg2, h: arg3 }];
++    var _frames = [{ atlas: 0, x: 0, y: 0, w: arg2, h: arg3, ox: 0, oy: 0 }];
 +    var _loading = sprite_get_width(_spr) != gnx_atlas_page_w(_spr);
 +    var _inside = gnx_atlas_frames_bad(_pages, _frames) == "";
 +    var _bk = gnx_sprref_bake(sprref_atlas_multi(_pages, _frames, 0, 0));
