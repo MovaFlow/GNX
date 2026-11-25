@@ -4589,12 +4589,13 @@ diff -uN gml_138/gml_GlobalScript_s_draw_gui.gml gml/gml_GlobalScript_s_draw_gui
          }
      }
      
-@@ -95,6 +127,9 @@
+@@ -95,6 +127,10 @@
          draw_text(20, 20, "button =" + string(instance_number(obj_button)));
          draw_text(20, 30, "window =" + string(instance_number(obj_window)));
      }
 +    
-+    gnx_draw_cell_label();
++    // F43: with the right edge of the counters
++    gnx_draw_cell_label(_start + ((_tb != undefined) ? ((array_length(_tb.idx) - 1) * _tb.pitch) : (min(3, _num - 1) * _width)) + sprite_get_width(spr_unit_frame));
 +    scr_gnx_draw_scrollbar();
  }
  
@@ -16624,7 +16625,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_content.gml gml/gml_GlobalScript_s_gnx_c
 diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw.gml
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1664 @@
+@@ -0,0 +1,1691 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -18206,8 +18207,8 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +
 +// F43: the name of the cell under the mouse when no captive is in it (gnx_cell_label_text), over the top of the cell. In the
 +// GUI, so it keeps its size at every zoom and no neighbouring cell covers it; a window in front takes the mouse, and the
-+// cell is not pointed at then (the game sets and clears hover)
-+function gnx_draw_cell_label()
++// cell is not pointed at then (the game sets and clears hover). arg0: the right edge of the top bar's counters
++function gnx_draw_cell_label(arg0)
 +{
 +    var _cell = -1;
 +
@@ -18222,7 +18223,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +
 +    var _t = gnx_cell_label_text(_cell);
 +
-+    if (_t == "")
++    if (_t == "" || gnx_mouse_on_hud(arg0))
 +        return;
 +
 +    var _cam = view_camera[0];
@@ -18239,6 +18240,33 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 +    draw_text_color(_x + _lp[0], _y + _lp[1], _t, c_white, c_white, c_white, c_white, 1);
 +    gnx_ui_rect("leaf", _x - _hw, _y, _x + _hw, _y + _th, "cell_name:" + _t);
 +    draw_set_font(fnt_base_font_eng);
++}
++
++
++// F43: whether the mouse is on the art scr_draw_gui draws over the nest (counters up to x arg0, food and money, portrait, clock,
++// day): it is no instance, so the game points at the cell behind it
++function gnx_mouse_on_hud(arg0)
++{
++    var _mx = gnx_mx();
++    var _my = gnx_my();
++
++    if (_mx < arg0 && _my < sprite_get_height(spr_unit_frame))
++        return true;
++
++    // sprite and place, as scr_draw_gui; the drawn size: the clock's and the day's bounding boxes are not their art's
++    var _art = [[spr_ui, 480, 0], [spr_mood_frame, 0, 0], [spr_clock, 458, 250], [spr_day, 457, 267]];
++
++    for (var i = 0; i < array_length(_art); i++)
++    {
++        var _spr = _art[i][0];
++        var _x = _mx - (_art[i][1] - sprite_get_xoffset(_spr));
++        var _y = _my - (_art[i][2] - sprite_get_yoffset(_spr));
++
++        if (_x >= 0 && _y >= 0 && _x < sprite_get_width(_spr) && _y < sprite_get_height(_spr))
++            return true;
++    }
++
++    return false;
 +}
 +
 +
@@ -18292,7 +18320,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_draw.gml gml/gml_GlobalScript_s_gnx_draw
 diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_harness.gml
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9645 @@
+@@ -0,0 +1,9649 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -23222,7 +23250,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +
 +// F43: {"assert": "fn", "name": "gnx_scn_cell_label", "args": [h_type, kind]}: the name the GUI writes over the first cell of
 +// that h_type on the screen (the view moves to it) while the mouse is on it; "" = none. kind "empty", "occupied" (has a captive),
-+// "window" (empty, its window open), "away" (empty, mouse elsewhere), "edge" (empty, mostly past the screen's top left corner)
++// "window" (empty, its window open), "away" (empty, mouse elsewhere; two more args = the mouse's place in the GUI), "edge" (empty, mostly past the screen's top left corner)
 +// or "zoom" (empty, zoomed out); h_type -1 = a slot with nothing built (as one whose
 +// G.BANG 1 was removed). Adds " off screen" / " not over the cell" when it is
 +function gnx_scn_cell_label(arg0, arg1)
@@ -23271,6 +23299,9 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    if (_want == -1)
 +        _cell.slot_data.h_type = 19;
 +
++    // the mouse: arguments 2 and 3, else off the HUD (the real one may be on it)
++    var _vm = global.gnx_vmouse;
++    global.gnx_vmouse = { x: (argument_count > 3) ? argument[2] : 240, y: (argument_count > 3) ? argument[3] : 135, down: false, pressed: false };
 +    _cell.hover = (arg1 != "away");
 +    global.gnx_ui_rects = [];
 +
@@ -23303,6 +23334,7 @@ diff -uN gml_138/gml_GlobalScript_s_gnx_harness.gml gml/gml_GlobalScript_s_gnx_h
 +    }
 +
 +    global.gnx_ui_rects = -1;
++    global.gnx_vmouse = _vm;
 +    _cell.mod_window = _win;
 +    _cell.hover = false;
 +    camera_set_view_size(_cam, _vw, _vh);

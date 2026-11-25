@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_harness.gml
 +++ gml/gml_GlobalScript_s_gnx_harness.gml
-@@ -0,0 +1,9645 @@
+@@ -0,0 +1,9649 @@
 +// GNX: scenario runner of tools/gnx_test.py (steps, asserts, probes); never used by players
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -4930,7 +4930,7 @@
 +
 +// F43: {"assert": "fn", "name": "gnx_scn_cell_label", "args": [h_type, kind]}: the name the GUI writes over the first cell of
 +// that h_type on the screen (the view moves to it) while the mouse is on it; "" = none. kind "empty", "occupied" (has a captive),
-+// "window" (empty, its window open), "away" (empty, mouse elsewhere), "edge" (empty, mostly past the screen's top left corner)
++// "window" (empty, its window open), "away" (empty, mouse elsewhere; two more args = the mouse's place in the GUI), "edge" (empty, mostly past the screen's top left corner)
 +// or "zoom" (empty, zoomed out); h_type -1 = a slot with nothing built (as one whose
 +// G.BANG 1 was removed). Adds " off screen" / " not over the cell" when it is
 +function gnx_scn_cell_label(arg0, arg1)
@@ -4979,6 +4979,9 @@
 +    if (_want == -1)
 +        _cell.slot_data.h_type = 19;
 +
++    // the mouse: arguments 2 and 3, else off the HUD (the real one may be on it)
++    var _vm = global.gnx_vmouse;
++    global.gnx_vmouse = { x: (argument_count > 3) ? argument[2] : 240, y: (argument_count > 3) ? argument[3] : 135, down: false, pressed: false };
 +    _cell.hover = (arg1 != "away");
 +    global.gnx_ui_rects = [];
 +
@@ -5011,6 +5014,7 @@
 +    }
 +
 +    global.gnx_ui_rects = -1;
++    global.gnx_vmouse = _vm;
 +    _cell.mod_window = _win;
 +    _cell.hover = false;
 +    camera_set_view_size(_cam, _vw, _vh);

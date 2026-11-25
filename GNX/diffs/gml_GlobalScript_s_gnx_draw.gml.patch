@@ -1,6 +1,6 @@
 --- gml_138/gml_GlobalScript_s_gnx_draw.gml
 +++ gml/gml_GlobalScript_s_gnx_draw.gml
-@@ -0,0 +1,1664 @@
+@@ -0,0 +1,1691 @@
 +// GNX: draw wrappers (atlas-aware SprRefs), sprite helpers
 +// (moved out of s_initials.gml; the functions are global, callable from any script)
 +
@@ -1582,8 +1582,8 @@
 +
 +// F43: the name of the cell under the mouse when no captive is in it (gnx_cell_label_text), over the top of the cell. In the
 +// GUI, so it keeps its size at every zoom and no neighbouring cell covers it; a window in front takes the mouse, and the
-+// cell is not pointed at then (the game sets and clears hover)
-+function gnx_draw_cell_label()
++// cell is not pointed at then (the game sets and clears hover). arg0: the right edge of the top bar's counters
++function gnx_draw_cell_label(arg0)
 +{
 +    var _cell = -1;
 +
@@ -1598,7 +1598,7 @@
 +
 +    var _t = gnx_cell_label_text(_cell);
 +
-+    if (_t == "")
++    if (_t == "" || gnx_mouse_on_hud(arg0))
 +        return;
 +
 +    var _cam = view_camera[0];
@@ -1615,6 +1615,33 @@
 +    draw_text_color(_x + _lp[0], _y + _lp[1], _t, c_white, c_white, c_white, c_white, 1);
 +    gnx_ui_rect("leaf", _x - _hw, _y, _x + _hw, _y + _th, "cell_name:" + _t);
 +    draw_set_font(fnt_base_font_eng);
++}
++
++
++// F43: whether the mouse is on the art scr_draw_gui draws over the nest (counters up to x arg0, food and money, portrait, clock,
++// day): it is no instance, so the game points at the cell behind it
++function gnx_mouse_on_hud(arg0)
++{
++    var _mx = gnx_mx();
++    var _my = gnx_my();
++
++    if (_mx < arg0 && _my < sprite_get_height(spr_unit_frame))
++        return true;
++
++    // sprite and place, as scr_draw_gui; the drawn size: the clock's and the day's bounding boxes are not their art's
++    var _art = [[spr_ui, 480, 0], [spr_mood_frame, 0, 0], [spr_clock, 458, 250], [spr_day, 457, 267]];
++
++    for (var i = 0; i < array_length(_art); i++)
++    {
++        var _spr = _art[i][0];
++        var _x = _mx - (_art[i][1] - sprite_get_xoffset(_spr));
++        var _y = _my - (_art[i][2] - sprite_get_yoffset(_spr));
++
++        if (_x >= 0 && _y >= 0 && _x < sprite_get_width(_spr) && _y < sprite_get_height(_spr))
++            return true;
++    }
++
++    return false;
 +}
 +
 +
